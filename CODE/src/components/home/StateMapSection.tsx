@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { MapPin, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { USMap } from "./USMap";
 
 const states = [
   { code: "AL", name: "Alabama", races: 8 },
@@ -76,6 +77,15 @@ export function StateMapSection() {
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Select your state to explore upcoming federal elections, candidate profiles, and important voting dates.
           </p>
+        </div>
+
+        {/* Interactive US Map */}
+        <div className="mb-12">
+          <USMap
+            states={states}
+            hoveredState={hoveredState}
+            onStateHover={setHoveredState}
+          />
         </div>
 
         {/* Search */}
