@@ -23,6 +23,13 @@ model Candidate {
   cycles              Int[]               // Election cycles
   electionYears       Int[]               @map("election_years")
   candidateStatus     String?             @map("candidate_status")
+
+  // Detail fields for candidate profile
+  biography           String?             @db.Text
+  currentOfficeHeld   String?             @map("current_office_held")
+  campaignWebsite     String?             @map("campaign_website")
+  socialMedia         Json?               @map("social_media") // {twitter, facebook, instagram, etc.}
+
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
