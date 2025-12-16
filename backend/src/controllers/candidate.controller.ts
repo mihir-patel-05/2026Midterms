@@ -6,10 +6,18 @@ export class CandidateController {
   /**
    * GET /api/candidates
    * Get candidates with filters and pagination
+   * Query params:
+   * - state: Filter by state (e.g., "CA", "TX")
+   * - office: Filter by office (e.g., "HOUSE", "SENATE")
+   * - party: Filter by party (e.g., "DEM", "REP")
+   * - cycle: Filter by election cycle (e.g., 2026)
+   * - page: Page number (default: 1)
+   * - perPage: Results per page (default: 50)
+   * - includeFunds: Include aggregated fundraising data (default: false)
    */
   async getCandidates(req: Request, res: Response): Promise<void> {
     try {
-      const { state, office, party, cycle, page, perPage } = req.query;
+      const { state, office, party, cycle, page, perPage, includeFunds } = req.query;
 
       const result = await candidateService.getCandidates({
         state: state as string,
@@ -18,6 +26,7 @@ export class CandidateController {
         cycle: cycle ? parseInt(cycle as string) : undefined,
         page: page ? parseInt(page as string) : undefined,
         perPage: perPage ? parseInt(perPage as string) : undefined,
+        includeFunds: includeFunds === 'true',
       });
 
       res.json(result);
