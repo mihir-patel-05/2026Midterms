@@ -1,0 +1,43 @@
+{
+  "name": "2026-midterms-backend",
+  "version": "1.0.0",
+  "description": "Backend API for 2026 Federal Midterm Elections information",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "test:fec": "tsx src/jobs/test-fec-api.ts",
+    "sync:all": "tsx src/jobs/sync-all-data.ts"
+  },
+  "keywords": [
+    "elections",
+    "fec",
+    "campaign-finance",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "axios": "^1.7.9",
+    "bottleneck": "^2.19.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.16.5",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

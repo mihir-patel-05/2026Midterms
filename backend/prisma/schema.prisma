@@ -1,0 +1,199 @@
+// Prisma schema for 2026 Midterm Elections Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Candidates running for federal office
+model Candidate {
+  id                  String              @id @default(uuid())
+  candidateId         String              @unique @map("candidate_id") // FEC candidate ID
+  name                String
+  party               String?
+  office              String              // HOUSE, SENATE
+  district            String?             // For House races
+  state               String              // Two-letter state code
+  incumbentStatus     String?             @map("incumbent_status")
+  activeThrough       Int?                @map("active_through")
+  cycles              Int[]               // Election cycles
+  electionYears       Int[]               @map("election_years")
+  candidateStatus     String?             @map("candidate_status")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  committees          Committee[]
+  candidateElections  CandidateElection[]
+  ideologyScores      IdeologyScore[]
+
+  @@index([candidateId])
+  @@index([name])
+  @@index([state])
+  @@index([party])
+  @@index([office])
+  @@map("candidates")
+}
+
+// Campaign committees
+model Committee {
+  id              String              @id @default(uuid())
+  committeeId     String              @unique @map("committee_id") // FEC committee ID
+  name            String
+  committeeType   String?             @map("committee_type")
+  designation     String?
+  candidateId     String?             @map("candidate_id")
+  party           String?
+  state           String?
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  candidate           Candidate?          @relation(fields: [candidateId], references: [candidateId])
+  financialSummaries  FinancialSummary[]
+  receipts            Receipt[]
+  disbursements       Disbursement[]
+
+  @@index([committeeId])
+  @@index([candidateId])
+  @@index([state])
+  @@map("committees")
+}
+
+// Elections (primary and general)
+model Election {
+  id              String              @id @default(uuid())
+  state           String              // Two-letter state code
+  district        String?             // For House races
+  officeType      String              @map("office_type") // HOUSE, SENATE
+  electionDate    DateTime            @map("election_date")
+  electionType    String              @map("election_type") // PRIMARY, GENERAL
+  cycle           Int                 // Election year
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  candidateElections  CandidateElection[]
+
+  @@index([state])
+  @@index([electionDate])
+  @@index([cycle])
+  @@index([officeType])
+  @@map("elections")
+}
+
+// Many-to-many relationship between candidates and elections
+model CandidateElection {
+  id              String      @id @default(uuid())
+  candidateId     String      @map("candidate_id")
+  electionId      String      @map("election_id")
+  isIncumbent     Boolean     @default(false) @map("is_incumbent")
+  result          String?     // WON, LOST, PENDING
+  votePercentage  Float?      @map("vote_percentage")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+  election    Election    @relation(fields: [electionId], references: [id])
+
+  @@unique([candidateId, electionId])
+  @@index([candidateId])
+  @@index([electionId])
+  @@map("candidate_elections")
+}
+
+// Aggregated financial summaries
+model FinancialSummary {
+  id                  String      @id @default(uuid())
+  committeeId         String      @map("committee_id")
+  cycle               Int
+  totalReceipts       Decimal     @default(0) @map("total_receipts") @db.Decimal(15, 2)
+  totalDisbursements  Decimal     @default(0) @map("total_disbursements") @db.Decimal(15, 2)
+  cashOnHand          Decimal     @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
+  debtOwed            Decimal     @default(0) @map("debt_owed") @db.Decimal(15, 2)
+  coverageEndDate     DateTime?   @map("coverage_end_date")
+  lastUpdated         DateTime    @default(now()) @map("last_updated")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@unique([committeeId, cycle])
+  @@index([committeeId])
+  @@index([cycle])
+  @@map("financial_summaries")
+}
+
+// Itemized receipts (Schedule A)
+model Receipt {
+  id                          String      @id @default(uuid())
+  committeeId                 String      @map("committee_id")
+  contributorName             String?     @map("contributor_name")
+  contributorState            String?     @map("contributor_state")
+  contributorCity             String?     @map("contributor_city")
+  contributorEmployer         String?     @map("contributor_employer")
+  contributorOccupation       String?     @map("contributor_occupation")
+  contributionReceiptAmount   Decimal     @map("contribution_receipt_amount") @db.Decimal(15, 2)
+  contributionReceiptDate     DateTime?   @map("contribution_receipt_date")
+  receiptType                 String?     @map("receipt_type")
+  imageNumber                 String?     @map("image_number")
+  createdAt                   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@index([committeeId])
+  @@index([contributorName])
+  @@index([contributionReceiptDate])
+  @@index([contributionReceiptAmount])
+  @@map("receipts")
+}
+
+// Itemized disbursements (Schedule B)
+model Disbursement {
+  id                      String      @id @default(uuid())
+  committeeId             String      @map("committee_id")
+  recipientName           String?     @map("recipient_name")
+  disbursementType        String?     @map("disbursement_type")
+  disbursementAmount      Decimal     @map("disbursement_amount") @db.Decimal(15, 2)
+  disbursementDate        DateTime?   @map("disbursement_date")
+  disbursementDescription String?     @map("disbursement_description")
+  imageNumber             String?     @map("image_number")
+  createdAt               DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@index([committeeId])
+  @@index([disbursementDate])
+  @@index([disbursementAmount])
+  @@map("disbursements")
+}
+
+// Ideology scores (GovTrack-style)
+model IdeologyScore {
+  id                  String      @id @default(uuid())
+  candidateId         String      @map("candidate_id")
+  congressSession     Int         @map("congress_session")
+  ideologyScore       Float?      @map("ideology_score")     // Left-right spectrum score
+  leadershipScore     Float?      @map("leadership_score")   // Leadership effectiveness score
+  billsSponsored      Int         @default(0) @map("bills_sponsored")
+  billsCosponsored    Int         @default(0) @map("bills_cosponsored")
+  calculatedAt        DateTime    @default(now()) @map("calculated_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+
+  @@unique([candidateId, congressSession])
+  @@index([candidateId])
+  @@index([congressSession])
+  @@map("ideology_scores")
+}
