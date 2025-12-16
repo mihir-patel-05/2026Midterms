@@ -17,8 +17,9 @@ export class CandidateService {
     cycle?: number;
     page?: number;
     perPage?: number;
-  }): Promise<PaginationResult<Candidate>> {
-    const { state, office, party, cycle, page = 1, perPage = 20 } = params;
+    includeFunds?: boolean;
+  }): Promise<PaginationResult<any>> {
+    const { state, office, party, cycle, page = 1, perPage = 50, includeFunds = false } = params;
     const { skip, take } = getPaginationParams(page, perPage);
 
     const where = {
@@ -34,11 +35,50 @@ export class CandidateService {
         skip,
         take,
         orderBy: { name: 'asc' },
+        include: includeFunds ? {
+          committees: {
+            include: {
+              financialSummaries: {
+                orderBy: { cycle: 'desc' },
+                take: 1, // Get most recent financial summary
+              },
+            },
+          },
+        } : undefined,
       }),
       prisma.candidate.count({ where }),
     ]);
 
-    return createPaginationResult(candidates, total, page, perPage);
+    // If includeFunds is true, aggregate financial data
+    let enhancedCandidates = candidates;
+    if (includeFunds) {
+      enhancedCandidates = candidates.map((candidate: any) => {
+        // Aggregate total funds raised from all committees
+        const totalFundsRaised = candidate.committees?.reduce((total: number, committee: any) => {
+          const latestSummary = committee.financialSummaries?.[0];
+          if (latestSummary?.totalReceipts) {
+            return total + Number(latestSummary.totalReceipts);
+          }
+          return total;
+        }, 0) || 0;
+
+        // Remove the nested committees data and add simplified fields
+        const { committees, ...candidateData } = candidate;
+        return {
+          ...candidateData,
+          totalFundsRaised,
+          incumbent: candidate.incumbentStatus === 'I',
+        };
+      });
+    } else {
+      // Add incumbent field for consistency
+      enhancedCandidates = candidates.map((candidate: any) => ({
+        ...candidate,
+        incumbent: candidate.incumbentStatus === 'I',
+      }));
+    }
+
+    return createPaginationResult(enhancedCandidates, total, page, perPage);
   }
 
   /**
