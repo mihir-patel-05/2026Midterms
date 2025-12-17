@@ -54,6 +54,8 @@ export default function CandidatesPage() {
   // Fetch candidates from API with funding data
   const { candidates, loading, error, refetch, pagination } = useCandidates({
     includeFunds: true,
+    // Only show candidates running in the 2026 midterms
+    cycle: 2026,
     perPage: 50,
     page: currentPage,
     state: stateFilter,

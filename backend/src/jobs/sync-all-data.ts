@@ -21,7 +21,7 @@ const SYNC_CONFIG = {
   // Offices to sync
   offices: ['S', 'H'], // S = Senate, H = House
 
-  // Cycles to sync
+  // Cycles to sync - only the 2026 midterm cycle
   cycles: [2026],
 
   // Max pages per request (to avoid rate limits)
