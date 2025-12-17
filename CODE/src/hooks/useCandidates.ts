@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { getCandidates } from '@/lib/api';
-import type { Candidate, GetCandidatesParams } from '@/types/candidate';
+import type { Candidate, GetCandidatesParams, PaginationMeta } from '@/types/candidate';
 
 /**
  * Return type for useCandidates hook
@@ -14,6 +14,7 @@ interface UseCandidatesReturn {
   candidates: Candidate[];
   loading: boolean;
   error: string | null;
+  pagination: PaginationMeta | null;
   refetch: () => void;
 }
 
@@ -40,6 +41,7 @@ export default function useCandidates(
   params?: GetCandidatesParams
 ): UseCandidatesReturn {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +54,7 @@ export default function useCandidates(
 
       const response = await getCandidates(params);
       setCandidates(response.data);
+      setPagination(response.pagination);
 
       console.log('[useCandidates] Successfully fetched', response.data.length, 'candidates');
     } catch (err) {
@@ -61,6 +64,7 @@ export default function useCandidates(
 
       // Set empty array on error
       setCandidates([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
@@ -82,6 +86,7 @@ export default function useCandidates(
         // Only update state if component is still mounted
         if (isMounted) {
           setCandidates(response.data);
+          setPagination(response.pagination);
           console.log('[useCandidates] Successfully fetched', response.data.length, 'candidates');
         }
       } catch (err) {
@@ -90,6 +95,7 @@ export default function useCandidates(
         if (isMounted) {
           setError(errorMessage);
           setCandidates([]);
+          setPagination(null);
           console.error('[useCandidates] Error fetching candidates:', errorMessage);
         }
       } finally {
@@ -120,6 +126,7 @@ export default function useCandidates(
     candidates,
     loading,
     error,
+    pagination,
     refetch: fetchCandidates,
   };
 }
