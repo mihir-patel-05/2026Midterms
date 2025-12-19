@@ -88,7 +88,11 @@ function formatLocation(candidate: Candidate): string {
   if (candidate.office === "HOUSE" && candidate.district) {
     return `${candidate.state} District ${candidate.district}`;
   }
-  return `${candidate.state} Senate`;
+  if (candidate.office === "SENATE") {
+    return `${candidate.state} Senate`;
+  }
+  // Fallback for edge cases
+  return candidate.state;
 }
 
 /**
