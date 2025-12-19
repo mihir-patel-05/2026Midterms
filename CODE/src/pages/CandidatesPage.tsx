@@ -203,7 +203,7 @@ export default function CandidatesPage() {
             </h3>
 
             {/* State Filter */}
-            <Select value={stateFilter} onValueChange={(value) => {setStateFilter(value === 'ALL' ? undefined : value); handleFilterChange()}}>
+            <Select value={stateFilter || 'ALL'} onValueChange={(value) => {setStateFilter(value === 'ALL' ? undefined : value); handleFilterChange()}}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All States" />
               </SelectTrigger>
@@ -216,7 +216,7 @@ export default function CandidatesPage() {
             </Select>
 
             {/* Office Filter */}
-            <Select value={officeFilter} onValueChange={(value) => {setOfficeFilter(value === 'ALL' ? undefined : value); handleFilterChange()}}>
+            <Select value={officeFilter || 'ALL'} onValueChange={(value) => {setOfficeFilter(value === 'ALL' ? undefined : value); handleFilterChange()}}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Offices" />
               </SelectTrigger>

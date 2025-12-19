@@ -8,6 +8,21 @@ import { getPaginationParams, createPaginationResult, PaginationResult } from '.
  */
 export class CandidateService {
   /**
+   * Normalize office value to match database format
+   * Converts 'HOUSE'/'SENATE' to 'H'/'S' and handles both formats
+   */
+  private normalizeOffice(office?: string): string | undefined {
+    if (!office) return undefined;
+    
+    const normalized = office.toUpperCase();
+    if (normalized === 'HOUSE' || normalized === 'H') return 'H';
+    if (normalized === 'SENATE' || normalized === 'S') return 'S';
+    
+    // Return as-is if it's already in the correct format
+    return normalized;
+  }
+
+  /**
    * Get candidates with filters and pagination
    */
   async getCandidates(params: {
@@ -22,9 +37,25 @@ export class CandidateService {
     const { state, office, party, cycle, page = 1, perPage = 50, includeFunds = false } = params;
     const { skip, take } = getPaginationParams(page, perPage);
 
+    // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'
+    // Also handle case where database might have both formats
+    let officeFilter: any = undefined;
+    if (office) {
+      const normalized = office.toUpperCase();
+      if (normalized === 'HOUSE' || normalized === 'H') {
+        // Query for both 'H' and 'HOUSE' to handle any existing data inconsistencies
+        officeFilter = { in: ['H', 'HOUSE'] };
+      } else if (normalized === 'SENATE' || normalized === 'S') {
+        // Query for both 'S' and 'SENATE' to handle any existing data inconsistencies
+        officeFilter = { in: ['S', 'SENATE'] };
+      } else {
+        officeFilter = normalized;
+      }
+    }
+
     const where = {
       ...(state && { state }),
-      ...(office && { office }),
+      ...(officeFilter && { office: officeFilter }),
       ...(party && { party }),
       ...(cycle && { cycles: { has: cycle } }),
     };
@@ -111,12 +142,15 @@ export class CandidateService {
    * Create or update a candidate from FEC data
    */
   async upsertCandidate(fecCandidate: FECCandidate): Promise<Candidate> {
+    // Normalize office value to 'H' or 'S' for consistency
+    const normalizedOffice = this.normalizeOffice(fecCandidate.office) || 'UNKNOWN';
+    
     return prisma.candidate.upsert({
       where: { candidateId: fecCandidate.candidate_id },
       update: {
         name: fecCandidate.name,
         party: fecCandidate.party,
-        office: fecCandidate.office || 'UNKNOWN',
+        office: normalizedOffice,
         district: fecCandidate.district,
         state: fecCandidate.state || 'US',
         incumbentStatus: fecCandidate.incumbent_challenge,
@@ -129,7 +163,7 @@ export class CandidateService {
         candidateId: fecCandidate.candidate_id,
         name: fecCandidate.name,
         party: fecCandidate.party,
-        office: fecCandidate.office || 'UNKNOWN',
+        office: normalizedOffice,
         district: fecCandidate.district,
         state: fecCandidate.state || 'US',
         incumbentStatus: fecCandidate.incumbent_challenge,
