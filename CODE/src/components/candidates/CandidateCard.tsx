@@ -85,13 +85,24 @@ function getInitials(name: string): string {
  * @returns Formatted location string
  */
 function formatLocation(candidate: Candidate): string {
-  if (candidate.office === "HOUSE" && candidate.district) {
-    return `${candidate.state} District ${candidate.district}`;
+  const office = candidate.office?.toUpperCase();
+  
+  if (office === "HOUSE") {
+    if (candidate.district) {
+      return `${candidate.state} District ${candidate.district}`;
+    }
+    return `${candidate.state} House`;
   }
-  if (candidate.office === "SENATE") {
+  
+  if (office === "SENATE") {
     return `${candidate.state} Senate`;
   }
-  // Fallback for edge cases
+  
+  // Fallback: show office type if available, otherwise just state
+  if (candidate.office) {
+    return `${candidate.state} ${candidate.office}`;
+  }
+  
   return candidate.state;
 }
 
