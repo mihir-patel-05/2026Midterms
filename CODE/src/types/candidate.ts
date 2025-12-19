@@ -124,3 +124,40 @@ export interface ApiError {
   message?: string;
   stack?: string;
 }
+
+/**
+ * Financial summary for a committee
+ */
+export interface FinancialSummary {
+  id: string;
+  committeeId: string;
+  cycle: number;
+  totalReceipts: number;
+  totalDisbursements: number;
+  cashOnHand: number;
+  debtOwed: number;
+  coverageEndDate?: string;
+  lastUpdated: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Finance data for a candidate's committee
+ */
+export interface CommitteeFinance {
+  committee: Committee;
+  summary: FinancialSummary | null;
+}
+
+/**
+ * Full finance response for a candidate
+ */
+export interface CandidateFinanceResponse {
+  candidate: {
+    id: string;
+    candidateId: string;
+    name: string;
+  };
+  finances: CommitteeFinance[];
+}
