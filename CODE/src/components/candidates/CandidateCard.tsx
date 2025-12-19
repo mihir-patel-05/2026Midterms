@@ -87,14 +87,14 @@ function getInitials(name: string): string {
 function formatLocation(candidate: Candidate): string {
   const office = candidate.office?.toUpperCase();
   
-  if (office === "HOUSE") {
+  if (office === "H") {
     if (candidate.district) {
-      return `${candidate.state} District ${candidate.district}`;
+      return `${candidate.state} District ${candidate.district} - House of Representatives`;
     }
-    return `${candidate.state} House`;
+    return `${candidate.state} House of Representatives`;
   }
   
-  if (office === "SENATE") {
+  if (office === "S") {
     return `${candidate.state} Senate`;
   }
   
