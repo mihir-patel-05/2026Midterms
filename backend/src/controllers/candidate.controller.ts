@@ -126,6 +126,33 @@ export class CandidateController {
   }
 
   /**
+   * GET /api/candidates/:id/finances/detailed
+   * Get detailed financial data including funding sources, top donors, and spending categories
+   * Automatically fetches from FEC API if data is missing or stale
+   */
+  async getCandidateDetailedFinances(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { cycle } = req.query;
+
+      const cycleNum = cycle ? parseInt(cycle as string) : 2026;
+
+      const detailedFinances = await financeService.getOrFetchDetailedFinances(id, cycleNum);
+
+      res.json(detailedFinances);
+    } catch (error: any) {
+      console.error('Error getting detailed candidate finances:', error);
+      
+      if (error.message === 'Candidate not found') {
+        res.status(404).json({ error: 'Candidate not found' });
+        return;
+      }
+      
+      res.status(500).json({ error: 'Failed to fetch detailed finances', message: error.message });
+    }
+  }
+
+  /**
    * GET /api/candidates/:id/receipts
    * Get receipts for a candidate
    */

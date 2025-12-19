@@ -6,13 +6,16 @@ const router = Router();
 // Get candidates with filters and pagination
 router.get('/', (req, res) => candidateController.getCandidates(req, res));
 
+// Get candidate by FEC candidate ID (must come before /:id to avoid conflict)
+router.get('/fec/:candidateId', (req, res) => candidateController.getCandidateByCandidateId(req, res));
+
 // Get candidate by database ID
 router.get('/:id', (req, res) => candidateController.getCandidateById(req, res));
 
-// Get candidate by FEC candidate ID
-router.get('/fec/:candidateId', (req, res) => candidateController.getCandidateByCandidateId(req, res));
+// Get detailed candidate finances (funding sources, top donors, spending categories)
+router.get('/:id/finances/detailed', (req, res) => candidateController.getCandidateDetailedFinances(req, res));
 
-// Get candidate finances
+// Get candidate finances (basic summary)
 router.get('/:id/finances', (req, res) => candidateController.getCandidateFinances(req, res));
 
 // Get candidate receipts

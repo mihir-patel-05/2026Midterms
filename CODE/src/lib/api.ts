@@ -9,6 +9,7 @@ import type {
   GetCandidatesParams,
   ApiError,
   CandidateFinanceResponse,
+  DetailedFinanceResponse,
 } from '../types/candidate';
 
 // API Base URL - defaults to localhost:3001 if not set in environment
@@ -179,6 +180,31 @@ export async function getCandidateFinances(
   const queryString = cycle ? `?cycle=${cycle}` : '';
   const endpoint = `/candidates/${id}/finances${queryString}`;
   return fetchAPI<CandidateFinanceResponse>(endpoint);
+}
+
+/**
+ * Get detailed financial data for a candidate
+ * Includes funding sources breakdown, top donors, and spending categories
+ * Automatically fetches from FEC API if data is missing
+ *
+ * @param id - Candidate UUID
+ * @param cycle - Optional election cycle (default: 2026)
+ * @returns Promise<DetailedFinanceResponse> - Detailed finance breakdown
+ * @throws Error if candidate not found (404)
+ *
+ * @example
+ * const finances = await getCandidateDetailedFinances('1502a1c0-f0e9-4aeb-b8aa-1b34fc5a7f3e');
+ */
+export async function getCandidateDetailedFinances(
+  id: string,
+  cycle: number = 2026
+): Promise<DetailedFinanceResponse> {
+  if (!id || id.trim() === '') {
+    throw new Error('Candidate ID is required');
+  }
+
+  const endpoint = `/candidates/${id}/finances/detailed?cycle=${cycle}`;
+  return fetchAPI<DetailedFinanceResponse>(endpoint);
 }
 
 /**

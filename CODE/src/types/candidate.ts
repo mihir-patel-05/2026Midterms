@@ -161,3 +161,55 @@ export interface CandidateFinanceResponse {
   };
   finances: CommitteeFinance[];
 }
+
+/**
+ * Funding source breakdown (Individual, PAC, Party, Self-funded)
+ */
+export interface FundingSource {
+  type: string;
+  amount: number;
+  percentage: number;
+}
+
+/**
+ * Top donor/contributor information
+ */
+export interface TopDonor {
+  name: string;
+  employer: string | null;
+  occupation: string | null;
+  amount: number;
+  state: string | null;
+}
+
+/**
+ * Spending category breakdown
+ */
+export interface SpendingCategory {
+  category: string;
+  amount: number;
+  percentage: number;
+}
+
+/**
+ * Detailed finance summary
+ */
+export interface DetailedFinanceSummary {
+  totalReceipts: number;
+  totalDisbursements: number;
+  cashOnHand: number;
+  debtOwed: number;
+  lastUpdated: string | null;
+}
+
+/**
+ * Full detailed finance response for a candidate
+ * Includes funding sources, top donors, and spending breakdown
+ */
+export interface DetailedFinanceResponse {
+  summary: DetailedFinanceSummary;
+  fundingSources: FundingSource[];
+  topDonors: TopDonor[];
+  spendingCategories: SpendingCategory[];
+  lastSynced: string;
+}

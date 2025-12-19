@@ -22,9 +22,13 @@ import {
   Loader2,
   AlertCircle,
   Users,
+  Wallet,
+  Receipt,
+  MapPin,
+  Briefcase,
 } from "lucide-react";
-import { getCandidateById, getCandidateFinances } from "@/lib/api";
-import type { Candidate, CandidateFinanceResponse } from "@/types/candidate";
+import { getCandidateById, getCandidateDetailedFinances } from "@/lib/api";
+import type { Candidate, DetailedFinanceResponse } from "@/types/candidate";
 
 /**
  * Format currency amount to readable string
@@ -98,13 +102,56 @@ function formatOfficeLocation(candidate: Candidate): string {
   return candidate.state;
 }
 
+/**
+ * Get color for funding source type
+ */
+function getFundingSourceColor(type: string): string {
+  switch (type) {
+    case "Individual":
+      return "bg-emerald-500";
+    case "PAC":
+      return "bg-amber-500";
+    case "Party":
+      return "bg-blue-500";
+    case "Self-funded":
+      return "bg-purple-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
+/**
+ * Get color for spending category
+ */
+function getSpendingCategoryColor(category: string): string {
+  switch (category) {
+    case "Media/Advertising":
+      return "bg-rose-500";
+    case "Fundraising":
+      return "bg-amber-500";
+    case "Operations":
+      return "bg-sky-500";
+    case "Payroll":
+      return "bg-emerald-500";
+    case "Travel":
+      return "bg-violet-500";
+    case "Consulting":
+      return "bg-indigo-500";
+    case "Events":
+      return "bg-pink-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
 export default function Candidates() {
   const { id } = useParams<{ id: string }>();
   
   // State for candidate data
   const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [finances, setFinances] = useState<CandidateFinanceResponse | null>(null);
+  const [detailedFinances, setDetailedFinances] = useState<DetailedFinanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [financesLoading, setFinancesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch candidate data when ID changes
@@ -120,41 +167,32 @@ export default function Candidates() {
         setLoading(true);
         setError(null);
 
-        // Fetch candidate details and finances in parallel
-        const [candidateData, financeData] = await Promise.all([
-          getCandidateById(id),
-          getCandidateFinances(id, 2026).catch(() => null), // Gracefully handle missing finance data
-        ]);
-
+        // First fetch candidate details
+        const candidateData = await getCandidateById(id);
         setCandidate(candidateData);
-        setFinances(financeData);
+        setLoading(false);
+
+        // Then fetch detailed finances (may take longer as it syncs from FEC)
+        setFinancesLoading(true);
+        try {
+          const financeData = await getCandidateDetailedFinances(id, 2026);
+          setDetailedFinances(financeData);
+        } catch (finErr) {
+          console.error("[Candidates] Error fetching finances:", finErr);
+          // Don't set error - finances are optional
+        } finally {
+          setFinancesLoading(false);
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load candidate";
         setError(errorMessage);
         console.error("[Candidates] Error fetching candidate:", errorMessage);
-      } finally {
         setLoading(false);
       }
     }
 
     fetchCandidateData();
   }, [id]);
-
-  // Calculate total finances from all committees
-  const totalReceipts = finances?.finances.reduce(
-    (sum, f) => sum + (f.summary?.totalReceipts || 0),
-    0
-  ) || candidate?.totalFundsRaised || 0;
-
-  const totalDisbursements = finances?.finances.reduce(
-    (sum, f) => sum + (f.summary?.totalDisbursements || 0),
-    0
-  ) || 0;
-
-  const cashOnHand = finances?.finances.reduce(
-    (sum, f) => sum + (f.summary?.cashOnHand || 0),
-    0
-  ) || 0;
 
   // Get ideology score
   const ideologyScore = candidate?.ideologyScores?.[0]?.ideologyScore;
@@ -198,6 +236,12 @@ export default function Candidates() {
 
   // Determine if candidate is incumbent
   const isIncumbent = candidate.incumbent || candidate.incumbentStatus === "I";
+
+  // Use detailed finances if available
+  const summary = detailedFinances?.summary;
+  const fundingSources = detailedFinances?.fundingSources || [];
+  const topDonors = detailedFinances?.topDonors || [];
+  const spendingCategories = detailedFinances?.spendingCategories || [];
 
   return (
     <Layout>
@@ -305,24 +349,27 @@ export default function Candidates() {
                   <h3 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
                     <DollarSign className="h-5 w-5 text-primary" />
                     Campaign Finance Summary
+                    {financesLoading && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />
+                    )}
                   </h3>
                   <dl className="space-y-3">
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Total Raised</dt>
                       <dd className="font-semibold text-foreground">
-                        {totalReceipts > 0 ? formatCurrency(totalReceipts) : "N/A"}
+                        {summary && summary.totalReceipts > 0 ? formatCurrency(summary.totalReceipts) : "N/A"}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Total Spent</dt>
                       <dd className="font-semibold text-foreground">
-                        {totalDisbursements > 0 ? formatCurrency(totalDisbursements) : "N/A"}
+                        {summary && summary.totalDisbursements > 0 ? formatCurrency(summary.totalDisbursements) : "N/A"}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Cash on Hand</dt>
                       <dd className="font-semibold text-success">
-                        {cashOnHand > 0 ? formatCurrency(cashOnHand) : "N/A"}
+                        {summary && summary.cashOnHand > 0 ? formatCurrency(summary.cashOnHand) : "N/A"}
                       </dd>
                     </div>
                   </dl>
@@ -425,102 +472,152 @@ export default function Candidates() {
 
             {/* Campaign Finance Tab */}
             <TabsContent value="funding" className="space-y-6">
-              {finances && finances.finances.length > 0 ? (
+              {financesLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">Loading financial data from FEC...</p>
+                  <p className="text-sm text-muted-foreground mt-2">This may take a moment</p>
+                </div>
+              ) : detailedFinances && (summary?.totalReceipts > 0 || fundingSources.length > 0) ? (
                 <>
-                  {finances.finances.map((committeeFin, index) => (
-                    <div key={index} className="rounded-lg border border-border bg-card p-6">
-                      <h2 className="font-heading text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
-                        <PieChart className="h-5 w-5 text-primary" />
-                        {committeeFin.committee.name}
-                      </h2>
-                      <p className="text-sm text-muted-foreground mb-6">
-                        Committee ID: {committeeFin.committee.committeeId}
+                  {/* Summary Cards */}
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                        <Receipt className="h-4 w-4" />
+                        <span className="text-sm">Total Raised</span>
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">
+                        {formatCurrency(summary?.totalReceipts || 0)}
                       </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                        <Wallet className="h-4 w-4" />
+                        <span className="text-sm">Total Spent</span>
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">
+                        {formatCurrency(summary?.totalDisbursements || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                        <DollarSign className="h-4 w-4" />
+                        <span className="text-sm">Cash on Hand</span>
+                      </div>
+                      <p className="text-2xl font-bold text-success">
+                        {formatCurrency(summary?.cashOnHand || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-card p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-sm">Debt Owed</span>
+                      </div>
+                      <p className={`text-2xl font-bold ${(summary?.debtOwed || 0) > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                        {formatCurrency(summary?.debtOwed || 0)}
+                      </p>
+                    </div>
+                  </div>
 
-                      {committeeFin.summary ? (
-                        <div className="space-y-4">
-                          {/* Finance bars */}
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium text-foreground">
-                                Total Receipts
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                {formatCurrency(committeeFin.summary.totalReceipts)}
-                              </span>
-                            </div>
-                            <Progress
-                              value={100}
-                              className="h-2"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium text-foreground">
-                                Total Disbursements
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                {formatCurrency(committeeFin.summary.totalDisbursements)}
-                              </span>
-                            </div>
-                            <Progress
-                              value={
-                                committeeFin.summary.totalReceipts > 0
-                                  ? (committeeFin.summary.totalDisbursements / committeeFin.summary.totalReceipts) * 100
-                                  : 0
-                              }
-                              className="h-2"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium text-foreground">
-                                Cash on Hand
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                {formatCurrency(committeeFin.summary.cashOnHand)}
-                              </span>
-                            </div>
-                            <Progress
-                              value={
-                                committeeFin.summary.totalReceipts > 0
-                                  ? (committeeFin.summary.cashOnHand / committeeFin.summary.totalReceipts) * 100
-                                  : 0
-                              }
-                              className="h-2"
-                            />
-                          </div>
-
-                          {committeeFin.summary.debtOwed > 0 && (
-                            <div>
-                              <div className="flex justify-between mb-1">
+                  {/* Funding Sources */}
+                  {fundingSources.length > 0 && (
+                    <div className="rounded-lg border border-border bg-card p-6">
+                      <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+                        <PieChart className="h-5 w-5 text-primary" />
+                        Funding Sources
+                      </h2>
+                      <div className="space-y-4">
+                        {fundingSources.map((source, index) => (
+                          <div key={index}>
+                            <div className="flex justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${getFundingSourceColor(source.type)}`} />
                                 <span className="text-sm font-medium text-foreground">
-                                  Debt Owed
-                                </span>
-                                <span className="text-sm text-destructive">
-                                  {formatCurrency(committeeFin.summary.debtOwed)}
+                                  {source.type}
                                 </span>
                               </div>
+                              <span className="text-sm text-muted-foreground">
+                                {formatCurrency(source.amount)} ({source.percentage}%)
+                              </span>
                             </div>
-                          )}
-
-                          <p className="mt-4 text-xs text-muted-foreground">
-                            Cycle: {committeeFin.summary.cycle} | Last updated:{" "}
-                            {new Date(committeeFin.summary.lastUpdated).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground">
-                          No financial data available for this committee.
-                        </p>
-                      )}
+                            <Progress value={source.percentage} className="h-2" />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Top Donors */}
+                  {topDonors.length > 0 && (
+                    <div className="rounded-lg border border-border bg-card p-6">
+                      <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Top Contributors
+                      </h2>
+                      <div className="space-y-3">
+                        {topDonors.map((donor, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start justify-between py-3 border-b border-border last:border-b-0"
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium text-foreground">{donor.name}</p>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-1">
+                                {donor.employer && (
+                                  <span className="flex items-center gap-1">
+                                    <Briefcase className="h-3 w-3" />
+                                    {donor.employer}
+                                  </span>
+                                )}
+                                {donor.state && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {donor.state}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="font-semibold text-foreground ml-4">
+                              {formatCurrency(donor.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Spending Categories */}
+                  {spendingCategories.length > 0 && (
+                    <div className="rounded-lg border border-border bg-card p-6">
+                      <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-primary" />
+                        Spending Breakdown
+                      </h2>
+                      <div className="space-y-4">
+                        {spendingCategories.map((category, index) => (
+                          <div key={index}>
+                            <div className="flex justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${getSpendingCategoryColor(category.category)}`} />
+                                <span className="text-sm font-medium text-foreground">
+                                  {category.category}
+                                </span>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {formatCurrency(category.amount)} ({category.percentage}%)
+                              </span>
+                            </div>
+                            <Progress value={category.percentage} className="h-2" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <p className="text-xs text-muted-foreground">
-                    Data sourced from FEC filings. Financial figures are subject to reporting schedules.
+                    Data sourced from FEC filings. Last synced: {new Date(detailedFinances.lastSynced).toLocaleDateString()}.
+                    Financial figures are subject to reporting schedules.
                   </p>
                 </>
               ) : (
@@ -530,7 +627,7 @@ export default function Candidates() {
                     No Financial Data Available
                   </h3>
                   <p className="text-muted-foreground">
-                    Campaign finance data for this candidate has not yet been reported or synced.
+                    Campaign finance data for this candidate has not yet been reported to the FEC or is being synced.
                   </p>
                 </div>
               )}
