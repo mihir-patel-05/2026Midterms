@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
-    "sync:all": "tsx src/jobs/sync-all-data.ts"
+    "sync:all": "node dist/jobs/sync-all-data.js",
+    "sync:dev": "tsx src/jobs/sync-all-data.ts"
   },
   "keywords": [
     "elections",
