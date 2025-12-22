@@ -37,6 +37,7 @@ model Candidate {
   committees          Committee[]
   candidateElections  CandidateElection[]
   ideologyScores      IdeologyScore[]
+  financials          CandidateFinancial[]
 
   @@index([candidateId])
   @@index([name])
@@ -44,6 +45,33 @@ model Candidate {
   @@index([party])
   @@index([office])
   @@map("candidates")
+}
+
+// Candidate-level financial totals (aggregated from FEC)
+model CandidateFinancial {
+  id                      String      @id @default(uuid())
+  candidateId             String      @map("candidate_id")
+  cycle                   Int
+  receipts                Decimal     @default(0) @db.Decimal(15, 2)
+  disbursements           Decimal     @default(0) @db.Decimal(15, 2)
+  cashOnHand              Decimal     @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
+  debtsOwed               Decimal     @default(0) @map("debts_owed") @db.Decimal(15, 2)
+  individualContributions Decimal     @default(0) @map("individual_contributions") @db.Decimal(15, 2)
+  pacContributions        Decimal     @default(0) @map("pac_contributions") @db.Decimal(15, 2)
+  partyContributions      Decimal     @default(0) @map("party_contributions") @db.Decimal(15, 2)
+  candidateContribution   Decimal     @default(0) @map("candidate_contribution") @db.Decimal(15, 2)
+  coverageEndDate         DateTime?   @map("coverage_end_date")
+  lastUpdated             DateTime    @default(now()) @map("last_updated")
+  createdAt               DateTime    @default(now()) @map("created_at")
+  updatedAt               DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+
+  @@unique([candidateId, cycle])
+  @@index([candidateId])
+  @@index([cycle])
+  @@map("candidate_financials")
 }
 
 // Campaign committees

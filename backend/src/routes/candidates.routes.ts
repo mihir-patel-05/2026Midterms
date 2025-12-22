@@ -24,4 +24,7 @@ router.get('/:id/receipts', (req, res) => candidateController.getCandidateReceip
 // Get candidate disbursements
 router.get('/:id/disbursements', (req, res) => candidateController.getCandidateDisbursements(req, res));
 
+// Manually sync candidate data from FEC API (for refreshing stale data)
+router.post('/:id/sync', (req, res) => candidateController.syncCandidateData(req, res));
+
 export default router;

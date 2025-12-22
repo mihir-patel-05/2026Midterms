@@ -1,10 +1,11 @@
 import { prisma } from '../config/database.js';
-import { FinancialSummary, Receipt, Disbursement } from '@prisma/client';
+import { FinancialSummary, Receipt, Disbursement, CandidateFinancial } from '@prisma/client';
 import {
   fecApiService,
   FECFinancialSummary,
   FECReceipt,
   FECDisbursement,
+  FECCandidateTotals,
 } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
 
@@ -12,6 +13,96 @@ import { getPaginationParams, createPaginationResult, PaginationResult } from '.
  * Service for managing campaign finance data
  */
 export class FinanceService {
+  /**
+   * Get candidate-level financial data
+   */
+  async getCandidateFinancials(candidateId: string, cycle?: number): Promise<CandidateFinancial | null> {
+    const where: any = { candidateId };
+    if (cycle) {
+      where.cycle = cycle;
+    }
+
+    return prisma.candidateFinancial.findFirst({
+      where,
+      orderBy: { cycle: 'desc' },
+    });
+  }
+
+  /**
+   * Sync financial data directly for a candidate from FEC API
+   * Uses the /candidate/{candidate_id}/totals/ endpoint
+   */
+  async syncCandidateFinancials(
+    fecCandidateId: string,
+    cycle?: number
+  ): Promise<{ synced: number; errors: number }> {
+    console.log(`🔄 Syncing financial data for candidate ${fecCandidateId}, cycle ${cycle || 'all'}`);
+
+    try {
+      const fecTotals = await fecApiService.getCandidateTotals(fecCandidateId, cycle);
+      console.log(`📥 Found ${fecTotals.length} financial records for candidate`);
+
+      let synced = 0;
+      let errors = 0;
+
+      for (const fecTotal of fecTotals) {
+        try {
+          await prisma.candidateFinancial.upsert({
+            where: {
+              candidateId_cycle: {
+                candidateId: fecCandidateId,
+                cycle: fecTotal.cycle,
+              },
+            },
+            update: {
+              receipts: fecTotal.receipts || 0,
+              disbursements: fecTotal.disbursements || 0,
+              cashOnHand: fecTotal.cash_on_hand_end_period || 0,
+              debtsOwed: fecTotal.debts_owed_by_committee || 0,
+              individualContributions: fecTotal.individual_contributions || 0,
+              pacContributions: fecTotal.other_political_committee_contributions || 0,
+              partyContributions: fecTotal.political_party_committee_contributions || 0,
+              candidateContribution: fecTotal.candidate_contribution || 0,
+              coverageEndDate: fecTotal.coverage_end_date
+                ? new Date(fecTotal.coverage_end_date)
+                : null,
+              lastUpdated: new Date(),
+            },
+            create: {
+              candidateId: fecCandidateId,
+              cycle: fecTotal.cycle,
+              receipts: fecTotal.receipts || 0,
+              disbursements: fecTotal.disbursements || 0,
+              cashOnHand: fecTotal.cash_on_hand_end_period || 0,
+              debtsOwed: fecTotal.debts_owed_by_committee || 0,
+              individualContributions: fecTotal.individual_contributions || 0,
+              pacContributions: fecTotal.other_political_committee_contributions || 0,
+              partyContributions: fecTotal.political_party_committee_contributions || 0,
+              candidateContribution: fecTotal.candidate_contribution || 0,
+              coverageEndDate: fecTotal.coverage_end_date
+                ? new Date(fecTotal.coverage_end_date)
+                : null,
+            },
+          });
+          synced++;
+        } catch (error) {
+          console.error(
+            `❌ Error upserting candidate financial for ${fecCandidateId}, cycle ${fecTotal.cycle}:`,
+            error
+          );
+          errors++;
+        }
+      }
+
+      console.log(`✅ Synced ${synced} candidate financial records, ${errors} errors`);
+
+      return { synced, errors };
+    } catch (error) {
+      console.error('❌ Error syncing candidate financials:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get financial summary for a committee
    */
@@ -296,8 +387,9 @@ export class FinanceService {
   }
 
   /**
-   * Get or fetch detailed financial data for a candidate
-   * Checks database first, fetches from FEC API if missing or stale
+   * Get detailed financial data for a candidate (FAST - database only)
+   * Returns cached data immediately without blocking on FEC API calls.
+   * Data is kept fresh by the scheduled sync job.
    */
   async getOrFetchDetailedFinances(candidateId: string, cycle: number = 2026): Promise<{
     summary: {
@@ -305,6 +397,10 @@ export class FinanceService {
       totalDisbursements: number;
       cashOnHand: number;
       debtOwed: number;
+      individualContributions: number;
+      pacContributions: number;
+      partyContributions: number;
+      selfFunded: number;
       lastUpdated: Date | null;
     };
     fundingSources: { type: string; amount: number; percentage: number }[];
@@ -312,11 +408,17 @@ export class FinanceService {
     spendingCategories: { category: string; amount: number; percentage: number }[];
     lastSynced: string;
   }> {
-    // Get candidate's committees
+    // Single optimized query to get all data at once
     const candidate = await prisma.candidate.findUnique({
       where: { id: candidateId },
       include: {
-        committees: true,
+        financials: {
+          where: { cycle },
+          take: 1,
+        },
+        committees: {
+          take: 1, // Only need primary committee
+        },
       },
     });
 
@@ -324,117 +426,64 @@ export class FinanceService {
       throw new Error('Candidate not found');
     }
 
-    // If no committees, try to sync them from FEC
-    if (!candidate.committees || candidate.committees.length === 0) {
-      console.log(`📥 No committees found for ${candidate.name}, fetching from FEC...`);
-      try {
-        const { candidateService } = await import('./candidate.service.js');
-        await candidateService.syncCandidateCommittees(candidate.candidateId);
-        
-        // Re-fetch candidate with committees
-        const updatedCandidate = await prisma.candidate.findUnique({
-          where: { id: candidateId },
-          include: { committees: true },
-        });
-        
-        if (updatedCandidate) {
-          candidate.committees = updatedCandidate.committees;
-        }
-      } catch (error) {
-        console.error(`❌ Failed to sync committees for ${candidate.name}:`, error);
-      }
-    }
+    const candidateFinancial = candidate.financials?.[0] || null;
 
-    // If still no committees, return empty data
-    if (!candidate.committees || candidate.committees.length === 0) {
-      return {
-        summary: {
-          totalReceipts: 0,
-          totalDisbursements: 0,
-          cashOnHand: 0,
-          debtOwed: 0,
-          lastUpdated: null,
-        },
-        fundingSources: [],
-        topDonors: [],
-        spendingCategories: [],
-        lastSynced: new Date().toISOString(),
-      };
-    }
-
-    // Get primary committee (first one)
-    const primaryCommittee = candidate.committees[0];
-    const committeeId = primaryCommittee.committeeId;
-
-    // Check if we have financial data
-    let financialSummary = await this.getFinancialSummary(committeeId, cycle);
-
-    // Check if data is stale (older than 24 hours) or missing
-    const isStale = financialSummary 
-      ? (Date.now() - new Date(financialSummary.lastUpdated).getTime()) > 24 * 60 * 60 * 1000
-      : true;
-
-    if (!financialSummary || isStale) {
-      console.log(`📥 Financial data missing or stale for ${primaryCommittee.name}, fetching from FEC...`);
-      try {
-        await this.syncFinancialSummary(committeeId, cycle);
-        financialSummary = await this.getFinancialSummary(committeeId, cycle);
-      } catch (error) {
-        console.error(`❌ Failed to sync financial summary:`, error);
-      }
-    }
-
-    // Check if we have receipt data for funding sources
-    const receiptCount = await prisma.receipt.count({ where: { committeeId } });
+    // Build funding sources from candidate-level data
+    let fundingSources: { type: string; amount: number; percentage: number }[] = [];
     
-    if (receiptCount === 0) {
-      console.log(`📥 No receipts found for ${primaryCommittee.name}, fetching from FEC...`);
-      try {
-        await this.syncReceipts({
-          committeeId,
-          twoYearTransactionPeriod: cycle,
-          maxPages: 3, // Limit to avoid rate limiting
-        });
-      } catch (error) {
-        console.error(`❌ Failed to sync receipts:`, error);
+    if (candidateFinancial) {
+      const individual = Number(candidateFinancial.individualContributions) || 0;
+      const pac = Number(candidateFinancial.pacContributions) || 0;
+      const party = Number(candidateFinancial.partyContributions) || 0;
+      const self = Number(candidateFinancial.candidateContribution) || 0;
+      const total = individual + pac + party + self;
+
+      if (total > 0) {
+        const sources = [
+          { type: 'Individual', amount: individual },
+          { type: 'PAC', amount: pac },
+          { type: 'Party', amount: party },
+          { type: 'Self-funded', amount: self },
+        ].filter(s => s.amount > 0);
+
+        fundingSources = sources.map(s => ({
+          type: s.type,
+          amount: s.amount,
+          percentage: Math.round((s.amount / total) * 100),
+        })).sort((a, b) => b.amount - a.amount);
       }
     }
 
-    // Check if we have disbursement data for spending categories
-    const disbursementCount = await prisma.disbursement.count({ where: { committeeId } });
+    // Get top donors and spending categories from primary committee (if exists)
+    let topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[] = [];
+    let spendingCategories: { category: string; amount: number; percentage: number }[] = [];
 
-    if (disbursementCount === 0) {
-      console.log(`📥 No disbursements found for ${primaryCommittee.name}, fetching from FEC...`);
-      try {
-        await this.syncDisbursements({
-          committeeId,
-          twoYearTransactionPeriod: cycle,
-          maxPages: 3, // Limit to avoid rate limiting
-        });
-      } catch (error) {
-        console.error(`❌ Failed to sync disbursements:`, error);
-      }
+    const primaryCommittee = candidate.committees?.[0];
+    
+    if (primaryCommittee) {
+      // Run both queries in parallel for speed
+      [topDonors, spendingCategories] = await Promise.all([
+        this.getTopDonors(primaryCommittee.committeeId, 10),
+        this.getSpendingCategories(primaryCommittee.committeeId),
+      ]);
     }
-
-    // Now aggregate all the data
-    const [fundingSources, topDonors, spendingCategories] = await Promise.all([
-      this.getFundingSourcesBreakdown(committeeId),
-      this.getTopDonors(committeeId, 10),
-      this.getSpendingCategories(committeeId),
-    ]);
 
     return {
       summary: {
-        totalReceipts: Number(financialSummary?.totalReceipts) || 0,
-        totalDisbursements: Number(financialSummary?.totalDisbursements) || 0,
-        cashOnHand: Number(financialSummary?.cashOnHand) || 0,
-        debtOwed: Number(financialSummary?.debtOwed) || 0,
-        lastUpdated: financialSummary?.lastUpdated || null,
+        totalReceipts: Number(candidateFinancial?.receipts) || 0,
+        totalDisbursements: Number(candidateFinancial?.disbursements) || 0,
+        cashOnHand: Number(candidateFinancial?.cashOnHand) || 0,
+        debtOwed: Number(candidateFinancial?.debtsOwed) || 0,
+        individualContributions: Number(candidateFinancial?.individualContributions) || 0,
+        pacContributions: Number(candidateFinancial?.pacContributions) || 0,
+        partyContributions: Number(candidateFinancial?.partyContributions) || 0,
+        selfFunded: Number(candidateFinancial?.candidateContribution) || 0,
+        lastUpdated: candidateFinancial?.lastUpdated || null,
       },
       fundingSources,
       topDonors,
       spendingCategories,
-      lastSynced: new Date().toISOString(),
+      lastSynced: candidateFinancial?.lastUpdated?.toISOString() || 'Not synced',
     };
   }
 

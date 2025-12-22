@@ -199,6 +199,10 @@ export interface DetailedFinanceSummary {
   totalDisbursements: number;
   cashOnHand: number;
   debtOwed: number;
+  individualContributions: number;
+  pacContributions: number;
+  partyContributions: number;
+  selfFunded: number;
   lastUpdated: string | null;
 }
 

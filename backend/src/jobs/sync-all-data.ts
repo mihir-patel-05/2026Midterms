@@ -113,9 +113,9 @@ async function syncAllData(): Promise<SyncStats> {
 
     console.log(`\n📊 Candidate Sync Summary: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors\n`);
 
-    // Step 2: Sync Committees for all candidates
+    // Step 2: Sync Candidate-Level Financial Data (direct from FEC API)
     if (SYNC_CONFIG.syncFinances) {
-      console.log('📥 STEP 2: Syncing Committees\n');
+      console.log('📥 STEP 2: Syncing Candidate Financial Data\n');
 
       // Get all candidates from the database
       const allCandidates = await prisma.candidate.findMany({
@@ -130,7 +130,31 @@ async function syncAllData(): Promise<SyncStats> {
         },
       });
 
-      console.log(`  Found ${allCandidates.length} candidates to sync committees for\n`);
+      console.log(`  Found ${allCandidates.length} candidates to sync financials for\n`);
+
+      for (const candidate of allCandidates) {
+        try {
+          for (const cycle of SYNC_CONFIG.cycles) {
+            const result = await financeService.syncCandidateFinancials(candidate.candidateId, cycle);
+            stats.financesSynced += result.synced;
+            stats.financesErrors += result.errors;
+            
+            if (result.synced > 0) {
+              console.log(`  ✅ ${candidate.name}: financial data synced`);
+            }
+          }
+
+          await sleep(500);
+        } catch (error: any) {
+          console.error(`  ❌ Error syncing financials for ${candidate.name}:`, error.message);
+          stats.financesErrors++;
+        }
+      }
+
+      console.log(`\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors\n`);
+
+      // Step 3: Sync Committees for all candidates (for detailed transaction data)
+      console.log('📥 STEP 3: Syncing Committees\n');
 
       for (const candidate of allCandidates) {
         try {
@@ -151,8 +175,8 @@ async function syncAllData(): Promise<SyncStats> {
 
       console.log(`\n📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`);
 
-      // Step 3: Sync Financial Summaries
-      console.log('📥 STEP 3: Syncing Financial Summaries\n');
+      // Step 4: Sync Receipts (limited to avoid overwhelming the database)
+      console.log('📥 STEP 4: Syncing Receipts (Sample)\n');
 
       const allCommittees = await prisma.committee.findMany({
         select: {
@@ -160,28 +184,6 @@ async function syncAllData(): Promise<SyncStats> {
           name: true,
         },
       });
-
-      console.log(`  Found ${allCommittees.length} committees to sync finances for\n`);
-
-      for (const committee of allCommittees) {
-        try {
-          for (const cycle of SYNC_CONFIG.cycles) {
-            const result = await financeService.syncFinancialSummary(committee.committeeId, cycle);
-            stats.financesSynced += result.synced;
-            stats.financesErrors += result.errors;
-          }
-
-          await sleep(500);
-        } catch (error: any) {
-          console.error(`  ❌ Error syncing finances for ${committee.name}:`, error.message);
-          stats.financesErrors++;
-        }
-      }
-
-      console.log(`\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors\n`);
-
-      // Step 4: Sync Receipts (limited to avoid overwhelming the database)
-      console.log('📥 STEP 4: Syncing Receipts (Sample)\n');
 
       // Only sync receipts for a subset of committees to avoid rate limits
       const topCommittees = allCommittees.slice(0, 10);

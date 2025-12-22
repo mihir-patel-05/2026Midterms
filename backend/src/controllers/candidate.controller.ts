@@ -240,6 +240,41 @@ export class CandidateController {
       res.status(500).json({ error: 'Failed to sync candidates', message: error.message });
     }
   }
+
+  /**
+   * POST /api/candidates/:id/sync
+   * Manually sync financial data for a single candidate from FEC API
+   * Use this to refresh stale data on-demand
+   */
+  async syncCandidateData(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { cycle } = req.query;
+      const cycleNum = cycle ? parseInt(cycle as string) : 2026;
+
+      // Get candidate
+      const candidate = await candidateService.getCandidateById(id);
+      if (!candidate) {
+        res.status(404).json({ error: 'Candidate not found' });
+        return;
+      }
+
+      // Sync candidate financials from FEC
+      const financeResult = await financeService.syncCandidateFinancials(candidate.candidateId, cycleNum);
+
+      // Sync committees
+      const committeeResult = await candidateService.syncCandidateCommittees(candidate.candidateId);
+
+      res.json({
+        message: `Synced data for ${candidate.name}`,
+        financials: financeResult,
+        committees: committeeResult,
+      });
+    } catch (error: any) {
+      console.error('Error syncing candidate data:', error);
+      res.status(500).json({ error: 'Failed to sync candidate data', message: error.message });
+    }
+  }
 }
 
 export const candidateController = new CandidateController();

@@ -24,6 +24,7 @@ export class CandidateService {
 
   /**
    * Get candidates with filters and pagination
+   * Optimized: Uses candidate-level financials (no committee joins when possible)
    */
   async getCandidates(params: {
     state?: string;
@@ -34,19 +35,16 @@ export class CandidateService {
     perPage?: number;
     includeFunds?: boolean;
   }): Promise<PaginationResult<any>> {
-    const { state, office, party, cycle, page = 1, perPage = 50, includeFunds = false } = params;
+    const { state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false } = params;
     const { skip, take } = getPaginationParams(page, perPage);
 
     // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'
-    // Also handle case where database might have both formats
     let officeFilter: any = undefined;
     if (office) {
       const normalized = office.toUpperCase();
       if (normalized === 'HOUSE' || normalized === 'H') {
-        // Query for both 'H' and 'HOUSE' to handle any existing data inconsistencies
         officeFilter = { in: ['H', 'HOUSE'] };
       } else if (normalized === 'SENATE' || normalized === 'S') {
-        // Query for both 'S' and 'SENATE' to handle any existing data inconsistencies
         officeFilter = { in: ['S', 'SENATE'] };
       } else {
         officeFilter = normalized;
@@ -60,6 +58,7 @@ export class CandidateService {
       ...(cycle && { cycles: { has: cycle } }),
     };
 
+    // Use candidate-level financials instead of committee joins (much faster)
     const [candidates, total] = await Promise.all([
       prisma.candidate.findMany({
         where,
@@ -67,47 +66,26 @@ export class CandidateService {
         take,
         orderBy: { name: 'asc' },
         include: includeFunds ? {
-          committees: {
-            include: {
-              financialSummaries: {
-                orderBy: { cycle: 'desc' },
-                take: 1, // Get most recent financial summary
-              },
-            },
+          financials: {
+            where: { cycle },
+            take: 1,
           },
         } : undefined,
       }),
       prisma.candidate.count({ where }),
     ]);
 
-    // If includeFunds is true, aggregate financial data
-    let enhancedCandidates = candidates;
-    if (includeFunds) {
-      enhancedCandidates = candidates.map((candidate: any) => {
-        // Aggregate total funds raised from all committees
-        const totalFundsRaised = candidate.committees?.reduce((total: number, committee: any) => {
-          const latestSummary = committee.financialSummaries?.[0];
-          if (latestSummary?.totalReceipts) {
-            return total + Number(latestSummary.totalReceipts);
-          }
-          return total;
-        }, 0) || 0;
-
-        // Remove the nested committees data and add simplified fields
-        const { committees, ...candidateData } = candidate;
-        return {
-          ...candidateData,
-          totalFundsRaised,
-          incumbent: candidate.incumbentStatus === 'I',
-        };
-      });
-    } else {
-      // Add incumbent field for consistency
-      enhancedCandidates = candidates.map((candidate: any) => ({
-        ...candidate,
+    // Transform candidates with financial data
+    const enhancedCandidates = candidates.map((candidate: any) => {
+      const financial = candidate.financials?.[0];
+      const { financials, ...candidateData } = candidate;
+      
+      return {
+        ...candidateData,
+        totalFundsRaised: includeFunds ? Number(financial?.receipts) || 0 : undefined,
         incumbent: candidate.incumbentStatus === 'I',
-      }));
-    }
+      };
+    });
 
     return createPaginationResult(enhancedCandidates, total, page, perPage);
   }

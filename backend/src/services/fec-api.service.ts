@@ -43,6 +43,20 @@ export interface FECFinancialSummary {
   last_debts_owed_by_committee?: number;
 }
 
+export interface FECCandidateTotals {
+  candidate_id: string;
+  cycle: number;
+  receipts?: number;
+  disbursements?: number;
+  cash_on_hand_end_period?: number;
+  debts_owed_by_committee?: number;
+  individual_contributions?: number;
+  other_political_committee_contributions?: number;
+  political_party_committee_contributions?: number;
+  candidate_contribution?: number;
+  coverage_end_date?: string;
+}
+
 export interface FECReceipt {
   committee: {
     committee_id: string;
@@ -143,6 +157,16 @@ export class FECApiService {
    */
   async getCommittees(candidateId: string): Promise<FECCommittee[]> {
     const response = await fecClient.get<FECCommittee>(`/candidate/${candidateId}/committees/`);
+    return response.data.results;
+  }
+
+  /**
+   * Get financial totals directly for a candidate (aggregated across all committees)
+   */
+  async getCandidateTotals(candidateId: string, cycle?: number): Promise<FECCandidateTotals[]> {
+    const response = await fecClient.get<FECCandidateTotals>(`/candidate/${candidateId}/totals/`, {
+      params: cycle ? { cycle } : {},
+    });
     return response.data.results;
   }
 
