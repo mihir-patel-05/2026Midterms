@@ -1,7 +1,6 @@
-# Railway Configuration for Cron Jobs
-# This file configures scheduled jobs to run on Railway
+# Railway Configuration for Backend API
+# Note: Cron jobs must be set up as separate services in the Railway dashboard
 
-# Main API Service (always running)
 [build]
 builder = "NIXPACKS"
 buildCommand = "npm install && npm run build"
@@ -11,13 +10,4 @@ startCommand = "npm start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
-
-# Cron Job: Sync FEC Data (Mon/Wed/Fri at 2 AM UTC)
-[[services]]
-name = "fec-sync-cron"
-cronSchedule = "0 2 * * 1,3,5"
-startCommand = "node dist/jobs/sync-all-data.js"
-restartPolicyType = "NEVER"
-
-# Note: Railway cron jobs run in the same environment as your main service,
-# so they will have access to the same environment variables (DATABASE_URL, FEC_API_KEY, etc.)
+restartPolicyMaxRetries = 10
