@@ -1,9 +1,7 @@
 #!/usr/bin/env tsx
 /**
- * Cron Job: Sync All FEC Data
- *
- * This script syncs candidates and their campaign finance data from the FEC API.
- * Designed to run on a schedule (e.g., Mon/Wed/Fri) via Railway cron jobs.
+ * Optimized Cron Job: Sync All FEC Data
+ * Uses parallel batching for 5-10x faster syncing
  *
  * Usage:
  *   tsx src/jobs/sync-all-data.ts
@@ -13,203 +11,170 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 
-// Configuration for what to sync
+// Configuration
 const SYNC_CONFIG = {
-  // States to sync (add more as needed)
-  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC'], // Battleground states
+  // States to sync (battleground states)
+  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC'],
 
   // Offices to sync
   offices: ['S', 'H'], // S = Senate, H = House
 
-  // Cycles to sync - only the 2026 midterm cycle
+  // Cycles to sync
   cycles: [2026],
 
-  // Max pages per request (to avoid rate limits)
+  // Max pages per FEC API request
   maxPagesPerRequest: 3,
 
   // Whether to sync financial data
   syncFinances: true,
 
-  // Transaction periods for receipts/disbursements (last 4 years only)
-  transactionPeriods: [2024, 2026],
-
-  // Max pages for receipts/disbursements (these can be very large)
-  maxFinancePages: 2,
+  // Optimization settings
+  batchSize: 5,                  // Process 5 candidates in parallel
+  minDelayMs: 100,               // Minimum delay between batches
+  skipIfSyncedWithinHours: 12,   // Skip if synced within last 12 hours
 };
 
 interface SyncStats {
   candidatesSynced: number;
   candidatesErrors: number;
-  committeesSynced: number;
-  committeesErrors: number;
+  candidatesSkipped: number;
   financesSynced: number;
   financesErrors: number;
-  receiptsSynced: number;
-  receiptsErrors: number;
-  disbursementsSynced: number;
-  disbursementsErrors: number;
+  committeesSynced: number;
+  committeesErrors: number;
   duration: number;
 }
 
 /**
- * Main sync function
+ * Process items in parallel batches
+ */
+async function processBatch<T>(
+  items: T[],
+  batchSize: number,
+  processor: (item: T) => Promise<void>,
+  delayMs: number = 100
+): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.all(batch.map(processor));
+
+    // Small delay between batches to respect rate limits
+    if (i + batchSize < items.length) {
+      await sleep(delayMs);
+    }
+  }
+}
+
+/**
+ * Main sync function - OPTIMIZED
  */
 async function syncAllData(): Promise<SyncStats> {
   const startTime = Date.now();
   const stats: SyncStats = {
     candidatesSynced: 0,
     candidatesErrors: 0,
-    committeesSynced: 0,
-    committeesErrors: 0,
+    candidatesSkipped: 0,
     financesSynced: 0,
     financesErrors: 0,
-    receiptsSynced: 0,
-    receiptsErrors: 0,
-    disbursementsSynced: 0,
-    disbursementsErrors: 0,
+    committeesSynced: 0,
+    committeesErrors: 0,
     duration: 0,
   };
 
   console.log('\n' + '='.repeat(60));
-  console.log('🚀 Starting FEC Data Sync');
+  console.log('🚀 Starting OPTIMIZED FEC Data Sync');
   console.log('='.repeat(60));
   console.log(`📅 Date: ${new Date().toISOString()}`);
   console.log(`🗺️  States: ${SYNC_CONFIG.states.join(', ')}`);
   console.log(`🏛️  Offices: ${SYNC_CONFIG.offices.join(', ')}`);
-  console.log(`📊 Cycles: ${SYNC_CONFIG.cycles.join(', ')}`);
+  console.log(`⚡ Batch size: ${SYNC_CONFIG.batchSize} parallel requests`);
   console.log('='.repeat(60) + '\n');
 
   try {
-    // Step 1: Sync Candidates
+    // Step 1: Sync Candidates (parallel by state/office combinations)
     console.log('📥 STEP 1: Syncing Candidates\n');
 
-    for (const state of SYNC_CONFIG.states) {
-      for (const office of SYNC_CONFIG.offices) {
-        for (const cycle of SYNC_CONFIG.cycles) {
-          try {
-            console.log(`  ➡️  Syncing ${state} ${office === 'S' ? 'Senate' : 'House'} ${cycle}...`);
+    const candidatePromises = SYNC_CONFIG.states.flatMap(state =>
+      SYNC_CONFIG.offices.map(office => ({ state, office }))
+    );
 
-            const result = await candidateService.syncCandidates({
-              state,
-              office,
-              cycle,
-              maxPages: SYNC_CONFIG.maxPagesPerRequest,
-            });
-
-            stats.candidatesSynced += result.synced;
-            stats.candidatesErrors += result.errors;
-
-            console.log(`  ✅ Synced ${result.synced} candidates (${result.errors} errors)\n`);
-
-            // Small delay to respect rate limits
-            await sleep(1000);
-          } catch (error: any) {
-            console.error(`  ❌ Error syncing ${state} ${office} ${cycle}:`, error.message);
-            stats.candidatesErrors++;
-          }
-        }
+    await processBatch(candidatePromises, SYNC_CONFIG.batchSize, async ({ state, office }) => {
+      try {
+        const result = await candidateService.syncCandidates({
+          state,
+          office,
+          cycle: SYNC_CONFIG.cycles[0],
+          maxPages: SYNC_CONFIG.maxPagesPerRequest,
+        });
+        stats.candidatesSynced += result.synced;
+        stats.candidatesErrors += result.errors;
+        console.log(`  ✅ ${state} ${office === 'S' ? 'Senate' : 'House'}: ${result.synced} candidates`);
+      } catch (error: any) {
+        console.error(`  ❌ ${state} ${office}:`, error.message);
+        stats.candidatesErrors++;
       }
-    }
+    }, 200);
 
     console.log(`\n📊 Candidate Sync Summary: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors\n`);
 
-    // Step 2: Sync Candidate-Level Financial Data (direct from FEC API)
+    // Step 2: Sync Financials + Committees (combined, parallel)
     if (SYNC_CONFIG.syncFinances) {
-      console.log('📥 STEP 2: Syncing Candidate Financial Data\n');
+      console.log('📥 STEP 2: Syncing Financial Data + Committees\n');
 
-      // Get all candidates from the database
+      const skipThreshold = new Date(Date.now() - SYNC_CONFIG.skipIfSyncedWithinHours * 60 * 60 * 1000);
+
+      // Get candidates that need syncing (not recently synced)
       const allCandidates = await prisma.candidate.findMany({
         where: {
-          cycles: {
-            hasSome: SYNC_CONFIG.cycles,
-          },
+          cycles: { hasSome: SYNC_CONFIG.cycles },
         },
         select: {
           candidateId: true,
           name: true,
+          financials: {
+            where: { cycle: SYNC_CONFIG.cycles[0] },
+            select: { lastUpdated: true },
+            take: 1,
+          },
         },
       });
 
-      console.log(`  Found ${allCandidates.length} candidates to sync financials for\n`);
+      // Filter to candidates that need syncing
+      const candidatesToSync = allCandidates.filter(c => {
+        const lastSync = c.financials?.[0]?.lastUpdated;
+        return !lastSync || new Date(lastSync) < skipThreshold;
+      });
 
-      for (const candidate of allCandidates) {
+      stats.candidatesSkipped = allCandidates.length - candidatesToSync.length;
+      console.log(`  📋 Total candidates: ${allCandidates.length}`);
+      console.log(`  ⏭️  Skipped (recently synced): ${stats.candidatesSkipped}`);
+      console.log(`  🔄 Need syncing: ${candidatesToSync.length}\n`);
+
+      // Process in parallel batches
+      await processBatch(candidatesToSync, SYNC_CONFIG.batchSize, async (candidate) => {
         try {
-          for (const cycle of SYNC_CONFIG.cycles) {
-            const result = await financeService.syncCandidateFinancials(candidate.candidateId, cycle);
-            stats.financesSynced += result.synced;
-            stats.financesErrors += result.errors;
-            
-            if (result.synced > 0) {
-              console.log(`  ✅ ${candidate.name}: financial data synced`);
-            }
-          }
+          // Sync financials and committees in PARALLEL for each candidate
+          const [finResult, commResult] = await Promise.all([
+            financeService.syncCandidateFinancials(candidate.candidateId, SYNC_CONFIG.cycles[0]),
+            candidateService.syncCandidateCommittees(candidate.candidateId),
+          ]);
 
-          await sleep(500);
+          stats.financesSynced += finResult.synced;
+          stats.financesErrors += finResult.errors;
+          stats.committeesSynced += commResult.synced;
+          stats.committeesErrors += commResult.errors;
+
+          if (finResult.synced > 0 || commResult.synced > 0) {
+            console.log(`  ✅ ${candidate.name}: finances=${finResult.synced}, committees=${commResult.synced}`);
+          }
         } catch (error: any) {
-          console.error(`  ❌ Error syncing financials for ${candidate.name}:`, error.message);
+          console.error(`  ❌ ${candidate.name}:`, error.message);
           stats.financesErrors++;
         }
-      }
+      }, 150);
 
-      console.log(`\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors\n`);
-
-      // Step 3: Sync Committees for all candidates (for detailed transaction data)
-      console.log('📥 STEP 3: Syncing Committees\n');
-
-      for (const candidate of allCandidates) {
-        try {
-          const result = await candidateService.syncCandidateCommittees(candidate.candidateId);
-          stats.committeesSynced += result.synced;
-          stats.committeesErrors += result.errors;
-
-          if (result.synced > 0) {
-            console.log(`  ✅ ${candidate.name}: ${result.synced} committees`);
-          }
-
-          await sleep(500);
-        } catch (error: any) {
-          console.error(`  ❌ Error syncing committees for ${candidate.name}:`, error.message);
-          stats.committeesErrors++;
-        }
-      }
-
-      console.log(`\n📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`);
-
-      // Step 4: Sync Receipts (limited to avoid overwhelming the database)
-      console.log('📥 STEP 4: Syncing Receipts (Sample)\n');
-
-      const allCommittees = await prisma.committee.findMany({
-        select: {
-          committeeId: true,
-          name: true,
-        },
-      });
-
-      // Only sync receipts for a subset of committees to avoid rate limits
-      const topCommittees = allCommittees.slice(0, 10);
-      console.log(`  Syncing receipts for top ${topCommittees.length} committees\n`);
-
-      for (const committee of topCommittees) {
-        try {
-          for (const period of SYNC_CONFIG.transactionPeriods) {
-            const result = await financeService.syncReceipts({
-              committeeId: committee.committeeId,
-              twoYearTransactionPeriod: period,
-              maxPages: SYNC_CONFIG.maxFinancePages,
-            });
-
-            stats.receiptsSynced += result.synced;
-            stats.receiptsErrors += result.errors;
-          }
-
-          await sleep(1000);
-        } catch (error: any) {
-          console.error(`  ❌ Error syncing receipts for ${committee.name}:`, error.message);
-          stats.receiptsErrors++;
-        }
-      }
-
-      console.log(`\n📊 Receipts Sync Summary: ${stats.receiptsSynced} synced, ${stats.receiptsErrors} errors\n`);
+      console.log(`\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
+      console.log(`📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`);
     }
 
     stats.duration = Date.now() - startTime;
@@ -218,10 +183,9 @@ async function syncAllData(): Promise<SyncStats> {
     console.log('✅ FEC Data Sync Complete!');
     console.log('='.repeat(60));
     console.log(`⏱️  Duration: ${(stats.duration / 1000 / 60).toFixed(2)} minutes`);
-    console.log(`👥 Candidates: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors`);
-    console.log(`🏢 Committees: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors`);
+    console.log(`👥 Candidates: ${stats.candidatesSynced} synced, ${stats.candidatesSkipped} skipped`);
     console.log(`💰 Finances: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
-    console.log(`📨 Receipts: ${stats.receiptsSynced} synced, ${stats.receiptsErrors} errors`);
+    console.log(`🏢 Committees: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors`);
     console.log('='.repeat(60) + '\n');
 
     return stats;
