@@ -1,7 +1,7 @@
-import dotenv from 'dotenv';
+import { config } from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+config();
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
