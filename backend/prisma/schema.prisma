@@ -232,3 +232,25 @@ model IdeologyScore {
   @@index([congressSession])
   @@map("ideology_scores")
 }
+
+// Sync logs for tracking data synchronization jobs
+model SyncLog {
+  id                  String      @id @default(uuid())
+  syncType            String      @map("sync_type")       // "candidates", "finance", "full", "committees"
+  status              String                              // "started", "running", "completed", "failed"
+  recordsProcessed    Int         @default(0) @map("records_processed")
+  recordsErrors       Int         @default(0) @map("records_errors")
+  recordsSkipped      Int         @default(0) @map("records_skipped")
+  errorMessage        String?     @map("error_message") @db.Text
+  metadata            Json?                               // Additional sync details (states, cycles, etc.)
+  startedAt           DateTime    @default(now()) @map("started_at")
+  completedAt         DateTime?   @map("completed_at")
+  duration            Int?                                // Duration in milliseconds
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([syncType])
+  @@index([status])
+  @@index([startedAt])
+  @@map("sync_logs")
+}

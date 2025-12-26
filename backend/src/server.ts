@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
 import routes from './routes/index.js';
+import { initializeScheduler } from './jobs/scheduler.js';
 
 const app: Application = express();
 
@@ -81,6 +82,9 @@ const startServer = async () => {
     // Test database connection
     await prisma.$connect();
     console.log('✅ Database connected successfully');
+
+    // Initialize scheduled jobs
+    initializeScheduler();
 
     const port = env.PORT;
     app.listen(port, () => {

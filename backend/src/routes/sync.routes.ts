@@ -4,6 +4,7 @@ import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
+import { triggerManualSync } from '../jobs/scheduler.js';
 
 const router = Router();
 
@@ -17,11 +18,42 @@ const SYNC_CONFIG = {
 };
 
 /**
- * POST /api/sync/all
- * Trigger a full sync of all candidates and their financial data.
+ * POST /api/sync/full
+ * Trigger a full sync of all candidates and their financial data (same as scheduler runs).
  * Protected by SYNC_API_KEY environment variable.
  * 
- * Usage: curl -X POST https://your-api.com/api/sync/all -H "x-sync-key: YOUR_KEY"
+ * Usage: curl -X POST http://localhost:3001/api/sync/full -H "x-sync-key: YOUR_KEY"
+ */
+router.post('/full', async (req, res) => {
+  try {
+    // Check for sync API key (optional security)
+    const syncKey = req.headers['x-sync-key'] as string;
+    const expectedKey = process.env.SYNC_API_KEY;
+    
+    if (expectedKey && syncKey !== expectedKey) {
+      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
+      return;
+    }
+
+    // Trigger the same sync that the scheduler runs
+    await triggerManualSync();
+
+    res.json({
+      message: 'Full sync completed successfully',
+      note: 'Check console logs for detailed progress',
+    });
+  } catch (error: any) {
+    console.error('Error in full sync:', error);
+    res.status(500).json({ 
+      error: 'Failed to complete sync', 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/sync/all
+ * Legacy endpoint - redirects to /api/sync/full
  */
 router.post('/all', async (req, res) => {
   try {
@@ -212,6 +244,104 @@ router.post('/disbursements/:committeeId', async (req, res) => {
   } catch (error: any) {
     console.error('Error syncing disbursements:', error);
     res.status(500).json({ error: 'Failed to sync disbursements', message: error.message });
+  }
+});
+
+/**
+ * GET /api/sync/status
+ * Get the status of recent sync jobs
+ * 
+ * Query params:
+ *   - limit: Number of sync logs to return (default: 10)
+ *   - syncType: Filter by sync type (candidates, finance, full, committees)
+ */
+router.get('/status', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const syncType = req.query.syncType as string;
+
+    const syncLogs = await prisma.syncLog.findMany({
+      where: syncType ? { syncType } : undefined,
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        syncType: true,
+        status: true,
+        recordsProcessed: true,
+        recordsErrors: true,
+        recordsSkipped: true,
+        errorMessage: true,
+        startedAt: true,
+        completedAt: true,
+        duration: true,
+        metadata: true,
+      },
+    });
+
+    // Get summary stats
+    const totalSyncs = await prisma.syncLog.count();
+    const completedSyncs = await prisma.syncLog.count({
+      where: { status: 'completed' },
+    });
+    const failedSyncs = await prisma.syncLog.count({
+      where: { status: 'failed' },
+    });
+
+    // Get last successful sync
+    const lastSuccessfulSync = await prisma.syncLog.findFirst({
+      where: { status: 'completed' },
+      orderBy: { completedAt: 'desc' },
+      select: {
+        syncType: true,
+        completedAt: true,
+        recordsProcessed: true,
+        duration: true,
+      },
+    });
+
+    res.json({
+      summary: {
+        totalSyncs,
+        completedSyncs,
+        failedSyncs,
+        lastSuccessfulSync,
+      },
+      recentSyncs: syncLogs,
+    });
+  } catch (error: any) {
+    console.error('Error fetching sync status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch sync status', 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/sync/logs/:id
+ * Get detailed information about a specific sync log
+ */
+router.get('/logs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const syncLog = await prisma.syncLog.findUnique({
+      where: { id },
+    });
+
+    if (!syncLog) {
+      res.status(404).json({ error: 'Sync log not found' });
+      return;
+    }
+
+    res.json(syncLog);
+  } catch (error: any) {
+    console.error('Error fetching sync log:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch sync log', 
+      message: error.message 
+    });
   }
 });
 
