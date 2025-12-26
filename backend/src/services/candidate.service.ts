@@ -65,12 +65,18 @@ export class CandidateService {
         skip,
         take,
         orderBy: { name: 'asc' },
-        include: includeFunds ? {
-          financials: {
-            where: { cycle },
-            take: 1,
+        include: {
+          ...(includeFunds ? {
+            financials: {
+              where: { cycle },
+              take: 1,
+            },
+          } : {}),
+          ideologyScores: {
+            orderBy: { congressSession: 'desc' },
+            take: 1, // Get the latest ideology score
           },
-        } : undefined,
+        },
       }),
       prisma.candidate.count({ where }),
     ]);

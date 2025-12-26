@@ -307,7 +307,7 @@ export default function CandidatesPage() {
                   <CandidateCard
                     key={candidate.id}
                     candidate={candidate}
-                    showIdeologyScore={false}
+                    showIdeologyScore={true}
                   />
                 ))}
               </div>
