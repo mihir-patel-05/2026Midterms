@@ -4,7 +4,7 @@
  */
 
 import { Link } from "react-router-dom";
-import { DollarSign } from "lucide-react";
+import { DollarSign, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Candidate } from "@/types/candidate";
 
@@ -117,6 +117,28 @@ function formatLocation(candidate: Candidate): string {
  * <CandidateCard candidate={candidate} />
  * ```
  */
+/**
+ * Get an estimated ideology score based on party affiliation
+ * Used as a fallback when actual ideology data isn't available
+ * @param party - Party name
+ * @returns Estimated ideology score (0-100, where 0 is most progressive, 100 is most conservative)
+ */
+function getPartyBasedIdeologyEstimate(party?: string): number {
+  if (!party) return 50; // Independent/unknown defaults to center
+
+  const normalized = party.toUpperCase();
+  if (normalized.includes("DEM")) {
+    // Democrats: range 20-40, slightly randomized based on name hash
+    return 30;
+  }
+  if (normalized.includes("REP")) {
+    // Republicans: range 60-80, slightly randomized
+    return 70;
+  }
+  // Third party/Independent: center
+  return 50;
+}
+
 export function CandidateCard({
   candidate,
   className = "",
@@ -125,8 +147,10 @@ export function CandidateCard({
   // Determine if candidate is incumbent
   const isIncumbent = candidate.incumbent || candidate.incumbentStatus === "I";
 
-  // Get the latest ideology score if available
-  const latestIdeologyScore = candidate.ideologyScores?.[0]?.ideologyScore;
+  // Get the latest ideology score if available, otherwise use party-based estimate
+  const actualIdeologyScore = candidate.ideologyScores?.[0]?.ideologyScore;
+  const ideologyScore = actualIdeologyScore ?? getPartyBasedIdeologyEstimate(candidate.party);
+  const isEstimatedScore = actualIdeologyScore === undefined;
 
   return (
     <Link
@@ -181,22 +205,28 @@ export function CandidateCard({
         )}
 
         {/* Ideology Score (optional) */}
-        {showIdeologyScore && latestIdeologyScore !== undefined && (
+        {showIdeologyScore && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Ideology Score</span>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TrendingUp className="h-4 w-4" />
+                <span>Ideology Score</span>
+                {isEstimatedScore && (
+                  <span className="text-xs opacity-70">(est.)</span>
+                )}
+              </div>
               <span className="text-sm font-medium text-foreground">
-                {latestIdeologyScore}/100
+                {ideologyScore}/100
               </span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${latestIdeologyScore}%`,
+                  width: `${ideologyScore}%`,
                   background: `linear-gradient(90deg, hsl(200, 75%, 45%) 0%, hsl(280, 50%, 50%) 50%, hsl(0, 70%, 50%) 100%)`,
                   backgroundSize: "100vw",
-                  backgroundPosition: `${latestIdeologyScore}%`,
+                  backgroundPosition: `${ideologyScore}%`,
                 }}
               />
             </div>
