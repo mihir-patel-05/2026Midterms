@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -33,13 +33,13 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "node-cron": "^4.2.1",
+    "prisma": "^6.1.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.16.5",
-    "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   }
