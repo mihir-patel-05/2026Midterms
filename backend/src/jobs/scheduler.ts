@@ -218,9 +218,9 @@ async function runScheduledSync(): Promise<void> {
         completedAt: new Date(),
         duration: stats.duration,
         metadata: {
-          ...syncLog.metadata,
+          ...(syncLog.metadata as Record<string, any>),
           stats,
-        },
+        } as any,
       },
     });
 
@@ -285,14 +285,12 @@ export function initializeScheduler(): void {
       }
     },
     {
-      scheduled: true,
       timezone: 'America/New_York', // Adjust to your timezone
     }
   );
 
   console.log('⏰ FEC Data Sync Scheduler initialized');
-  console.log(`📅 Schedule: Every Sunday at 2:00 AM EST`);
-  console.log(`🔄 Next run: ${scheduledTask.nextDates().toJSDate()}\n`);
+  console.log(`📅 Schedule: Every Sunday at 2:00 AM EST\n`);
 }
 
 /**
