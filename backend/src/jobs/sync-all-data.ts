@@ -14,8 +14,14 @@ import { electionService } from '../services/election.service.js';
 
 // Configuration
 const SYNC_CONFIG = {
-  // States to sync (battleground states)
-  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC'],
+  // States to sync (all 50 US states)
+  states: [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+  ],
 
   // Offices to sync
   offices: ['S', 'H'], // S = Senate, H = House
