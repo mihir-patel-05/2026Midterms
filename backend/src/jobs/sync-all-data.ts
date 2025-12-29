@@ -10,6 +10,7 @@
 import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
+import { electionService } from '../services/election.service.js';
 
 // Configuration
 const SYNC_CONFIG = {
@@ -42,6 +43,9 @@ interface SyncStats {
   financesErrors: number;
   committeesSynced: number;
   committeesErrors: number;
+  electionsGenerated: number;
+  candidateLinksCreated: number;
+  electionsErrors: number;
   duration: number;
 }
 
@@ -78,6 +82,9 @@ async function syncAllData(): Promise<SyncStats> {
     financesErrors: 0,
     committeesSynced: 0,
     committeesErrors: 0,
+    electionsGenerated: 0,
+    candidateLinksCreated: 0,
+    electionsErrors: 0,
     duration: 0,
   };
 
@@ -177,6 +184,21 @@ async function syncAllData(): Promise<SyncStats> {
       console.log(`📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`);
     }
 
+    // Step 3: Generate Elections from Candidate Data
+    console.log('📥 STEP 3: Generating Elections from Candidates\n');
+
+    try {
+      const electionResult = await electionService.generateElections(SYNC_CONFIG.cycles[0]);
+      stats.electionsGenerated = electionResult.electionsCreated;
+      stats.candidateLinksCreated = electionResult.candidateLinksCreated;
+      stats.electionsErrors = electionResult.errors;
+    } catch (error: any) {
+      console.error('  ❌ Election generation failed:', error.message);
+      stats.electionsErrors++;
+    }
+
+    console.log(`\n📊 Elections Summary: ${stats.electionsGenerated} created, ${stats.candidateLinksCreated} candidate links, ${stats.electionsErrors} errors\n`);
+
     stats.duration = Date.now() - startTime;
 
     console.log('\n' + '='.repeat(60));
@@ -186,6 +208,7 @@ async function syncAllData(): Promise<SyncStats> {
     console.log(`👥 Candidates: ${stats.candidatesSynced} synced, ${stats.candidatesSkipped} skipped`);
     console.log(`💰 Finances: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
     console.log(`🏢 Committees: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors`);
+    console.log(`🗳️  Elections: ${stats.electionsGenerated} created, ${stats.candidateLinksCreated} candidate links`);
     console.log('='.repeat(60) + '\n');
 
     return stats;

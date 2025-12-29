@@ -226,6 +226,148 @@ export class ElectionService {
 
     return election;
   }
+
+  /**
+   * Generate elections from existing candidate data
+   * Creates Election records for each unique (state, office, district) combination
+   * and links candidates to their elections via CandidateElection records
+   */
+  async generateElections(cycle: number = 2026): Promise<{
+    electionsCreated: number;
+    candidateLinksCreated: number;
+    errors: number;
+  }> {
+    console.log(`\n🗳️  Generating elections for cycle ${cycle}...`);
+
+    const stats = {
+      electionsCreated: 0,
+      candidateLinksCreated: 0,
+      errors: 0,
+    };
+
+    try {
+      // Get all candidates for this cycle
+      const candidates = await prisma.candidate.findMany({
+        where: {
+          cycles: { has: cycle },
+        },
+        select: {
+          candidateId: true,
+          name: true,
+          state: true,
+          office: true,
+          district: true,
+          incumbentStatus: true,
+        },
+      });
+
+      console.log(`  📋 Found ${candidates.length} candidates for cycle ${cycle}`);
+
+      // Group candidates by race (state + office + district)
+      const races: Record<string, {
+        state: string;
+        officeType: string;
+        district: string | null;
+        candidates: typeof candidates;
+      }> = {};
+
+      for (const candidate of candidates) {
+        // Normalize office to SENATE/HOUSE
+        const officeType = candidate.office?.toUpperCase() === 'S' ? 'SENATE' : 'HOUSE';
+        const district = officeType === 'HOUSE' ? candidate.district : null;
+        const key = `${candidate.state}-${officeType}-${district || 'statewide'}`;
+
+        if (!races[key]) {
+          races[key] = {
+            state: candidate.state,
+            officeType,
+            district,
+            candidates: [],
+          };
+        }
+        races[key].candidates.push(candidate);
+      }
+
+      console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
+
+      // General election date: First Tuesday after first Monday in November
+      const generalElectionDate = new Date('2026-11-03');
+
+      // Create elections and link candidates
+      for (const [raceKey, race] of Object.entries(races)) {
+        try {
+          // Find or create the election
+          let election = await prisma.election.findFirst({
+            where: {
+              state: race.state,
+              officeType: race.officeType,
+              district: race.district,
+              cycle,
+              electionType: 'GENERAL',
+            },
+          });
+
+          if (!election) {
+            election = await prisma.election.create({
+              data: {
+                state: race.state,
+                officeType: race.officeType,
+                district: race.district,
+                cycle,
+                electionType: 'GENERAL',
+                electionDate: generalElectionDate,
+              },
+            });
+            stats.electionsCreated++;
+            console.log(`  ✅ Created election: ${race.state} ${race.officeType}${race.district ? ` District ${race.district}` : ''}`);
+          }
+
+          // Link candidates to this election
+          for (const candidate of race.candidates) {
+            try {
+              // Check if link already exists
+              const existingLink = await prisma.candidateElection.findUnique({
+                where: {
+                  candidateId_electionId: {
+                    candidateId: candidate.candidateId,
+                    electionId: election.id,
+                  },
+                },
+              });
+
+              if (!existingLink) {
+                await prisma.candidateElection.create({
+                  data: {
+                    candidateId: candidate.candidateId,
+                    electionId: election.id,
+                    isIncumbent: candidate.incumbentStatus === 'I',
+                    result: 'PENDING',
+                  },
+                });
+                stats.candidateLinksCreated++;
+              }
+            } catch (linkError: any) {
+              console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
+              stats.errors++;
+            }
+          }
+        } catch (electionError: any) {
+          console.error(`  ❌ Error creating election for ${raceKey}:`, electionError.message);
+          stats.errors++;
+        }
+      }
+
+      console.log(`\n📊 Election Generation Summary:`);
+      console.log(`   Elections created: ${stats.electionsCreated}`);
+      console.log(`   Candidate links created: ${stats.candidateLinksCreated}`);
+      console.log(`   Errors: ${stats.errors}`);
+
+      return stats;
+    } catch (error: any) {
+      console.error('❌ Fatal error generating elections:', error.message);
+      throw error;
+    }
+  }
 }
 
 export const electionService = new ElectionService();

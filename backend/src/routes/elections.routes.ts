@@ -15,6 +15,9 @@ router.get('/', (req, res) => electionController.getElections(req, res));
 // Get election by ID
 router.get('/:id', (req, res) => electionController.getElectionById(req, res));
 
+// Generate elections from candidate data
+router.post('/generate', (req, res) => electionController.generateElections(req, res));
+
 // Create a new election
 router.post('/', (req, res) => electionController.createElection(req, res));
 

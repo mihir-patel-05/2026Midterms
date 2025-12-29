@@ -189,6 +189,31 @@ export class ElectionController {
       res.status(500).json({ error: 'Failed to delete election', message: error.message });
     }
   }
+
+  /**
+   * POST /api/elections/generate
+   * Generate elections from existing candidate data
+   * Creates Election records for each unique race and links candidates
+   */
+  async generateElections(req: Request, res: Response): Promise<void> {
+    try {
+      const { cycle } = req.query;
+      const cycleNum = cycle ? parseInt(cycle as string) : 2026;
+
+      console.log(`🗳️  Starting election generation for cycle ${cycleNum}...`);
+
+      const result = await electionService.generateElections(cycleNum);
+
+      res.json({
+        message: `Successfully generated elections for cycle ${cycleNum}`,
+        cycle: cycleNum,
+        ...result,
+      });
+    } catch (error: any) {
+      console.error('Error generating elections:', error);
+      res.status(500).json({ error: 'Failed to generate elections', message: error.message });
+    }
+  }
 }
 
 export const electionController = new ElectionController();
