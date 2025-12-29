@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import candidatesRoutes from './candidates.routes.js';
 import syncRoutes from './sync.routes.js';
+import electionsRoutes from './elections.routes.js';
 import { prisma } from '../config/database.js';
 
 const router = Router();
@@ -8,6 +9,7 @@ const router = Router();
 // Mount routes
 router.use('/candidates', candidatesRoutes);
 router.use('/sync', syncRoutes);
+router.use('/elections', electionsRoutes);
 
 // Health check endpoint
 router.get('/health', async (_req, res) => {

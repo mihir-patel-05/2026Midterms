@@ -217,3 +217,89 @@ export interface DetailedFinanceResponse {
   spendingCategories: SpendingCategory[];
   lastSynced: string;
 }
+
+/**
+ * Election information
+ */
+export interface Election {
+  id: string;
+  state: string;
+  district?: string;
+  officeType: string; // "HOUSE" | "SENATE"
+  electionDate: string;
+  electionType: string; // "PRIMARY" | "GENERAL"
+  cycle: number;
+  createdAt: string;
+  updatedAt: string;
+
+  // Relations (optional)
+  candidateElections?: CandidateElection[];
+  _count?: {
+    candidateElections: number;
+  };
+}
+
+/**
+ * Candidate-Election relationship
+ */
+export interface CandidateElection {
+  id: string;
+  candidateId: string;
+  electionId: string;
+  isIncumbent: boolean;
+  result?: string; // "WON" | "LOST" | "PENDING"
+  votePercentage?: number;
+  createdAt: string;
+  updatedAt: string;
+
+  // Relations (optional)
+  candidate?: Candidate;
+  election?: Election;
+}
+
+/**
+ * Paginated response wrapper for elections list
+ */
+export interface ElectionsResponse {
+  data: Election[];
+  pagination: PaginationMeta;
+}
+
+/**
+ * State election count for map visualization
+ */
+export interface StateElectionCount {
+  state: string;
+  races: number;
+}
+
+/**
+ * State election counts response
+ */
+export interface StateElectionCountsResponse {
+  cycle: number;
+  states: StateElectionCount[];
+}
+
+/**
+ * State elections response
+ */
+export interface StateElectionsResponse {
+  state: string;
+  cycle: number;
+  elections: Election[];
+  count: number;
+}
+
+/**
+ * Query parameters for getElections
+ */
+export interface GetElectionsParams {
+  state?: string;
+  district?: string;
+  officeType?: string;
+  electionType?: string;
+  cycle?: number;
+  page?: number;
+  perPage?: number;
+}

@@ -10,6 +10,11 @@ import type {
   ApiError,
   CandidateFinanceResponse,
   DetailedFinanceResponse,
+  Election,
+  ElectionsResponse,
+  GetElectionsParams,
+  StateElectionCountsResponse,
+  StateElectionsResponse,
 } from '../types/candidate';
 
 // API Base URL - defaults to localhost:3001 if not set in environment
@@ -218,6 +223,94 @@ export async function checkApiHealth(): Promise<{
   service: string;
 }> {
   return fetchAPI('/health');
+}
+
+// ============================================================================
+// ELECTIONS API
+// ============================================================================
+
+/**
+ * Get all elections with optional filters
+ * @param params - Filter and pagination parameters
+ * @returns Paginated elections response
+ * @example
+ * ```ts
+ * const { data, pagination } = await getElections({ state: 'CA', cycle: 2026 });
+ * ```
+ */
+export async function getElections(
+  params?: GetElectionsParams
+): Promise<ElectionsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.state) queryParams.append('state', params.state);
+  if (params?.district) queryParams.append('district', params.district);
+  if (params?.officeType) queryParams.append('officeType', params.officeType);
+  if (params?.electionType) queryParams.append('electionType', params.electionType);
+  if (params?.cycle) queryParams.append('cycle', params.cycle.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.perPage) queryParams.append('perPage', params.perPage.toString());
+
+  const url = `/elections${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  return fetchAPI(url);
+}
+
+/**
+ * Get elections for a specific state
+ * @param state - Two-letter state code (e.g., 'CA', 'TX')
+ * @param cycle - Election cycle year (default: 2026)
+ * @returns State elections response with list of elections
+ * @example
+ * ```ts
+ * const { state, elections, count } = await getElectionsByState('CA', 2026);
+ * ```
+ */
+export async function getElectionsByState(
+  state: string,
+  cycle?: number
+): Promise<StateElectionsResponse> {
+  const queryParams = new URLSearchParams();
+  if (cycle) queryParams.append('cycle', cycle.toString());
+
+  const url = `/elections/states/${state.toUpperCase()}${
+    queryParams.toString() ? `?${queryParams.toString()}` : ''
+  }`;
+  return fetchAPI(url);
+}
+
+/**
+ * Get race counts by state for map visualization
+ * @param cycle - Election cycle year (default: 2026)
+ * @returns Array of state codes with race counts
+ * @example
+ * ```ts
+ * const { cycle, states } = await getStateElectionCounts(2026);
+ * // states = [{ state: 'CA', races: 54 }, { state: 'TX', races: 38 }, ...]
+ * ```
+ */
+export async function getStateElectionCounts(
+  cycle?: number
+): Promise<StateElectionCountsResponse> {
+  const queryParams = new URLSearchParams();
+  if (cycle) queryParams.append('cycle', cycle.toString());
+
+  const url = `/elections/states/counts${
+    queryParams.toString() ? `?${queryParams.toString()}` : ''
+  }`;
+  return fetchAPI(url);
+}
+
+/**
+ * Get a single election by ID
+ * @param id - Election ID
+ * @returns Election details with candidates
+ * @example
+ * ```ts
+ * const election = await getElectionById('abc123');
+ * ```
+ */
+export async function getElectionById(id: string): Promise<Election> {
+  return fetchAPI(`/elections/${id}`);
 }
 
 // Export API base URL for reference
