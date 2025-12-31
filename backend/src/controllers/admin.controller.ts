@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
-import { financeService } from '../services/finance.service.js';
 import { electionService } from '../services/election.service.js';
 import bcrypt from 'bcrypt';
 
