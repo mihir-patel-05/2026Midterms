@@ -7,6 +7,12 @@ import { electionService } from '../services/election.service.js';
 // Get admin password from environment
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// Log admin password configuration at startup (only show length and source for security)
+console.log('🔐 Admin authentication configured:');
+console.log('  - Password source:', process.env.ADMIN_PASSWORD ? 'environment variable' : 'default fallback');
+console.log('  - Password length:', ADMIN_PASSWORD.length);
+console.log('  - Password value:', ADMIN_PASSWORD); // Remove this line in production!
+
 /**
  * Middleware to verify admin authentication
  */
@@ -28,12 +34,20 @@ export class AdminController {
    */
   async verifyPassword(req: Request, res: Response): Promise<void> {
     const { password } = req.body;
-    
+
     if (!password) {
       res.status(400).json({ error: 'Password required' });
       return;
     }
-    
+
+    // Debug logging
+    console.log('🔍 Admin password verification attempt:');
+    console.log('  - Received password length:', password.length);
+    console.log('  - Expected password length:', ADMIN_PASSWORD.length);
+    console.log('  - Received password (trimmed):', password.trim());
+    console.log('  - Expected password:', ADMIN_PASSWORD);
+    console.log('  - Match:', password === ADMIN_PASSWORD);
+
     if (password === ADMIN_PASSWORD) {
       res.json({ success: true, message: 'Authentication successful' });
     } else {
