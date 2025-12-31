@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Create Admin User Script
- * Usage: npm run admin:create
+ * Usage: tsx src/jobs/create-admin.ts
  */
 
 import { prisma } from '../config/database.js';
@@ -38,7 +38,6 @@ async function createAdminUser() {
     console.log('   Password: AndarAkshardham2025*');
     console.log('   User ID:', admin.id);
     console.log('   Active:', admin.isActive);
-    console.log('\n📝 Use these credentials to log into the admin dashboard');
     
     await prisma.$disconnect();
     process.exit(0);
@@ -50,3 +49,4 @@ async function createAdminUser() {
 }
 
 createAdminUser();
+
