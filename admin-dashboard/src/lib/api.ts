@@ -97,13 +97,13 @@ class AdminAPI {
     return response.json();
   }
 
-  async verifyPassword(password: string): Promise<boolean> {
+  async verifyPassword(username: string, password: string): Promise<boolean> {
     try {
-      await this.fetch('/verify', {
+      const response = await this.fetch<{ success: boolean; token: string }>('/verify', {
         method: 'POST',
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
-      this.setAdminKey(password);
+      this.setAdminKey(response.token);
       return true;
     } catch {
       return false;

@@ -15,7 +15,8 @@
     "prisma:studio": "prisma studio",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
-    "sync:dev": "tsx src/jobs/sync-all-data.ts"
+    "sync:dev": "tsx src/jobs/sync-all-data.ts",
+    "admin:create": "tsx src/scripts/create-admin.ts"
   },
   "keywords": [
     "elections",
@@ -27,8 +28,10 @@
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/node-cron": "^3.0.11",
     "axios": "^1.7.9",
+    "bcrypt": "^6.0.0",
     "bottleneck": "^2.19.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Lock, AlertCircle } from 'lucide-react';
 
 interface PasswordGateProps {
-  onLogin: (password: string) => Promise<boolean>;
+  onLogin: (username: string, password: string) => Promise<boolean>;
 }
 
 export default function PasswordGate({ onLogin }: PasswordGateProps) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,9 +17,9 @@ export default function PasswordGate({ onLogin }: PasswordGateProps) {
     setIsLoading(true);
 
     try {
-      const success = await onLogin(password);
+      const success = await onLogin(username, password);
       if (!success) {
-        setError('Invalid password');
+        setError('Invalid credentials');
         setPassword('');
       }
     } catch {
@@ -46,9 +47,25 @@ export default function PasswordGate({ onLogin }: PasswordGateProps) {
           </p>
 
           <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter username"
+                required
+                autoFocus
+              />
+            </div>
+
             <div className="mb-6">
               <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                Admin Password
+                Password
               </label>
               <input
                 type="password"
@@ -56,9 +73,8 @@ export default function PasswordGate({ onLogin }: PasswordGateProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter admin password"
+                placeholder="Enter password"
                 required
-                autoFocus
               />
             </div>
 

@@ -254,3 +254,19 @@ model SyncLog {
   @@index([startedAt])
   @@map("sync_logs")
 }
+
+// Admin users for dashboard authentication
+model AdminUser {
+  id              String      @id @default(uuid())
+  username        String      @unique
+  passwordHash    String      @map("password_hash")
+  email           String?     @unique
+  isActive        Boolean     @default(true) @map("is_active")
+  lastLoginAt     DateTime?   @map("last_login_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([username])
+  @@index([email])
+  @@map("admin_users")
+}

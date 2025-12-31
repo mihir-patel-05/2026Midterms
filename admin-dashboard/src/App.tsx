@@ -24,8 +24,8 @@ function App() {
     }
   }, []);
 
-  const handleLogin = async (password: string): Promise<boolean> => {
-    const success = await adminAPI.verifyPassword(password);
+  const handleLogin = async (username: string, password: string): Promise<boolean> => {
+    const success = await adminAPI.verifyPassword(username, password);
     if (success) {
       setIsAuthenticated(true);
     }

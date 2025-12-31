@@ -3,55 +3,115 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { electionService } from '../services/election.service.js';
+import bcrypt from 'bcrypt';
 
-// Get admin password from environment
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+// Session store for admin tokens (in production, use Redis or similar)
+const adminSessions = new Map<string, { username: string; expiresAt: number }>();
 
-// Log admin password configuration at startup (only show length and source for security)
-console.log('🔐 Admin authentication configured:');
-console.log('  - Password source:', process.env.ADMIN_PASSWORD ? 'environment variable' : 'default fallback');
-console.log('  - Password length:', ADMIN_PASSWORD.length);
-console.log('  - Password value:', ADMIN_PASSWORD); // Remove this line in production!
+console.log('🔐 Admin authentication configured: Database-based authentication');
 
 /**
  * Middleware to verify admin authentication
  */
-export function verifyAdminAuth(req: Request, res: Response, next: Function) {
-  const adminKey = req.headers['x-admin-key'] as string;
-  
-  if (!adminKey || adminKey !== ADMIN_PASSWORD) {
-    res.status(401).json({ error: 'Unauthorized', message: 'Invalid admin key' });
+export async function verifyAdminAuth(req: Request, res: Response, next: Function) {
+  const authToken = req.headers['x-admin-key'] as string;
+
+  if (!authToken) {
+    res.status(401).json({ error: 'Unauthorized', message: 'No authentication token provided' });
     return;
   }
-  
+
+  // Check if session exists and is valid
+  const session = adminSessions.get(authToken);
+  if (!session || session.expiresAt < Date.now()) {
+    if (session) {
+      adminSessions.delete(authToken);
+    }
+    res.status(401).json({ error: 'Unauthorized', message: 'Session expired or invalid' });
+    return;
+  }
+
+  // Verify user still exists and is active
+  const adminUser = await prisma.adminUser.findUnique({
+    where: { username: session.username }
+  });
+
+  if (!adminUser || !adminUser.isActive) {
+    adminSessions.delete(authToken);
+    res.status(401).json({ error: 'Unauthorized', message: 'User not found or inactive' });
+    return;
+  }
+
   next();
 }
 
 export class AdminController {
   /**
    * POST /api/admin/verify
-   * Verify admin password
+   * Verify admin credentials and create session
    */
   async verifyPassword(req: Request, res: Response): Promise<void> {
-    const { password } = req.body;
+    const { username, password } = req.body;
 
-    if (!password) {
-      res.status(400).json({ error: 'Password required' });
+    if (!username || !password) {
+      res.status(400).json({ error: 'Username and password required' });
       return;
     }
 
-    // Debug logging
-    console.log('🔍 Admin password verification attempt:');
-    console.log('  - Received password length:', password.length);
-    console.log('  - Expected password length:', ADMIN_PASSWORD.length);
-    console.log('  - Received password (trimmed):', password.trim());
-    console.log('  - Expected password:', ADMIN_PASSWORD);
-    console.log('  - Match:', password === ADMIN_PASSWORD);
+    try {
+      // Find admin user by username
+      const adminUser = await prisma.adminUser.findUnique({
+        where: { username }
+      });
 
-    if (password === ADMIN_PASSWORD) {
-      res.json({ success: true, message: 'Authentication successful' });
-    } else {
-      res.status(401).json({ error: 'Invalid password' });
+      if (!adminUser) {
+        console.log('🔍 Login attempt failed: User not found -', username);
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      if (!adminUser.isActive) {
+        console.log('🔍 Login attempt failed: User inactive -', username);
+        res.status(401).json({ error: 'Account is inactive' });
+        return;
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, adminUser.passwordHash);
+
+      if (!isValidPassword) {
+        console.log('🔍 Login attempt failed: Invalid password -', username);
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      // Generate session token (use crypto for production)
+      const sessionToken = `${adminUser.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+
+      // Store session
+      adminSessions.set(sessionToken, {
+        username: adminUser.username,
+        expiresAt
+      });
+
+      // Update last login
+      await prisma.adminUser.update({
+        where: { id: adminUser.id },
+        data: { lastLoginAt: new Date() }
+      });
+
+      console.log('✅ Admin login successful:', username);
+
+      res.json({
+        success: true,
+        message: 'Authentication successful',
+        token: sessionToken,
+        expiresAt: new Date(expiresAt).toISOString()
+      });
+    } catch (error: any) {
+      console.error('Error during login:', error);
+      res.status(500).json({ error: 'Authentication failed', message: error.message });
     }
   }
 
