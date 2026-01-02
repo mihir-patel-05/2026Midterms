@@ -63,8 +63,12 @@ export class FECClient {
     endpoint: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<FECPaginatedResponse<T>>> {
+    // Create unique job ID by including query parameters
+    const params = new URLSearchParams(config?.params || {});
+    const jobId = `GET ${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
+
     return fecRateLimiter.schedule(
-      { id: `GET ${endpoint}` },
+      { id: jobId },
       () => this.client.get<FECPaginatedResponse<T>>(endpoint, config)
     );
   }
