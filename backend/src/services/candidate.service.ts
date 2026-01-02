@@ -27,6 +27,7 @@ export class CandidateService {
    * Optimized: Uses candidate-level financials (no committee joins when possible)
    */
   async getCandidates(params: {
+    search?: string;
     state?: string;
     office?: string;
     party?: string;
@@ -35,7 +36,7 @@ export class CandidateService {
     perPage?: number;
     includeFunds?: boolean;
   }): Promise<PaginationResult<any>> {
-    const { state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false } = params;
+    const { search, state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false } = params;
     const { skip, take } = getPaginationParams(page, perPage);
 
     // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'
@@ -52,6 +53,7 @@ export class CandidateService {
     }
 
     const where = {
+      ...(search && { name: { contains: search, mode: 'insensitive' as const } }),
       ...(state && { state }),
       ...(officeFilter && { office: officeFilter }),
       ...(party && { party }),

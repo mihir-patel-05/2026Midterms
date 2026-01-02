@@ -113,6 +113,7 @@ export default function useCandidates(
       console.log('[useCandidates] Cleanup: Component unmounted');
     };
   }, [
+    params?.search,
     params?.state,
     params?.office,
     params?.party,

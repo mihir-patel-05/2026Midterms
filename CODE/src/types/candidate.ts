@@ -107,6 +107,7 @@ export interface CandidatesResponse {
  * Query parameters for getCandidates
  */
 export interface GetCandidatesParams {
+  search?: string;
   state?: string;
   office?: string;
   party?: string;

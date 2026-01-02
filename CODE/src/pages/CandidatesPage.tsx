@@ -6,8 +6,9 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { CandidateCard } from "@/components/candidates";
 import useCandidates from "@/hooks/useCandidates";
-import { Loader2, AlertCircle, Users, SlidersHorizontal } from "lucide-react";
+import { Loader2, AlertCircle, Users, SlidersHorizontal, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -48,11 +49,13 @@ const usStates = [
 
 export default function CandidatesPage() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [stateFilter, setStateFilter] = useState<string | undefined>(undefined);
   const [officeFilter, setOfficeFilter] = useState<string | undefined>(undefined);
 
   // Fetch candidates from API with funding data
   const { candidates, loading, error, refetch, pagination } = useCandidates({
+    search: searchQuery || undefined,
     includeFunds: true,
     // Only show candidates running in the 2026 midterms
     cycle: 2026,
@@ -72,6 +75,7 @@ export default function CandidatesPage() {
   };
   
   const clearFilters = () => {
+    setSearchQuery("");
     setStateFilter(undefined);
     setOfficeFilter(undefined);
     setCurrentPage(1);
@@ -202,6 +206,21 @@ export default function CandidatesPage() {
               Filters
             </h3>
 
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search candidates..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  handleFilterChange();
+                }}
+                className="pl-9"
+              />
+            </div>
+
             {/* State Filter */}
             <Select value={stateFilter || 'ALL'} onValueChange={(value) => {setStateFilter(value === 'ALL' ? undefined : value); handleFilterChange()}}>
               <SelectTrigger className="w-[180px]">
@@ -226,8 +245,8 @@ export default function CandidatesPage() {
                 <SelectItem value="SENATE">Senate</SelectItem>
               </SelectContent>
             </Select>
-            
-            {(stateFilter || officeFilter) && (
+
+            {(searchQuery || stateFilter || officeFilter) && (
               <Button variant="ghost" onClick={clearFilters} className="text-sm">
                 Clear Filters
               </Button>

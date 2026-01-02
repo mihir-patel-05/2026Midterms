@@ -7,6 +7,7 @@ export class CandidateController {
    * GET /api/candidates
    * Get candidates with filters and pagination
    * Query params:
+   * - search: Search by candidate name (case-insensitive)
    * - state: Filter by state (e.g., "CA", "TX")
    * - office: Filter by office (e.g., "HOUSE", "SENATE")
    * - party: Filter by party (e.g., "DEM", "REP")
@@ -17,9 +18,10 @@ export class CandidateController {
    */
   async getCandidates(req: Request, res: Response): Promise<void> {
     try {
-      const { state, office, party, cycle, page, perPage, includeFunds } = req.query;
+      const { search, state, office, party, cycle, page, perPage, includeFunds } = req.query;
 
       const result = await candidateService.getCandidates({
+        search: search as string,
         state: state as string,
         office: office as string,
         party: party as string,
