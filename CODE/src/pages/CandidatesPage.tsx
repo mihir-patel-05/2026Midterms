@@ -9,6 +9,8 @@ import useCandidates from "@/hooks/useCandidates";
 import { Loader2, AlertCircle, Users, SlidersHorizontal, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -52,6 +54,7 @@ export default function CandidatesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [stateFilter, setStateFilter] = useState<string | undefined>(undefined);
   const [officeFilter, setOfficeFilter] = useState<string | undefined>(undefined);
+  const [hasFinancialDataFilter, setHasFinancialDataFilter] = useState<boolean>(false);
 
   // Fetch candidates from API with funding data
   const { candidates, loading, error, refetch, pagination } = useCandidates({
@@ -63,6 +66,7 @@ export default function CandidatesPage() {
     page: currentPage,
     state: stateFilter,
     office: officeFilter,
+    hasFinancialData: hasFinancialDataFilter,
   });
 
   const handlePageChange = (page: number) => {
@@ -78,6 +82,7 @@ export default function CandidatesPage() {
     setSearchQuery("");
     setStateFilter(undefined);
     setOfficeFilter(undefined);
+    setHasFinancialDataFilter(false);
     setCurrentPage(1);
   };
 
@@ -246,7 +251,25 @@ export default function CandidatesPage() {
               </SelectContent>
             </Select>
 
-            {(searchQuery || stateFilter || officeFilter) && (
+            {/* Financial Data Filter */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hasFinancialData"
+                checked={hasFinancialDataFilter}
+                onCheckedChange={(checked) => {
+                  setHasFinancialDataFilter(checked as boolean);
+                  handleFilterChange();
+                }}
+              />
+              <Label
+                htmlFor="hasFinancialData"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Has Financial Data
+              </Label>
+            </div>
+
+            {(searchQuery || stateFilter || officeFilter || hasFinancialDataFilter) && (
               <Button variant="ghost" onClick={clearFilters} className="text-sm">
                 Clear Filters
               </Button>

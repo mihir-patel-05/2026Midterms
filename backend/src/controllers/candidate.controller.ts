@@ -15,10 +15,11 @@ export class CandidateController {
    * - page: Page number (default: 1)
    * - perPage: Results per page (default: 50)
    * - includeFunds: Include aggregated fundraising data (default: false)
+   * - hasFinancialData: Filter candidates with financial data available (default: false)
    */
   async getCandidates(req: Request, res: Response): Promise<void> {
     try {
-      const { search, state, office, party, cycle, page, perPage, includeFunds } = req.query;
+      const { search, state, office, party, cycle, page, perPage, includeFunds, hasFinancialData } = req.query;
 
       const result = await candidateService.getCandidates({
         search: search as string,
@@ -29,6 +30,7 @@ export class CandidateController {
         page: page ? parseInt(page as string) : undefined,
         perPage: perPage ? parseInt(perPage as string) : undefined,
         includeFunds: includeFunds === 'true',
+        hasFinancialData: hasFinancialData === 'true',
       });
 
       res.json(result);

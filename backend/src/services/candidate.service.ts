@@ -35,8 +35,9 @@ export class CandidateService {
     page?: number;
     perPage?: number;
     includeFunds?: boolean;
+    hasFinancialData?: boolean;
   }): Promise<PaginationResult<any>> {
-    const { search, state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false } = params;
+    const { search, state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false, hasFinancialData = false } = params;
     const { skip, take } = getPaginationParams(page, perPage);
 
     // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'
@@ -58,6 +59,13 @@ export class CandidateService {
       ...(officeFilter && { office: officeFilter }),
       ...(party && { party }),
       ...(cycle && { cycles: { has: cycle } }),
+      ...(hasFinancialData && {
+        financials: {
+          some: {
+            cycle: cycle,
+          },
+        },
+      }),
     };
 
     // Use candidate-level financials instead of committee joins (much faster)

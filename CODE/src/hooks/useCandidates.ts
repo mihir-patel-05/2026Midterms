@@ -121,6 +121,7 @@ export default function useCandidates(
     params?.page,
     params?.perPage,
     params?.includeFunds,
+    params?.hasFinancialData,
   ]); // Re-fetch when params change
 
   return {

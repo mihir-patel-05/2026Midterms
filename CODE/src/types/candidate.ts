@@ -115,6 +115,7 @@ export interface GetCandidatesParams {
   page?: number;
   perPage?: number;
   includeFunds?: boolean;
+  hasFinancialData?: boolean;
 }
 
 /**
