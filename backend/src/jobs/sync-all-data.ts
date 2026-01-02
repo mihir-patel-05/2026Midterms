@@ -53,6 +53,8 @@ interface SyncStats {
   candidateLinksCreated: number;
   electionsErrors: number;
   duration: number;
+  statesWithCandidates: Set<string>;
+  statesWithoutCandidates: Set<string>;
 }
 
 /**
@@ -92,6 +94,8 @@ async function syncAllData(): Promise<SyncStats> {
     candidateLinksCreated: 0,
     electionsErrors: 0,
     duration: 0,
+    statesWithCandidates: new Set<string>(),
+    statesWithoutCandidates: new Set<string>(),
   };
 
   console.log('\n' + '='.repeat(60));
@@ -112,6 +116,7 @@ async function syncAllData(): Promise<SyncStats> {
     );
 
     await processBatch(candidatePromises, SYNC_CONFIG.batchSize, async ({ state, office }) => {
+      const officeName = office === 'S' ? 'Senate' : 'House';
       try {
         const result = await candidateService.syncCandidates({
           state,
@@ -121,9 +126,16 @@ async function syncAllData(): Promise<SyncStats> {
         });
         stats.candidatesSynced += result.synced;
         stats.candidatesErrors += result.errors;
-        console.log(`  ✅ ${state} ${office === 'S' ? 'Senate' : 'House'}: ${result.synced} candidates`);
+
+        if (result.synced === 0) {
+          console.log(`  ⚪ ${state} ${officeName}: No candidates found`);
+          stats.statesWithoutCandidates.add(`${state}-${office}`);
+        } else {
+          console.log(`  ✅ ${state} ${officeName}: ${result.synced} candidates synced`);
+          stats.statesWithCandidates.add(state);
+        }
       } catch (error: any) {
-        console.error(`  ❌ ${state} ${office}:`, error.message);
+        console.error(`  ❌ ${state} ${officeName} FAILED:`, error.message);
         stats.candidatesErrors++;
       }
     }, 200);
@@ -215,6 +227,12 @@ async function syncAllData(): Promise<SyncStats> {
     console.log(`💰 Finances: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
     console.log(`🏢 Committees: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors`);
     console.log(`🗳️  Elections: ${stats.electionsGenerated} created, ${stats.candidateLinksCreated} candidate links`);
+    console.log(`\n🗺️  States with candidates: ${stats.statesWithCandidates.size} of ${SYNC_CONFIG.states.length}`);
+    console.log(`📍 States: ${Array.from(stats.statesWithCandidates).sort().join(', ')}`);
+    if (stats.statesWithoutCandidates.size > 0) {
+      console.log(`\n⚠️  State/Office combinations with no candidates: ${stats.statesWithoutCandidates.size}`);
+      console.log(`   ${Array.from(stats.statesWithoutCandidates).sort().join(', ')}`);
+    }
     console.log('='.repeat(60) + '\n');
 
     return stats;
