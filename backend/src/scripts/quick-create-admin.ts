@@ -4,28 +4,23 @@ import bcrypt from 'bcrypt';
 async function createAdmin() {
   try {
     const username = 'admin';
-    const password = 'admin123';
+    const password = 'AndarAkshardham2025*';
     const email = 'admin@example.com';
 
-    console.log('📝 Creating admin user...\n');
-
-    // Check if username already exists
-    const existing = await prisma.adminUser.findUnique({
-      where: { username }
-    });
-
-    if (existing) {
-      console.log('❌ Username "admin" already exists');
-      console.log('   You can login with that account or delete it first');
-      process.exit(1);
-    }
+    console.log('📝 Creating or updating admin user...\n');
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create admin user
-    const adminUser = await prisma.adminUser.create({
-      data: {
+    // Create or update admin user
+    const adminUser = await prisma.adminUser.upsert({
+      where: { username },
+      update: {
+        passwordHash,
+        isActive: true,
+        updatedAt: new Date()
+      },
+      create: {
         username,
         email,
         passwordHash,
@@ -33,7 +28,7 @@ async function createAdmin() {
       }
     });
 
-    console.log('✅ Admin user created successfully!');
+    console.log('✅ Admin user created or updated successfully!');
     console.log(`   Username: ${adminUser.username}`);
     console.log(`   Email: ${adminUser.email}`);
     console.log(`   Password: ${password}`);
