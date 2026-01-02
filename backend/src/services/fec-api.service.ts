@@ -46,15 +46,68 @@ export interface FECFinancialSummary {
 export interface FECCandidateTotals {
   candidate_id: string;
   cycle: number;
+  candidate_election_year?: number;
+
+  // Receipt totals
   receipts?: number;
-  disbursements?: number;
-  cash_on_hand_end_period?: number;
-  debts_owed_by_committee?: number;
+  contributions?: number;
   individual_contributions?: number;
+  individual_itemized_contributions?: number;
+  individual_unitemized_contributions?: number;
   other_political_committee_contributions?: number;
   political_party_committee_contributions?: number;
   candidate_contribution?: number;
+  other_receipts?: number;
+  transfers_from_affiliated_committee?: number;
+  loans_received?: number;
+  loans_received_from_candidate?: number;
+  other_loans_received?: number;
+  federal_funds?: number;
+
+  // Disbursement totals
+  disbursements?: number;
+  operating_expenditures?: number;
+  transfers_to_other_authorized_committee?: number;
+  fundraising_disbursements?: number;
+  exempt_legal_accounting_disbursement?: number;
+  loan_repayments_made?: number;
+  repayments_loans_made_by_candidate?: number;
+  repayments_other_loans?: number;
+  other_disbursements?: number;
+
+  // Refunds
+  contribution_refunds?: number;
+  refunded_individual_contributions?: number;
+  refunded_other_political_committee_contributions?: number;
+  refunded_political_party_committee_contributions?: number;
+
+  // Offsets
+  offsets_to_operating_expenditures?: number;
+  total_offsets_to_operating_expenditures?: number;
+  offsets_to_fundraising_expenditures?: number;
+  offsets_to_legal_accounting?: number;
+
+  // Net calculations
+  net_contributions?: number;
+  net_operating_expenditures?: number;
+
+  // End of period data
+  last_cash_on_hand_end_period?: number;
+  last_debts_owed_by_committee?: number;
+  last_debts_owed_to_committee?: number;
+
+  // Legacy field names (for compatibility)
+  cash_on_hand_end_period?: number;
+  debts_owed_by_committee?: number;
+
+  // Coverage dates and metadata
+  coverage_start_date?: string;
   coverage_end_date?: string;
+  transaction_coverage_date?: string;
+  last_report_year?: number;
+  last_report_type_full?: string;
+  last_beginning_image_number?: string;
+  election_full?: boolean;
 }
 
 export interface FECReceipt {

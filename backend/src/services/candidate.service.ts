@@ -87,10 +87,10 @@ export class CandidateService {
     const enhancedCandidates = candidates.map((candidate: any) => {
       const financial = candidate.financials?.[0];
       const { financials, ...candidateData } = candidate;
-      
+
       return {
         ...candidateData,
-        totalFundsRaised: includeFunds ? Number(financial?.receipts) || 0 : undefined,
+        totalFundsRaised: includeFunds ? (financial?.receipts?.toNumber() || 0) : undefined,
         incumbent: candidate.incumbentStatus === 'I',
       };
     });

@@ -52,18 +52,68 @@ model CandidateFinancial {
   id                      String      @id @default(uuid())
   candidateId             String      @map("candidate_id")
   cycle                   Int
-  receipts                Decimal     @default(0) @db.Decimal(15, 2)
-  disbursements           Decimal     @default(0) @db.Decimal(15, 2)
-  cashOnHand              Decimal     @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
-  debtsOwed               Decimal     @default(0) @map("debts_owed") @db.Decimal(15, 2)
-  individualContributions Decimal     @default(0) @map("individual_contributions") @db.Decimal(15, 2)
-  pacContributions        Decimal     @default(0) @map("pac_contributions") @db.Decimal(15, 2)
-  partyContributions      Decimal     @default(0) @map("party_contributions") @db.Decimal(15, 2)
-  candidateContribution   Decimal     @default(0) @map("candidate_contribution") @db.Decimal(15, 2)
-  coverageEndDate         DateTime?   @map("coverage_end_date")
-  lastUpdated             DateTime    @default(now()) @map("last_updated")
-  createdAt               DateTime    @default(now()) @map("created_at")
-  updatedAt               DateTime    @updatedAt @map("updated_at")
+  candidateElectionYear   Int?        @map("candidate_election_year")
+
+  // Receipt totals
+  receipts                           Decimal  @default(0) @db.Decimal(15, 2)
+  contributions                      Decimal  @default(0) @db.Decimal(15, 2)
+  individualContributions            Decimal  @default(0) @map("individual_contributions") @db.Decimal(15, 2)
+  individualItemizedContributions    Decimal  @default(0) @map("individual_itemized_contributions") @db.Decimal(15, 2)
+  individualUnitemizedContributions  Decimal  @default(0) @map("individual_unitemized_contributions") @db.Decimal(15, 2)
+  pacContributions                   Decimal  @default(0) @map("pac_contributions") @db.Decimal(15, 2)
+  partyContributions                 Decimal  @default(0) @map("party_contributions") @db.Decimal(15, 2)
+  candidateContribution              Decimal  @default(0) @map("candidate_contribution") @db.Decimal(15, 2)
+  otherReceipts                      Decimal  @default(0) @map("other_receipts") @db.Decimal(15, 2)
+  transfersFromAffiliatedCommittee   Decimal  @default(0) @map("transfers_from_affiliated_committee") @db.Decimal(15, 2)
+  loansReceived                      Decimal  @default(0) @map("loans_received") @db.Decimal(15, 2)
+  loansReceivedFromCandidate         Decimal  @default(0) @map("loans_received_from_candidate") @db.Decimal(15, 2)
+  otherLoansReceived                 Decimal  @default(0) @map("other_loans_received") @db.Decimal(15, 2)
+  federalFunds                       Decimal  @default(0) @map("federal_funds") @db.Decimal(15, 2)
+
+  // Disbursement totals
+  disbursements                      Decimal  @default(0) @db.Decimal(15, 2)
+  operatingExpenditures              Decimal  @default(0) @map("operating_expenditures") @db.Decimal(15, 2)
+  transfersToOtherAuthorizedCommittee Decimal @default(0) @map("transfers_to_other_authorized_committee") @db.Decimal(15, 2)
+  fundraisingDisbursements           Decimal  @default(0) @map("fundraising_disbursements") @db.Decimal(15, 2)
+  exemptLegalAccountingDisbursement  Decimal  @default(0) @map("exempt_legal_accounting_disbursement") @db.Decimal(15, 2)
+  loanRepaymentsMade                 Decimal  @default(0) @map("loan_repayments_made") @db.Decimal(15, 2)
+  repaymentsLoansMadeByCandidate     Decimal  @default(0) @map("repayments_loans_made_by_candidate") @db.Decimal(15, 2)
+  repaymentsOtherLoans               Decimal  @default(0) @map("repayments_other_loans") @db.Decimal(15, 2)
+  otherDisbursements                 Decimal  @default(0) @map("other_disbursements") @db.Decimal(15, 2)
+
+  // Refunds
+  contributionRefunds                          Decimal  @default(0) @map("contribution_refunds") @db.Decimal(15, 2)
+  refundedIndividualContributions              Decimal  @default(0) @map("refunded_individual_contributions") @db.Decimal(15, 2)
+  refundedOtherPoliticalCommitteeContributions Decimal  @default(0) @map("refunded_other_political_committee_contributions") @db.Decimal(15, 2)
+  refundedPoliticalPartyCommitteeContributions Decimal  @default(0) @map("refunded_political_party_committee_contributions") @db.Decimal(15, 2)
+
+  // Offsets
+  offsetsToOperatingExpenditures      Decimal  @default(0) @map("offsets_to_operating_expenditures") @db.Decimal(15, 2)
+  totalOffsetsToOperatingExpenditures Decimal  @default(0) @map("total_offsets_to_operating_expenditures") @db.Decimal(15, 2)
+  offsetsToFundraisingExpenditures    Decimal  @default(0) @map("offsets_to_fundraising_expenditures") @db.Decimal(15, 2)
+  offsetsToLegalAccounting            Decimal  @default(0) @map("offsets_to_legal_accounting") @db.Decimal(15, 2)
+
+  // Net calculations
+  netContributions          Decimal  @default(0) @map("net_contributions") @db.Decimal(15, 2)
+  netOperatingExpenditures  Decimal  @default(0) @map("net_operating_expenditures") @db.Decimal(15, 2)
+
+  // End of period data
+  cashOnHand         Decimal  @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
+  debtsOwed          Decimal  @default(0) @map("debts_owed") @db.Decimal(15, 2)
+  debtsOwedToCommittee Decimal @default(0) @map("debts_owed_to_committee") @db.Decimal(15, 2)
+
+  // Coverage dates and metadata
+  coverageStartDate      DateTime? @map("coverage_start_date")
+  coverageEndDate        DateTime? @map("coverage_end_date")
+  transactionCoverageDate DateTime? @map("transaction_coverage_date")
+  lastReportYear         Int?      @map("last_report_year")
+  lastReportTypeFull     String?   @map("last_report_type_full")
+  lastBeginningImageNumber String? @map("last_beginning_image_number")
+  electionFull           Boolean?  @map("election_full")
+
+  lastUpdated            DateTime  @default(now()) @map("last_updated")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
   // Relations
   candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])

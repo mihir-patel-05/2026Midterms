@@ -47,6 +47,68 @@ export class FinanceService {
 
       for (const fecTotal of fecTotals) {
         try {
+          const financialData = {
+            candidateElectionYear: fecTotal.candidate_election_year,
+
+            // Receipt totals
+            receipts: fecTotal.receipts || 0,
+            contributions: fecTotal.contributions || 0,
+            individualContributions: fecTotal.individual_contributions || 0,
+            individualItemizedContributions: fecTotal.individual_itemized_contributions || 0,
+            individualUnitemizedContributions: fecTotal.individual_unitemized_contributions || 0,
+            pacContributions: fecTotal.other_political_committee_contributions || 0,
+            partyContributions: fecTotal.political_party_committee_contributions || 0,
+            candidateContribution: fecTotal.candidate_contribution || 0,
+            otherReceipts: fecTotal.other_receipts || 0,
+            transfersFromAffiliatedCommittee: fecTotal.transfers_from_affiliated_committee || 0,
+            loansReceived: fecTotal.loans_received || 0,
+            loansReceivedFromCandidate: fecTotal.loans_received_from_candidate || 0,
+            otherLoansReceived: fecTotal.other_loans_received || 0,
+            federalFunds: fecTotal.federal_funds || 0,
+
+            // Disbursement totals
+            disbursements: fecTotal.disbursements || 0,
+            operatingExpenditures: fecTotal.operating_expenditures || 0,
+            transfersToOtherAuthorizedCommittee: fecTotal.transfers_to_other_authorized_committee || 0,
+            fundraisingDisbursements: fecTotal.fundraising_disbursements || 0,
+            exemptLegalAccountingDisbursement: fecTotal.exempt_legal_accounting_disbursement || 0,
+            loanRepaymentsMade: fecTotal.loan_repayments_made || 0,
+            repaymentsLoansMadeByCandidate: fecTotal.repayments_loans_made_by_candidate || 0,
+            repaymentsOtherLoans: fecTotal.repayments_other_loans || 0,
+            otherDisbursements: fecTotal.other_disbursements || 0,
+
+            // Refunds
+            contributionRefunds: fecTotal.contribution_refunds || 0,
+            refundedIndividualContributions: fecTotal.refunded_individual_contributions || 0,
+            refundedOtherPoliticalCommitteeContributions: fecTotal.refunded_other_political_committee_contributions || 0,
+            refundedPoliticalPartyCommitteeContributions: fecTotal.refunded_political_party_committee_contributions || 0,
+
+            // Offsets
+            offsetsToOperatingExpenditures: fecTotal.offsets_to_operating_expenditures || 0,
+            totalOffsetsToOperatingExpenditures: fecTotal.total_offsets_to_operating_expenditures || 0,
+            offsetsToFundraisingExpenditures: fecTotal.offsets_to_fundraising_expenditures || 0,
+            offsetsToLegalAccounting: fecTotal.offsets_to_legal_accounting || 0,
+
+            // Net calculations
+            netContributions: fecTotal.net_contributions || 0,
+            netOperatingExpenditures: fecTotal.net_operating_expenditures || 0,
+
+            // End of period data (use last_* fields if available, otherwise fall back to legacy fields)
+            cashOnHand: fecTotal.last_cash_on_hand_end_period || fecTotal.cash_on_hand_end_period || 0,
+            debtsOwed: fecTotal.last_debts_owed_by_committee || fecTotal.debts_owed_by_committee || 0,
+            debtsOwedToCommittee: fecTotal.last_debts_owed_to_committee || 0,
+
+            // Coverage dates and metadata
+            coverageStartDate: fecTotal.coverage_start_date ? new Date(fecTotal.coverage_start_date) : null,
+            coverageEndDate: fecTotal.coverage_end_date ? new Date(fecTotal.coverage_end_date) : null,
+            transactionCoverageDate: fecTotal.transaction_coverage_date ? new Date(fecTotal.transaction_coverage_date) : null,
+            lastReportYear: fecTotal.last_report_year,
+            lastReportTypeFull: fecTotal.last_report_type_full,
+            lastBeginningImageNumber: fecTotal.last_beginning_image_number,
+            electionFull: fecTotal.election_full,
+            lastUpdated: new Date(),
+          };
+
           await prisma.candidateFinancial.upsert({
             where: {
               candidateId_cycle: {
@@ -54,34 +116,11 @@ export class FinanceService {
                 cycle: fecTotal.cycle,
               },
             },
-            update: {
-              receipts: fecTotal.receipts || 0,
-              disbursements: fecTotal.disbursements || 0,
-              cashOnHand: fecTotal.cash_on_hand_end_period || 0,
-              debtsOwed: fecTotal.debts_owed_by_committee || 0,
-              individualContributions: fecTotal.individual_contributions || 0,
-              pacContributions: fecTotal.other_political_committee_contributions || 0,
-              partyContributions: fecTotal.political_party_committee_contributions || 0,
-              candidateContribution: fecTotal.candidate_contribution || 0,
-              coverageEndDate: fecTotal.coverage_end_date
-                ? new Date(fecTotal.coverage_end_date)
-                : null,
-              lastUpdated: new Date(),
-            },
+            update: financialData,
             create: {
               candidateId: fecCandidateId,
               cycle: fecTotal.cycle,
-              receipts: fecTotal.receipts || 0,
-              disbursements: fecTotal.disbursements || 0,
-              cashOnHand: fecTotal.cash_on_hand_end_period || 0,
-              debtsOwed: fecTotal.debts_owed_by_committee || 0,
-              individualContributions: fecTotal.individual_contributions || 0,
-              pacContributions: fecTotal.other_political_committee_contributions || 0,
-              partyContributions: fecTotal.political_party_committee_contributions || 0,
-              candidateContribution: fecTotal.candidate_contribution || 0,
-              coverageEndDate: fecTotal.coverage_end_date
-                ? new Date(fecTotal.coverage_end_date)
-                : null,
+              ...financialData,
             },
           });
           synced++;
@@ -430,12 +469,12 @@ export class FinanceService {
 
     // Build funding sources from candidate-level data
     let fundingSources: { type: string; amount: number; percentage: number }[] = [];
-    
+
     if (candidateFinancial) {
-      const individual = Number(candidateFinancial.individualContributions) || 0;
-      const pac = Number(candidateFinancial.pacContributions) || 0;
-      const party = Number(candidateFinancial.partyContributions) || 0;
-      const self = Number(candidateFinancial.candidateContribution) || 0;
+      const individual = candidateFinancial.individualContributions?.toNumber() || 0;
+      const pac = candidateFinancial.pacContributions?.toNumber() || 0;
+      const party = candidateFinancial.partyContributions?.toNumber() || 0;
+      const self = candidateFinancial.candidateContribution?.toNumber() || 0;
       const total = individual + pac + party + self;
 
       if (total > 0) {
@@ -470,14 +509,14 @@ export class FinanceService {
 
     return {
       summary: {
-        totalReceipts: Number(candidateFinancial?.receipts) || 0,
-        totalDisbursements: Number(candidateFinancial?.disbursements) || 0,
-        cashOnHand: Number(candidateFinancial?.cashOnHand) || 0,
-        debtOwed: Number(candidateFinancial?.debtsOwed) || 0,
-        individualContributions: Number(candidateFinancial?.individualContributions) || 0,
-        pacContributions: Number(candidateFinancial?.pacContributions) || 0,
-        partyContributions: Number(candidateFinancial?.partyContributions) || 0,
-        selfFunded: Number(candidateFinancial?.candidateContribution) || 0,
+        totalReceipts: candidateFinancial?.receipts?.toNumber() || 0,
+        totalDisbursements: candidateFinancial?.disbursements?.toNumber() || 0,
+        cashOnHand: candidateFinancial?.cashOnHand?.toNumber() || 0,
+        debtOwed: candidateFinancial?.debtsOwed?.toNumber() || 0,
+        individualContributions: candidateFinancial?.individualContributions?.toNumber() || 0,
+        pacContributions: candidateFinancial?.pacContributions?.toNumber() || 0,
+        partyContributions: candidateFinancial?.partyContributions?.toNumber() || 0,
+        selfFunded: candidateFinancial?.candidateContribution?.toNumber() || 0,
         lastUpdated: candidateFinancial?.lastUpdated || null,
       },
       fundingSources,
@@ -516,7 +555,7 @@ export class FinanceService {
     };
 
     for (const receipt of receipts) {
-      const amount = Number(receipt.contributionReceiptAmount) || 0;
+      const amount = receipt.contributionReceiptAmount?.toNumber() || 0;
       const type = receipt.receiptType?.toUpperCase() || '';
 
       // Categorize based on receipt type codes
@@ -586,7 +625,7 @@ export class FinanceService {
       name: donor.contributorName || 'Unknown',
       employer: donor.contributorEmployer,
       occupation: donor.contributorOccupation,
-      amount: Number(donor._sum.contributionReceiptAmount) || 0,
+      amount: donor._sum.contributionReceiptAmount?.toNumber() || 0,
       state: donor.contributorState,
     }));
   }
@@ -622,7 +661,7 @@ export class FinanceService {
     };
 
     for (const disbursement of disbursements) {
-      const amount = Number(disbursement.disbursementAmount) || 0;
+      const amount = disbursement.disbursementAmount?.toNumber() || 0;
       const desc = (disbursement.disbursementDescription || '').toLowerCase();
       const type = (disbursement.disbursementType || '').toUpperCase();
 
