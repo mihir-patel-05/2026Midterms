@@ -16,6 +16,9 @@
     "test:fec": "tsx src/jobs/test-fec-api.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
     "sync:dev": "tsx src/jobs/sync-all-data.ts",
+    "sync:financials": "tsx src/scripts/sync-financials-only.ts",
+    "sync:financials:force": "tsx src/scripts/sync-financials-only.ts --force",
+    "sync:financials:fast": "tsx src/scripts/sync-financials-only.ts --batch-size 100",
     "admin:create": "tsx src/scripts/create-admin.ts"
   },
   "keywords": [
