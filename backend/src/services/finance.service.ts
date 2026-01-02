@@ -36,11 +36,9 @@ export class FinanceService {
     fecCandidateId: string,
     cycle?: number
   ): Promise<{ synced: number; errors: number }> {
-    console.log(`🔄 Syncing financial data for candidate ${fecCandidateId}, cycle ${cycle || 'all'}`);
-
+    // OPTIMIZED: Reduced logging for faster sync
     try {
       const fecTotals = await fecApiService.getCandidateTotals(fecCandidateId, cycle);
-      console.log(`📥 Found ${fecTotals.length} financial records for candidate`);
 
       let synced = 0;
       let errors = 0;
@@ -125,15 +123,15 @@ export class FinanceService {
           });
           synced++;
         } catch (error) {
-          console.error(
-            `❌ Error upserting candidate financial for ${fecCandidateId}, cycle ${fecTotal.cycle}:`,
-            error
-          );
+          // OPTIMIZED: Only log errors if they occur
+          if (errors === 0) {
+            console.error(`❌ Error syncing financials for ${fecCandidateId}`);
+          }
           errors++;
         }
       }
 
-      console.log(`✅ Synced ${synced} candidate financial records, ${errors} errors`);
+      // OPTIMIZED: Removed success logging for faster sync
 
       return { synced, errors };
     } catch (error) {

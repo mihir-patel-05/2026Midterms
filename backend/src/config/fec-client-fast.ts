@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { env } from './env.js';
-import { fecRateLimiter } from '../utils/rate-limiter.js';
+import { fecRateLimiterOptimized } from '../utils/rate-limiter-optimized.js';
 
 export interface FECPaginatedResponse<T> {
   api_version: string;
@@ -13,7 +13,10 @@ export interface FECPaginatedResponse<T> {
   results: T[];
 }
 
-export class FECClient {
+/**
+ * Optimized FEC Client with faster rate limiting and reduced logging
+ */
+export class FECClientFast {
   private client: AxiosInstance;
   private requestCount = 0;
   private lastLogTime = Date.now();
@@ -27,12 +30,12 @@ export class FECClient {
       timeout: 30000,
     });
 
-    // OPTIMIZED: Reduced logging - only log every 20 requests or errors
+    // OPTIMIZATION: Reduced logging - only log every 10 requests or errors
     this.client.interceptors.request.use(
       (config) => {
         this.requestCount++;
-        // Only log periodically to reduce I/O overhead
-        if (this.requestCount % 20 === 0 || Date.now() - this.lastLogTime > 10000) {
+        // Log every 10 requests instead of every request
+        if (this.requestCount % 10 === 0 || Date.now() - this.lastLogTime > 5000) {
           console.log(`➡️  FEC API: ${this.requestCount} requests sent`);
           this.lastLogTime = Date.now();
         }
@@ -44,9 +47,9 @@ export class FECClient {
       }
     );
 
-    // OPTIMIZED: Only log errors, not all responses
+    // OPTIMIZATION: Only log errors
     this.client.interceptors.response.use(
-      (response) => response, // No logging for successful responses
+      (response) => response,
       (error) => {
         if (error.response) {
           console.error(
@@ -61,24 +64,24 @@ export class FECClient {
   }
 
   /**
-   * Make a rate-limited GET request to the FEC API
+   * Make a rate-limited GET request to the FEC API (OPTIMIZED)
    */
   async get<T>(
     endpoint: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<FECPaginatedResponse<T>>> {
-    // Create unique job ID by including query parameters
+    // Create unique job ID
     const params = new URLSearchParams(config?.params || {});
     const jobId = `GET ${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
 
-    return fecRateLimiter.schedule(
+    return fecRateLimiterOptimized.schedule(
       { id: jobId },
       () => this.client.get<FECPaginatedResponse<T>>(endpoint, config)
     );
   }
 
   /**
-   * Fetch all pages of a paginated endpoint
+   * Fetch all pages of a paginated endpoint (OPTIMIZED)
    */
   async *getAllPages<T>(
     endpoint: string,
@@ -102,16 +105,15 @@ export class FECClient {
       hasMore = page < pagination.pages;
       page++;
 
-      if (hasMore) {
-        console.log(
-          `📄 Fetching page ${page}/${pagination.pages} for ${endpoint}...`
-        );
+      // OPTIMIZATION: Reduced logging
+      if (hasMore && page % 5 === 0) {
+        console.log(`📄 Page ${page}/${pagination.pages} for ${endpoint}`);
       }
     }
   }
 
   /**
-   * Fetch all results from a paginated endpoint (use with caution)
+   * Fetch all results from a paginated endpoint (OPTIMIZED)
    */
   async getAll<T>(
     endpoint: string,
@@ -126,7 +128,22 @@ export class FECClient {
 
     return allResults;
   }
+
+  /**
+   * Get request count for monitoring
+   */
+  getRequestCount(): number {
+    return this.requestCount;
+  }
+
+  /**
+   * Reset request counter
+   */
+  resetRequestCount(): void {
+    this.requestCount = 0;
+    this.lastLogTime = Date.now();
+  }
 }
 
 // Export singleton instance
-export const fecClient = new FECClient();
+export const fecClientFast = new FECClientFast();

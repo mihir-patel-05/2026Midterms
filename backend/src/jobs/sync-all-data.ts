@@ -35,9 +35,9 @@ const SYNC_CONFIG = {
   // Whether to sync financial data
   syncFinances: true,
 
-  // Optimization settings
-  batchSize: 5,                  // Process 5 candidates in parallel
-  minDelayMs: 100,               // Minimum delay between batches
+  // Optimization settings - UPDATED FOR SPEED
+  batchSize: 20,                 // Process 20 candidates in parallel (was 5)
+  minDelayMs: 50,                // Minimum delay between batches (was 100)
   skipIfSyncedWithinHours: 12,   // Skip if synced within last 12 hours
 };
 
@@ -138,7 +138,7 @@ async function syncAllData(): Promise<SyncStats> {
         console.error(`  ❌ ${state} ${officeName} FAILED:`, error.message);
         stats.candidatesErrors++;
       }
-    }, 200);
+    }, SYNC_CONFIG.minDelayMs);
 
     console.log(`\n📊 Candidate Sync Summary: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors\n`);
 
@@ -196,7 +196,7 @@ async function syncAllData(): Promise<SyncStats> {
           console.error(`  ❌ ${candidate.name}:`, error.message);
           stats.financesErrors++;
         }
-      }, 150);
+      }, SYNC_CONFIG.minDelayMs);
 
       console.log(`\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
       console.log(`📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`);
