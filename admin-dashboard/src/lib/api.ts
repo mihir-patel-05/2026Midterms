@@ -51,6 +51,38 @@ interface GenerateResult {
   errors: number;
 }
 
+interface Deadline {
+  id: string;
+  title: string;
+  date: string;
+  type: 'registration' | 'election' | 'other';
+  states: string[];
+  description: string | null;
+  urgent: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DeadlinesResponse {
+  deadlines: Deadline[];
+}
+
+interface DeadlineInput {
+  title: string;
+  date: string;
+  type: 'registration' | 'election' | 'other';
+  states: string[];
+  description?: string;
+  urgent?: boolean;
+  isActive?: boolean;
+}
+
+interface DeadlineResult {
+  message: string;
+  deadline: Deadline;
+}
+
 class AdminAPI {
   private adminKey: string | null = null;
 
@@ -125,8 +157,33 @@ class AdminAPI {
   async generateElections(cycle: number = 2026): Promise<GenerateResult> {
     return this.fetch<GenerateResult>(`/generate-elections?cycle=${cycle}`, { method: 'POST' });
   }
+
+  // Deadline management methods
+  async getDeadlines(): Promise<DeadlinesResponse> {
+    return this.fetch<DeadlinesResponse>('/deadlines');
+  }
+
+  async createDeadline(deadline: DeadlineInput): Promise<DeadlineResult> {
+    return this.fetch<DeadlineResult>('/deadlines', {
+      method: 'POST',
+      body: JSON.stringify(deadline),
+    });
+  }
+
+  async updateDeadline(id: string, deadline: Partial<DeadlineInput>): Promise<DeadlineResult> {
+    return this.fetch<DeadlineResult>(`/deadlines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(deadline),
+    });
+  }
+
+  async deleteDeadline(id: string): Promise<{ message: string }> {
+    return this.fetch<{ message: string }>(`/deadlines/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const adminAPI = new AdminAPI();
-export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult };
+export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult, Deadline, DeadlineInput, DeadlinesResponse };
 

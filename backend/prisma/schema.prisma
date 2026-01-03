@@ -320,3 +320,21 @@ model AdminUser {
   @@index([email])
   @@map("admin_users")
 }
+
+// Deadlines for voter registration and elections
+model Deadline {
+  id          String    @id @default(uuid())
+  title       String                              // e.g., "Primary Registration Deadline"
+  date        DateTime
+  type        String                              // "registration" | "election" | "other"
+  states      String[]                            // e.g., ["CA", "TX"] or ["ALL"]
+  description String?   @db.Text
+  urgent      Boolean   @default(false)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@index([isActive])
+  @@map("deadlines")
+}

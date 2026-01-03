@@ -313,5 +313,38 @@ export async function getElectionById(id: string): Promise<Election> {
   return fetchAPI(`/elections/${id}`);
 }
 
+// ============================================================================
+// DEADLINES API
+// ============================================================================
+
+/**
+ * Deadline type for upcoming registration and election deadlines
+ */
+export interface Deadline {
+  id: string;
+  title: string;
+  date: string;
+  type: 'registration' | 'election' | 'other';
+  states: string[];
+  description: string | null;
+  urgent: boolean;
+}
+
+export interface DeadlinesResponse {
+  deadlines: Deadline[];
+}
+
+/**
+ * Get upcoming deadlines for voter registration and elections
+ * @returns List of active upcoming deadlines sorted by date
+ * @example
+ * ```ts
+ * const { deadlines } = await getDeadlines();
+ * ```
+ */
+export async function getDeadlines(): Promise<DeadlinesResponse> {
+  return fetchAPI<DeadlinesResponse>('/deadlines');
+}
+
 // Export API base URL for reference
 export { API_BASE_URL };

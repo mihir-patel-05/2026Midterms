@@ -11,8 +11,14 @@ import {
   XCircle,
   Clock,
   Loader2,
+  Calendar,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  AlertCircle,
 } from 'lucide-react';
-import { adminAPI, AdminStats, SyncStatus, SyncLog } from '../lib/api';
+import { adminAPI, AdminStats, SyncStatus, SyncLog, Deadline, DeadlineInput } from '../lib/api';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -86,13 +92,203 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleString();
 }
 
+function formatDeadlineDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+// Deadline Modal Component
+function DeadlineModal({
+  isOpen,
+  onClose,
+  onSave,
+  deadline,
+  isSaving,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: DeadlineInput) => void;
+  deadline: Deadline | null;
+  isSaving: boolean;
+}) {
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const [type, setType] = useState<'registration' | 'election' | 'other'>('registration');
+  const [states, setStates] = useState('');
+  const [description, setDescription] = useState('');
+  const [urgent, setUrgent] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+
+  useEffect(() => {
+    if (deadline) {
+      setTitle(deadline.title);
+      setDate(new Date(deadline.date).toISOString().split('T')[0]);
+      setType(deadline.type);
+      setStates(deadline.states.join(', '));
+      setDescription(deadline.description || '');
+      setUrgent(deadline.urgent);
+      setIsActive(deadline.isActive);
+    } else {
+      setTitle('');
+      setDate('');
+      setType('registration');
+      setStates('');
+      setDescription('');
+      setUrgent(false);
+      setIsActive(true);
+    }
+  }, [deadline, isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const statesArray = states.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+    onSave({
+      title,
+      date: new Date(date).toISOString(),
+      type,
+      states: statesArray,
+      description: description || undefined,
+      urgent,
+      isActive,
+    });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+          <h3 className="text-lg font-semibold text-white">
+            {deadline ? 'Edit Deadline' : 'Add Deadline'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Title *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="e.g., Primary Registration Deadline"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Date *</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Type *</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as 'registration' | 'election' | 'other')}
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="registration">Registration</option>
+              <option value="election">Election</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">States *</label>
+            <input
+              type="text"
+              value={states}
+              onChange={(e) => setStates(e.target.value)}
+              required
+              placeholder="e.g., CA, TX, NY or ALL"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">Comma-separated state codes, or "ALL" for all states</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description..."
+              rows={3}
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={urgent}
+                onChange={(e) => setUrgent(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-300">Mark as urgent</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-300">Active</span>
+            </label>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                deadline ? 'Update' : 'Create'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ onLogout }: DashboardProps) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingDeadlines, setIsLoadingDeadlines] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSavingDeadline, setIsSavingDeadline] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDeadline, setEditingDeadline] = useState<Deadline | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -109,8 +305,20 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     }
   }, []);
 
+  const loadDeadlines = useCallback(async () => {
+    try {
+      const response = await adminAPI.getDeadlines();
+      setDeadlines(response.deadlines);
+    } catch (error) {
+      console.error('Failed to load deadlines:', error);
+    } finally {
+      setIsLoadingDeadlines(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
+    loadDeadlines();
 
     // Poll for updates when a sync is running
     const interval = setInterval(() => {
@@ -120,7 +328,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [loadData, syncStatus?.isRunning]);
+  }, [loadData, loadDeadlines, syncStatus?.isRunning]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -155,6 +363,53 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleSaveDeadline = async (data: DeadlineInput) => {
+    setIsSavingDeadline(true);
+    setMessage(null);
+
+    try {
+      if (editingDeadline) {
+        await adminAPI.updateDeadline(editingDeadline.id, data);
+        setMessage({ type: 'success', text: 'Deadline updated successfully' });
+      } else {
+        await adminAPI.createDeadline(data);
+        setMessage({ type: 'success', text: 'Deadline created successfully' });
+      }
+      setIsModalOpen(false);
+      setEditingDeadline(null);
+      loadDeadlines();
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save deadline';
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setIsSavingDeadline(false);
+    }
+  };
+
+  const handleDeleteDeadline = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this deadline?')) return;
+
+    setMessage(null);
+    try {
+      await adminAPI.deleteDeadline(id);
+      setMessage({ type: 'success', text: 'Deadline deleted successfully' });
+      loadDeadlines();
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete deadline';
+      setMessage({ type: 'error', text: errorMessage });
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingDeadline(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (deadline: Deadline) => {
+    setEditingDeadline(deadline);
+    setIsModalOpen(true);
   };
 
   return (
@@ -290,6 +545,114 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           </div>
         </div>
 
+        {/* Deadlines Management */}
+        <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-8">
+          <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-amber-400" />
+              Upcoming Deadlines
+            </h2>
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Deadline
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left text-sm font-medium text-slate-400 px-6 py-3">Title</th>
+                  <th className="text-left text-sm font-medium text-slate-400 px-6 py-3">Date</th>
+                  <th className="text-left text-sm font-medium text-slate-400 px-6 py-3">Type</th>
+                  <th className="text-left text-sm font-medium text-slate-400 px-6 py-3">States</th>
+                  <th className="text-left text-sm font-medium text-slate-400 px-6 py-3">Status</th>
+                  <th className="text-right text-sm font-medium text-slate-400 px-6 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoadingDeadlines ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-slate-400 mx-auto" />
+                    </td>
+                  </tr>
+                ) : deadlines.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                      No deadlines yet. Click "Add Deadline" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  deadlines.map((deadline) => (
+                    <tr key={deadline.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium">{deadline.title}</span>
+                          {deadline.urgent && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+                              <AlertCircle className="w-3 h-3" />
+                              Urgent
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-300 text-sm">
+                        {formatDeadlineDate(deadline.date)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          deadline.type === 'election' 
+                            ? 'bg-blue-500/20 text-blue-400' 
+                            : deadline.type === 'registration'
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-slate-500/20 text-slate-400'
+                        }`}>
+                          {deadline.type.charAt(0).toUpperCase() + deadline.type.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-300 text-sm">
+                        {deadline.states.length > 3 
+                          ? `${deadline.states.slice(0, 3).join(', ')} +${deadline.states.length - 3} more`
+                          : deadline.states.join(', ')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          deadline.isActive
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-slate-500/20 text-slate-400'
+                        }`}>
+                          {deadline.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(deadline)}
+                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDeadline(deadline.id)}
+                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Recent Sync Logs */}
         <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700">
@@ -340,7 +703,18 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           </div>
         </div>
       </main>
+
+      {/* Deadline Modal */}
+      <DeadlineModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingDeadline(null);
+        }}
+        onSave={handleSaveDeadline}
+        deadline={editingDeadline}
+        isSaving={isSavingDeadline}
+      />
     </div>
   );
 }
-

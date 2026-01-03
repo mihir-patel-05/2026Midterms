@@ -3,6 +3,7 @@ import candidatesRoutes from './candidates.routes.js';
 import syncRoutes from './sync.routes.js';
 import electionsRoutes from './elections.routes.js';
 import adminRoutes from './admin.routes.js';
+import deadlinesRoutes from './deadlines.routes.js';
 import { prisma } from '../config/database.js';
 
 const router = Router();
@@ -12,6 +13,7 @@ router.use('/candidates', candidatesRoutes);
 router.use('/sync', syncRoutes);
 router.use('/elections', electionsRoutes);
 router.use('/admin', adminRoutes);
+router.use('/deadlines', deadlinesRoutes);
 
 // Health check endpoint
 router.get('/health', async (_req, res) => {
