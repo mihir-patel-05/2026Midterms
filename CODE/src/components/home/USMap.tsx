@@ -87,6 +87,7 @@ export function USMap({ states, hoveredState, onStateHover }: USMapProps) {
 
   const handleStateClick = (geoName: string) => {
     const stateCode = stateNameToCode[geoName];
+    // All states should be clickable and navigable
     if (stateCode) {
       navigate(`/elections/${stateCode.toLowerCase()}`);
     }
@@ -96,11 +97,12 @@ export function USMap({ states, hoveredState, onStateHover }: USMapProps) {
     const stateData = getStateData(geo.properties.name);
     const stateCode = stateNameToCode[geo.properties.name];
 
-    if (stateData && stateCode) {
+    // Show tooltip for all states, even those with 0 races
+    if (stateCode) {
       onStateHover(stateCode);
       setTooltipContent({
-        name: stateData.name,
-        races: stateData.races,
+        name: stateData?.name || geo.properties.name,
+        races: stateData?.races || 0,
         x: event.clientX,
         y: event.clientY,
       });
@@ -149,7 +151,10 @@ export function USMap({ states, hoveredState, onStateHover }: USMapProps) {
                     onMouseLeave={handleMouseLeave}
                     style={{
                       default: {
-                        fill: stateData ? "hsl(var(--primary) / 0.2)" : "hsl(var(--muted))",
+                        // Show all states as clickable - lighter color for states with 0 races
+                        fill: stateData && stateData.races > 0
+                          ? "hsl(var(--primary) / 0.3)"
+                          : "hsl(var(--primary) / 0.1)",
                         stroke: "#000000",
                         strokeWidth: 0.75,
                         outline: "none",

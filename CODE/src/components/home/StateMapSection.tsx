@@ -21,6 +21,13 @@ const stateCodeToName: { [key: string]: string } = {
   VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
 };
 
+// All 50 US states with their codes
+const ALL_STATES = Object.entries(stateCodeToName).map(([code, name]) => ({
+  code,
+  name,
+  races: 0, // Default to 0 races
+}));
+
 export function StateMapSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredState, setHoveredState] = useState<string | null>(null);
@@ -31,12 +38,17 @@ export function StateMapSection() {
     queryFn: () => getStateElectionCounts(2026),
   });
 
-  // Convert API data to the format expected by USMap
-  const states = stateCountsData?.states.map(s => ({
-    code: s.state,
-    name: stateCodeToName[s.state] || s.state,
-    races: s.races,
-  })) || [];
+  // Merge API data with all states - ensure every state is included
+  const states = ALL_STATES.map(state => {
+    // Find matching state data from API
+    const apiData = stateCountsData?.states.find(s => s.state === state.code);
+
+    return {
+      code: state.code,
+      name: state.name,
+      races: apiData?.races || 0, // Use API data if available, otherwise 0
+    };
+  });
 
   const filteredStates = states.filter((state) =>
     state.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
