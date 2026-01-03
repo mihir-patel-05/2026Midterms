@@ -25,6 +25,13 @@ const stateCodeToName: { [key: string]: string } = {
   VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
 };
 
+// All 50 US states with their codes
+const ALL_STATES = Object.entries(stateCodeToName).map(([code, name]) => ({
+  code,
+  name,
+  races: 0, // Default to 0 races
+}));
+
 function getCompetitivenessColor(rating?: string): string {
   if (!rating) return "bg-muted text-muted-foreground";
   if (rating.includes("Toss")) return "bg-secondary/20 text-secondary border-secondary/30";
@@ -55,12 +62,17 @@ export default function Elections() {
     enabled: !!stateCode, // Only fetch when viewing a specific state
   });
 
-  // Convert state counts to the format expected by USMap
-  const states: StateElectionCount[] = stateCountsData?.states.map(s => ({
-    code: s.state,
-    name: stateCodeToName[s.state] || s.state,
-    races: s.races,
-  })) || [];
+  // Merge API data with all states - ensure every state is included
+  const states: StateElectionCount[] = ALL_STATES.map(state => {
+    // Find matching state data from API
+    const apiData = stateCountsData?.states.find(s => s.state === state.code);
+
+    return {
+      code: state.code,
+      name: state.name,
+      races: apiData?.races || 0, // Use API data if available, otherwise 0
+    };
+  });
 
   const filteredStates = states.filter((s) =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
