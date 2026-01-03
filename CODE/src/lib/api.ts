@@ -346,5 +346,74 @@ export async function getDeadlines(): Promise<DeadlinesResponse> {
   return fetchAPI<DeadlinesResponse>('/deadlines');
 }
 
+// ============================================================================
+// CHAT API
+// ============================================================================
+
+/**
+ * Chat message interface for AI chat feature
+ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+/**
+ * Request body for sending chat messages
+ */
+export interface SendChatMessageRequest {
+  message: string;
+  sessionId: string;
+}
+
+/**
+ * Response from chat API
+ */
+export interface ChatResponse {
+  message: string;
+  timestamp: string;
+  sessionId: string;
+}
+
+/**
+ * Send a chat message and get AI response
+ * @param request - Message and session ID
+ * @returns Promise<ChatResponse> - AI response with timestamp
+ * @example
+ * ```ts
+ * const response = await sendChatMessage({
+ *   message: "What are the Senate races in California?",
+ *   sessionId: "session-123"
+ * });
+ * ```
+ */
+export async function sendChatMessage(
+  request: SendChatMessageRequest
+): Promise<ChatResponse> {
+  return fetchAPI<ChatResponse>('/chat', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Clear chat conversation history
+ * @param sessionId - Session ID to clear
+ * @returns Promise<{message: string, sessionId: string}>
+ * @example
+ * ```ts
+ * await clearChatHistory("session-123");
+ * ```
+ */
+export async function clearChatHistory(sessionId: string): Promise<{
+  message: string;
+  sessionId: string;
+}> {
+  return fetchAPI(`/chat/${sessionId}`, {
+    method: 'DELETE',
+  });
+}
+
 // Export API base URL for reference
 export { API_BASE_URL };
