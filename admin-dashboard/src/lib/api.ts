@@ -129,16 +129,26 @@ class AdminAPI {
     return response.json();
   }
 
-  async verifyPassword(username: string, password: string): Promise<boolean> {
+  async verifyPassword(username: string, password: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await this.fetch<{ success: boolean; token: string }>('/verify', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       });
       this.setAdminKey(response.token);
-      return true;
-    } catch {
-      return false;
+      return { success: true };
+    } catch (error) {
+      // Provide more specific error messages
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { success: false, error: 'Cannot connect to server. Is the backend running?' };
+      }
+      if (error instanceof Error) {
+        if (error.message.includes('CORS') || error.message.includes('NetworkError')) {
+          return { success: false, error: 'Network error. Check if backend is running on correct port.' };
+        }
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'Invalid credentials' };
     }
   }
 

@@ -24,12 +24,12 @@ function App() {
     }
   }, []);
 
-  const handleLogin = async (username: string, password: string): Promise<boolean> => {
-    const success = await adminAPI.verifyPassword(username, password);
-    if (success) {
+  const handleLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await adminAPI.verifyPassword(username, password);
+    if (result.success) {
       setIsAuthenticated(true);
     }
-    return success;
+    return result;
   };
 
   const handleLogout = () => {

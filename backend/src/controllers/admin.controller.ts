@@ -51,13 +51,29 @@ export class AdminController {
    */
   async verifyPassword(req: Request, res: Response): Promise<void> {
     const { username, password } = req.body;
+    
+    console.log('🔐 Login attempt for username:', username);
 
     if (!username || !password) {
+      console.log('🔍 Login failed: Missing username or password');
       res.status(400).json({ error: 'Username and password required' });
       return;
     }
 
     try {
+      // Check if any admin users exist at all
+      const adminCount = await prisma.adminUser.count();
+      console.log(`📊 Total admin users in database: ${adminCount}`);
+      
+      if (adminCount === 0) {
+        console.log('❌ No admin users exist! Run: npm run admin:create');
+        res.status(401).json({ 
+          error: 'No admin users configured',
+          hint: 'Run "npm run admin:create" in the backend directory'
+        });
+        return;
+      }
+
       // Find admin user by username
       const adminUser = await prisma.adminUser.findUnique({
         where: { username }
@@ -65,7 +81,7 @@ export class AdminController {
 
       if (!adminUser) {
         console.log('🔍 Login attempt failed: User not found -', username);
-        res.status(401).json({ error: 'Invalid credentials' });
+        res.status(401).json({ error: 'Invalid credentials - user not found' });
         return;
       }
 

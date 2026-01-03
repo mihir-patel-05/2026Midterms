@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Lock, AlertCircle } from 'lucide-react';
 
 interface PasswordGateProps {
-  onLogin: (username: string, password: string) => Promise<boolean>;
+  onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export default function PasswordGate({ onLogin }: PasswordGateProps) {
@@ -17,9 +17,9 @@ export default function PasswordGate({ onLogin }: PasswordGateProps) {
     setIsLoading(true);
 
     try {
-      const success = await onLogin(username, password);
-      if (!success) {
-        setError('Invalid credentials');
+      const result = await onLogin(username, password);
+      if (!result.success) {
+        setError(result.error || 'Invalid credentials');
         setPassword('');
       }
     } catch {
