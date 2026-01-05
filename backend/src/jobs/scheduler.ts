@@ -1,9 +1,9 @@
 /**
  * FEC Data Sync Scheduler
  * Runs automated data synchronization jobs on a weekly schedule
- * 
- * Schedule: Every Sunday at 2:00 AM
- * Cron expression: '0 2 * * 0'
+ *
+ * Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST
+ * Cron expression: '0 2 * * 0,2,4'
  */
 
 import cron from 'node-cron';
@@ -266,8 +266,8 @@ function sleep(ms: number): Promise<void> {
  */
 export function initializeScheduler(): void {
   // Validate cron expression
-  const cronExpression = '0 2 * * 0'; // Every Sunday at 2:00 AM
-  
+  const cronExpression = '0 2 * * 0,2,4'; // Every Sunday, Tuesday, Thursday at 2:00 AM
+
   if (!cron.validate(cronExpression)) {
     console.error('❌ Invalid cron expression:', cronExpression);
     return;
@@ -290,7 +290,7 @@ export function initializeScheduler(): void {
   );
 
   console.log('⏰ FEC Data Sync Scheduler initialized');
-  console.log(`📅 Schedule: Every Sunday at 2:00 AM EST\n`);
+  console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
 }
 
 /**
