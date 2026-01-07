@@ -1,7 +1,20 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { sendMessage, clearConversation } from '../controllers/chat.controller.js';
 
 const router = Router();
+
+// Rate limiter for chat endpoint - 20 requests per minute per IP
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // limit each IP to 20 requests per minute
+  message: {
+    error: 'Too Many Requests',
+    message: 'Too many chat requests. Please wait a moment before trying again.',
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 /**
  * POST /api/chat
@@ -20,7 +33,7 @@ const router = Router();
  *   "sessionId": "unique-session-id-123"
  * }
  */
-router.post('/', sendMessage);
+router.post('/', chatLimiter, sendMessage);
 
 /**
  * DELETE /api/chat/:sessionId

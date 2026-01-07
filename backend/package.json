@@ -30,6 +30,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.1.0",
     "@types/bcrypt": "^6.0.0",
     "@types/node-cron": "^3.0.11",

@@ -1,11 +1,25 @@
 import { Request, Response } from 'express';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { env } from '../config/env.js';
 
 /**
  * Chat Controller
  * Handles AI chat interactions for candidate research assistance
  */
 
-// In-memory conversation storage (consider moving to database for persistence)
+/**
+ * In-memory conversation storage
+ *
+ * LIMITATIONS:
+ * - Lost on server restart/deployment
+ * - Not shared across multiple server instances
+ * - No cleanup for old sessions (potential memory leak)
+ *
+ * RECOMMENDATIONS:
+ * - Move to Redis for distributed caching with TTL
+ * - Or move to database (Prisma) for persistence
+ * - Add session cleanup for sessions older than 24 hours
+ */
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -17,6 +31,21 @@ interface ConversationHistory {
 }
 
 const conversations: ConversationHistory = {};
+
+// Initialize Gemini AI client (singleton pattern)
+// Using gemini-1.5-flash for faster responses and lower costs
+// Alternative: "gemini-1.5-pro" for more complex reasoning tasks
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+const model: GenerativeModel = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+  generationConfig: {
+    maxOutputTokens: 2000, // Increased from 1000 for more comprehensive responses
+    temperature: 0.7, // Balance between creativity and consistency
+  },
+});
+
+// NOTE: For streaming responses, use model.generateContentStream() instead
+// This would provide a better UX for long responses but requires frontend changes
 
 /**
  * Send a chat message and get AI response
@@ -56,46 +85,22 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
     };
     conversations[sessionId].push(userMessage);
 
-    // Get conversation context (last 10 messages for context window)
-    const conversationContext = conversations[sessionId].slice(-10);
+    // Get conversation context (last 10 messages for context window, excluding current message)
+    const conversationContext = conversations[sessionId].slice(-11, -1); // Get previous 10 messages
 
-    // =========================================================================
-    // TODO: INTEGRATE GEMINI API HERE
-    // =========================================================================
-    // 1. Set up your Gemini API key in environment variables (.env file):
-    //    GEMINI_API_KEY=your_api_key_here
-    //
-    // 2. Install the Gemini SDK:
-    //    npm install @google/generative-ai
-    //
-    // 3. Replace the mock response below with actual Gemini API call:
-    //
-    // import { GoogleGenerativeAI } from '@google/generative-ai';
-    //
-    // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    // const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    //
-    // // Build conversation context for Gemini
-    // const chatHistory = conversationContext.map(msg => ({
-    //   role: msg.role === 'user' ? 'user' : 'model',
-    //   parts: [{ text: msg.content }]
-    // }));
-    //
-    // const chat = model.startChat({
-    //   history: chatHistory.slice(0, -1), // Exclude the latest message
-    //   generationConfig: {
-    //     maxOutputTokens: 1000,
-    //     temperature: 0.7,
-    //   },
-    // });
-    //
-    // const result = await chat.sendMessage(message);
-    // const aiResponse = result.response.text();
-    //
-    // =========================================================================
+    // Build chat history for Gemini (excluding the current user message)
+    const chatHistory = conversationContext.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
 
-    // MOCK RESPONSE - Replace this with actual Gemini API response
-    const aiResponse = generateMockResponse(message, conversationContext);
+    // Start chat with history and send the new message
+    const chat = model.startChat({
+      history: chatHistory,
+    });
+
+    const result = await chat.sendMessage(message);
+    const aiResponse = result.response.text();
 
     // Add AI response to conversation history
     const assistantMessage: ChatMessage = {
@@ -114,6 +119,49 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
 
   } catch (error) {
     console.error('Error in chat controller:', error);
+
+    // Handle specific Gemini API errors
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      // Rate limit or quota exceeded
+      if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+        res.status(429).json({
+          error: 'Rate Limit Exceeded',
+          message: 'AI service quota exceeded. Please try again later.',
+        });
+        return;
+      }
+
+      // Invalid API key
+      if (errorMessage.includes('api key') || errorMessage.includes('unauthorized')) {
+        res.status(500).json({
+          error: 'Configuration Error',
+          message: 'AI service configuration error. Please contact support.',
+        });
+        return;
+      }
+
+      // Content filtering or safety issues
+      if (errorMessage.includes('safety') || errorMessage.includes('blocked')) {
+        res.status(400).json({
+          error: 'Content Filtered',
+          message: 'Your message was blocked by content safety filters. Please rephrase your question.',
+        });
+        return;
+      }
+
+      // Model overloaded or unavailable
+      if (errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) {
+        res.status(503).json({
+          error: 'Service Unavailable',
+          message: 'AI service is temporarily unavailable. Please try again in a moment.',
+        });
+        return;
+      }
+    }
+
+    // Generic error fallback
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Failed to process chat message. Please try again.',
@@ -153,43 +201,3 @@ export const clearConversation = async (req: Request, res: Response): Promise<vo
     });
   }
 };
-
-/**
- * Mock response generator
- * This simulates an AI response and should be replaced with actual Gemini API
- */
-function generateMockResponse(message: string, context: ChatMessage[]): string {
-  const lowerMessage = message.toLowerCase();
-
-  // Context-aware responses based on keywords
-  if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    return "Hello! I'm your AI assistant for researching candidates in the 2026 midterm elections. I can help you learn about candidates' positions, campaign finances, voting records, and more. What would you like to know?";
-  }
-
-  if (lowerMessage.includes('senate') || lowerMessage.includes('senator')) {
-    return "I can help you research Senate candidates for the 2026 midterms. You can ask me about specific candidates, compare their positions on issues, check their campaign finance data, or learn about Senate races in particular states. What would you like to know?";
-  }
-
-  if (lowerMessage.includes('house') || lowerMessage.includes('representative')) {
-    return "I can provide information about House of Representatives candidates in the 2026 midterms. You can ask about candidates in specific districts, their policy positions, voting records, or campaign funding. How can I assist you with House races?";
-  }
-
-  if (lowerMessage.includes('finance') || lowerMessage.includes('funding') || lowerMessage.includes('money') || lowerMessage.includes('donation')) {
-    return "Campaign finance is an important aspect of elections. I can help you understand where candidates get their funding, including individual donations, PAC contributions, and overall fundraising totals. Which candidate's finances would you like to explore?";
-  }
-
-  if (lowerMessage.includes('state') || lowerMessage.includes('where')) {
-    return "I can provide information about elections in all 50 states for the 2026 midterms. Which state are you interested in learning about? I can tell you about Senate races, House districts, and key candidates in that state.";
-  }
-
-  if (lowerMessage.includes('how') && lowerMessage.includes('vote')) {
-    return "I can help you understand the voting process! This includes voter registration deadlines, polling locations, absentee ballot requirements, and early voting options. Which state are you voting in, or what specific aspect of voting would you like to know about?";
-  }
-
-  if (lowerMessage.includes('compare')) {
-    return "I can help you compare candidates side-by-side on various factors including their policy positions, voting records, campaign finances, endorsements, and backgrounds. Which candidates would you like to compare?";
-  }
-
-  // Default response
-  return "I'm here to help you research candidates for the 2026 midterm elections. You can ask me about:\n\n• Specific candidates and their positions\n• Campaign finance and funding sources\n• Senate and House races in any state\n• Voter registration and election information\n• Comparing candidates side-by-side\n\nWhat would you like to know? (Note: I'm currently using mock responses. Once the Gemini API is integrated, I'll provide more detailed and accurate information!)";
-}
