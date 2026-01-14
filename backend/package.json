@@ -1,0 +1,55 @@
+{
+  "name": "2026-midterms-backend",
+  "version": "1.0.0",
+  "description": "Backend API for 2026 Federal Midterm Elections information",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc",
+    "start": "node dist/server.js",
+    "start:railway": "prisma migrate deploy && node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "test:fec": "tsx src/jobs/test-fec-api.ts",
+    "sync:all": "node dist/jobs/sync-all-data.js",
+    "sync:dev": "tsx src/jobs/sync-all-data.ts",
+    "sync:financials": "tsx src/scripts/sync-financials-only.ts",
+    "sync:financials:force": "tsx src/scripts/sync-financials-only.ts --force",
+    "sync:financials:fast": "tsx src/scripts/sync-financials-only.ts --batch-size 100",
+    "admin:create": "tsx src/scripts/create-admin.ts"
+  },
+  "keywords": [
+    "elections",
+    "fec",
+    "campaign-finance",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^6.1.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/node-cron": "^3.0.11",
+    "axios": "^1.7.9",
+    "bcrypt": "^6.0.0",
+    "bottleneck": "^2.19.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "node-cron": "^4.2.1",
+    "prisma": "^6.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.16.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

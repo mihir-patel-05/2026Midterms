@@ -48,9 +48,11 @@ export function Navbar() {
 
         {/* CTA Button */}
         <div className="hidden md:block">
-          <Button variant="default" size="sm">
-            Find Your State
-          </Button>
+          <Link to="/elections">
+            <Button variant="default" size="sm">
+              Find Your State
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile Menu Button */}
@@ -84,9 +86,11 @@ export function Navbar() {
               </Link>
             ))}
             <div className="pt-2">
-              <Button variant="default" className="w-full">
-                Find Your State
-              </Button>
+              <Link to="/elections" className="w-full" onClick={() => setIsOpen(false)}>
+                <Button variant="default" className="w-full">
+                  Find Your State
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

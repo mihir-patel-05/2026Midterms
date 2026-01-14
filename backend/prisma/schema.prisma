@@ -1,0 +1,340 @@
+// Prisma schema for 2026 Midterm Elections Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Candidates running for federal office
+model Candidate {
+  id                  String              @id @default(uuid())
+  candidateId         String              @unique @map("candidate_id") // FEC candidate ID
+  name                String
+  party               String?
+  office              String              // HOUSE, SENATE
+  district            String?             // For House races
+  state               String              // Two-letter state code
+  incumbentStatus     String?             @map("incumbent_status")
+  activeThrough       Int?                @map("active_through")
+  cycles              Int[]               // Election cycles
+  electionYears       Int[]               @map("election_years")
+  candidateStatus     String?             @map("candidate_status")
+
+  // Detail fields for candidate profile
+  biography           String?             @db.Text
+  currentOfficeHeld   String?             @map("current_office_held")
+  campaignWebsite     String?             @map("campaign_website")
+  socialMedia         Json?               @map("social_media") // {twitter, facebook, instagram, etc.}
+
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  committees          Committee[]
+  candidateElections  CandidateElection[]
+  ideologyScores      IdeologyScore[]
+  financials          CandidateFinancial[]
+
+  @@index([candidateId])
+  @@index([name])
+  @@index([state])
+  @@index([party])
+  @@index([office])
+  @@map("candidates")
+}
+
+// Candidate-level financial totals (aggregated from FEC)
+model CandidateFinancial {
+  id                      String      @id @default(uuid())
+  candidateId             String      @map("candidate_id")
+  cycle                   Int
+  candidateElectionYear   Int?        @map("candidate_election_year")
+
+  // Receipt totals
+  receipts                           Decimal  @default(0) @db.Decimal(15, 2)
+  contributions                      Decimal  @default(0) @db.Decimal(15, 2)
+  individualContributions            Decimal  @default(0) @map("individual_contributions") @db.Decimal(15, 2)
+  individualItemizedContributions    Decimal  @default(0) @map("individual_itemized_contributions") @db.Decimal(15, 2)
+  individualUnitemizedContributions  Decimal  @default(0) @map("individual_unitemized_contributions") @db.Decimal(15, 2)
+  pacContributions                   Decimal  @default(0) @map("pac_contributions") @db.Decimal(15, 2)
+  partyContributions                 Decimal  @default(0) @map("party_contributions") @db.Decimal(15, 2)
+  candidateContribution              Decimal  @default(0) @map("candidate_contribution") @db.Decimal(15, 2)
+  otherReceipts                      Decimal  @default(0) @map("other_receipts") @db.Decimal(15, 2)
+  transfersFromAffiliatedCommittee   Decimal  @default(0) @map("transfers_from_affiliated_committee") @db.Decimal(15, 2)
+  loansReceived                      Decimal  @default(0) @map("loans_received") @db.Decimal(15, 2)
+  loansReceivedFromCandidate         Decimal  @default(0) @map("loans_received_from_candidate") @db.Decimal(15, 2)
+  otherLoansReceived                 Decimal  @default(0) @map("other_loans_received") @db.Decimal(15, 2)
+  federalFunds                       Decimal  @default(0) @map("federal_funds") @db.Decimal(15, 2)
+
+  // Disbursement totals
+  disbursements                      Decimal  @default(0) @db.Decimal(15, 2)
+  operatingExpenditures              Decimal  @default(0) @map("operating_expenditures") @db.Decimal(15, 2)
+  transfersToOtherAuthorizedCommittee Decimal @default(0) @map("transfers_to_other_authorized_committee") @db.Decimal(15, 2)
+  fundraisingDisbursements           Decimal  @default(0) @map("fundraising_disbursements") @db.Decimal(15, 2)
+  exemptLegalAccountingDisbursement  Decimal  @default(0) @map("exempt_legal_accounting_disbursement") @db.Decimal(15, 2)
+  loanRepaymentsMade                 Decimal  @default(0) @map("loan_repayments_made") @db.Decimal(15, 2)
+  repaymentsLoansMadeByCandidate     Decimal  @default(0) @map("repayments_loans_made_by_candidate") @db.Decimal(15, 2)
+  repaymentsOtherLoans               Decimal  @default(0) @map("repayments_other_loans") @db.Decimal(15, 2)
+  otherDisbursements                 Decimal  @default(0) @map("other_disbursements") @db.Decimal(15, 2)
+
+  // Refunds
+  contributionRefunds                          Decimal  @default(0) @map("contribution_refunds") @db.Decimal(15, 2)
+  refundedIndividualContributions              Decimal  @default(0) @map("refunded_individual_contributions") @db.Decimal(15, 2)
+  refundedOtherPoliticalCommitteeContributions Decimal  @default(0) @map("refunded_other_political_committee_contributions") @db.Decimal(15, 2)
+  refundedPoliticalPartyCommitteeContributions Decimal  @default(0) @map("refunded_political_party_committee_contributions") @db.Decimal(15, 2)
+
+  // Offsets
+  offsetsToOperatingExpenditures      Decimal  @default(0) @map("offsets_to_operating_expenditures") @db.Decimal(15, 2)
+  totalOffsetsToOperatingExpenditures Decimal  @default(0) @map("total_offsets_to_operating_expenditures") @db.Decimal(15, 2)
+  offsetsToFundraisingExpenditures    Decimal  @default(0) @map("offsets_to_fundraising_expenditures") @db.Decimal(15, 2)
+  offsetsToLegalAccounting            Decimal  @default(0) @map("offsets_to_legal_accounting") @db.Decimal(15, 2)
+
+  // Net calculations
+  netContributions          Decimal  @default(0) @map("net_contributions") @db.Decimal(15, 2)
+  netOperatingExpenditures  Decimal  @default(0) @map("net_operating_expenditures") @db.Decimal(15, 2)
+
+  // End of period data
+  cashOnHand         Decimal  @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
+  debtsOwed          Decimal  @default(0) @map("debts_owed") @db.Decimal(15, 2)
+  debtsOwedToCommittee Decimal @default(0) @map("debts_owed_to_committee") @db.Decimal(15, 2)
+
+  // Coverage dates and metadata
+  coverageStartDate      DateTime? @map("coverage_start_date")
+  coverageEndDate        DateTime? @map("coverage_end_date")
+  transactionCoverageDate DateTime? @map("transaction_coverage_date")
+  lastReportYear         Int?      @map("last_report_year")
+  lastReportTypeFull     String?   @map("last_report_type_full")
+  lastBeginningImageNumber String? @map("last_beginning_image_number")
+  electionFull           Boolean?  @map("election_full")
+
+  lastUpdated            DateTime  @default(now()) @map("last_updated")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+
+  @@unique([candidateId, cycle])
+  @@index([candidateId])
+  @@index([cycle])
+  @@map("candidate_financials")
+}
+
+// Campaign committees
+model Committee {
+  id              String              @id @default(uuid())
+  committeeId     String              @unique @map("committee_id") // FEC committee ID
+  name            String
+  committeeType   String?             @map("committee_type")
+  designation     String?
+  candidateId     String?             @map("candidate_id")
+  party           String?
+  state           String?
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  candidate           Candidate?          @relation(fields: [candidateId], references: [candidateId])
+  financialSummaries  FinancialSummary[]
+  receipts            Receipt[]
+  disbursements       Disbursement[]
+
+  @@index([committeeId])
+  @@index([candidateId])
+  @@index([state])
+  @@map("committees")
+}
+
+// Elections (primary and general)
+model Election {
+  id              String              @id @default(uuid())
+  state           String              // Two-letter state code
+  district        String?             // For House races
+  officeType      String              @map("office_type") // HOUSE, SENATE
+  electionDate    DateTime            @map("election_date")
+  electionType    String              @map("election_type") // PRIMARY, GENERAL
+  cycle           Int                 // Election year
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  candidateElections  CandidateElection[]
+
+  @@index([state])
+  @@index([electionDate])
+  @@index([cycle])
+  @@index([officeType])
+  @@map("elections")
+}
+
+// Many-to-many relationship between candidates and elections
+model CandidateElection {
+  id              String      @id @default(uuid())
+  candidateId     String      @map("candidate_id")
+  electionId      String      @map("election_id")
+  isIncumbent     Boolean     @default(false) @map("is_incumbent")
+  result          String?     // WON, LOST, PENDING
+  votePercentage  Float?      @map("vote_percentage")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+  election    Election    @relation(fields: [electionId], references: [id])
+
+  @@unique([candidateId, electionId])
+  @@index([candidateId])
+  @@index([electionId])
+  @@map("candidate_elections")
+}
+
+// Aggregated financial summaries
+model FinancialSummary {
+  id                  String      @id @default(uuid())
+  committeeId         String      @map("committee_id")
+  cycle               Int
+  totalReceipts       Decimal     @default(0) @map("total_receipts") @db.Decimal(15, 2)
+  totalDisbursements  Decimal     @default(0) @map("total_disbursements") @db.Decimal(15, 2)
+  cashOnHand          Decimal     @default(0) @map("cash_on_hand") @db.Decimal(15, 2)
+  debtOwed            Decimal     @default(0) @map("debt_owed") @db.Decimal(15, 2)
+  coverageEndDate     DateTime?   @map("coverage_end_date")
+  lastUpdated         DateTime    @default(now()) @map("last_updated")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@unique([committeeId, cycle])
+  @@index([committeeId])
+  @@index([cycle])
+  @@map("financial_summaries")
+}
+
+// Itemized receipts (Schedule A)
+model Receipt {
+  id                          String      @id @default(uuid())
+  committeeId                 String      @map("committee_id")
+  contributorName             String?     @map("contributor_name")
+  contributorState            String?     @map("contributor_state")
+  contributorCity             String?     @map("contributor_city")
+  contributorEmployer         String?     @map("contributor_employer")
+  contributorOccupation       String?     @map("contributor_occupation")
+  contributionReceiptAmount   Decimal     @map("contribution_receipt_amount") @db.Decimal(15, 2)
+  contributionReceiptDate     DateTime?   @map("contribution_receipt_date")
+  receiptType                 String?     @map("receipt_type")
+  imageNumber                 String?     @map("image_number")
+  createdAt                   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@index([committeeId])
+  @@index([contributorName])
+  @@index([contributionReceiptDate])
+  @@index([contributionReceiptAmount])
+  @@map("receipts")
+}
+
+// Itemized disbursements (Schedule B)
+model Disbursement {
+  id                      String      @id @default(uuid())
+  committeeId             String      @map("committee_id")
+  recipientName           String?     @map("recipient_name")
+  disbursementType        String?     @map("disbursement_type")
+  disbursementAmount      Decimal     @map("disbursement_amount") @db.Decimal(15, 2)
+  disbursementDate        DateTime?   @map("disbursement_date")
+  disbursementDescription String?     @map("disbursement_description")
+  imageNumber             String?     @map("image_number")
+  createdAt               DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  committee   Committee   @relation(fields: [committeeId], references: [committeeId])
+
+  @@index([committeeId])
+  @@index([disbursementDate])
+  @@index([disbursementAmount])
+  @@map("disbursements")
+}
+
+// Ideology scores (GovTrack-style)
+model IdeologyScore {
+  id                  String      @id @default(uuid())
+  candidateId         String      @map("candidate_id")
+  congressSession     Int         @map("congress_session")
+  ideologyScore       Float?      @map("ideology_score")     // Left-right spectrum score
+  leadershipScore     Float?      @map("leadership_score")   // Leadership effectiveness score
+  billsSponsored      Int         @default(0) @map("bills_sponsored")
+  billsCosponsored    Int         @default(0) @map("bills_cosponsored")
+  calculatedAt        DateTime    @default(now()) @map("calculated_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
+
+  @@unique([candidateId, congressSession])
+  @@index([candidateId])
+  @@index([congressSession])
+  @@map("ideology_scores")
+}
+
+// Sync logs for tracking data synchronization jobs
+model SyncLog {
+  id                  String      @id @default(uuid())
+  syncType            String      @map("sync_type")       // "candidates", "finance", "full", "committees"
+  status              String                              // "started", "running", "completed", "failed"
+  recordsProcessed    Int         @default(0) @map("records_processed")
+  recordsErrors       Int         @default(0) @map("records_errors")
+  recordsSkipped      Int         @default(0) @map("records_skipped")
+  errorMessage        String?     @map("error_message") @db.Text
+  metadata            Json?                               // Additional sync details (states, cycles, etc.)
+  startedAt           DateTime    @default(now()) @map("started_at")
+  completedAt         DateTime?   @map("completed_at")
+  duration            Int?                                // Duration in milliseconds
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([syncType])
+  @@index([status])
+  @@index([startedAt])
+  @@map("sync_logs")
+}
+
+// Admin users for dashboard authentication
+model AdminUser {
+  id              String      @id @default(uuid())
+  username        String      @unique
+  passwordHash    String      @map("password_hash")
+  email           String?     @unique
+  isActive        Boolean     @default(true) @map("is_active")
+  lastLoginAt     DateTime?   @map("last_login_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([username])
+  @@index([email])
+  @@map("admin_users")
+}
+
+// Deadlines for voter registration and elections
+model Deadline {
+  id          String    @id @default(uuid())
+  title       String                              // e.g., "Primary Registration Deadline"
+  date        DateTime
+  type        String                              // "registration" | "election" | "other"
+  states      String[]                            // e.g., ["CA", "TX"] or ["ALL"]
+  description String?   @db.Text
+  urgent      Boolean   @default(false)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@index([isActive])
+  @@map("deadlines")
+}
