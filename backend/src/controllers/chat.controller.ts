@@ -32,20 +32,27 @@ interface ConversationHistory {
 
 const conversations: ConversationHistory = {};
 
-// Initialize Gemini AI client (singleton pattern)
+// Initialize Gemini AI client lazily (only when GEMINI_API_KEY is available)
 // Using gemini-1.5-flash for faster responses and lower costs
 // Alternative: "gemini-1.5-pro" for more complex reasoning tasks
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-const model: GenerativeModel = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  generationConfig: {
-    maxOutputTokens: 2000, // Increased from 1000 for more comprehensive responses
-    temperature: 0.7, // Balance between creativity and consistency
-  },
-});
+let model: GenerativeModel | null = null;
 
-// NOTE: For streaming responses, use model.generateContentStream() instead
-// This would provide a better UX for long responses but requires frontend changes
+function getModel(): GenerativeModel {
+  if (!model) {
+    if (!env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
+    }
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        maxOutputTokens: 2000,
+        temperature: 0.7,
+      },
+    });
+  }
+  return model;
+}
 
 /**
  * Send a chat message and get AI response
@@ -95,7 +102,7 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
     }));
 
     // Start chat with history and send the new message
-    const chat = model.startChat({
+    const chat = getModel().startChat({
       history: chatHistory,
     });
 

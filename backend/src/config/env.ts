@@ -6,7 +6,7 @@ config();
 const envSchema = z.object({
   DATABASE_URL: z.string(),
   FEC_API_KEY: z.string(),
-  GEMINI_API_KEY: z.string(),
+  GEMINI_API_KEY: z.string().optional(),
   FEC_API_BASE_URL: z.string().default('https://api.open.fec.gov/v1'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
