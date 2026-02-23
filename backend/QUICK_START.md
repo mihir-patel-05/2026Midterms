@@ -2,6 +2,30 @@
 
 ## 🚀 Get Up and Running in 5 Minutes
 
+### Option A: Run with Docker
+
+**Prerequisites:** Docker and Docker Compose installed.
+
+1. **Create env file** (from repo root):
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+   Edit `backend/.env` and set:
+   - `FEC_API_KEY` – get one at https://api.data.gov/signup/
+   - `GEMINI_API_KEY` – for chat features
+
+2. **Start the stack:**
+   ```bash
+   docker compose up --build
+   ```
+   This starts PostgreSQL and the backend. Migrations run automatically on backend startup.
+
+3. **Use the API** at `http://localhost:3001` (e.g. `curl http://localhost:3001/`).
+
+4. **Stop:** `Ctrl+C` then `docker compose down`. Data is kept in a Docker volume; use `docker compose down -v` to remove it.
+
+### Option B: Local development (no Docker)
+
 ### 1. Test FEC API Connection ✅
 
 Your FEC API is already configured and working! Test it:
