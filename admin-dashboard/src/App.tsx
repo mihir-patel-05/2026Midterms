@@ -32,8 +32,8 @@ function App() {
     return result;
   };
 
-  const handleLogout = () => {
-    adminAPI.clearAdminKey();
+  const handleLogout = async () => {
+    await adminAPI.logout();
     setIsAuthenticated(false);
   };
 

@@ -290,6 +290,13 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState<Deadline | null>(null);
 
+  // Auto-dismiss toast messages after 5 seconds
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => setMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   const loadData = useCallback(async () => {
     try {
       const [statsData, statusData] = await Promise.all([
@@ -319,16 +326,18 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   useEffect(() => {
     loadData();
     loadDeadlines();
+  }, [loadData, loadDeadlines]);
 
-    // Poll for updates when a sync is running
+  // Separate effect for polling during sync — avoids infinite re-render loop
+  useEffect(() => {
+    if (!syncStatus?.isRunning) return;
+
     const interval = setInterval(() => {
-      if (syncStatus?.isRunning) {
-        loadData();
-      }
+      loadData();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [loadData, loadDeadlines, syncStatus?.isRunning]);
+  }, [syncStatus?.isRunning, loadData]);
 
   const handleSync = async () => {
     setIsSyncing(true);
