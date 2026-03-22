@@ -152,6 +152,15 @@ class AdminAPI {
     }
   }
 
+  async logout(): Promise<void> {
+    try {
+      await this.fetch<{ message: string }>('/logout', { method: 'POST' });
+    } catch {
+      // Ignore errors — we're logging out anyway
+    }
+    this.clearAdminKey();
+  }
+
   async getStats(): Promise<AdminStats> {
     return this.fetch<AdminStats>('/stats');
   }

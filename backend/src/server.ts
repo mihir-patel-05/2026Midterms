@@ -10,23 +10,49 @@ const app: Application = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      process.env.ADMIN_URL,
+      'http://localhost:5173',  // Vite default (main frontend)
+      'http://localhost:5174',  // Admin dashboard
+    ].filter(Boolean);
+
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin) {
+      callback(null, true);
+    } else if (allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+      callback(null, origin);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting for API endpoints
-const limiter = rateLimit({
+// Rate limiting for public API endpoints
+const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 100,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-app.use('/api', limiter);
+// Higher limit for admin endpoints (dashboard polls frequently)
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/admin', adminLimiter);
+app.use('/api', publicLimiter);
 
 // Logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {

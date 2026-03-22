@@ -75,7 +75,7 @@ export class DeadlineController {
    */
   async createDeadline(req: Request, res: Response): Promise<void> {
     try {
-      const { title, date, type, states, description, urgent } = req.body;
+      const { title, date, type, states, description, urgent, isActive } = req.body;
 
       // Validate required fields
       if (!title || !date || !type || !states) {
@@ -104,7 +104,7 @@ export class DeadlineController {
           states,
           description: description || null,
           urgent: urgent || false,
-          isActive: true,
+          isActive: isActive !== undefined ? isActive : true,
         },
       });
 

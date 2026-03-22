@@ -8,6 +8,7 @@ const router = Router();
 router.post('/verify', (req, res) => adminController.verifyPassword(req, res));
 
 // Protected endpoints (require x-admin-key header)
+router.post('/logout', verifyAdminAuth, (req, res) => adminController.logout(req, res));
 router.get('/stats', verifyAdminAuth, (req, res) => adminController.getStats(req, res));
 router.get('/sync-status', verifyAdminAuth, (req, res) => adminController.getSyncStatus(req, res));
 router.post('/sync', verifyAdminAuth, (req, res) => adminController.triggerSync(req, res));

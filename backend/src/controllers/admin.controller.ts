@@ -79,15 +79,9 @@ export class AdminController {
         where: { username }
       });
 
-      if (!adminUser) {
-        console.log('🔍 Login attempt failed: User not found -', username);
-        res.status(401).json({ error: 'Invalid credentials - user not found' });
-        return;
-      }
-
-      if (!adminUser.isActive) {
-        console.log('🔍 Login attempt failed: User inactive -', username);
-        res.status(401).json({ error: 'Account is inactive' });
+      if (!adminUser || !adminUser.isActive) {
+        console.log('🔍 Login attempt failed:', username);
+        res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
 
@@ -95,7 +89,7 @@ export class AdminController {
       const isValidPassword = await bcrypt.compare(password, adminUser.passwordHash);
 
       if (!isValidPassword) {
-        console.log('🔍 Login attempt failed: Invalid password -', username);
+        console.log('🔍 Login attempt failed:', username);
         res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
@@ -128,6 +122,18 @@ export class AdminController {
       console.error('Error during login:', error);
       res.status(500).json({ error: 'Authentication failed', message: error.message });
     }
+  }
+
+  /**
+   * POST /api/admin/logout
+   * Invalidate the current session
+   */
+  async logout(req: Request, res: Response): Promise<void> {
+    const authToken = req.headers['x-admin-key'] as string;
+    if (authToken) {
+      adminSessions.delete(authToken);
+    }
+    res.json({ message: 'Logged out successfully' });
   }
 
   /**
