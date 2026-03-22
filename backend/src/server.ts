@@ -19,8 +19,10 @@ app.use(cors({
     ].filter(Boolean);
 
     // Allow requests with no origin (server-to-server, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+    if (!origin) {
       callback(null, true);
+    } else if (allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+      callback(null, origin);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
