@@ -35,6 +35,15 @@ services:
     ports:
       - "3001:3001"
 
+  frontend:
+    build:
+      context: ./CODE
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
   admin-dashboard:
     build:
       context: ./admin-dashboard
