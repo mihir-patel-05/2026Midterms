@@ -35,5 +35,14 @@ services:
     ports:
       - "3001:3001"
 
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
+
 volumes:
   postgres_data:
