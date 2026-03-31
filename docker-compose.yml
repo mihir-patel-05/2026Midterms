@@ -1,39 +1,30 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: midterms2026
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/midterms2026
-      PORT: "3001"
-      NODE_ENV: development
-      FEC_API_KEY: ${FEC_API_KEY}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      FEC_API_BASE_URL: ${FEC_API_BASE_URL:-https://api.open.fec.gov/v1}
-      FEC_API_MAX_REQUESTS_PER_HOUR: ${FEC_API_MAX_REQUESTS_PER_HOUR:-120}
     env_file:
       - ./backend/.env
+    environment:
+      PORT: "3001"
+      NODE_ENV: development
     ports:
       - "3001:3001"
 
-volumes:
-  postgres_data:
+  frontend:
+    build:
+      context: ./CODE
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
