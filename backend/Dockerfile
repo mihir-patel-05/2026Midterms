@@ -27,5 +27,5 @@ COPY --from=builder /app/node_modules ./node_modules/
 COPY --from=builder /app/dist ./dist/
 COPY --from=builder /app/prisma ./prisma/
 
-# Push schema to database (creates tables) then start server
-CMD ["sh", "-c", "npx prisma generate && npx prisma db push --skip-generate && node dist/server.js"]
+# Generate Prisma client, then start server. Run schema sync/migrations explicitly as a separate step.
+CMD ["sh", "-c", "npx prisma generate && node dist/server.js"]
