@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: midterms2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -8,6 +25,10 @@ services:
     environment:
       PORT: "3001"
       NODE_ENV: development
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/midterms2026?schema=public"
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "3001:3001"
 
@@ -28,3 +49,6 @@ services:
       - backend
     ports:
       - "5174:80"
+
+volumes:
+  pgdata:
