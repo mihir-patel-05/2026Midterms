@@ -192,7 +192,7 @@ export default function RaceDetail() {
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {candidates.map((candidate) => (
                       <CandidateCard
-                        key={candidate.id || candidate.candidateId}
+                        key={candidate.id}
                         candidate={candidate}
                         showIdeologyScore={true}
                       />
