@@ -1,7 +1,8 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { CandidateCard } from "@/components/candidates";
+import { CandidateCard, CandidateComparison } from "@/components/candidates";
+import { RaceContext } from "@/components/elections/RaceContext";
 import { getElectionById } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -51,7 +52,8 @@ export default function RaceDetail() {
       ?.map((ce) => ce.candidate)
       .filter((c): c is Candidate => !!c) ?? [];
 
-  const incumbent = election?.candidateElections?.find((ce) => ce.isIncumbent)?.candidate;
+  const incumbentCE = election?.candidateElections?.find((ce) => ce.isIncumbent);
+  const incumbent = incumbentCE?.candidate;
 
   return (
     <Layout>
@@ -171,6 +173,14 @@ export default function RaceDetail() {
                 </div>
               </div>
 
+              {/* Race Context / History */}
+              <RaceContext
+                state={election.state}
+                officeType={election.officeType}
+                district={election.district}
+                currentCycle={election.cycle}
+              />
+
               {/* Candidates Section */}
               <div className="mb-8">
                 <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
@@ -200,6 +210,13 @@ export default function RaceDetail() {
                   </div>
                 )}
               </div>
+
+              {/* Candidate Comparison */}
+              <CandidateComparison
+                candidates={candidates}
+                incumbentId={incumbent?.id}
+                cycle={election.cycle}
+              />
 
               {/* Polling Placeholder */}
               <div>
