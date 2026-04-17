@@ -321,6 +321,76 @@ model AdminUser {
   @@map("admin_users")
 }
 
+// Counties (US Census gazetteer)
+model County {
+  fipsCode        String          @id @map("fips_code")           // 5-digit FIPS (state+county)
+  state           String                                          // Two-letter state code
+  name            String                                          // County name
+  districts       String[]                                        // CD numbers intersecting this county
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  results         CountyResult[]
+
+  @@index([state])
+  @@map("counties")
+}
+
+// Historical county-level race results (MIT Election Lab)
+model CountyResult {
+  id              String      @id @default(uuid())
+  countyFips      String      @map("county_fips")
+  cycle           Int
+  state           String
+  officeType      String      @map("office_type")                 // HOUSE, SENATE
+  district        String      @default("")                        // CD number for House, "" for Senate
+  party           String                                          // DEMOCRAT, REPUBLICAN, OTHER
+  candidateName   String      @map("candidate_name")
+  votes           Int
+  votePct         Float       @map("vote_pct")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  county          County      @relation(fields: [countyFips], references: [fipsCode])
+
+  @@unique([countyFips, cycle, officeType, district, candidateName])
+  @@index([cycle, state, officeType])
+  @@index([state, district, cycle])
+  @@map("county_results")
+}
+
+// Researcher users (separate role from admin)
+model ResearcherUser {
+  id              String              @id @default(uuid())
+  email           String              @unique
+  passwordHash    String              @map("password_hash")
+  name            String?
+  isActive        Boolean             @default(true) @map("is_active")
+  lastLoginAt     DateTime?           @map("last_login_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  savedSimulations SavedSimulation[]
+
+  @@index([email])
+  @@map("researcher_users")
+}
+
+// Saved simulation scenarios (persistence scaffold)
+model SavedSimulation {
+  id              String          @id @default(uuid())
+  researcherId    String          @map("researcher_id")
+  name            String
+  params          Json                                            // { baselineCycle, swings: {...} }
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  researcher      ResearcherUser  @relation(fields: [researcherId], references: [id], onDelete: Cascade)
+
+  @@index([researcherId])
+  @@map("saved_simulations")
+}
+
 // Deadlines for voter registration and elections
 model Deadline {
   id          String    @id @default(uuid())
