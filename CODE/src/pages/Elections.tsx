@@ -203,7 +203,7 @@ export default function Elections() {
                             return (
                               <Link
                                 key={election.id}
-                                to={`/candidates?state=${election.state}&office=${election.officeType}${election.district ? `&district=${election.district}` : ''}`}
+                                to={`/elections/${election.state.toLowerCase()}/${election.id}`}
                                 className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
                               >
                                 <div className="flex items-center gap-4">
@@ -259,7 +259,7 @@ export default function Elections() {
                             return (
                               <Link
                                 key={election.id}
-                                to={`/candidates?state=${election.state}&office=${election.officeType}${election.district ? `&district=${election.district}` : ''}`}
+                                to={`/elections/${election.state.toLowerCase()}/${election.id}`}
                                 className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
                               >
                                 <div className="flex items-center gap-4">

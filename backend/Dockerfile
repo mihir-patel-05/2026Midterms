@@ -27,5 +27,5 @@ COPY --from=builder /app/node_modules ./node_modules/
 COPY --from=builder /app/dist ./dist/
 COPY --from=builder /app/prisma ./prisma/
 
-# Run migrations then start server
+# Generate Prisma client, then start server. Run schema sync/migrations explicitly as a separate step.
 CMD ["sh", "-c", "npx prisma generate && node dist/server.js"]

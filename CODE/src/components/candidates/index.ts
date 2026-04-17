@@ -3,3 +3,4 @@
  */
 
 export { CandidateCard } from './CandidateCard';
+export { CandidateComparison } from './CandidateComparison';
