@@ -19,7 +19,11 @@
     "sync:financials": "tsx src/scripts/sync-financials-only.ts",
     "sync:financials:force": "tsx src/scripts/sync-financials-only.ts --force",
     "sync:financials:fast": "tsx src/scripts/sync-financials-only.ts --batch-size 100",
-    "admin:create": "tsx src/scripts/create-admin.ts"
+    "admin:create": "tsx src/scripts/create-admin.ts",
+    "researcher:create": "tsx src/scripts/create-researcher.ts",
+    "seed:counties": "tsx src/scripts/seed-counties.ts",
+    "import:county-results": "tsx src/scripts/import-mit-results.ts",
+    "test:simulation": "tsx src/scripts/test-simulation.ts"
   },
   "keywords": [
     "elections",
@@ -38,9 +42,11 @@
     "bcrypt": "^6.0.0",
     "bottleneck": "^2.19.5",
     "cors": "^2.8.5",
+    "csv-parse": "^5.5.6",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
     "prisma": "^6.1.0",
     "zod": "^3.25.76"
@@ -48,6 +54,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.16.5",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"

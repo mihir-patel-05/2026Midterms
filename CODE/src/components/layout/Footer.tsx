@@ -60,6 +60,11 @@ export function Footer() {
                   FAQ
                 </Link>
               </li>
+              <li>
+                <Link to="/research" className="text-muted-foreground hover:text-primary transition-colors">
+                  Researcher Portal
+                </Link>
+              </li>
             </ul>
           </div>
 
