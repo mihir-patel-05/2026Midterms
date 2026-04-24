@@ -4,36 +4,99 @@ on:
   # Run on schedule: Mon/Wed/Fri at 2 AM UTC
   schedule:
     - cron: '0 2 * * 1,3,5'
-  
-  # Allow manual trigger from GitHub UI
+
+  # Allow manual trigger from GitHub UI with optional force-resync flag
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force a full re-sync (bypasses incremental checks)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Trigger FEC Data Sync
+        id: sync
         run: |
           echo "🚀 Triggering FEC data sync..."
           echo "API URL: ${{ secrets.API_URL }}"
-          
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Content-Type: application/json" \
-            -H "x-sync-key: ${{ secrets.SYNC_API_KEY }}" \
-            "${{ secrets.API_URL }}/api/sync/all" \
-            --max-time 600)
-          
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          
-          echo "Response: $body"
-          echo "HTTP Code: $http_code"
-          
+          FORCE_FLAG="${{ github.event.inputs.force || 'false' }}"
+          echo "Force resync: $FORCE_FLAG"
+
+          START_TIME=$(date +%s)
+
+          MAX_ATTEMPTS=3
+          ATTEMPT=0
+          http_code="000"
+          body=""
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
+
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/json" \
+              -H "x-sync-key: ${{ secrets.SYNC_API_KEY }}" \
+              -d "{\"force\": $FORCE_FLAG}" \
+              "${{ secrets.API_URL }}/api/sync/all" \
+              --max-time 600 || echo -e "\n000")
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            echo "HTTP Code: $http_code"
+            echo "Response: $body"
+
+            if [ "$http_code" -eq 200 ]; then
+              break
+            fi
+
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              BACKOFF=$((ATTEMPT * ATTEMPT * 5))
+              echo "⚠️  Attempt $ATTEMPT failed (HTTP $http_code). Retrying in ${BACKOFF}s..."
+              sleep $BACKOFF
+            fi
+          done
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+
           if [ "$http_code" -ne 200 ]; then
-            echo "❌ Sync failed with HTTP $http_code"
+            echo "❌ Sync failed after $ATTEMPT attempt(s) with HTTP $http_code"
             exit 1
           fi
-          
-          echo "✅ Sync completed successfully!"
+
+          echo "✅ Sync completed successfully in ${DURATION}s!"
+
+          # Write a GitHub Job Summary
+          {
+            echo "## ✅ FEC Data Sync Completed"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Status | HTTP $http_code |"
+            echo "| Duration | ${DURATION}s |"
+            echo "| Attempts | $ATTEMPT |"
+            echo "| Force resync | $FORCE_FLAG |"
+            echo ""
+            echo "### Response"
+            echo '```json'
+            echo "$body"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          payload: |
+            {
+              "text": "❌ FEC data sync failed! Check the run at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 

@@ -1,0 +1,44 @@
+name: Frontend Deploy – Vercel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'CODE/**'
+
+jobs:
+  deploy-frontend:
+    name: Build & deploy frontend
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: CODE
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20' }}
+          cache: 'npm'
+          cache-dependency-path: CODE/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+          vercel-args: '--prod'
+          working-directory: CODE

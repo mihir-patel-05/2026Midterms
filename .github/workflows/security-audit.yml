@@ -1,0 +1,33 @@
+name: Dependency Security Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # every Monday at 09:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - '**/package-lock.json'
+      - '**/package.json'
+
+jobs:
+  audit:
+    name: npm audit – ${{ matrix.workspace }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, CODE, admin-dashboard]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '20' }}
+
+      - name: Audit ${{ matrix.workspace }}
+        run: npm audit --audit-level=high
+        working-directory: ${{ matrix.workspace }}
