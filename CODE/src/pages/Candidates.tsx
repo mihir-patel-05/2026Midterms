@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { getCandidateById, getCandidateDetailedFinances } from "@/lib/api";
 import type { Candidate, DetailedFinanceResponse } from "@/types/candidate";
+import { LobbyBreakdown } from "@/components/candidates/LobbyBreakdown";
 
 /**
  * Format currency amount to readable string
@@ -586,6 +587,9 @@ export default function Candidates() {
                       </div>
                     </div>
                   )}
+
+                  {/* Industry / Lobby Breakdown */}
+                  {id && <LobbyBreakdown candidateId={id} cycle={2026} />}
 
                   {/* Spending Categories */}
                   {spendingCategories.length > 0 && (

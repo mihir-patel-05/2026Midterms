@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
+import { lobbyService } from '../services/lobby.service.js';
 
 export class CandidateController {
   /**
@@ -153,6 +154,43 @@ export class CandidateController {
       }
       
       res.status(500).json({ error: 'Failed to fetch detailed finances', message: error.message });
+    }
+  }
+
+  /**
+   * GET /api/candidates/:id/lobby-breakdown
+   * Aggregate the candidate's itemized receipts into industry / lobby buckets
+   * (AI, Oil & Gas, Pro-Israel, Pharma, Defense, Crypto, Labor).
+   */
+  async getCandidateLobbyBreakdown(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { cycle } = req.query;
+      const cycleNum = cycle ? parseInt(cycle as string) : 2026;
+
+      const breakdown = await lobbyService.getLobbyBreakdown(id, cycleNum);
+      res.json(breakdown);
+    } catch (error: any) {
+      console.error('Error getting lobby breakdown:', error);
+
+      if (error.message === 'Candidate not found') {
+        res.status(404).json({ error: 'Candidate not found' });
+        return;
+      }
+
+      res.status(500).json({ error: 'Failed to compute lobby breakdown', message: error.message });
+    }
+  }
+
+  /**
+   * GET /api/lobbies
+   * Static catalog of supported lobbies (used by UI legends).
+   */
+  async getLobbyCatalog(_req: Request, res: Response): Promise<void> {
+    try {
+      res.json({ lobbies: lobbyService.getLobbyCatalog() });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch lobby catalog', message: error.message });
     }
   }
 

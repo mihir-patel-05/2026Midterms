@@ -7,6 +7,7 @@ import deadlinesRoutes from './deadlines.routes.js';
 import chatRoutes from './chat.routes.js';
 import researcherAuthRoutes from './researcher-auth.routes.js';
 import researchRoutes from './research.routes.js';
+import { candidateController } from '../controllers/candidate.controller.js';
 import { prisma } from '../config/database.js';
 
 const router = Router();
@@ -20,6 +21,9 @@ router.use('/deadlines', deadlinesRoutes);
 router.use('/chat', chatRoutes);
 router.use('/auth/researcher', researcherAuthRoutes);
 router.use('/research', researchRoutes);
+
+// Static catalog of supported lobbies (for UI legends/filters)
+router.get('/lobbies', (req, res) => candidateController.getLobbyCatalog(req, res));
 
 // Health check endpoint
 router.get('/health', async (_req, res) => {

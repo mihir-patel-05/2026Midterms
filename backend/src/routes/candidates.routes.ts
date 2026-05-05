@@ -15,6 +15,9 @@ router.get('/:id', (req, res) => candidateController.getCandidateById(req, res))
 // Get detailed candidate finances (funding sources, top donors, spending categories)
 router.get('/:id/finances/detailed', (req, res) => candidateController.getCandidateDetailedFinances(req, res));
 
+// Get lobby/industry breakdown of donations for this candidate
+router.get('/:id/lobby-breakdown', (req, res) => candidateController.getCandidateLobbyBreakdown(req, res));
+
 // Get candidate finances (basic summary)
 router.get('/:id/finances', (req, res) => candidateController.getCandidateFinances(req, res));
 
