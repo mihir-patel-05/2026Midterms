@@ -473,6 +473,10 @@ export default function Candidates() {
 
             {/* Campaign Finance Tab */}
             <TabsContent value="funding" className="space-y-6">
+              {/* Industry / Lobby Breakdown — fetches independently so it
+                  renders even when detailed-finances data is missing. */}
+              {id && <LobbyBreakdown candidateId={id} cycle={2026} />}
+
               {financesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -587,9 +591,6 @@ export default function Candidates() {
                       </div>
                     </div>
                   )}
-
-                  {/* Industry / Lobby Breakdown */}
-                  {id && <LobbyBreakdown candidateId={id} cycle={2026} />}
 
                   {/* Spending Categories */}
                   {spendingCategories.length > 0 && (

@@ -46,6 +46,10 @@ function patternToSqlSubstring(pattern: string): string {
     .trim();
 }
 
+// Compiles a single pattern from LOBBIES into a RegExp. Only ever called
+// at module load over the static, developer-controlled LOBBIES constant
+// (see COMPILED below) — never reachable from request input, so no ReDoS
+// surface despite accepting `string`.
 function compilePattern(pattern: string): RegExp {
   return new RegExp(pattern, 'i');
 }

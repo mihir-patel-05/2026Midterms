@@ -35,14 +35,15 @@ export const LOBBIES: LobbyDefinition[] = [
       'C00428235', // Google Inc. NetPAC
       'C00487777', // Microsoft Corp PAC
       'C00428912', // Amazon.com PAC
-      'C00819872', // Fairshake (crypto+tech aligned)
       'C00770273', // Meta Platforms PAC
       'C00838526', // Leading the Future (AI policy super PAC)
+      // Fairshake (C00819872) is intentionally NOT here — it's
+      // overwhelmingly crypto-funded, so it lives only under the
+      // `crypto` lobby below. matchLobby is first-match-wins.
     ],
     namePatterns: [
       'leading the future',
       'americans for ai',
-      'fairshake',
       'google.*pac',
       'microsoft.*pac',
       'alphabet inc',
