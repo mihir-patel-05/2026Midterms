@@ -221,6 +221,45 @@ export interface DetailedFinanceResponse {
 }
 
 /**
+ * Top contributor inside a lobby bucket
+ */
+export interface LobbyContributor {
+  name: string;
+  employer: string | null;
+  amount: number;
+  count: number;
+}
+
+/**
+ * One industry/lobby bucket in the candidate's lobby breakdown
+ */
+export interface LobbyBucket {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  totalAmount: number;
+  contributionCount: number;
+  percentageOfReceipts: number;
+  topContributors: LobbyContributor[];
+}
+
+/**
+ * Full lobby/industry breakdown response for a candidate
+ */
+export interface LobbyBreakdownResponse {
+  candidateId: string;
+  candidateName: string;
+  cycle: number;
+  totalReceipts: number;
+  totalLobbyAmount: number;
+  classifiedPercentage: number;
+  lobbies: LobbyBucket[];
+  lastComputed: string;
+  notes: string[];
+}
+
+/**
  * Election information
  */
 export interface Election {
