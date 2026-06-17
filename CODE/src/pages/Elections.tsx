@@ -244,10 +244,10 @@ export default function Elections() {
                         <div className="text-center py-12">
                           <Calendar className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                           <h3 className="font-heading text-lg font-semibold text-foreground mb-2">
-                            Primary Elections Coming Soon
+                            No Primary Elections Found
                           </h3>
                           <p className="text-muted-foreground">
-                            Primary election information will be available as filing deadlines approach.
+                            There are no primary elections scheduled for this state yet.
                           </p>
                         </div>
                       ) : (
