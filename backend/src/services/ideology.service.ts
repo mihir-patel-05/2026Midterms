@@ -20,6 +20,7 @@
  */
 
 import axios from 'axios';
+import { parse as parseCsv } from 'csv-parse/sync';
 import { parse as parseYaml } from 'yaml';
 import { env } from '../config/env.js';
 
@@ -70,5 +71,98 @@ export async function fetchFecToGovtrackCrosswalk(): Promise<FecToGovtrackMap> {
   console.log(
     `🔗 Crosswalk built: ${map.size} FEC IDs across ${legislators.length} legislators`
   );
+  return map;
+}
+
+/**
+ * One GovTrack member's sponsorship-analysis scores.
+ * - ideology: 0 = most liberal/left, 1 = most conservative/right.
+ * - leadership: GovTrack's leadership score (higher = more central/influential
+ *   sponsor); unbounded-ish, not a percentage.
+ */
+export interface GovtrackScore {
+  govtrackId: number;
+  ideology?: number;
+  leadership?: number;
+}
+
+/** Map of GovTrack person ID -> ideology/leadership scores. */
+export type GovtrackScoreMap = Map<number, GovtrackScore>;
+
+const CHAMBER_FILES: Record<'house' | 'senate', string> = {
+  house: 'sponsorshipanalysis_h.txt',
+  senate: 'sponsorshipanalysis_s.txt',
+};
+
+function toFiniteNumber(value: unknown): number | undefined {
+  if (value == null || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Fetch and parse one GovTrack sponsorship-analysis file (House or Senate) for
+ * a given Congress. The file is CSV with a header row; we key columns by
+ * normalized (lowercased/trimmed) header name so we're resilient to column
+ * ordering: we need `id`, `ideology`, and `leadership`.
+ */
+async function fetchGovtrackChamber(
+  congress: number,
+  chamber: 'house' | 'senate'
+): Promise<GovtrackScore[]> {
+  const url = `${env.IDEOLOGY_GOVTRACK_BASE_URL}/${congress}/${CHAMBER_FILES[chamber]}`;
+  console.log(`📥 Fetching GovTrack ${chamber} ideology analysis: ${url}`);
+
+  const response = await axios.get<string>(url, {
+    timeout: 30000,
+    responseType: 'text',
+  });
+
+  const rows = parseCsv(response.data, {
+    columns: (header: string[]) => header.map((h) => h.trim().toLowerCase()),
+    skip_empty_lines: true,
+    trim: true,
+  }) as Record<string, string>[];
+
+  const scores: GovtrackScore[] = [];
+  for (const row of rows) {
+    const govtrackId = toFiniteNumber(row.id);
+    if (govtrackId == null) continue;
+    scores.push({
+      govtrackId,
+      ideology: toFiniteNumber(row.ideology),
+      leadership: toFiniteNumber(row.leadership),
+    });
+  }
+
+  if (scores.length === 0) {
+    throw new Error(
+      `GovTrack ${chamber} analysis for Congress ${congress} parsed 0 rows — ` +
+        `the file format may have changed (expected CSV with id/ideology/leadership columns).`
+    );
+  }
+
+  console.log(`📊 GovTrack ${chamber}: parsed ${scores.length} member scores`);
+  return scores;
+}
+
+/**
+ * Fetch both chambers' GovTrack sponsorship-analysis for a Congress and return
+ * a single Map keyed by GovTrack person ID.
+ */
+export async function fetchGovtrackAnalysis(
+  congress: number
+): Promise<GovtrackScoreMap> {
+  const [house, senate] = await Promise.all([
+    fetchGovtrackChamber(congress, 'house'),
+    fetchGovtrackChamber(congress, 'senate'),
+  ]);
+
+  const map: GovtrackScoreMap = new Map();
+  for (const score of [...house, ...senate]) {
+    map.set(score.govtrackId, score);
+  }
+
+  console.log(`📊 GovTrack analysis: ${map.size} members for Congress ${congress}`);
   return map;
 }
