@@ -10,6 +10,7 @@ import cron from 'node-cron';
 import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
+import { syncIdeologyScores } from '../services/ideology.service.js';
 
 // Configuration for scheduled syncs
 const SYNC_CONFIG = {
@@ -291,6 +292,27 @@ export function initializeScheduler(): void {
 
   console.log('⏰ FEC Data Sync Scheduler initialized');
   console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
+
+  // Ideology scores change slowly (PRD calls for monthly refresh). Run on the
+  // 1st of each month, independently of the FEC sync. Isolated and idempotent —
+  // a failure here (e.g. blocked egress) is logged and never affects FEC syncs.
+  const ideologyCron = '0 3 1 * *'; // 1st of the month, 3:00 AM
+  if (cron.validate(ideologyCron)) {
+    cron.schedule(
+      ideologyCron,
+      async () => {
+        console.log('\n⏰ Scheduled ideology sync triggered');
+        try {
+          await syncIdeologyScores();
+        } catch (error) {
+          console.error('❌ Scheduled ideology sync failed:', error);
+        }
+      },
+      { timezone: 'America/New_York' }
+    );
+    console.log('🧭 Ideology Sync Scheduler initialized');
+    console.log(`📅 Schedule: 1st of each month at 3:00 AM EST\n`);
+  }
 }
 
 /**
