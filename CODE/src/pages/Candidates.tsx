@@ -386,7 +386,7 @@ export default function Candidates() {
                     <div className="space-y-4">
                       <div className="text-center">
                         <span className="text-4xl font-bold text-foreground">
-                          {ideologyScore}
+                          {Math.round(ideologyScore)}
                         </span>
                         <span className="text-lg text-muted-foreground">/100</span>
                       </div>
@@ -655,7 +655,7 @@ export default function Candidates() {
                   <div className="mb-8">
                     <div className="text-center mb-4">
                       <span className="text-5xl font-bold text-foreground">
-                        {ideologyScore}
+                        {Math.round(ideologyScore)}
                       </span>
                       <span className="text-xl text-muted-foreground">/100</span>
                     </div>
