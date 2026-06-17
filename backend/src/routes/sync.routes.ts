@@ -3,10 +3,15 @@ import { candidateController } from '../controllers/candidate.controller.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
-import { env } from '../config/env.js';
 import { triggerManualSync } from '../jobs/scheduler.js';
+import { requireSyncKey } from '../middleware/require-sync-key.js';
 
 const router = Router();
+
+// All /api/sync/* endpoints are machine-facing (manual syncs, FEC-quota-burning
+// jobs, internal sync logs) and require a valid x-sync-key. Fails closed when
+// SYNC_API_KEY is unset.
+router.use(requireSyncKey);
 
 // Configuration for full sync
 const SYNC_CONFIG = {
@@ -26,15 +31,6 @@ const SYNC_CONFIG = {
  */
 router.post('/full', async (req, res) => {
   try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
     // Trigger the same sync that the scheduler runs
     await triggerManualSync();
 
@@ -57,15 +53,6 @@ router.post('/full', async (req, res) => {
  */
 router.post('/all', async (req, res) => {
   try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
     console.log('🚀 Starting full sync via API...');
     const startTime = Date.now();
 
