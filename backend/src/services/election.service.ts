@@ -183,10 +183,14 @@ export class ElectionService {
    * Returns total number of races per state
    */
   async getStateElectionCounts(cycle: number = 2026) {
+    // Count one election per race (the general) so the map shows the number of
+    // distinct races, not the number of election events. Every race has a
+    // GENERAL, so this stays correct after PRIMARY elections are added.
     const counts = await prisma.election.groupBy({
       by: ['state'],
       where: {
         cycle,
+        electionType: 'GENERAL',
       },
       _count: {
         id: true,
