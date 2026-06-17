@@ -22,6 +22,7 @@
 import axios from 'axios';
 import { parse as parseCsv } from 'csv-parse/sync';
 import { parse as parseYaml } from 'yaml';
+import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 
 /**
@@ -165,4 +166,106 @@ export async function fetchGovtrackAnalysis(
 
   console.log(`📊 GovTrack analysis: ${map.size} members for Congress ${congress}`);
   return map;
+}
+
+export interface IdeologySyncStats {
+  congress: number;
+  candidatesTotal: number;
+  matchedCrosswalk: number;
+  scored: number;
+  skippedNoCrosswalk: number;
+  skippedNoScore: number;
+  durationMs: number;
+}
+
+/**
+ * Convert GovTrack's raw 0..1 ideology score to the 0..100 scale the frontend
+ * spectrum expects (0 = most progressive/left, 100 = most conservative/right),
+ * rounded to two decimals. Storing on the 0..100 scale keeps every existing UI
+ * consumer correct without per-component conversion.
+ */
+function toStoredIdeology(ideology: number): number {
+  return Math.round(ideology * 100 * 100) / 100;
+}
+
+/**
+ * Sync GovTrack ideology + leadership scores into the IdeologyScore table.
+ *
+ * Only candidates whose FEC ID appears in the (current-members) crosswalk and
+ * who have a GovTrack score get a row — i.e. sitting members with a voting
+ * record — which is exactly the set the PRD says should show an ideology score.
+ */
+export async function syncIdeologyScores(
+  congress: number = env.IDEOLOGY_CONGRESS
+): Promise<IdeologySyncStats> {
+  const startedAt = Date.now();
+  console.log(`\n🧭 Starting ideology sync for Congress ${congress}\n`);
+
+  const [crosswalk, scoreMap] = await Promise.all([
+    fetchFecToGovtrackCrosswalk(),
+    fetchGovtrackAnalysis(congress),
+  ]);
+
+  const candidates = await prisma.candidate.findMany({
+    select: { candidateId: true, name: true },
+  });
+
+  const stats: IdeologySyncStats = {
+    congress,
+    candidatesTotal: candidates.length,
+    matchedCrosswalk: 0,
+    scored: 0,
+    skippedNoCrosswalk: 0,
+    skippedNoScore: 0,
+    durationMs: 0,
+  };
+
+  for (const candidate of candidates) {
+    const govtrackId = crosswalk.get(candidate.candidateId);
+    if (govtrackId == null) {
+      stats.skippedNoCrosswalk++;
+      continue;
+    }
+    stats.matchedCrosswalk++;
+
+    const score = scoreMap.get(govtrackId);
+    if (!score || score.ideology == null) {
+      stats.skippedNoScore++;
+      continue;
+    }
+
+    const ideologyScore = toStoredIdeology(score.ideology);
+    const leadershipScore = score.leadership ?? null;
+
+    await prisma.ideologyScore.upsert({
+      where: {
+        candidateId_congressSession: {
+          candidateId: candidate.candidateId,
+          congressSession: congress,
+        },
+      },
+      update: { ideologyScore, leadershipScore, calculatedAt: new Date() },
+      create: {
+        candidateId: candidate.candidateId,
+        congressSession: congress,
+        ideologyScore,
+        leadershipScore,
+      },
+    });
+    stats.scored++;
+  }
+
+  stats.durationMs = Date.now() - startedAt;
+
+  console.log(
+    `\n🧭 Ideology sync complete for Congress ${congress}:\n` +
+      `   candidates: ${stats.candidatesTotal}\n` +
+      `   matched in crosswalk: ${stats.matchedCrosswalk}\n` +
+      `   scored (upserted): ${stats.scored}\n` +
+      `   skipped (no crosswalk / not a sitting member): ${stats.skippedNoCrosswalk}\n` +
+      `   skipped (in crosswalk but no GovTrack score): ${stats.skippedNoScore}\n` +
+      `   took ${(stats.durationMs / 1000).toFixed(1)}s\n`
+  );
+
+  return stats;
 }
