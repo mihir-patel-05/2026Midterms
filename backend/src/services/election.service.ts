@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js';
+import { fecApiService } from './fec-api.service.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -225,6 +226,46 @@ export class ElectionService {
     });
 
     return election;
+  }
+
+  /**
+   * Build a lookup of primary election dates by race from FEC's /election-dates/
+   * resource. Keys: `${STATE}-SENATE`, `${STATE}-HOUSE`, plus a `${STATE}-*`
+   * statewide fallback (federal primaries usually share one date per state).
+   * Values: the earliest primary date found for that key.
+   */
+  async getPrimaryDatesByRace(cycle: number): Promise<Map<string, Date>> {
+    const lookup = new Map<string, Date>();
+
+    const rows = await fecApiService.getAllElectionDates({
+      year: cycle,
+      electionTypeId: 'P', // regular primaries (not runoffs/specials)
+    });
+
+    const setEarliest = (key: string, date: Date) => {
+      const existing = lookup.get(key);
+      if (!existing || date < existing) lookup.set(key, date);
+    };
+
+    for (const row of rows) {
+      // Defensive: only keep regular primaries for federal House/Senate offices.
+      if (row.election_type_id && row.election_type_id !== 'P') continue;
+      if (!row.election_state || !row.election_date) continue;
+
+      const date = new Date(row.election_date);
+      if (Number.isNaN(date.getTime())) continue;
+
+      const officeType =
+        row.office_sought === 'S' ? 'SENATE' : row.office_sought === 'H' ? 'HOUSE' : null;
+      if (!officeType) continue;
+
+      const state = row.election_state.toUpperCase();
+      setEarliest(`${state}-${officeType}`, date);
+      setEarliest(`${state}-*`, date); // statewide fallback
+    }
+
+    console.log(`  🗳️  Loaded primary dates for ${lookup.size} race keys from FEC`);
+    return lookup;
   }
 
   /**
