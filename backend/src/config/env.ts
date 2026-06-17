@@ -13,6 +13,10 @@ const envSchema = z.object({
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('120'),
   ADMIN_PASSWORD: z.string().optional(),
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
+  // Shared secret required to call the machine-facing /api/sync/* endpoints.
+  // When unset, the sync API is disabled entirely (fail closed) — see
+  // src/middleware/require-sync-key.ts.
+  SYNC_API_KEY: z.string().optional(),
 
   // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
   // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
