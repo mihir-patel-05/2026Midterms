@@ -19,6 +19,7 @@
     "sync:financials": "tsx src/scripts/sync-financials-only.ts",
     "sync:financials:force": "tsx src/scripts/sync-financials-only.ts --force",
     "sync:financials:fast": "tsx src/scripts/sync-financials-only.ts --batch-size 100",
+    "sync:ideology": "tsx src/scripts/sync-ideology.ts",
     "admin:create": "tsx src/scripts/create-admin.ts",
     "researcher:create": "tsx src/scripts/create-researcher.ts",
     "seed:counties": "tsx src/scripts/seed-counties.ts",
