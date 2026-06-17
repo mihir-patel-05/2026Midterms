@@ -142,6 +142,24 @@ export interface FECDisbursement {
 }
 
 /**
+ * A row from FEC's /election-dates/ resource (the official table of primary,
+ * general, runoff, and special election dates by state/office/year).
+ * election_type_id examples: "P" = Primary, "G" = General, "PR" = Primary
+ * Runoff, "C" = Caucus/Convention, "SP"/"SG" = Special. office_sought: H/S/P.
+ */
+export interface FECElectionDate {
+  election_state?: string;
+  election_district?: number | null;
+  election_party?: string;
+  election_type_id?: string;
+  office_sought?: string;
+  election_year?: number;
+  election_date?: string;
+  primary_general_date?: string;
+  election_notes?: string;
+}
+
+/**
  * Service for interacting with the FEC API
  */
 export class FECApiService {
@@ -187,6 +205,29 @@ export class FECApiService {
         state,
         office,
         election_year: cycle,
+      },
+      maxPages
+    );
+  }
+
+  /**
+   * Get election dates (primary/general/runoff/special) from FEC's
+   * /election-dates/ resource for a given year. Used to date primary elections.
+   */
+  async getAllElectionDates(params: {
+    year: number;
+    officeSought?: string; // "H" | "S" | "P"
+    electionTypeId?: string; // e.g. "P" for primaries
+    maxPages?: number;
+  }): Promise<FECElectionDate[]> {
+    const { year, officeSought, electionTypeId, maxPages = 20 } = params;
+
+    return fecClient.getAll<FECElectionDate>(
+      '/election-dates/',
+      {
+        election_year: year,
+        office_sought: officeSought,
+        election_type_id: electionTypeId,
       },
       maxPages
     );
