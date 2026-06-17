@@ -10,6 +10,7 @@ import type {
   ApiError,
   CandidateFinanceResponse,
   DetailedFinanceResponse,
+  LobbyBreakdownResponse,
   Election,
   ElectionsResponse,
   GetElectionsParams,
@@ -210,6 +211,23 @@ export async function getCandidateDetailedFinances(
 
   const endpoint = `/candidates/${id}/finances/detailed?cycle=${cycle}`;
   return fetchAPI<DetailedFinanceResponse>(endpoint);
+}
+
+/**
+ * Get industry/lobby breakdown of donations for a candidate.
+ * Aggregates itemized FEC receipts into curated lobby buckets
+ * (AI / Big Tech, Oil & Gas, Pro-Israel, Pharma, Defense, Crypto, Labor).
+ */
+export async function getCandidateLobbyBreakdown(
+  id: string,
+  cycle: number = 2026
+): Promise<LobbyBreakdownResponse> {
+  if (!id || id.trim() === '') {
+    throw new Error('Candidate ID is required');
+  }
+
+  const endpoint = `/candidates/${id}/lobby-breakdown?cycle=${cycle}`;
+  return fetchAPI<LobbyBreakdownResponse>(endpoint);
 }
 
 /**

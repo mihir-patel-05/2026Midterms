@@ -13,6 +13,24 @@ const envSchema = z.object({
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('120'),
   ADMIN_PASSWORD: z.string().optional(),
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
+
+  // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
+  // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
+  // The 119th Congress (2025-2027) is the one sitting during the 2026 midterm cycle.
+  IDEOLOGY_CONGRESS: z.string().default('119'),
+  // GovTrack publishes per-Congress sponsorship-analysis files (ideology + leadership
+  // scores derived from cosponsorship networks) under this base path, as
+  //   {BASE}/{congress}/sponsorshipanalysis_{h|s}.txt
+  IDEOLOGY_GOVTRACK_BASE_URL: z
+    .string()
+    .default('https://www.govtrack.us/data/analysis/by-congress'),
+  // The unitedstates/congress-legislators crosswalk maps FEC candidate IDs to
+  // GovTrack person IDs so we can join GovTrack scores onto our FEC-keyed candidates.
+  IDEOLOGY_LEGISLATORS_URL: z
+    .string()
+    .default(
+      'https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-current.yaml'
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -26,4 +44,5 @@ export const env = {
   ...parsed.data,
   PORT: parseInt(parsed.data.PORT, 10),
   FEC_API_MAX_REQUESTS_PER_HOUR: parseInt(parsed.data.FEC_API_MAX_REQUESTS_PER_HOUR, 10),
+  IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
 };

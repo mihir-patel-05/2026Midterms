@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { getCandidateById, getCandidateDetailedFinances } from "@/lib/api";
 import type { Candidate, DetailedFinanceResponse } from "@/types/candidate";
+import { LobbyBreakdown } from "@/components/candidates/LobbyBreakdown";
 
 /**
  * Format currency amount to readable string
@@ -194,8 +195,9 @@ export default function Candidates() {
     fetchCandidateData();
   }, [id]);
 
-  // Get ideology score
-  const ideologyScore = candidate?.ideologyScores?.[0]?.ideologyScore;
+  // Get ideology score (latest congress session)
+  const ideologyData = candidate?.ideologyScores?.[0];
+  const ideologyScore = ideologyData?.ideologyScore;
 
   // Loading state
   if (loading) {
@@ -385,7 +387,7 @@ export default function Candidates() {
                     <div className="space-y-4">
                       <div className="text-center">
                         <span className="text-4xl font-bold text-foreground">
-                          {ideologyScore}
+                          {Math.round(ideologyScore)}
                         </span>
                         <span className="text-lg text-muted-foreground">/100</span>
                       </div>
@@ -472,6 +474,10 @@ export default function Candidates() {
 
             {/* Campaign Finance Tab */}
             <TabsContent value="funding" className="space-y-6">
+              {/* Industry / Lobby Breakdown — fetches independently so it
+                  renders even when detailed-finances data is missing. */}
+              {id && <LobbyBreakdown candidateId={id} cycle={2026} />}
+
               {financesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -650,7 +656,7 @@ export default function Candidates() {
                   <div className="mb-8">
                     <div className="text-center mb-4">
                       <span className="text-5xl font-bold text-foreground">
-                        {ideologyScore}
+                        {Math.round(ideologyScore)}
                       </span>
                       <span className="text-xl text-muted-foreground">/100</span>
                     </div>
@@ -671,33 +677,70 @@ export default function Candidates() {
                   </div>
 
                   <div className="rounded-lg bg-muted/50 p-4">
-                    <h3 className="font-semibold text-foreground mb-2">Score Components</h3>
+                    <h3 className="font-semibold text-foreground mb-2">How it's computed</h3>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Legislative voting patterns</li>
-                      <li>• Bill co-sponsorship analysis</li>
-                      <li>• Committee membership alignment</li>
-                      <li>• Historical voting record</li>
+                      <li>• Bill and resolution cosponsorship patterns</li>
+                      <li>• Position in the sponsorship network (who cosponsors with whom)</li>
+                      <li>• Calculated separately for the House and the Senate</li>
                     </ul>
                   </div>
 
-                  {/* Additional ideology data */}
-                  {candidate.ideologyScores && candidate.ideologyScores[0] && (
-                    <div className="mt-6 pt-6 border-t border-border">
-                      <h3 className="font-semibold text-foreground mb-4">Legislative Activity</h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg bg-muted/30 p-4">
-                          <p className="text-sm text-muted-foreground">Bills Sponsored</p>
-                          <p className="text-2xl font-bold text-foreground">
-                            {candidate.ideologyScores[0].billsSponsored}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-muted/30 p-4">
-                          <p className="text-sm text-muted-foreground">Bills Co-sponsored</p>
-                          <p className="text-2xl font-bold text-foreground">
-                            {candidate.ideologyScores[0].billsCosponsored}
-                          </p>
+                  {/* Leadership score + legislative activity (only what we have data for) */}
+                  {ideologyData &&
+                    (ideologyData.leadershipScore != null ||
+                      ideologyData.billsSponsored > 0 ||
+                      ideologyData.billsCosponsored > 0) && (
+                      <div className="mt-6 pt-6 border-t border-border">
+                        <h3 className="font-semibold text-foreground mb-4">Legislative Influence</h3>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {ideologyData.leadershipScore != null && (
+                            <div className="rounded-lg bg-muted/30 p-4">
+                              <p className="text-sm text-muted-foreground">Leadership Score</p>
+                              <p className="text-2xl font-bold text-foreground">
+                                {ideologyData.leadershipScore.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Higher = a more central, influential bill sponsor.
+                              </p>
+                            </div>
+                          )}
+                          {ideologyData.billsSponsored > 0 && (
+                            <div className="rounded-lg bg-muted/30 p-4">
+                              <p className="text-sm text-muted-foreground">Bills Sponsored</p>
+                              <p className="text-2xl font-bold text-foreground">
+                                {ideologyData.billsSponsored}
+                              </p>
+                            </div>
+                          )}
+                          {ideologyData.billsCosponsored > 0 && (
+                            <div className="rounded-lg bg-muted/30 p-4">
+                              <p className="text-sm text-muted-foreground">Bills Co-sponsored</p>
+                              <p className="text-2xl font-bold text-foreground">
+                                {ideologyData.billsCosponsored}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    )}
+
+                  {/* Methodology disclosure & source attribution (PRD 3.4.3) */}
+                  {ideologyData && (
+                    <div className="mt-6 pt-6 border-t border-border space-y-1 text-xs text-muted-foreground">
+                      <p>
+                        Source: GovTrack.us cosponsorship analysis, Congress{" "}
+                        {ideologyData.congressSession}.
+                      </p>
+                      <p>
+                        Last calculated:{" "}
+                        {new Date(ideologyData.calculatedAt).toLocaleDateString()}.
+                      </p>
+                      <p>
+                        Non-partisan, data-derived estimate of relative position from
+                        cosponsorship patterns — not an endorsement or a measure of
+                        effectiveness. Shown only for candidates with a congressional
+                        voting record.
+                      </p>
                     </div>
                   )}
                 </div>
