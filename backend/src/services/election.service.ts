@@ -1,5 +1,38 @@
 import { prisma } from '../config/database.js';
-import { fecApiService } from './fec-api.service.js';
+import { fecApiService, type FECElectionDate } from './fec-api.service.js';
+
+/**
+ * Pure transform: turn FEC election-date rows into a per-race primary-date
+ * lookup. Keys: `${STATE}-SENATE`, `${STATE}-HOUSE`, plus a `${STATE}-*`
+ * statewide fallback. Earliest date wins. Keeps only regular ("P") primaries
+ * for federal House/Senate offices. Exported for unit testing.
+ */
+export function buildPrimaryDateLookup(rows: FECElectionDate[]): Map<string, Date> {
+  const lookup = new Map<string, Date>();
+
+  const setEarliest = (key: string, date: Date) => {
+    const existing = lookup.get(key);
+    if (!existing || date < existing) lookup.set(key, date);
+  };
+
+  for (const row of rows) {
+    if (row.election_type_id && row.election_type_id !== 'P') continue;
+    if (!row.election_state || !row.election_date) continue;
+
+    const date = new Date(row.election_date);
+    if (Number.isNaN(date.getTime())) continue;
+
+    const officeType =
+      row.office_sought === 'S' ? 'SENATE' : row.office_sought === 'H' ? 'HOUSE' : null;
+    if (!officeType) continue;
+
+    const state = row.election_state.toUpperCase();
+    setEarliest(`${state}-${officeType}`, date);
+    setEarliest(`${state}-*`, date); // statewide fallback
+  }
+
+  return lookup;
+}
 
 interface GetElectionsParams {
   state?: string;
@@ -235,35 +268,12 @@ export class ElectionService {
    * Values: the earliest primary date found for that key.
    */
   async getPrimaryDatesByRace(cycle: number): Promise<Map<string, Date>> {
-    const lookup = new Map<string, Date>();
-
     const rows = await fecApiService.getAllElectionDates({
       year: cycle,
       electionTypeId: 'P', // regular primaries (not runoffs/specials)
     });
 
-    const setEarliest = (key: string, date: Date) => {
-      const existing = lookup.get(key);
-      if (!existing || date < existing) lookup.set(key, date);
-    };
-
-    for (const row of rows) {
-      // Defensive: only keep regular primaries for federal House/Senate offices.
-      if (row.election_type_id && row.election_type_id !== 'P') continue;
-      if (!row.election_state || !row.election_date) continue;
-
-      const date = new Date(row.election_date);
-      if (Number.isNaN(date.getTime())) continue;
-
-      const officeType =
-        row.office_sought === 'S' ? 'SENATE' : row.office_sought === 'H' ? 'HOUSE' : null;
-      if (!officeType) continue;
-
-      const state = row.election_state.toUpperCase();
-      setEarliest(`${state}-${officeType}`, date);
-      setEarliest(`${state}-*`, date); // statewide fallback
-    }
-
+    const lookup = buildPrimaryDateLookup(rows);
     console.log(`  🗳️  Loaded primary dates for ${lookup.size} race keys from FEC`);
     return lookup;
   }
@@ -277,6 +287,8 @@ export class ElectionService {
     electionsCreated: number;
     candidateLinksCreated: number;
     errors: number;
+    primariesCreated: number;
+    primariesSkippedNoDate: number;
   }> {
     console.log(`\n🗳️  Generating elections for cycle ${cycle}...`);
 
@@ -284,6 +296,8 @@ export class ElectionService {
       electionsCreated: 0,
       candidateLinksCreated: 0,
       errors: 0,
+      primariesCreated: 0,
+      primariesSkippedNoDate: 0,
     };
 
     try {
@@ -334,66 +348,44 @@ export class ElectionService {
       // General election date: First Tuesday after first Monday in November
       const generalElectionDate = new Date('2026-11-03');
 
-      // Create elections and link candidates
+      // Primary dates come from FEC's election-dates resource. If that fetch
+      // fails (e.g. network/quota), fall back to generals-only rather than
+      // aborting the whole generation.
+      let primaryDates = new Map<string, Date>();
+      try {
+        primaryDates = await this.getPrimaryDatesByRace(cycle);
+      } catch (primaryError: any) {
+        console.error(
+          `  ⚠️  Could not load FEC primary dates, generating generals only:`,
+          primaryError.message
+        );
+      }
+
+      // Create elections (general + primary) and link candidates
       for (const [raceKey, race] of Object.entries(races)) {
         try {
-          // Find or create the election
-          let election = await prisma.election.findFirst({
-            where: {
-              state: race.state,
-              officeType: race.officeType,
-              district: race.district,
+          // General election (always created)
+          await this.upsertElectionWithCandidates(race, 'GENERAL', generalElectionDate, cycle, stats);
+
+          // Primary election (only when we have a date for this race)
+          const primaryDate =
+            primaryDates.get(`${race.state}-${race.officeType}`) ||
+            primaryDates.get(`${race.state}-*`);
+
+          if (primaryDate) {
+            const created = await this.upsertElectionWithCandidates(
+              race,
+              'PRIMARY',
+              primaryDate,
               cycle,
-              electionType: 'GENERAL',
-            },
-          });
-
-          if (!election) {
-            election = await prisma.election.create({
-              data: {
-                state: race.state,
-                officeType: race.officeType,
-                district: race.district,
-                cycle,
-                electionType: 'GENERAL',
-                electionDate: generalElectionDate,
-              },
-            });
-            stats.electionsCreated++;
-            console.log(`  ✅ Created election: ${race.state} ${race.officeType}${race.district ? ` District ${race.district}` : ''}`);
-          }
-
-          // Link candidates to this election
-          for (const candidate of race.candidates) {
-            try {
-              // Check if link already exists
-              const existingLink = await prisma.candidateElection.findUnique({
-                where: {
-                  candidateId_electionId: {
-                    candidateId: candidate.candidateId,
-                    electionId: election.id,
-                  },
-                },
-              });
-
-              if (!existingLink) {
-                await prisma.candidateElection.create({
-                  data: {
-                    candidateId: candidate.candidateId,
-                    electionId: election.id,
-                    isIncumbent: candidate.incumbentStatus === 'I',
-                    result: 'PENDING',
-                  },
-                });
-                stats.candidateLinksCreated++;
-              }
-            } catch (linkError: any) {
-              console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
-              stats.errors++;
-            }
+              stats
+            );
+            if (created) stats.primariesCreated++;
+          } else {
+            stats.primariesSkippedNoDate++;
           }
         } catch (electionError: any) {
-          console.error(`  ❌ Error creating election for ${raceKey}:`, electionError.message);
+          console.error(`  ❌ Error creating elections for ${raceKey}:`, electionError.message);
           stats.errors++;
         }
       }
@@ -401,6 +393,8 @@ export class ElectionService {
       console.log(`\n📊 Election Generation Summary:`);
       console.log(`   Elections created: ${stats.electionsCreated}`);
       console.log(`   Candidate links created: ${stats.candidateLinksCreated}`);
+      console.log(`   Primaries created: ${stats.primariesCreated}`);
+      console.log(`   Primaries skipped (no FEC date): ${stats.primariesSkippedNoDate}`);
       console.log(`   Errors: ${stats.errors}`);
 
       return stats;
@@ -408,6 +402,83 @@ export class ElectionService {
       console.error('❌ Fatal error generating elections:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Find-or-create one election for a race and link all of its candidates.
+   * Returns true if a new Election row was created (false if it already existed).
+   */
+  private async upsertElectionWithCandidates(
+    race: {
+      state: string;
+      officeType: string;
+      district: string | null;
+      candidates: Array<{ candidateId: string; name: string; incumbentStatus: string | null }>;
+    },
+    electionType: 'GENERAL' | 'PRIMARY',
+    electionDate: Date,
+    cycle: number,
+    stats: { electionsCreated: number; candidateLinksCreated: number; errors: number }
+  ): Promise<boolean> {
+    let election = await prisma.election.findFirst({
+      where: {
+        state: race.state,
+        officeType: race.officeType,
+        district: race.district,
+        cycle,
+        electionType,
+      },
+    });
+
+    let created = false;
+    if (!election) {
+      election = await prisma.election.create({
+        data: {
+          state: race.state,
+          officeType: race.officeType,
+          district: race.district,
+          cycle,
+          electionType,
+          electionDate,
+        },
+      });
+      stats.electionsCreated++;
+      created = true;
+      console.log(
+        `  ✅ Created ${electionType.toLowerCase()} election: ${race.state} ${race.officeType}` +
+          `${race.district ? ` District ${race.district}` : ''}`
+      );
+    }
+
+    for (const candidate of race.candidates) {
+      try {
+        const existingLink = await prisma.candidateElection.findUnique({
+          where: {
+            candidateId_electionId: {
+              candidateId: candidate.candidateId,
+              electionId: election.id,
+            },
+          },
+        });
+
+        if (!existingLink) {
+          await prisma.candidateElection.create({
+            data: {
+              candidateId: candidate.candidateId,
+              electionId: election.id,
+              isIncumbent: candidate.incumbentStatus === 'I',
+              result: 'PENDING',
+            },
+          });
+          stats.candidateLinksCreated++;
+        }
+      } catch (linkError: any) {
+        console.error(`  ❌ Error linking ${candidate.name} to ${electionType} election:`, linkError.message);
+        stats.errors++;
+      }
+    }
+
+    return created;
   }
 }
 
