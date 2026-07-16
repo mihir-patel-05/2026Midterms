@@ -417,6 +417,12 @@ export class FinanceService {
     console.log(`🔄 Syncing receipts for committee ${committeeId}`);
 
     try {
+      // Rows imported before source IDs were introduced cannot participate in
+      // idempotency. Remove them once; the authoritative FEC fetch replaces them.
+      await prisma.receipt.deleteMany({
+        where: { committeeId, sourceId: null },
+      });
+
       const fecReceipts = await fecApiService.getAllReceipts({
         committeeId,
         twoYearTransactionPeriod,
@@ -494,6 +500,10 @@ export class FinanceService {
     console.log(`🔄 Syncing disbursements for committee ${committeeId}`);
 
     try {
+      await prisma.disbursement.deleteMany({
+        where: { committeeId, sourceId: null },
+      });
+
       const fecDisbursements = await fecApiService.getAllDisbursements({
         committeeId,
         twoYearTransactionPeriod,
