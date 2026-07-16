@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { electionService } from '../services/election.service.js';
+import { parseCalendarDate } from '../utils/calendar-date.js';
 
 export class ElectionController {
   /**
@@ -131,7 +132,7 @@ export class ElectionController {
         state,
         district,
         officeType,
-        electionDate: new Date(electionDate),
+        electionDate: parseCalendarDate(electionDate),
         electionType,
         cycle: parseInt(cycle),
       });
@@ -153,7 +154,7 @@ export class ElectionController {
       const { electionDate, electionType } = req.body;
 
       const updateData: any = {};
-      if (electionDate) updateData.electionDate = new Date(electionDate);
+      if (electionDate) updateData.electionDate = parseCalendarDate(electionDate);
       if (electionType) updateData.electionType = electionType;
 
       const election = await electionService.updateElection(id, updateData);

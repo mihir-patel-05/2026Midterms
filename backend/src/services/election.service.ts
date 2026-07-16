@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js';
+import { parseCalendarDate } from '../utils/calendar-date.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -294,7 +295,7 @@ export class ElectionService {
       console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
 
       // General election date: First Tuesday after first Monday in November
-      const generalElectionDate = new Date('2026-11-03');
+      const generalElectionDate = parseCalendarDate(`${cycle}-11-03`);
 
       // Create elections and link candidates
       for (const [raceKey, race] of Object.entries(races)) {

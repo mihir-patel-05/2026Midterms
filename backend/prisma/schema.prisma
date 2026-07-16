@@ -157,7 +157,7 @@ model Election {
   state           String              // Two-letter state code
   district        String?             // For House races
   officeType      String              @map("office_type") // HOUSE, SENATE
-  electionDate    DateTime            @map("election_date")
+  electionDate    DateTime            @map("election_date") @db.Date
   electionType    String              @map("election_type") // PRIMARY, GENERAL
   cycle           Int                 // Election year
   createdAt       DateTime            @default(now()) @map("created_at")
@@ -432,7 +432,7 @@ model SavedSimulation {
 model Deadline {
   id          String    @id @default(uuid())
   title       String                              // e.g., "Primary Registration Deadline"
-  date        DateTime
+  date        DateTime  @db.Date
   type        String                              // "registration" | "election" | "other"
   states      String[]                            // e.g., ["CA", "TX"] or ["ALL"]
   description String?   @db.Text

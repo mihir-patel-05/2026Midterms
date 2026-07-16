@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Candidate } from "@/types/candidate";
+import { formatCalendarDate } from "@/lib/calendarDate";
 
 const stateCodeToName: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
@@ -81,7 +82,7 @@ export default function RaceDetail() {
               <p className="mt-2 text-muted-foreground">
                 {election.electionType === "PRIMARY" ? "Primary" : "General"} Election
                 {" \u2014 "}
-                {new Date(election.electionDate).toLocaleDateString("en-US", {
+                {formatCalendarDate(election.electionDate, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -152,7 +153,7 @@ export default function RaceDetail() {
                   <div>
                     <p className="text-xs text-muted-foreground">Election Date</p>
                     <p className="font-medium text-foreground">
-                      {new Date(election.electionDate).toLocaleDateString("en-US", {
+                      {formatCalendarDate(election.electionDate, {
                         year: "numeric",
                         month: "long",
                         day: "numeric",

@@ -19,6 +19,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { adminAPI, AdminStats, SyncStatus, SyncLog, Deadline, DeadlineInput } from '../lib/api';
+import { formatCalendarDate } from '../lib/calendarDate';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -93,11 +94,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 function formatDeadlineDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return formatCalendarDate(dateStr);
 }
 
 // Deadline Modal Component
@@ -147,7 +144,7 @@ function DeadlineModal({
     const statesArray = states.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
     onSave({
       title,
-      date: new Date(date).toISOString(),
+      date,
       type,
       states: statesArray,
       description: description || undefined,

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Calendar, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDeadlines, Deadline } from "@/lib/api";
+import { formatCalendarDate } from "@/lib/calendarDate";
 
 // Fallback static data in case API fails
 const fallbackDeadlines = [
@@ -78,11 +79,7 @@ function formatStates(states: string[]): string {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return formatCalendarDate(dateStr);
 }
 
 export function UpcomingDeadlines() {

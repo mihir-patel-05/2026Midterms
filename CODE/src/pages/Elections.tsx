@@ -10,6 +10,7 @@ import { USMap } from "@/components/home/USMap";
 import { Input } from "@/components/ui/input";
 import { getElectionsByState, getStateElectionCounts } from "@/lib/api";
 import type { Election, StateElectionCount } from "@/types/candidate";
+import { formatCalendarDate } from "@/lib/calendarDate";
 
 // State name mapping for display
 const stateCodeToName: { [key: string]: string } = {
@@ -282,7 +283,7 @@ export default function Elections() {
                                 <div className="flex items-center gap-4">
                                   <div className="text-right">
                                     <p className="text-xs text-muted-foreground">
-                                      {new Date(election.electionDate).toLocaleDateString()}
+                                      {formatCalendarDate(election.electionDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
                                       <Users className="h-3 w-3" />
