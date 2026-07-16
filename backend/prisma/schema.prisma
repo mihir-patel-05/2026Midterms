@@ -316,9 +316,27 @@ model AdminUser {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
+  sessions        AdminSession[]
+
   @@index([username])
   @@index([email])
   @@map("admin_users")
+}
+
+// Durable admin sessions. Only a SHA-256 hash of the bearer token is stored.
+model AdminSession {
+  id              String      @id @default(uuid())
+  tokenHash       String      @unique @map("token_hash")
+  adminUserId     String      @map("admin_user_id")
+  expiresAt       DateTime    @map("expires_at")
+  lastUsedAt      DateTime    @default(now()) @map("last_used_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  adminUser       AdminUser   @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
 }
 
 // Counties (US Census gazetteer)

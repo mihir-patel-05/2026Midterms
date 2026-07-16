@@ -3,11 +3,15 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { electionService } from '../services/election.service.js';
 import bcrypt from 'bcrypt';
-
-// Session store for admin tokens (in production, use Redis or similar)
-const adminSessions = new Map<string, { username: string; expiresAt: number }>();
+import { createHash, randomBytes } from 'crypto';
 
 console.log('🔐 Admin authentication configured: Database-based authentication');
+
+const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function hashSessionToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Middleware to verify admin authentication
@@ -20,28 +24,36 @@ export async function verifyAdminAuth(req: Request, res: Response, next: Functio
     return;
   }
 
-  // Check if session exists and is valid
-  const session = adminSessions.get(authToken);
-  if (!session || session.expiresAt < Date.now()) {
-    if (session) {
-      adminSessions.delete(authToken);
+  try {
+    const tokenHash = hashSessionToken(authToken);
+    const session = await prisma.adminSession.findUnique({
+      where: { tokenHash },
+      include: { adminUser: true },
+    });
+
+    if (!session || session.expiresAt.getTime() < Date.now()) {
+      if (session) {
+        await prisma.adminSession.delete({ where: { id: session.id } });
+      }
+      res.status(401).json({ error: 'Unauthorized', message: 'Session expired or invalid' });
+      return;
     }
-    res.status(401).json({ error: 'Unauthorized', message: 'Session expired or invalid' });
-    return;
+
+    if (!session.adminUser.isActive) {
+      await prisma.adminSession.delete({ where: { id: session.id } });
+      res.status(401).json({ error: 'Unauthorized', message: 'User not found or inactive' });
+      return;
+    }
+
+    await prisma.adminSession.update({
+      where: { id: session.id },
+      data: { lastUsedAt: new Date() },
+    });
+    next();
+  } catch (error) {
+    console.error('Error verifying admin session:', error);
+    res.status(500).json({ error: 'Authentication service unavailable' });
   }
-
-  // Verify user still exists and is active
-  const adminUser = await prisma.adminUser.findUnique({
-    where: { username: session.username }
-  });
-
-  if (!adminUser || !adminUser.isActive) {
-    adminSessions.delete(authToken);
-    res.status(401).json({ error: 'Unauthorized', message: 'User not found or inactive' });
-    return;
-  }
-
-  next();
 }
 
 export class AdminController {
@@ -94,15 +106,20 @@ export class AdminController {
         return;
       }
 
-      // Generate session token (use crypto for production)
-      const sessionToken = `${adminUser.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+      const sessionToken = randomBytes(32).toString('base64url');
+      const expiresAt = new Date(Date.now() + ADMIN_SESSION_TTL_MS);
 
-      // Store session
-      adminSessions.set(sessionToken, {
-        username: adminUser.username,
-        expiresAt
-      });
+      // Opportunistically remove expired sessions, then store only the token hash.
+      await prisma.$transaction([
+        prisma.adminSession.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
+        prisma.adminSession.create({
+          data: {
+            tokenHash: hashSessionToken(sessionToken),
+            adminUserId: adminUser.id,
+            expiresAt,
+          },
+        }),
+      ]);
 
       // Update last login
       await prisma.adminUser.update({
@@ -116,7 +133,7 @@ export class AdminController {
         success: true,
         message: 'Authentication successful',
         token: sessionToken,
-        expiresAt: new Date(expiresAt).toISOString()
+        expiresAt: expiresAt.toISOString()
       });
     } catch (error: any) {
       console.error('Error during login:', error);
@@ -131,7 +148,9 @@ export class AdminController {
   async logout(req: Request, res: Response): Promise<void> {
     const authToken = req.headers['x-admin-key'] as string;
     if (authToken) {
-      adminSessions.delete(authToken);
+      await prisma.adminSession.deleteMany({
+        where: { tokenHash: hashSessionToken(authToken) },
+      });
     }
     res.json({ message: 'Logged out successfully' });
   }
@@ -382,4 +401,3 @@ export class AdminController {
 }
 
 export const adminController = new AdminController();
-
