@@ -5,8 +5,13 @@ import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 import { triggerManualSync } from '../jobs/scheduler.js';
+import { verifySyncAuth } from '../middleware/sync-auth.js';
 
 const router = Router();
+
+// All sync operations and their logs are operational endpoints. They must
+// never become public merely because an environment variable is missing.
+router.use(verifySyncAuth);
 
 // Configuration for full sync
 const SYNC_CONFIG = {
@@ -26,15 +31,6 @@ const SYNC_CONFIG = {
  */
 router.post('/full', async (req, res) => {
   try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
     // Trigger the same sync that the scheduler runs
     await triggerManualSync();
 
@@ -57,15 +53,6 @@ router.post('/full', async (req, res) => {
  */
 router.post('/all', async (req, res) => {
   try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
     console.log('🚀 Starting full sync via API...');
     const startTime = Date.now();
 

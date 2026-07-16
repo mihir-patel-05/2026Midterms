@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { candidateController } from '../controllers/candidate.controller.js';
+import { verifySyncAuth } from '../middleware/sync-auth.js';
 
 const router = Router();
 
@@ -28,6 +29,6 @@ router.get('/:id/receipts', (req, res) => candidateController.getCandidateReceip
 router.get('/:id/disbursements', (req, res) => candidateController.getCandidateDisbursements(req, res));
 
 // Manually sync candidate data from FEC API (for refreshing stale data)
-router.post('/:id/sync', (req, res) => candidateController.syncCandidateData(req, res));
+router.post('/:id/sync', verifySyncAuth, (req, res) => candidateController.syncCandidateData(req, res));
 
 export default router;
