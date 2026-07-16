@@ -103,29 +103,29 @@ export default function About() {
                   <Badge variant="secondary">Ideology Scores</Badge>
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Our ideology scores use a GovTrack-style methodology that analyzes:
+                  Our ideology scores use GovTrack's sponsorship-network analysis:
                 </p>
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                    <span>Legislative voting patterns on recorded votes</span>
+                    <span>Bill sponsorship and co-sponsorship relationships</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                    <span>Co-sponsorship networks and bill partnerships</span>
+                    <span>Each legislator's relative position within their chamber</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                    <span>Historical voting record for incumbents</span>
+                    <span>House and Senate members are calculated separately</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                    <span>Committee leadership and membership alignment</span>
+                    <span>A separate network-centrality leadership measure</span>
                   </li>
                 </ul>
                 <p className="mt-4 text-sm text-muted-foreground">
                   Scores range from 0 (most progressive) to 100 (most conservative).
-                  New candidates without voting records may not have scores available.
+                  Candidates without a congressional sponsorship record do not receive a score.
                 </p>
               </div>
 
