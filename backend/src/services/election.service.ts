@@ -267,6 +267,18 @@ export class ElectionService {
 
       console.log(`  📋 Found ${candidates.length} candidates for cycle ${cycle}`);
 
+      const activeCandidateIds = candidates.map((candidate) => candidate.candidateId);
+      await prisma.candidateElection.deleteMany({
+        where: {
+          election: { cycle },
+          ballotStatus: 'UNCONFIRMED',
+          result: 'PENDING',
+          ...(activeCandidateIds.length > 0
+            ? { candidateId: { notIn: activeCandidateIds } }
+            : {}),
+        },
+      });
+
       // Group candidates by race (state + office + district)
       const races: Record<string, {
         state: string;

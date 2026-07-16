@@ -11,6 +11,7 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
+import { electionService } from '../services/election.service.js';
 import {
   acquireSyncLease,
   recoverStaleSyncLogs,
@@ -20,8 +21,13 @@ import {
 
 // Configuration for scheduled syncs
 const SYNC_CONFIG = {
-  // Battleground states (can be expanded to all states)
-  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC', 'FL', 'OH', 'TX'],
+  states: [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+  ],
   
   // Offices to sync
   offices: ['S', 'H'], // S = Senate, H = House
@@ -50,6 +56,9 @@ interface SyncStats {
   receiptsSynced: number;
   disbursementsSynced: number;
   itemizedErrors: number;
+  electionsCreated: number;
+  candidateLinksCreated: number;
+  electionErrors: number;
   duration: number;
 }
 
@@ -107,6 +116,9 @@ async function runScheduledSync(): Promise<void> {
     receiptsSynced: 0,
     disbursementsSynced: 0,
     itemizedErrors: 0,
+    electionsCreated: 0,
+    candidateLinksCreated: 0,
+    electionErrors: 0,
     duration: 0,
   };
 
@@ -241,6 +253,12 @@ async function runScheduledSync(): Promise<void> {
       `${itemized.errors} errors\n`
     );
 
+    // Step 4: Keep race shells and active FEC filing links in sync.
+    const elections = await electionService.generateElections(SYNC_CONFIG.cycles[0]);
+    stats.electionsCreated = elections.electionsCreated;
+    stats.candidateLinksCreated = elections.candidateLinksCreated;
+    stats.electionErrors = elections.errors;
+
     stats.duration = Date.now() - startTime;
 
     // Update sync log as completed
@@ -253,12 +271,15 @@ async function runScheduledSync(): Promise<void> {
           stats.financesSynced +
           stats.committeesSynced +
           stats.receiptsSynced +
-          stats.disbursementsSynced,
+          stats.disbursementsSynced +
+          stats.electionsCreated +
+          stats.candidateLinksCreated,
         recordsErrors:
           stats.candidatesErrors +
           stats.financesErrors +
           stats.committeesErrors +
-          stats.itemizedErrors,
+          stats.itemizedErrors +
+          stats.electionErrors,
         recordsSkipped: stats.candidatesSkipped,
         completedAt: new Date(),
         duration: stats.duration,
