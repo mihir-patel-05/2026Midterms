@@ -11,6 +11,12 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
+import {
+  acquireSyncLease,
+  recoverStaleSyncLogs,
+  releaseSyncLease,
+  SyncAlreadyRunningError,
+} from '../services/sync-lock.service.js';
 
 // Configuration for scheduled syncs
 const SYNC_CONFIG = {
@@ -49,20 +55,34 @@ interface SyncStats {
  */
 async function runScheduledSync(): Promise<void> {
   const startTime = Date.now();
+
+  const recovered = await recoverStaleSyncLogs();
+  if (recovered > 0) {
+    console.warn(`⚠️  Marked ${recovered} abandoned sync log(s) as failed`);
+  }
+
+  const leaseToken = await acquireSyncLease('fec-full');
+  if (!leaseToken) throw new SyncAlreadyRunningError();
   
   // Create initial sync log entry
-  const syncLog = await prisma.syncLog.create({
-    data: {
-      syncType: 'full',
-      status: 'started',
-      metadata: {
-        states: SYNC_CONFIG.states,
-        offices: SYNC_CONFIG.offices,
-        cycles: SYNC_CONFIG.cycles,
-        scheduledSync: true,
+  let syncLog;
+  try {
+    syncLog = await prisma.syncLog.create({
+      data: {
+        syncType: 'full',
+        status: 'started',
+        metadata: {
+          states: SYNC_CONFIG.states,
+          offices: SYNC_CONFIG.offices,
+          cycles: SYNC_CONFIG.cycles,
+          scheduledSync: true,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    await releaseSyncLease('fec-full', leaseToken);
+    throw error;
+  }
 
   console.log('\n' + '='.repeat(70));
   console.log('🔄 SCHEDULED FEC DATA SYNC STARTED');
@@ -252,6 +272,8 @@ async function runScheduledSync(): Promise<void> {
     });
 
     throw error;
+  } finally {
+    await releaseSyncLease('fec-full', leaseToken);
   }
 }
 
@@ -322,4 +344,3 @@ export async function triggerManualSync(): Promise<void> {
   console.log('\n🔧 Manual sync triggered via API');
   await runScheduledSync();
 }
-

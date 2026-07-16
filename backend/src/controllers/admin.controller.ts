@@ -4,6 +4,11 @@ import { candidateService } from '../services/candidate.service.js';
 import { electionService } from '../services/election.service.js';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
+import {
+  acquireSyncLease,
+  recoverStaleSyncLogs,
+  releaseSyncLease,
+} from '../services/sync-lock.service.js';
 
 console.log('🔐 Admin authentication configured: Database-based authentication');
 
@@ -249,7 +254,10 @@ export class AdminController {
    * Trigger a full FEC data sync
    */
   async triggerSync(req: Request, res: Response): Promise<void> {
+    let leaseToken: string | null = null;
     try {
+      await recoverStaleSyncLogs();
+
       // Check if a sync is already running
       const runningSync = await prisma.syncLog.findFirst({
         where: { status: { in: ['started', 'running'] } },
@@ -264,6 +272,12 @@ export class AdminController {
         return;
       }
 
+      leaseToken = await acquireSyncLease('fec-full');
+      if (!leaseToken) {
+        res.status(409).json({ error: 'Sync already in progress' });
+        return;
+      }
+
       // Create a new sync log entry
       const syncLog = await prisma.syncLog.create({
         data: {
@@ -274,14 +288,16 @@ export class AdminController {
       });
 
       // Start sync in background (don't await)
-      this.runSyncInBackground(syncLog.id);
+      this.runSyncInBackground(syncLog.id, leaseToken);
+      leaseToken = null; // Background task now owns lease cleanup.
 
-      res.json({
+      res.status(202).json({
         message: 'Sync started',
         syncId: syncLog.id,
         status: 'started',
       });
     } catch (error: any) {
+      if (leaseToken) await releaseSyncLease('fec-full', leaseToken);
       console.error('Error triggering sync:', error);
       res.status(500).json({ error: 'Failed to start sync', message: error.message });
     }
@@ -290,7 +306,7 @@ export class AdminController {
   /**
    * Run sync in background
    */
-  private async runSyncInBackground(syncLogId: string): Promise<void> {
+  private async runSyncInBackground(syncLogId: string, leaseToken: string): Promise<void> {
     const startTime = Date.now();
     let recordsProcessed = 0;
     let recordsErrors = 0;
@@ -374,6 +390,8 @@ export class AdminController {
       });
 
       console.error('❌ Admin-triggered sync failed:', error.message);
+    } finally {
+      await releaseSyncLease('fec-full', leaseToken);
     }
   }
 

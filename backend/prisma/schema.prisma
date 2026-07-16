@@ -305,6 +305,18 @@ model SyncLog {
   @@map("sync_logs")
 }
 
+// Cross-process lease used to prevent overlapping scheduled/manual sync jobs.
+model SyncLease {
+  name                String      @id
+  token               String
+  expiresAt           DateTime    @map("expires_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([expiresAt])
+  @@map("sync_leases")
+}
+
 // Admin users for dashboard authentication
 model AdminUser {
   id              String      @id @default(uuid())
