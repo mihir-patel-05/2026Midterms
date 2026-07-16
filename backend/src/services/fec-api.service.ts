@@ -221,9 +221,12 @@ export class FECApiService {
   /**
    * Get committees for a candidate
    */
-  async getCommittees(candidateId: string): Promise<FECCommittee[]> {
-    const response = await fecClient.get<FECCommittee>(`/candidate/${candidateId}/committees/`);
-    return response.data.results;
+  async getCommittees(candidateId: string, maxPages: number = 10): Promise<FECCommittee[]> {
+    return fecClient.getAll<FECCommittee>(
+      `/candidate/${candidateId}/committees/`,
+      {},
+      maxPages,
+    );
   }
 
   /**
