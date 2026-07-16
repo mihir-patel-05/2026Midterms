@@ -3,9 +3,13 @@ import bcrypt from 'bcrypt';
 
 async function createAdmin() {
   try {
-    const username = 'admin';
-    const password = 'AndarAkshardham2025*';
-    const email = 'admin@example.com';
+    const username = process.env.ADMIN_USERNAME?.trim() || 'admin';
+    const password = process.env.ADMIN_PASSWORD;
+    const email = process.env.ADMIN_EMAIL?.trim() || undefined;
+
+    if (!password || password.length < 16) {
+      throw new Error('ADMIN_PASSWORD must be set and contain at least 16 characters');
+    }
 
     console.log('📝 Creating or updating admin user...\n');
 
@@ -30,10 +34,9 @@ async function createAdmin() {
 
     console.log('✅ Admin user created or updated successfully!');
     console.log(`   Username: ${adminUser.username}`);
-    console.log(`   Email: ${adminUser.email}`);
-    console.log(`   Password: ${password}`);
+    console.log(`   Email: ${adminUser.email || '(not set)'}`);
     console.log(`   ID: ${adminUser.id}`);
-    console.log('\n⚠️  Please change the password after first login!');
+    console.log('\n📝 The password was read from ADMIN_PASSWORD and was not logged.');
 
     process.exit(0);
   } catch (error: any) {
