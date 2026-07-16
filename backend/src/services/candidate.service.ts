@@ -3,6 +3,19 @@ import { Candidate, Committee } from '@prisma/client';
 import { fecApiService, FECCandidate, FECCommittee } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
 
+const publicCommitteeSelect = {
+  id: true,
+  committeeId: true,
+  name: true,
+  committeeType: true,
+  designation: true,
+  candidateId: true,
+  party: true,
+  state: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 /**
  * Service for managing candidates in the database
  */
@@ -113,7 +126,7 @@ export class CandidateService {
     return prisma.candidate.findUnique({
       where: { id },
       include: {
-        committees: true,
+        committees: { select: publicCommitteeSelect },
         ideologyScores: true,
       },
     });
@@ -126,7 +139,7 @@ export class CandidateService {
     return prisma.candidate.findUnique({
       where: { candidateId },
       include: {
-        committees: true,
+        committees: { select: publicCommitteeSelect },
         ideologyScores: true,
       },
     });
