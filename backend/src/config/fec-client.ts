@@ -14,6 +14,14 @@ export interface FECPaginatedResponse<T> {
   results: T[];
 }
 
+export type FECKeysetCursor = Record<string, string | number>;
+
+export interface FECKeysetBatch<T> {
+  results: T[];
+  nextCursor: FECKeysetCursor | null;
+  exhausted: boolean;
+}
+
 export class FECClient {
   private client: AxiosInstance;
   private requestCount = 0;
@@ -138,9 +146,19 @@ export class FECClient {
     params: Record<string, any> = {},
     maxPages: number = 10
   ): Promise<T[]> {
+    const batch = await this.getKeysetBatch<T>(endpoint, params, maxPages);
+    return batch.results;
+  }
+
+  async getKeysetBatch<T>(
+    endpoint: string,
+    params: Record<string, any> = {},
+    maxPages: number = 10,
+    initialCursor: FECKeysetCursor = {},
+  ): Promise<FECKeysetBatch<T>> {
     const allResults: T[] = [];
-    let cursor: Record<string, string | number> = {};
-    let previousCursor = '';
+    let cursor = initialCursor;
+    let serializedCursor = JSON.stringify(cursor);
 
     for (let fetchedPages = 0; fetchedPages < maxPages; fetchedPages++) {
       const response = await this.get<T>(endpoint, {
@@ -148,7 +166,9 @@ export class FECClient {
       });
       const { results, pagination } = response.data;
 
-      if (!results?.length) break;
+      if (!results?.length) {
+        return { results: allResults, nextCursor: null, exhausted: true };
+      }
       allResults.push(...results);
 
       const nextCursor = Object.fromEntries(
@@ -156,15 +176,20 @@ export class FECClient {
           (entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== undefined,
         ),
       );
-      const serializedCursor = JSON.stringify(nextCursor);
+      const serializedNextCursor = JSON.stringify(nextCursor);
 
-      if (Object.keys(nextCursor).length === 0 || serializedCursor === previousCursor) break;
+      if (Object.keys(nextCursor).length === 0) {
+        return { results: allResults, nextCursor: null, exhausted: true };
+      }
+      if (serializedNextCursor === serializedCursor) {
+        throw new Error(`OpenFEC cursor did not advance for ${endpoint}`);
+      }
 
       cursor = nextCursor;
-      previousCursor = serializedCursor;
+      serializedCursor = serializedNextCursor;
     }
 
-    return allResults;
+    return { results: allResults, nextCursor: cursor, exhausted: false };
   }
 }
 

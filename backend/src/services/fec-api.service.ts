@@ -1,4 +1,4 @@
-import { fecClient } from '../config/fec-client.js';
+import { fecClient, FECKeysetBatch, FECKeysetCursor } from '../config/fec-client.js';
 
 // FEC API Response Types
 export interface FECCandidate {
@@ -312,6 +312,30 @@ export class FECApiService {
     );
   }
 
+  async getReceiptBatch(params: {
+    committeeId: string;
+    twoYearTransactionPeriod?: number;
+    minDate?: string;
+    maxDate?: string;
+    maxPages?: number;
+    cursor?: FECKeysetCursor;
+  }): Promise<FECKeysetBatch<FECReceipt>> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
+
+    return fecClient.getKeysetBatch<FECReceipt>(
+      '/schedules/schedule_a/',
+      {
+        committee_id: committeeId,
+        two_year_transaction_period: twoYearTransactionPeriod,
+        min_date: minDate,
+        max_date: maxDate,
+        sort: '-contribution_receipt_date',
+      },
+      maxPages,
+      cursor,
+    );
+  }
+
   /**
    * Get itemized disbursements (Schedule B) for a committee
    */
@@ -372,6 +396,30 @@ export class FECApiService {
         sort: '-disbursement_date',
       },
       maxPages
+    );
+  }
+
+  async getDisbursementBatch(params: {
+    committeeId: string;
+    twoYearTransactionPeriod?: number;
+    minDate?: string;
+    maxDate?: string;
+    maxPages?: number;
+    cursor?: FECKeysetCursor;
+  }): Promise<FECKeysetBatch<FECDisbursement>> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
+
+    return fecClient.getKeysetBatch<FECDisbursement>(
+      '/schedules/schedule_b/',
+      {
+        committee_id: committeeId,
+        two_year_transaction_period: twoYearTransactionPeriod,
+        min_date: minDate,
+        max_date: maxDate,
+        sort: '-disbursement_date',
+      },
+      maxPages,
+      cursor,
     );
   }
 }
