@@ -250,6 +250,9 @@ export class ElectionService {
       const candidates = await prisma.candidate.findMany({
         where: {
           cycles: { has: cycle },
+          electionYears: { has: cycle },
+          candidateStatus: 'C',
+          activeThrough: { gte: cycle },
         },
         select: {
           candidateId: true,
@@ -325,7 +328,6 @@ export class ElectionService {
           // Link candidates to this election
           for (const candidate of race.candidates) {
             try {
-              // Check if link already exists
               const existingLink = await prisma.candidateElection.findUnique({
                 where: {
                   candidateId_electionId: {
@@ -333,19 +335,29 @@ export class ElectionService {
                     electionId: election.id,
                   },
                 },
+                select: { id: true },
               });
 
-              if (!existingLink) {
-                await prisma.candidateElection.create({
-                  data: {
+              await prisma.candidateElection.upsert({
+                where: {
+                  candidateId_electionId: {
                     candidateId: candidate.candidateId,
                     electionId: election.id,
-                    isIncumbent: candidate.incumbentStatus === 'I',
-                    result: 'PENDING',
                   },
-                });
-                stats.candidateLinksCreated++;
-              }
+                },
+                update: {
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                },
+                create: {
+                  candidateId: candidate.candidateId,
+                  electionId: election.id,
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                  result: 'PENDING',
+                },
+              });
+              if (!existingLink) stats.candidateLinksCreated++;
             } catch (linkError: any) {
               console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
               stats.errors++;

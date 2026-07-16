@@ -181,6 +181,7 @@ model CandidateElection {
   isIncumbent     Boolean     @default(false) @map("is_incumbent")
   result          String?     // WON, LOST, PENDING
   votePercentage  Float?      @map("vote_percentage")
+  ballotStatus    String      @default("UNCONFIRMED") @map("ballot_status") // CONFIRMED | UNCONFIRMED
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 

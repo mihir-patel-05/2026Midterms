@@ -290,6 +290,7 @@ export interface CandidateElection {
   isIncumbent: boolean;
   result?: string; // "WON" | "LOST" | "PENDING"
   votePercentage?: number;
+  ballotStatus: 'CONFIRMED' | 'UNCONFIRMED';
   createdAt: string;
   updatedAt: string;
 

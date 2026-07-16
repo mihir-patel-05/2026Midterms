@@ -227,7 +227,7 @@ export default function Elections() {
                                   <div className="text-right">
                                     <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
                                       <Users className="h-3 w-3" />
-                                      {candidateCount} candidate{candidateCount !== 1 ? 's' : ''}
+                                      {candidateCount} FEC filing{candidateCount !== 1 ? 's' : ''}
                                     </p>
                                   </div>
                                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -286,7 +286,7 @@ export default function Elections() {
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
                                       <Users className="h-3 w-3" />
-                                      {candidateCount} candidate{candidateCount !== 1 ? 's' : ''}
+                                      {candidateCount} FEC filing{candidateCount !== 1 ? 's' : ''}
                                     </p>
                                   </div>
                                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
