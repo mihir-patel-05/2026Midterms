@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { FinancialSummary, Receipt, Disbursement, CandidateFinancial } from '@prisma/client';
+import { FinancialSummary, Receipt, Disbursement, CandidateFinancial, Prisma } from '@prisma/client';
 import {
   fecApiService,
   FECFinancialSummary,
@@ -51,6 +51,25 @@ function disbursementCycleFilter(cycle: number) {
   };
 }
 
+type KeysetCursor = Record<string, string | number>;
+
+interface ItemizedSyncResult {
+  synced: number;
+  errors: number;
+  nextCursor: KeysetCursor | null;
+  exhausted: boolean;
+}
+
+function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
+  if (!value || Array.isArray(value) || typeof value !== 'object') return undefined;
+
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string | number] =>
+      typeof entry[1] === 'string' || typeof entry[1] === 'number',
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 /**
  * Service for managing campaign finance data
  */
@@ -96,21 +115,40 @@ export class FinanceService {
 
     for (const committee of committees) {
       try {
+        const sameCycle = committee.itemizedSyncCycle === cycle;
+        const backfilling = !sameCycle || !committee.itemizedLastSyncedAt;
+        const receiptComplete = sameCycle && committee.receiptBackfillComplete;
+        const disbursementComplete = sameCycle && committee.disbursementBackfillComplete;
+        const completedStream: ItemizedSyncResult = {
+          synced: 0,
+          errors: 0,
+          nextCursor: null,
+          exhausted: true,
+        };
+
         const [receipts, disbursements] = await Promise.all([
-          this.syncReceipts({
-            committeeId: committee.committeeId,
-            twoYearTransactionPeriod: cycle,
-            minDate,
-            maxDate,
-            maxPages: env.ITEMIZED_MAX_PAGES,
-          }),
-          this.syncDisbursements({
-            committeeId: committee.committeeId,
-            twoYearTransactionPeriod: cycle,
-            minDate,
-            maxDate,
-            maxPages: env.ITEMIZED_MAX_PAGES,
-          }),
+          backfilling && receiptComplete
+            ? Promise.resolve(completedStream)
+            : this.syncReceipts({
+                committeeId: committee.committeeId,
+                twoYearTransactionPeriod: cycle,
+                minDate,
+                maxDate,
+                maxPages: env.ITEMIZED_MAX_PAGES,
+                cursor: backfilling && sameCycle ? readCursor(committee.receiptSyncCursor) : undefined,
+              }),
+          backfilling && disbursementComplete
+            ? Promise.resolve(completedStream)
+            : this.syncDisbursements({
+                committeeId: committee.committeeId,
+                twoYearTransactionPeriod: cycle,
+                minDate,
+                maxDate,
+                maxPages: env.ITEMIZED_MAX_PAGES,
+                cursor: backfilling && sameCycle
+                  ? readCursor(committee.disbursementSyncCursor)
+                  : undefined,
+              }),
         ]);
 
         const errors = receipts.errors + disbursements.errors;
@@ -120,11 +158,31 @@ export class FinanceService {
         stats.errors += errors;
 
         const attemptedAt = new Date();
+        const nextReceiptComplete = receiptComplete || receipts.exhausted;
+        const nextDisbursementComplete = disbursementComplete || disbursements.exhausted;
+        const backfillComplete = nextReceiptComplete && nextDisbursementComplete;
         await prisma.committee.update({
           where: { id: committee.id },
           data: {
             itemizedLastAttemptedAt: attemptedAt,
-            ...(errors === 0 ? { itemizedLastSyncedAt: attemptedAt } : {}),
+            ...(errors === 0
+              ? {
+                  itemizedSyncCycle: cycle,
+                  receiptBackfillComplete: backfilling ? nextReceiptComplete : true,
+                  disbursementBackfillComplete: backfilling ? nextDisbursementComplete : true,
+                  receiptSyncCursor:
+                    backfilling && !nextReceiptComplete && receipts.nextCursor
+                      ? receipts.nextCursor
+                      : Prisma.DbNull,
+                  disbursementSyncCursor:
+                    backfilling && !nextDisbursementComplete && disbursements.nextCursor
+                      ? disbursements.nextCursor
+                      : Prisma.DbNull,
+                  ...(!backfilling || backfillComplete
+                    ? { itemizedLastSyncedAt: attemptedAt }
+                    : {}),
+                }
+              : {}),
             itemizedSyncError: errors > 0 ? `${errors} row(s) failed to import` : null,
           },
         });
@@ -439,19 +497,22 @@ export class FinanceService {
     minDate?: string;
     maxDate?: string;
     maxPages?: number;
-  }): Promise<{ synced: number; errors: number }> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
+    cursor?: KeysetCursor;
+  }): Promise<ItemizedSyncResult> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
 
     console.log(`🔄 Syncing receipts for committee ${committeeId}`);
 
     try {
-      const fecReceipts = await fecApiService.getAllReceipts({
+      const fecBatch = await fecApiService.getReceiptBatch({
         committeeId,
         twoYearTransactionPeriod,
         minDate,
         maxDate,
         maxPages,
+        cursor,
       });
+      const fecReceipts = fecBatch.results;
 
       console.log(`📥 Found ${fecReceipts.length} receipts`);
 
@@ -532,7 +593,12 @@ export class FinanceService {
 
       console.log(`✅ Synced ${synced} receipts, ${errors} errors`);
 
-      return { synced, errors };
+      return {
+        synced,
+        errors,
+        nextCursor: fecBatch.nextCursor,
+        exhausted: fecBatch.exhausted,
+      };
     } catch (error) {
       console.error('❌ Error syncing receipts:', error);
       throw error;
@@ -548,19 +614,22 @@ export class FinanceService {
     minDate?: string;
     maxDate?: string;
     maxPages?: number;
-  }): Promise<{ synced: number; errors: number }> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
+    cursor?: KeysetCursor;
+  }): Promise<ItemizedSyncResult> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
 
     console.log(`🔄 Syncing disbursements for committee ${committeeId}`);
 
     try {
-      const fecDisbursements = await fecApiService.getAllDisbursements({
+      const fecBatch = await fecApiService.getDisbursementBatch({
         committeeId,
         twoYearTransactionPeriod,
         minDate,
         maxDate,
         maxPages,
+        cursor,
       });
+      const fecDisbursements = fecBatch.results;
 
       console.log(`📥 Found ${fecDisbursements.length} disbursements`);
 
@@ -632,7 +701,12 @@ export class FinanceService {
 
       console.log(`✅ Synced ${synced} disbursements, ${errors} errors`);
 
-      return { synced, errors };
+      return {
+        synced,
+        errors,
+        nextCursor: fecBatch.nextCursor,
+        exhausted: fecBatch.exhausted,
+      };
     } catch (error) {
       console.error('❌ Error syncing disbursements:', error);
       throw error;
