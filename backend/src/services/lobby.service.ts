@@ -180,17 +180,27 @@ export class LobbyService {
       }
     }
 
-    // Cycle window: a 2-year cycle covers donations from Jan of the prior odd
-    // year through Dec of the cycle year (e.g. cycle=2026 → 2025-01-01..2026-12-31).
+    // Legacy rows predate the explicit cycle column, so retain a date-window
+    // fallback until each committee has completed its first refreshed import.
     const cycleStart = new Date(`${cycle - 1}-01-01T00:00:00Z`);
     const cycleEnd = new Date(`${cycle}-12-31T23:59:59Z`);
+    const cycleFilter = {
+      OR: [
+        { cycle },
+        {
+          cycle: null,
+          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
+        },
+      ],
+    };
 
     const [candidateReceipts, totalAgg] = await Promise.all([
       prisma.receipt.findMany({
         where: {
           committeeId: { in: committeeIds },
-          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
-          OR: orFilters,
+          memoedSubtotal: false,
+          contributionReceiptAmount: { gt: 0 },
+          AND: [cycleFilter, { OR: orFilters }],
         },
         select: {
           contributorName: true,
@@ -202,7 +212,9 @@ export class LobbyService {
       prisma.receipt.aggregate({
         where: {
           committeeId: { in: committeeIds },
-          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
+          memoedSubtotal: false,
+          contributionReceiptAmount: { gt: 0 },
+          ...cycleFilter,
         },
         _sum: { contributionReceiptAmount: true },
       }),

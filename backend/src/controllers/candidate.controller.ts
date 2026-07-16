@@ -107,7 +107,7 @@ export class CandidateController {
         candidate.committees.map(async (committee: any) => {
           const summary = await financeService.getFinancialSummary(
             committee.committeeId,
-            cycle ? parseInt(cycle as string) : undefined
+            cycle ? parseInt(cycle as string) : 2026
           );
           return {
             committee,

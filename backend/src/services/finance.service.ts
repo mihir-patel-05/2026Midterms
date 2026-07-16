@@ -26,6 +26,31 @@ function inferCycle(explicitCycle: number | undefined, transactionDate: string |
   return Number.isFinite(year) ? year + (year % 2) : null;
 }
 
+function cycleDateRange(cycle: number) {
+  return {
+    gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+    lte: new Date(`${cycle}-12-31T23:59:59Z`),
+  };
+}
+
+function receiptCycleFilter(cycle: number) {
+  return {
+    OR: [
+      { cycle },
+      { cycle: null, contributionReceiptDate: cycleDateRange(cycle) },
+    ],
+  };
+}
+
+function disbursementCycleFilter(cycle: number) {
+  return {
+    OR: [
+      { cycle },
+      { cycle: null, disbursementDate: cycleDateRange(cycle) },
+    ],
+  };
+}
+
 /**
  * Service for managing campaign finance data
  */
@@ -276,15 +301,10 @@ export class FinanceService {
   }): Promise<PaginationResult<Receipt>> {
     const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
-    const dateFilter = cycle
-      ? {
-          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
-          lte: new Date(`${cycle}-12-31T23:59:59Z`),
-        }
-      : undefined;
     const where = {
       committeeId: { in: committeeIds },
-      ...(dateFilter ? { contributionReceiptDate: dateFilter } : {}),
+      memoedSubtotal: false,
+      ...(cycle ? receiptCycleFilter(cycle) : {}),
     };
 
     const [receipts, total] = await Promise.all([
@@ -311,15 +331,10 @@ export class FinanceService {
   }): Promise<PaginationResult<Disbursement>> {
     const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
-    const dateFilter = cycle
-      ? {
-          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
-          lte: new Date(`${cycle}-12-31T23:59:59Z`),
-        }
-      : undefined;
     const where = {
       committeeId: { in: committeeIds },
-      ...(dateFilter ? { disbursementDate: dateFilter } : {}),
+      memoedSubtotal: false,
+      ...(cycle ? disbursementCycleFilter(cycle) : {}),
     };
 
     const [disbursements, total] = await Promise.all([
@@ -722,14 +737,18 @@ export class FinanceService {
    * Get funding sources breakdown by receipt type
    * Categorizes contributions into: Individual, PAC, Party, Self-funded, Other
    */
-  async getFundingSourcesBreakdown(committeeId: string): Promise<{
+  async getFundingSourcesBreakdown(committeeIds: string[], cycle: number): Promise<{
     type: string;
     amount: number;
     percentage: number;
   }[]> {
     // Get all receipts for this committee
     const receipts = await prisma.receipt.findMany({
-      where: { committeeId },
+      where: {
+        committeeId: { in: committeeIds },
+        memoedSubtotal: false,
+        ...receiptCycleFilter(cycle),
+      },
       select: {
         receiptType: true,
         contributionReceiptAmount: true,
@@ -800,10 +819,9 @@ export class FinanceService {
       by: ['contributorName', 'contributorEmployer', 'contributorOccupation', 'contributorState'],
       where: {
         committeeId: { in: committeeIds },
-        contributionReceiptDate: {
-          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
-          lte: new Date(`${cycle}-12-31T23:59:59Z`),
-        },
+        memoedSubtotal: false,
+        contributionReceiptAmount: { gt: 0 },
+        ...receiptCycleFilter(cycle),
         contributorName: { not: null },
       },
       _sum: {
@@ -838,10 +856,9 @@ export class FinanceService {
     const disbursements = await prisma.disbursement.findMany({
       where: {
         committeeId: { in: committeeIds },
-        disbursementDate: {
-          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
-          lte: new Date(`${cycle}-12-31T23:59:59Z`),
-        },
+        memoedSubtotal: false,
+        disbursementAmount: { gt: 0 },
+        ...disbursementCycleFilter(cycle),
       },
       select: {
         disbursementType: true,

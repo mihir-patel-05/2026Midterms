@@ -168,7 +168,7 @@ export async function getCandidateByFecId(candidateId: string): Promise<Candidat
  * Get financial data for a candidate
  *
  * @param id - Candidate UUID
- * @param cycle - Optional election cycle (e.g., 2026)
+ * @param cycle - Election cycle (default: 2026)
  * @returns Promise<CandidateFinanceResponse> - Finance data for candidate's committees
  * @throws Error if candidate not found (404)
  *
@@ -177,14 +177,13 @@ export async function getCandidateByFecId(candidateId: string): Promise<Candidat
  */
 export async function getCandidateFinances(
   id: string,
-  cycle?: number
+  cycle: number = 2026
 ): Promise<CandidateFinanceResponse> {
   if (!id || id.trim() === '') {
     throw new Error('Candidate ID is required');
   }
 
-  const queryString = cycle ? `?cycle=${cycle}` : '';
-  const endpoint = `/candidates/${id}/finances${queryString}`;
+  const endpoint = `/candidates/${id}/finances?cycle=${cycle}`;
   return fetchAPI<CandidateFinanceResponse>(endpoint);
 }
 
