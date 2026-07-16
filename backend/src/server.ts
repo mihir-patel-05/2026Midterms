@@ -12,16 +12,17 @@ const app: Application = express();
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      process.env.ADMIN_URL,
-      'http://localhost:5173',  // Vite default (main frontend)
-      'http://localhost:5174',  // Admin dashboard
+      env.FRONTEND_URL,
+      env.ADMIN_URL,
+      ...(env.NODE_ENV !== 'production'
+        ? ['http://localhost:5173', 'http://localhost:5174']
+        : []),
     ].filter(Boolean);
 
     // Allow requests with no origin (server-to-server, curl, etc.)
     if (!origin) {
       callback(null, true);
-    } else if (allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+    } else if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
       callback(new Error('Not allowed by CORS'));

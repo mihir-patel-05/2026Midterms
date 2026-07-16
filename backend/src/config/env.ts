@@ -16,6 +16,8 @@ const envSchema = z.object({
   ITEMIZED_REFRESH_HOURS: z.string().default('72'),
   ADMIN_PASSWORD: z.string().optional(),
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
+  FRONTEND_URL: z.string().url().optional(),
+  ADMIN_URL: z.string().url().optional(),
 
   // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
   // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
@@ -41,6 +43,14 @@ const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
   throw new Error('Invalid environment variables');
+}
+
+if (
+  parsed.data.NODE_ENV === 'production' &&
+  (parsed.data.RESEARCHER_JWT_SECRET === 'dev-researcher-secret-change-me' ||
+    parsed.data.RESEARCHER_JWT_SECRET.length < 32)
+) {
+  throw new Error('RESEARCHER_JWT_SECRET must be explicitly set to at least 32 characters in production');
 }
 
 export const env = {

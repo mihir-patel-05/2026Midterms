@@ -79,19 +79,6 @@ export class AdminController {
     }
 
     try {
-      // Check if any admin users exist at all
-      const adminCount = await prisma.adminUser.count();
-      console.log(`📊 Total admin users in database: ${adminCount}`);
-      
-      if (adminCount === 0) {
-        console.log('❌ No admin users exist! Run: npm run admin:create');
-        res.status(401).json({ 
-          error: 'No admin users configured',
-          hint: 'Run "npm run admin:create" in the backend directory'
-        });
-        return;
-      }
-
       // Find admin user by username
       const adminUser = await prisma.adminUser.findUnique({
         where: { username }
