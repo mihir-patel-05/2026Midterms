@@ -4,55 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { getDeadlines, Deadline } from "@/lib/api";
 import { formatCalendarDate } from "@/lib/calendarDate";
 
-// Fallback static data in case API fails
-const fallbackDeadlines = [
-  {
-    id: "fallback-1",
-    date: "2026-01-15T00:00:00.000Z",
-    title: "Primary Registration Deadline",
-    states: ["IA", "NH"],
-    type: "registration" as const,
-    urgent: false,
-    description: null,
-  },
-  {
-    id: "fallback-2",
-    date: "2026-02-03T00:00:00.000Z",
-    title: "Iowa Caucuses",
-    states: ["IA"],
-    type: "election" as const,
-    urgent: false,
-    description: null,
-  },
-  {
-    id: "fallback-3",
-    date: "2026-03-03T00:00:00.000Z",
-    title: "Super Tuesday Primaries",
-    states: ["CA", "TX", "14 other states"],
-    type: "election" as const,
-    urgent: false,
-    description: null,
-  },
-  {
-    id: "fallback-4",
-    date: "2026-10-05T00:00:00.000Z",
-    title: "General Election Registration Deadline",
-    states: ["Most states"],
-    type: "registration" as const,
-    urgent: true,
-    description: null,
-  },
-  {
-    id: "fallback-5",
-    date: "2026-11-03T00:00:00.000Z",
-    title: "Election Day",
-    states: ["ALL"],
-    type: "election" as const,
-    urgent: true,
-    description: null,
-  },
-];
-
 // State code to full name mapping
 const stateNames: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
@@ -91,18 +42,12 @@ export function UpcomingDeadlines() {
     async function fetchDeadlines() {
       try {
         const response = await getDeadlines();
-        if (response.deadlines.length > 0) {
-          setDeadlines(response.deadlines);
-        } else {
-          // Use fallback if no deadlines from API
-          setDeadlines(fallbackDeadlines);
-        }
+        setDeadlines(response.deadlines);
         setError(null);
       } catch (err) {
         console.error("Failed to fetch deadlines:", err);
         setError("Failed to load deadlines");
-        // Use fallback data on error
-        setDeadlines(fallbackDeadlines);
+        setDeadlines([]);
       } finally {
         setIsLoading(false);
       }
@@ -130,13 +75,16 @@ export function UpcomingDeadlines() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : error ? (
+          <p className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
+            Deadline information is temporarily unavailable. Verify dates with your state election office.
+          </p>
+        ) : deadlines.length === 0 ? (
+          <p className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
+            No verified upcoming deadlines have been published here yet.
+          </p>
         ) : (
           <div className="space-y-4">
-            {error && (
-              <p className="text-sm text-muted-foreground mb-4">
-                Showing cached deadline information.
-              </p>
-            )}
             {deadlines.map((deadline) => (
               <div
                 key={deadline.id}

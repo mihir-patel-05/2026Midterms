@@ -3,8 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export function HeroSection() {
-  // Example countdown - in real app this would be dynamic
-  const daysUntilElection = 327;
+  const electionDay = new Date(2026, 10, 3);
+  const today = new Date();
+  const daysUntilElection = Math.max(
+    0,
+    Math.ceil((electionDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)),
+  );
 
   return (
     <section className="relative overflow-hidden gradient-hero">
@@ -20,7 +24,11 @@ export function HeroSection() {
           {/* Election Countdown Badge */}
           <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm font-medium text-primary-foreground backdrop-blur-sm animate-fade-in">
             <Calendar className="h-4 w-4" />
-            <span>{daysUntilElection} days until Election Day 2026</span>
+            <span>
+              {daysUntilElection > 0
+                ? `${daysUntilElection} days until Election Day 2026`
+                : "Election Day is November 3, 2026"}
+            </span>
           </div>
 
           {/* Main Headline */}
