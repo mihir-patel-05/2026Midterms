@@ -261,21 +261,32 @@ export class FinanceService {
    * Get receipts for a committee with pagination
    */
   async getReceipts(params: {
-    committeeId: string;
+    committeeIds: string[];
+    cycle?: number;
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Receipt>> {
-    const { committeeId, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
+    const dateFilter = cycle
+      ? {
+          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+          lte: new Date(`${cycle}-12-31T23:59:59Z`),
+        }
+      : undefined;
+    const where = {
+      committeeId: { in: committeeIds },
+      ...(dateFilter ? { contributionReceiptDate: dateFilter } : {}),
+    };
 
     const [receipts, total] = await Promise.all([
       prisma.receipt.findMany({
-        where: { committeeId },
+        where,
         skip,
         take,
         orderBy: { contributionReceiptDate: 'desc' },
       }),
-      prisma.receipt.count({ where: { committeeId } }),
+      prisma.receipt.count({ where }),
     ]);
 
     return createPaginationResult(receipts, total, page, perPage);
@@ -285,21 +296,32 @@ export class FinanceService {
    * Get disbursements for a committee with pagination
    */
   async getDisbursements(params: {
-    committeeId: string;
+    committeeIds: string[];
+    cycle?: number;
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Disbursement>> {
-    const { committeeId, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
+    const dateFilter = cycle
+      ? {
+          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+          lte: new Date(`${cycle}-12-31T23:59:59Z`),
+        }
+      : undefined;
+    const where = {
+      committeeId: { in: committeeIds },
+      ...(dateFilter ? { disbursementDate: dateFilter } : {}),
+    };
 
     const [disbursements, total] = await Promise.all([
       prisma.disbursement.findMany({
-        where: { committeeId },
+        where,
         skip,
         take,
         orderBy: { disbursementDate: 'desc' },
       }),
-      prisma.disbursement.count({ where: { committeeId } }),
+      prisma.disbursement.count({ where }),
     ]);
 
     return createPaginationResult(disbursements, total, page, perPage);
@@ -560,9 +582,7 @@ export class FinanceService {
           where: { cycle },
           take: 1,
         },
-        committees: {
-          take: 1, // Only need primary committee
-        },
+        committees: true,
       },
     });
 
@@ -598,17 +618,17 @@ export class FinanceService {
       }
     }
 
-    // Get top donors and spending categories from primary committee (if exists)
+    // Aggregate itemized data across every authorized committee for this cycle.
     let topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[] = [];
     let spendingCategories: { category: string; amount: number; percentage: number }[] = [];
 
-    const primaryCommittee = candidate.committees?.[0];
+    const committeeIds = candidate.committees.map((committee) => committee.committeeId);
     
-    if (primaryCommittee) {
+    if (committeeIds.length > 0) {
       // Run both queries in parallel for speed
       [topDonors, spendingCategories] = await Promise.all([
-        this.getTopDonors(primaryCommittee.committeeId, 10),
-        this.getSpendingCategories(primaryCommittee.committeeId),
+        this.getTopDonors(committeeIds, cycle, 10),
+        this.getSpendingCategories(committeeIds, cycle),
       ]);
     }
 
@@ -701,7 +721,7 @@ export class FinanceService {
   /**
    * Get top donors/contributors for a committee
    */
-  async getTopDonors(committeeId: string, limit: number = 10): Promise<{
+  async getTopDonors(committeeIds: string[], cycle: number, limit: number = 10): Promise<{
     name: string;
     employer: string | null;
     occupation: string | null;
@@ -712,7 +732,11 @@ export class FinanceService {
     const topDonors = await prisma.receipt.groupBy({
       by: ['contributorName', 'contributorEmployer', 'contributorOccupation', 'contributorState'],
       where: {
-        committeeId,
+        committeeId: { in: committeeIds },
+        contributionReceiptDate: {
+          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+          lte: new Date(`${cycle}-12-31T23:59:59Z`),
+        },
         contributorName: { not: null },
       },
       _sum: {
@@ -738,14 +762,20 @@ export class FinanceService {
   /**
    * Get spending categories breakdown from disbursements
    */
-  async getSpendingCategories(committeeId: string): Promise<{
+  async getSpendingCategories(committeeIds: string[], cycle: number): Promise<{
     category: string;
     amount: number;
     percentage: number;
   }[]> {
     // Get all disbursements for this committee
     const disbursements = await prisma.disbursement.findMany({
-      where: { committeeId },
+      where: {
+        committeeId: { in: committeeIds },
+        disbursementDate: {
+          gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+          lte: new Date(`${cycle}-12-31T23:59:59Z`),
+        },
+      },
       select: {
         disbursementType: true,
         disbursementDescription: true,
