@@ -6,9 +6,10 @@ export interface FECPaginatedResponse<T> {
   api_version: string;
   pagination: {
     count: number;
-    page: number;
+    page?: number;
     pages: number;
     per_page: number;
+    last_indexes?: Record<string, string | number | null>;
   };
   results: T[];
 }
@@ -122,6 +123,45 @@ export class FECClient {
 
     for await (const results of this.getAllPages<T>(endpoint, params, maxPages)) {
       allResults.push(...results);
+    }
+
+    return allResults;
+  }
+
+  /**
+   * Fetch a bounded number of pages from OpenFEC's high-volume schedule
+   * endpoints. Schedule A/B ignore page numbers and require the cursor values
+   * returned in pagination.last_indexes to retrieve the next page.
+   */
+  async getAllKeyset<T>(
+    endpoint: string,
+    params: Record<string, any> = {},
+    maxPages: number = 10
+  ): Promise<T[]> {
+    const allResults: T[] = [];
+    let cursor: Record<string, string | number> = {};
+    let previousCursor = '';
+
+    for (let fetchedPages = 0; fetchedPages < maxPages; fetchedPages++) {
+      const response = await this.get<T>(endpoint, {
+        params: { ...params, ...cursor, per_page: 100 },
+      });
+      const { results, pagination } = response.data;
+
+      if (!results?.length) break;
+      allResults.push(...results);
+
+      const nextCursor = Object.fromEntries(
+        Object.entries(pagination.last_indexes ?? {}).filter(
+          (entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== undefined,
+        ),
+      );
+      const serializedCursor = JSON.stringify(nextCursor);
+
+      if (Object.keys(nextCursor).length === 0 || serializedCursor === previousCursor) break;
+
+      cursor = nextCursor;
+      previousCursor = serializedCursor;
     }
 
     return allResults;

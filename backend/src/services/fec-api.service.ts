@@ -244,10 +244,19 @@ export class FECApiService {
     twoYearTransactionPeriod?: number;
     minDate?: string;
     maxDate?: string;
-    page?: number;
+    lastIndex?: string;
+    lastContributionReceiptDate?: string;
     perPage?: number;
   }): Promise<FECReceipt[]> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, page = 1, perPage = 100 } = params;
+    const {
+      committeeId,
+      twoYearTransactionPeriod,
+      minDate,
+      maxDate,
+      lastIndex,
+      lastContributionReceiptDate,
+      perPage = 100,
+    } = params;
 
     const response = await fecClient.get<FECReceipt>('/schedules/schedule_a/', {
       params: {
@@ -255,7 +264,8 @@ export class FECApiService {
         two_year_transaction_period: twoYearTransactionPeriod,
         min_date: minDate,
         max_date: maxDate,
-        page,
+        last_index: lastIndex,
+        last_contribution_receipt_date: lastContributionReceiptDate,
         per_page: perPage,
         sort: '-contribution_receipt_date',
       },
@@ -276,7 +286,7 @@ export class FECApiService {
   }): Promise<FECReceipt[]> {
     const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
 
-    return fecClient.getAll<FECReceipt>(
+    return fecClient.getAllKeyset<FECReceipt>(
       '/schedules/schedule_a/',
       {
         committee_id: committeeId,
@@ -297,10 +307,19 @@ export class FECApiService {
     twoYearTransactionPeriod?: number;
     minDate?: string;
     maxDate?: string;
-    page?: number;
+    lastIndex?: string;
+    lastDisbursementDate?: string;
     perPage?: number;
   }): Promise<FECDisbursement[]> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, page = 1, perPage = 100 } = params;
+    const {
+      committeeId,
+      twoYearTransactionPeriod,
+      minDate,
+      maxDate,
+      lastIndex,
+      lastDisbursementDate,
+      perPage = 100,
+    } = params;
 
     const response = await fecClient.get<FECDisbursement>('/schedules/schedule_b/', {
       params: {
@@ -308,7 +327,8 @@ export class FECApiService {
         two_year_transaction_period: twoYearTransactionPeriod,
         min_date: minDate,
         max_date: maxDate,
-        page,
+        last_index: lastIndex,
+        last_disbursement_date: lastDisbursementDate,
         per_page: perPage,
         sort: '-disbursement_date',
       },
@@ -329,7 +349,7 @@ export class FECApiService {
   }): Promise<FECDisbursement[]> {
     const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
 
-    return fecClient.getAll<FECDisbursement>(
+    return fecClient.getAllKeyset<FECDisbursement>(
       '/schedules/schedule_b/',
       {
         committee_id: committeeId,
