@@ -112,6 +112,11 @@ export interface FECCandidateTotals {
 
 export interface FECReceipt {
   sub_id?: string | number;
+  transaction_id?: string;
+  file_number?: number;
+  amendment_indicator?: string;
+  two_year_transaction_period?: number;
+  memoed_subtotal?: boolean;
   committee: {
     committee_id: string;
     name?: string;
@@ -131,6 +136,11 @@ export interface FECReceipt {
 
 export interface FECDisbursement {
   sub_id?: string | number;
+  transaction_id?: string;
+  file_number?: number;
+  amendment_indicator?: string;
+  two_year_transaction_period?: number;
+  memoed_subtotal?: boolean;
   committee: {
     committee_id: string;
     name?: string;

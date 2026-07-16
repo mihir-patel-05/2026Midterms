@@ -18,6 +18,14 @@ function stableSourceId(kind: 'receipt' | 'disbursement', sourceId: string | num
   return `fallback:${kind}:${createHash('sha256').update(JSON.stringify(fields)).digest('hex')}`;
 }
 
+function inferCycle(explicitCycle: number | undefined, transactionDate: string | undefined): number | null {
+  if (explicitCycle) return explicitCycle;
+  if (!transactionDate) return null;
+
+  const year = new Date(transactionDate).getUTCFullYear();
+  return Number.isFinite(year) ? year + (year % 2) : null;
+}
+
 /**
  * Service for managing campaign finance data
  */
@@ -417,12 +425,6 @@ export class FinanceService {
     console.log(`🔄 Syncing receipts for committee ${committeeId}`);
 
     try {
-      // Rows imported before source IDs were introduced cannot participate in
-      // idempotency. Remove them once; the authoritative FEC fetch replaces them.
-      await prisma.receipt.deleteMany({
-        where: { committeeId, sourceId: null },
-      });
-
       const fecReceipts = await fecApiService.getAllReceipts({
         committeeId,
         twoYearTransactionPeriod,
@@ -433,6 +435,24 @@ export class FinanceService {
 
       console.log(`📥 Found ${fecReceipts.length} receipts`);
 
+      // Never remove legacy data until the replacement fetch has succeeded.
+      // When a cycle window is supplied, only replace legacy rows in that
+      // window so a 2026 refresh cannot erase older-cycle history.
+      await prisma.receipt.deleteMany({
+        where: {
+          committeeId,
+          sourceId: null,
+          ...(minDate || maxDate
+            ? {
+                contributionReceiptDate: {
+                  ...(minDate ? { gte: new Date(`${minDate}T00:00:00Z`) } : {}),
+                  ...(maxDate ? { lte: new Date(`${maxDate}T23:59:59Z`) } : {}),
+                },
+              }
+            : {}),
+        },
+      });
+
       let synced = 0;
       let errors = 0;
 
@@ -442,8 +462,7 @@ export class FinanceService {
         const batch = fecReceipts.slice(i, i + batchSize);
 
         try {
-          const result = await prisma.receipt.createMany({
-            data: batch.map((receipt) => ({
+          const data = batch.map((receipt) => ({
               sourceId: stableSourceId('receipt', receipt.sub_id, [
                 receipt.committee.committee_id,
                 receipt.contributor_name,
@@ -451,6 +470,14 @@ export class FinanceService {
                 receipt.contribution_receipt_date,
                 receipt.image_number,
               ]),
+              transactionId: receipt.transaction_id,
+              fileNumber: receipt.file_number,
+              amendmentIndicator: receipt.amendment_indicator,
+              cycle: receipt.two_year_transaction_period ?? inferCycle(
+                twoYearTransactionPeriod,
+                receipt.contribution_receipt_date,
+              ),
+              memoedSubtotal: receipt.memoed_subtotal ?? false,
               committeeId: receipt.committee.committee_id,
               contributorCommitteeId: receipt.contributor_committee_id,
               contributorName: receipt.contributor_name,
@@ -464,8 +491,15 @@ export class FinanceService {
                 : null,
               receiptType: receipt.receipt_type,
               imageNumber: receipt.image_number,
-            })),
-            skipDuplicates: true,
+            }));
+
+          // Replace fetched source rows atomically so records imported before
+          // this migration receive cycle/memo metadata on their next refresh.
+          const result = await prisma.$transaction(async (tx) => {
+            await tx.receipt.deleteMany({
+              where: { sourceId: { in: data.map((receipt) => receipt.sourceId) } },
+            });
+            return tx.receipt.createMany({ data, skipDuplicates: true });
           });
 
           synced += result.count;
@@ -500,10 +534,6 @@ export class FinanceService {
     console.log(`🔄 Syncing disbursements for committee ${committeeId}`);
 
     try {
-      await prisma.disbursement.deleteMany({
-        where: { committeeId, sourceId: null },
-      });
-
       const fecDisbursements = await fecApiService.getAllDisbursements({
         committeeId,
         twoYearTransactionPeriod,
@@ -514,6 +544,21 @@ export class FinanceService {
 
       console.log(`📥 Found ${fecDisbursements.length} disbursements`);
 
+      await prisma.disbursement.deleteMany({
+        where: {
+          committeeId,
+          sourceId: null,
+          ...(minDate || maxDate
+            ? {
+                disbursementDate: {
+                  ...(minDate ? { gte: new Date(`${minDate}T00:00:00Z`) } : {}),
+                  ...(maxDate ? { lte: new Date(`${maxDate}T23:59:59Z`) } : {}),
+                },
+              }
+            : {}),
+        },
+      });
+
       let synced = 0;
       let errors = 0;
 
@@ -523,8 +568,7 @@ export class FinanceService {
         const batch = fecDisbursements.slice(i, i + batchSize);
 
         try {
-          const result = await prisma.disbursement.createMany({
-            data: batch.map((disbursement) => ({
+          const data = batch.map((disbursement) => ({
               sourceId: stableSourceId('disbursement', disbursement.sub_id, [
                 disbursement.committee.committee_id,
                 disbursement.recipient_name,
@@ -532,6 +576,14 @@ export class FinanceService {
                 disbursement.disbursement_date,
                 disbursement.image_number,
               ]),
+              transactionId: disbursement.transaction_id,
+              fileNumber: disbursement.file_number,
+              amendmentIndicator: disbursement.amendment_indicator,
+              cycle: disbursement.two_year_transaction_period ?? inferCycle(
+                twoYearTransactionPeriod,
+                disbursement.disbursement_date,
+              ),
+              memoedSubtotal: disbursement.memoed_subtotal ?? false,
               committeeId: disbursement.committee.committee_id,
               recipientName: disbursement.recipient_name,
               disbursementType: disbursement.disbursement_type,
@@ -541,8 +593,13 @@ export class FinanceService {
                 : null,
               disbursementDescription: disbursement.disbursement_description,
               imageNumber: disbursement.image_number,
-            })),
-            skipDuplicates: true,
+            }));
+
+          const result = await prisma.$transaction(async (tx) => {
+            await tx.disbursement.deleteMany({
+              where: { sourceId: { in: data.map((disbursement) => disbursement.sourceId) } },
+            });
+            return tx.disbursement.createMany({ data, skipDuplicates: true });
           });
 
           synced += result.count;
