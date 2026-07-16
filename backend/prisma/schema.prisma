@@ -136,6 +136,8 @@ model Committee {
   state           String?
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
+  itemizedLastSyncedAt DateTime?       @map("itemized_last_synced_at")
+  itemizedSyncError    String?         @map("itemized_sync_error") @db.Text
 
   // Relations
   candidate           Candidate?          @relation(fields: [candidateId], references: [candidateId])

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { electionService } from '../services/election.service.js';
+import { financeService } from '../services/finance.service.js';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import {
@@ -350,6 +351,16 @@ export class AdminController {
             recordsErrors++;
           }
         }
+      }
+
+      // Refresh a bounded batch of itemized finance data.
+      try {
+        const itemized = await financeService.syncItemizedBatch(2026);
+        recordsProcessed += itemized.receiptsSynced + itemized.disbursementsSynced;
+        recordsErrors += itemized.errors;
+      } catch (error: any) {
+        console.error('Error syncing itemized finance data:', error.message);
+        recordsErrors++;
       }
 
       // Generate elections

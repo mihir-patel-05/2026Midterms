@@ -47,6 +47,9 @@ interface SyncStats {
   financesErrors: number;
   committeesSynced: number;
   committeesErrors: number;
+  receiptsSynced: number;
+  disbursementsSynced: number;
+  itemizedErrors: number;
   duration: number;
 }
 
@@ -101,6 +104,9 @@ async function runScheduledSync(): Promise<void> {
     financesErrors: 0,
     committeesSynced: 0,
     committeesErrors: 0,
+    receiptsSynced: 0,
+    disbursementsSynced: 0,
+    itemizedErrors: 0,
     duration: 0,
   };
 
@@ -224,6 +230,17 @@ async function runScheduledSync(): Promise<void> {
       `📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`
     );
 
+    // Step 3: Refresh a bounded, oldest-first batch of itemized finance data.
+    const itemized = await financeService.syncItemizedBatch(SYNC_CONFIG.cycles[0]);
+    stats.receiptsSynced = itemized.receiptsSynced;
+    stats.disbursementsSynced = itemized.disbursementsSynced;
+    stats.itemizedErrors = itemized.errors;
+    console.log(
+      `📄 Itemized finance: ${itemized.committeesProcessed} committees, ` +
+      `${itemized.receiptsSynced} receipts, ${itemized.disbursementsSynced} disbursements, ` +
+      `${itemized.errors} errors\n`
+    );
+
     stats.duration = Date.now() - startTime;
 
     // Update sync log as completed
@@ -232,9 +249,16 @@ async function runScheduledSync(): Promise<void> {
       data: {
         status: 'completed',
         recordsProcessed:
-          stats.candidatesSynced + stats.financesSynced + stats.committeesSynced,
+          stats.candidatesSynced +
+          stats.financesSynced +
+          stats.committeesSynced +
+          stats.receiptsSynced +
+          stats.disbursementsSynced,
         recordsErrors:
-          stats.candidatesErrors + stats.financesErrors + stats.committeesErrors,
+          stats.candidatesErrors +
+          stats.financesErrors +
+          stats.committeesErrors +
+          stats.itemizedErrors,
         recordsSkipped: stats.candidatesSkipped,
         completedAt: new Date(),
         duration: stats.duration,

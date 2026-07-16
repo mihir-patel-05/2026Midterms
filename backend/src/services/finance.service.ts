@@ -9,6 +9,7 @@ import {
 } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
 import { createHash } from 'crypto';
+import { env } from '../config/env.js';
 
 function stableSourceId(kind: 'receipt' | 'disbursement', sourceId: string | number | undefined, fields: unknown[]): string {
   if (sourceId !== undefined && sourceId !== null && String(sourceId).trim()) {
@@ -21,6 +22,89 @@ function stableSourceId(kind: 'receipt' | 'disbursement', sourceId: string | num
  * Service for managing campaign finance data
  */
 export class FinanceService {
+  /**
+   * Incrementally refresh a bounded set of committees each run. This keeps the
+   * itemized pipeline inside FEC rate limits while eventually backfilling every
+   * active committee instead of leaving receipts/disbursements manual-only.
+   */
+  async syncItemizedBatch(cycle: number = 2026): Promise<{
+    committeesProcessed: number;
+    receiptsSynced: number;
+    disbursementsSynced: number;
+    errors: number;
+  }> {
+    const staleBefore = new Date(
+      Date.now() - env.ITEMIZED_REFRESH_HOURS * 60 * 60 * 1000,
+    );
+    const committees = await prisma.committee.findMany({
+      where: {
+        candidateId: { not: null },
+        candidate: { is: { cycles: { has: cycle } } },
+        OR: [
+          { itemizedLastSyncedAt: null },
+          { itemizedLastSyncedAt: { lt: staleBefore } },
+        ],
+      },
+      orderBy: { itemizedLastSyncedAt: { sort: 'asc', nulls: 'first' } },
+      take: env.ITEMIZED_COMMITTEES_PER_RUN,
+    });
+
+    const stats = {
+      committeesProcessed: 0,
+      receiptsSynced: 0,
+      disbursementsSynced: 0,
+      errors: 0,
+    };
+    const minDate = `${cycle - 1}-01-01`;
+    const maxDate = `${cycle}-12-31`;
+
+    for (const committee of committees) {
+      try {
+        const [receipts, disbursements] = await Promise.all([
+          this.syncReceipts({
+            committeeId: committee.committeeId,
+            twoYearTransactionPeriod: cycle,
+            minDate,
+            maxDate,
+            maxPages: env.ITEMIZED_MAX_PAGES,
+          }),
+          this.syncDisbursements({
+            committeeId: committee.committeeId,
+            twoYearTransactionPeriod: cycle,
+            minDate,
+            maxDate,
+            maxPages: env.ITEMIZED_MAX_PAGES,
+          }),
+        ]);
+
+        const errors = receipts.errors + disbursements.errors;
+        stats.committeesProcessed++;
+        stats.receiptsSynced += receipts.synced;
+        stats.disbursementsSynced += disbursements.synced;
+        stats.errors += errors;
+
+        await prisma.committee.update({
+          where: { id: committee.id },
+          data: {
+            itemizedLastSyncedAt: new Date(),
+            itemizedSyncError: errors > 0 ? `${errors} row(s) failed to import` : null,
+          },
+        });
+      } catch (error) {
+        stats.errors++;
+        await prisma.committee.update({
+          where: { id: committee.id },
+          data: {
+            itemizedLastSyncedAt: new Date(),
+            itemizedSyncError: error instanceof Error ? error.message : 'Unknown sync error',
+          },
+        });
+      }
+    }
+
+    return stats;
+  }
+
   /**
    * Get candidate-level financial data
    */
