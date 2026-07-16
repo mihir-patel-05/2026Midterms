@@ -222,6 +222,11 @@ model FinancialSummary {
 model Receipt {
   id                          String      @id @default(uuid())
   sourceId                    String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
+  transactionId               String?     @map("transaction_id")
+  fileNumber                  Int?        @map("file_number")
+  amendmentIndicator          String?     @map("amendment_indicator")
+  cycle                       Int?
+  memoedSubtotal              Boolean     @default(false) @map("memoed_subtotal")
   committeeId                 String      @map("committee_id")
   contributorCommitteeId      String?     @map("contributor_committee_id")
   contributorName             String?     @map("contributor_name")
@@ -239,6 +244,8 @@ model Receipt {
   committee   Committee   @relation(fields: [committeeId], references: [committeeId])
 
   @@index([committeeId])
+  @@index([committeeId, cycle])
+  @@index([committeeId, transactionId])
   @@index([contributorCommitteeId])
   @@index([contributorName])
   @@index([contributionReceiptDate])
@@ -250,6 +257,11 @@ model Receipt {
 model Disbursement {
   id                      String      @id @default(uuid())
   sourceId                String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
+  transactionId           String?     @map("transaction_id")
+  fileNumber              Int?        @map("file_number")
+  amendmentIndicator      String?     @map("amendment_indicator")
+  cycle                   Int?
+  memoedSubtotal          Boolean     @default(false) @map("memoed_subtotal")
   committeeId             String      @map("committee_id")
   recipientName           String?     @map("recipient_name")
   disbursementType        String?     @map("disbursement_type")
@@ -263,6 +275,8 @@ model Disbursement {
   committee   Committee   @relation(fields: [committeeId], references: [committeeId])
 
   @@index([committeeId])
+  @@index([committeeId, cycle])
+  @@index([committeeId, transactionId])
   @@index([disbursementDate])
   @@index([disbursementAmount])
   @@map("disbursements")
