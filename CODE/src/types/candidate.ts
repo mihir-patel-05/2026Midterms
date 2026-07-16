@@ -193,6 +193,14 @@ export interface SpendingCategory {
   percentage: number;
 }
 
+export interface ItemizedCoverage {
+  status: 'complete' | 'partial' | 'not_started';
+  committeesTotal: number;
+  committeesComplete: number;
+  committeesWithErrors?: number;
+  lastSuccessfulSync?: string | null;
+}
+
 /**
  * Detailed finance summary
  */
@@ -217,6 +225,7 @@ export interface DetailedFinanceResponse {
   fundingSources: FundingSource[];
   topDonors: TopDonor[];
   spendingCategories: SpendingCategory[];
+  itemizedCoverage: ItemizedCoverage;
   lastSynced: string;
 }
 
@@ -257,6 +266,7 @@ export interface LobbyBreakdownResponse {
   lobbies: LobbyBucket[];
   lastComputed: string;
   notes: string[];
+  itemizedCoverage: ItemizedCoverage;
 }
 
 /**

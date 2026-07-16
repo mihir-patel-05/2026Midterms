@@ -183,6 +183,13 @@ export function LobbyBreakdown({ candidateId, cycle = 2026 }: LobbyBreakdownProp
         )}
       </div>
 
+      {data.itemizedCoverage.committeesTotal > 0 && data.itemizedCoverage.status !== "complete" && (
+        <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-muted-foreground">
+          Lobby totals are partial while itemized filings are backfilled ({data.itemizedCoverage.committeesComplete}
+          {" of "}{data.itemizedCoverage.committeesTotal} committees complete).
+        </div>
+      )}
+
       {anyMoney ? (
         <div className="space-y-3">
           {data.lobbies.map((bucket) => (

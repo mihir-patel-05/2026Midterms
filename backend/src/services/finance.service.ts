@@ -60,6 +60,14 @@ interface ItemizedSyncResult {
   exhausted: boolean;
 }
 
+export interface ItemizedCoverage {
+  status: 'complete' | 'partial' | 'not_started';
+  committeesTotal: number;
+  committeesComplete: number;
+  committeesWithErrors: number;
+  lastSuccessfulSync: string | null;
+}
+
 function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
   if (!value || Array.isArray(value) || typeof value !== 'object') return undefined;
 
@@ -733,6 +741,7 @@ export class FinanceService {
     fundingSources: { type: string; amount: number; percentage: number }[];
     topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[];
     spendingCategories: { category: string; amount: number; percentage: number }[];
+    itemizedCoverage: ItemizedCoverage;
     lastSynced: string;
   }> {
     // Single optimized query to get all data at once
@@ -784,6 +793,30 @@ export class FinanceService {
     let spendingCategories: { category: string; amount: number; percentage: number }[] = [];
 
     const committeeIds = candidate.committees.map((committee) => committee.committeeId);
+    const completedCommittees = candidate.committees.filter(
+      (committee) =>
+        committee.itemizedSyncCycle === cycle &&
+        committee.receiptBackfillComplete &&
+        committee.disbursementBackfillComplete,
+    );
+    const lastSuccessfulSync = completedCommittees.reduce<Date | null>((latest, committee) => {
+      if (!committee.itemizedLastSyncedAt) return latest;
+      return !latest || committee.itemizedLastSyncedAt > latest
+        ? committee.itemizedLastSyncedAt
+        : latest;
+    }, null);
+    const itemizedCoverage: ItemizedCoverage = {
+      status:
+        committeeIds.length > 0 && completedCommittees.length === committeeIds.length
+          ? 'complete'
+          : candidate.committees.some((committee) => committee.itemizedLastAttemptedAt)
+            ? 'partial'
+            : 'not_started',
+      committeesTotal: committeeIds.length,
+      committeesComplete: completedCommittees.length,
+      committeesWithErrors: candidate.committees.filter((committee) => committee.itemizedSyncError).length,
+      lastSuccessfulSync: lastSuccessfulSync?.toISOString() ?? null,
+    };
     
     if (committeeIds.length > 0) {
       // Run both queries in parallel for speed
@@ -808,6 +841,7 @@ export class FinanceService {
       fundingSources,
       topDonors,
       spendingCategories,
+      itemizedCoverage,
       lastSynced: candidateFinancial?.lastUpdated?.toISOString() || 'Not synced',
     };
   }

@@ -29,6 +29,11 @@ export interface LobbyBreakdownResult {
   lobbies: LobbyBucket[];
   lastComputed: string;
   notes: string[];
+  itemizedCoverage: {
+    status: 'complete' | 'partial' | 'not_started';
+    committeesTotal: number;
+    committeesComplete: number;
+  };
 }
 
 /**
@@ -128,6 +133,23 @@ export class LobbyService {
     }
 
     const committeeIds = candidate.committees.map((c) => c.committeeId);
+    const committeesComplete = candidate.committees.filter(
+      (committee) =>
+        committee.itemizedSyncCycle === cycle &&
+        committee.receiptBackfillComplete &&
+        committee.disbursementBackfillComplete,
+    ).length;
+    const itemizedCoverage = {
+      status: (
+        committeeIds.length > 0 && committeesComplete === committeeIds.length
+          ? 'complete'
+          : candidate.committees.some((committee) => committee.itemizedLastAttemptedAt)
+            ? 'partial'
+            : 'not_started'
+      ) as LobbyBreakdownResult['itemizedCoverage']['status'],
+      committeesTotal: committeeIds.length,
+      committeesComplete,
+    };
     const buckets = new Map<string, LobbyBucket>();
     const contributorByLobby = new Map<string, Map<string, LobbyContributor>>();
 
@@ -156,6 +178,7 @@ export class LobbyService {
         lobbies: Array.from(buckets.values()),
         lastComputed: new Date().toISOString(),
         notes: ['No committees on file for this candidate.'],
+        itemizedCoverage,
       };
     }
 
@@ -278,10 +301,14 @@ export class LobbyService {
       lobbies,
       lastComputed: new Date().toISOString(),
       notes: [
+        ...(itemizedCoverage.status === 'complete'
+          ? []
+          : ['Itemized committee filings are still being backfilled; displayed lobby totals are partial.']),
         'Classification uses keyword matching against contributor name and employer fields from FEC Schedule A filings.',
-        'Itemized individual contributions only exist for donations over $200; smaller donations are not classified here.',
+        'Many smaller contributions are reported only in aggregate and cannot be classified here.',
         'Self-reported employer fields ("Self", "Retired", etc.) cause undercounting — totals are a lower bound.',
       ],
+      itemizedCoverage,
     };
   }
 }
