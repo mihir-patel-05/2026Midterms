@@ -85,7 +85,7 @@ async function fetchAPI<T>(
 /**
  * Build query string from parameters
  */
-function buildQueryString(params: Record<string, any>): string {
+function buildQueryString(params: object): string {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {

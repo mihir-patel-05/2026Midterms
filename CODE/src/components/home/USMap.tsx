@@ -17,6 +17,10 @@ interface USMapProps {
   onStateHover: (stateCode: string | null) => void;
 }
 
+interface MapGeography {
+  properties: { name: string };
+}
+
 // Mapping of state names to their codes
 const stateNameToCode: { [key: string]: string } = {
   Alabama: "AL",
@@ -93,7 +97,7 @@ export function USMap({ states, hoveredState, onStateHover }: USMapProps) {
     }
   };
 
-  const handleMouseEnter = (geo: any, event: React.MouseEvent) => {
+  const handleMouseEnter = (geo: MapGeography, event: React.MouseEvent) => {
     const stateData = getStateData(geo.properties.name);
     const stateCode = stateNameToCode[geo.properties.name];
 

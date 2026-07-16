@@ -61,8 +61,8 @@ export default function Simulator() {
       try {
         const res = await runSimulation(request);
         setResult(res);
-      } catch (err: any) {
-        setError(err?.message ?? 'Simulation failed');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Simulation failed');
       } finally {
         setLoading(false);
       }
