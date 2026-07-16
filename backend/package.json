@@ -14,6 +14,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
+    "test:fec-pagination": "tsx src/scripts/test-fec-pagination.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
     "sync:dev": "tsx src/jobs/sync-all-data.ts",
     "sync:financials": "tsx src/scripts/sync-financials-only.ts",
