@@ -27,8 +27,8 @@ export default function ResearcherLogin() {
     try {
       await login(email, password);
       navigate(location.state?.from ?? '/research', { replace: true });
-    } catch (err: any) {
-      setError(err?.message ?? 'Login failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setSubmitting(false);
     }

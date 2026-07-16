@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js';
+import { parseCalendarDate } from '../utils/calendar-date.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -250,6 +251,9 @@ export class ElectionService {
       const candidates = await prisma.candidate.findMany({
         where: {
           cycles: { has: cycle },
+          electionYears: { has: cycle },
+          candidateStatus: 'C',
+          activeThrough: { gte: cycle },
         },
         select: {
           candidateId: true,
@@ -262,6 +266,18 @@ export class ElectionService {
       });
 
       console.log(`  📋 Found ${candidates.length} candidates for cycle ${cycle}`);
+
+      const activeCandidateIds = candidates.map((candidate) => candidate.candidateId);
+      await prisma.candidateElection.deleteMany({
+        where: {
+          election: { cycle },
+          ballotStatus: 'UNCONFIRMED',
+          result: 'PENDING',
+          ...(activeCandidateIds.length > 0
+            ? { candidateId: { notIn: activeCandidateIds } }
+            : {}),
+        },
+      });
 
       // Group candidates by race (state + office + district)
       const races: Record<string, {
@@ -291,7 +307,7 @@ export class ElectionService {
       console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
 
       // General election date: First Tuesday after first Monday in November
-      const generalElectionDate = new Date('2026-11-03');
+      const generalElectionDate = parseCalendarDate(`${cycle}-11-03`);
 
       // Create elections and link candidates
       for (const [raceKey, race] of Object.entries(races)) {
@@ -325,7 +341,6 @@ export class ElectionService {
           // Link candidates to this election
           for (const candidate of race.candidates) {
             try {
-              // Check if link already exists
               const existingLink = await prisma.candidateElection.findUnique({
                 where: {
                   candidateId_electionId: {
@@ -333,19 +348,29 @@ export class ElectionService {
                     electionId: election.id,
                   },
                 },
+                select: { id: true },
               });
 
-              if (!existingLink) {
-                await prisma.candidateElection.create({
-                  data: {
+              await prisma.candidateElection.upsert({
+                where: {
+                  candidateId_electionId: {
                     candidateId: candidate.candidateId,
                     electionId: election.id,
-                    isIncumbent: candidate.incumbentStatus === 'I',
-                    result: 'PENDING',
                   },
-                });
-                stats.candidateLinksCreated++;
-              }
+                },
+                update: {
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                },
+                create: {
+                  candidateId: candidate.candidateId,
+                  electionId: election.id,
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                  result: 'PENDING',
+                },
+              });
+              if (!existingLink) stats.candidateLinksCreated++;
             } catch (linkError: any) {
               console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
               stats.errors++;

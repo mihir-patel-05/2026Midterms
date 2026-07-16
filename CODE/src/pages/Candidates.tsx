@@ -486,6 +486,18 @@ export default function Candidates() {
                 </div>
               ) : detailedFinances && (summary?.totalReceipts > 0 || fundingSources.length > 0) ? (
                 <>
+                  {detailedFinances.itemizedCoverage.committeesTotal > 0 &&
+                    detailedFinances.itemizedCoverage.status !== "complete" && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+                      <p className="font-medium text-foreground">Itemized finance backfill in progress</p>
+                      <p className="mt-1 text-muted-foreground">
+                        Donor and spending details may be partial. {detailedFinances.itemizedCoverage.committeesComplete}
+                        {" of "}{detailedFinances.itemizedCoverage.committeesTotal} committee
+                        {detailedFinances.itemizedCoverage.committeesTotal === 1 ? "" : "s"} fully backfilled.
+                      </p>
+                    </div>
+                    )}
+
                   {/* Summary Cards */}
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-lg border border-border bg-card p-4">
@@ -622,7 +634,8 @@ export default function Candidates() {
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    Data sourced from FEC filings. Last synced: {new Date(detailedFinances.lastSynced).toLocaleDateString()}.
+                    Data sourced from FEC filings. Last totals sync:{" "}
+                    {summary?.lastUpdated ? new Date(summary.lastUpdated).toLocaleDateString() : "not yet synced"}.
                     Financial figures are subject to reporting schedules.
                   </p>
                 </>
@@ -647,8 +660,8 @@ export default function Candidates() {
                     Understanding the Ideology Score
                   </h2>
                   <p className="text-muted-foreground mb-6">
-                    The ideology score is calculated using GovTrack-style methodology, analyzing
-                    legislative voting patterns and co-sponsorship networks. Scores range from
+                    The ideology score is calculated from GovTrack's congressional bill-sponsorship
+                    and co-sponsorship network analysis. Scores range from
                     0 (most progressive) to 100 (most conservative).
                   </p>
                   

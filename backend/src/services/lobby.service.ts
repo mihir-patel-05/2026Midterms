@@ -29,6 +29,11 @@ export interface LobbyBreakdownResult {
   lobbies: LobbyBucket[];
   lastComputed: string;
   notes: string[];
+  itemizedCoverage: {
+    status: 'complete' | 'partial' | 'not_started';
+    committeesTotal: number;
+    committeesComplete: number;
+  };
 }
 
 /**
@@ -70,8 +75,12 @@ const COMPILED: CompiledLobby[] = LOBBIES.map((l) => ({
 function matchLobby(
   contributorName: string | null,
   contributorEmployer: string | null,
+  contributorCommitteeId: string | null,
 ): CompiledLobby | null {
   for (const lobby of COMPILED) {
+    if (contributorCommitteeId && lobby.committeeIdSet.has(contributorCommitteeId)) {
+      return lobby;
+    }
     if (contributorName) {
       for (const re of lobby.nameRegexes) {
         if (re.test(contributorName)) return lobby;
@@ -124,6 +133,23 @@ export class LobbyService {
     }
 
     const committeeIds = candidate.committees.map((c) => c.committeeId);
+    const committeesComplete = candidate.committees.filter(
+      (committee) =>
+        committee.itemizedSyncCycle === cycle &&
+        committee.receiptBackfillComplete &&
+        committee.disbursementBackfillComplete,
+    ).length;
+    const itemizedCoverage = {
+      status: (
+        committeeIds.length > 0 && committeesComplete === committeeIds.length
+          ? 'complete'
+          : candidate.committees.some((committee) => committee.itemizedLastAttemptedAt)
+            ? 'partial'
+            : 'not_started'
+      ) as LobbyBreakdownResult['itemizedCoverage']['status'],
+      committeesTotal: committeeIds.length,
+      committeesComplete,
+    };
     const buckets = new Map<string, LobbyBucket>();
     const contributorByLobby = new Map<string, Map<string, LobbyContributor>>();
 
@@ -152,11 +178,16 @@ export class LobbyService {
         lobbies: Array.from(buckets.values()),
         lastComputed: new Date().toISOString(),
         notes: ['No committees on file for this candidate.'],
+        itemizedCoverage,
       };
     }
 
     // Build the OR pre-filter from every name/employer pattern across all lobbies.
     const orFilters: object[] = [];
+    const knownContributorCommitteeIds = LOBBIES.flatMap((lobby) => lobby.committeeIds);
+    if (knownContributorCommitteeIds.length > 0) {
+      orFilters.push({ contributorCommitteeId: { in: knownContributorCommitteeIds } });
+    }
     for (const lobby of LOBBIES) {
       for (const pattern of lobby.namePatterns) {
         const term = patternToSqlSubstring(pattern);
@@ -172,28 +203,41 @@ export class LobbyService {
       }
     }
 
-    // Cycle window: a 2-year cycle covers donations from Jan of the prior odd
-    // year through Dec of the cycle year (e.g. cycle=2026 → 2025-01-01..2026-12-31).
+    // Legacy rows predate the explicit cycle column, so retain a date-window
+    // fallback until each committee has completed its first refreshed import.
     const cycleStart = new Date(`${cycle - 1}-01-01T00:00:00Z`);
     const cycleEnd = new Date(`${cycle}-12-31T23:59:59Z`);
+    const cycleFilter = {
+      OR: [
+        { cycle },
+        {
+          cycle: null,
+          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
+        },
+      ],
+    };
 
     const [candidateReceipts, totalAgg] = await Promise.all([
       prisma.receipt.findMany({
         where: {
           committeeId: { in: committeeIds },
-          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
-          OR: orFilters,
+          memoedSubtotal: false,
+          contributionReceiptAmount: { gt: 0 },
+          AND: [cycleFilter, { OR: orFilters }],
         },
         select: {
           contributorName: true,
           contributorEmployer: true,
+          contributorCommitteeId: true,
           contributionReceiptAmount: true,
         },
       }),
       prisma.receipt.aggregate({
         where: {
           committeeId: { in: committeeIds },
-          contributionReceiptDate: { gte: cycleStart, lte: cycleEnd },
+          memoedSubtotal: false,
+          contributionReceiptAmount: { gt: 0 },
+          ...cycleFilter,
         },
         _sum: { contributionReceiptAmount: true },
       }),
@@ -202,7 +246,11 @@ export class LobbyService {
     let totalLobbyAmount = 0;
 
     for (const r of candidateReceipts) {
-      const lobby = matchLobby(r.contributorName, r.contributorEmployer);
+      const lobby = matchLobby(
+        r.contributorName,
+        r.contributorEmployer,
+        r.contributorCommitteeId,
+      );
       if (!lobby) continue;
 
       const amount = r.contributionReceiptAmount?.toNumber() ?? 0;
@@ -253,10 +301,14 @@ export class LobbyService {
       lobbies,
       lastComputed: new Date().toISOString(),
       notes: [
+        ...(itemizedCoverage.status === 'complete'
+          ? []
+          : ['Itemized committee filings are still being backfilled; displayed lobby totals are partial.']),
         'Classification uses keyword matching against contributor name and employer fields from FEC Schedule A filings.',
-        'Itemized individual contributions only exist for donations over $200; smaller donations are not classified here.',
+        'Many smaller contributions are reported only in aggregate and cannot be classified here.',
         'Self-reported employer fields ("Self", "Retired", etc.) cause undercounting — totals are a lower bound.',
       ],
+      itemizedCoverage,
     };
   }
 }

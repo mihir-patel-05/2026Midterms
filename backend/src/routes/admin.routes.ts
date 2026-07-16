@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import { adminController, verifyAdminAuth } from '../controllers/admin.controller.js';
 import { deadlineController } from '../controllers/deadline.controller.js';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
+
 // Public endpoint to verify password
-router.post('/verify', (req, res) => adminController.verifyPassword(req, res));
+router.post('/verify', loginLimiter, (req, res) => adminController.verifyPassword(req, res));
 
 // Protected endpoints (require x-admin-key header)
 router.post('/logout', verifyAdminAuth, (req, res) => adminController.logout(req, res));
@@ -21,4 +30,3 @@ router.put('/deadlines/:id', verifyAdminAuth, (req, res) => deadlineController.u
 router.delete('/deadlines/:id', verifyAdminAuth, (req, res) => deadlineController.deleteDeadline(req, res));
 
 export default router;
-

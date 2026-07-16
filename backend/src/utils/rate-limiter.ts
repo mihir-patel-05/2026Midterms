@@ -6,7 +6,8 @@ const requestsPerHour = env.FEC_API_MAX_REQUESTS_PER_HOUR;
 const requestsPerSecond = requestsPerHour / 3600;
 
 // Create a rate limiter for FEC API
-// FEC API allows 120 requests per hour (default) - 1000/hour if enhanced
+// A standard registered FEC API key allows 1,000 requests per hour. Keep this
+// configurable for environments using a lower or specially approved limit.
 // OPTIMIZED: Allow parallel requests for much faster syncing
 export const fecRateLimiter = new Bottleneck({
   reservoir: requestsPerHour, // Initial number of requests

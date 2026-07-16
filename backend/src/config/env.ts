@@ -10,9 +10,14 @@ const envSchema = z.object({
   FEC_API_BASE_URL: z.string().default('https://api.open.fec.gov/v1'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('120'),
+  FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
+  ITEMIZED_COMMITTEES_PER_RUN: z.string().default('10'),
+  ITEMIZED_MAX_PAGES: z.string().default('5'),
+  ITEMIZED_REFRESH_HOURS: z.string().default('72'),
   ADMIN_PASSWORD: z.string().optional(),
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
+  FRONTEND_URL: z.string().url().optional(),
+  ADMIN_URL: z.string().url().optional(),
 
   // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
   // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
@@ -40,9 +45,20 @@ if (!parsed.success) {
   throw new Error('Invalid environment variables');
 }
 
+if (
+  parsed.data.NODE_ENV === 'production' &&
+  (parsed.data.RESEARCHER_JWT_SECRET === 'dev-researcher-secret-change-me' ||
+    parsed.data.RESEARCHER_JWT_SECRET.length < 32)
+) {
+  throw new Error('RESEARCHER_JWT_SECRET must be explicitly set to at least 32 characters in production');
+}
+
 export const env = {
   ...parsed.data,
   PORT: parseInt(parsed.data.PORT, 10),
   FEC_API_MAX_REQUESTS_PER_HOUR: parseInt(parsed.data.FEC_API_MAX_REQUESTS_PER_HOUR, 10),
+  ITEMIZED_COMMITTEES_PER_RUN: parseInt(parsed.data.ITEMIZED_COMMITTEES_PER_RUN, 10),
+  ITEMIZED_MAX_PAGES: parseInt(parsed.data.ITEMIZED_MAX_PAGES, 10),
+  ITEMIZED_REFRESH_HOURS: parseInt(parsed.data.ITEMIZED_REFRESH_HOURS, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
 };

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
+import { parseCalendarDate } from '../utils/calendar-date.js';
 
 export class DeadlineController {
   /**
@@ -99,7 +100,7 @@ export class DeadlineController {
       const deadline = await prisma.deadline.create({
         data: {
           title,
-          date: new Date(date),
+          date: parseCalendarDate(date),
           type,
           states,
           description: description || null,
@@ -167,7 +168,7 @@ export class DeadlineController {
         where: { id },
         data: {
           ...(title !== undefined && { title }),
-          ...(date !== undefined && { date: new Date(date) }),
+          ...(date !== undefined && { date: parseCalendarDate(date) }),
           ...(type !== undefined && { type }),
           ...(states !== undefined && { states }),
           ...(description !== undefined && { description }),
@@ -228,4 +229,3 @@ export class DeadlineController {
 }
 
 export const deadlineController = new DeadlineController();
-

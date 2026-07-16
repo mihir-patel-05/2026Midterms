@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { FinancialSummary, Receipt, Disbursement, CandidateFinancial } from '@prisma/client';
+import { FinancialSummary, Receipt, Disbursement, CandidateFinancial, Prisma } from '@prisma/client';
 import {
   fecApiService,
   FECFinancialSummary,
@@ -8,11 +8,207 @@ import {
   FECCandidateTotals,
 } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { createHash } from 'crypto';
+import { env } from '../config/env.js';
+
+function stableSourceId(kind: 'receipt' | 'disbursement', sourceId: string | number | undefined, fields: unknown[]): string {
+  if (sourceId !== undefined && sourceId !== null && String(sourceId).trim()) {
+    return `fec:${String(sourceId)}`;
+  }
+  return `fallback:${kind}:${createHash('sha256').update(JSON.stringify(fields)).digest('hex')}`;
+}
+
+function inferCycle(explicitCycle: number | undefined, transactionDate: string | undefined): number | null {
+  if (explicitCycle) return explicitCycle;
+  if (!transactionDate) return null;
+
+  const year = new Date(transactionDate).getUTCFullYear();
+  return Number.isFinite(year) ? year + (year % 2) : null;
+}
+
+function cycleDateRange(cycle: number) {
+  return {
+    gte: new Date(`${cycle - 1}-01-01T00:00:00Z`),
+    lte: new Date(`${cycle}-12-31T23:59:59Z`),
+  };
+}
+
+function receiptCycleFilter(cycle: number) {
+  return {
+    OR: [
+      { cycle },
+      { cycle: null, contributionReceiptDate: cycleDateRange(cycle) },
+    ],
+  };
+}
+
+function disbursementCycleFilter(cycle: number) {
+  return {
+    OR: [
+      { cycle },
+      { cycle: null, disbursementDate: cycleDateRange(cycle) },
+    ],
+  };
+}
+
+type KeysetCursor = Record<string, string | number>;
+
+interface ItemizedSyncResult {
+  synced: number;
+  errors: number;
+  nextCursor: KeysetCursor | null;
+  exhausted: boolean;
+}
+
+export interface ItemizedCoverage {
+  status: 'complete' | 'partial' | 'not_started';
+  committeesTotal: number;
+  committeesComplete: number;
+  committeesWithErrors: number;
+  lastSuccessfulSync: string | null;
+}
+
+function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
+  if (!value || Array.isArray(value) || typeof value !== 'object') return undefined;
+
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string | number] =>
+      typeof entry[1] === 'string' || typeof entry[1] === 'number',
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
 
 /**
  * Service for managing campaign finance data
  */
 export class FinanceService {
+  /**
+   * Incrementally refresh a bounded set of committees each run. This keeps the
+   * itemized pipeline inside FEC rate limits while eventually backfilling every
+   * active committee instead of leaving receipts/disbursements manual-only.
+   */
+  async syncItemizedBatch(cycle: number = 2026): Promise<{
+    committeesProcessed: number;
+    receiptsSynced: number;
+    disbursementsSynced: number;
+    errors: number;
+  }> {
+    const staleBefore = new Date(
+      Date.now() - env.ITEMIZED_REFRESH_HOURS * 60 * 60 * 1000,
+    );
+    const committees = await prisma.committee.findMany({
+      where: {
+        candidateId: { not: null },
+        candidate: { is: { cycles: { has: cycle } } },
+        OR: [
+          { itemizedLastSyncedAt: null },
+          { itemizedLastSyncedAt: { lt: staleBefore } },
+        ],
+      },
+      orderBy: [
+        { itemizedLastAttemptedAt: { sort: 'asc', nulls: 'first' } },
+        { itemizedLastSyncedAt: { sort: 'asc', nulls: 'first' } },
+      ],
+      take: env.ITEMIZED_COMMITTEES_PER_RUN,
+    });
+
+    const stats = {
+      committeesProcessed: 0,
+      receiptsSynced: 0,
+      disbursementsSynced: 0,
+      errors: 0,
+    };
+    const minDate = `${cycle - 1}-01-01`;
+    const maxDate = `${cycle}-12-31`;
+
+    for (const committee of committees) {
+      try {
+        const sameCycle = committee.itemizedSyncCycle === cycle;
+        const backfilling = !sameCycle || !committee.itemizedLastSyncedAt;
+        const receiptComplete = sameCycle && committee.receiptBackfillComplete;
+        const disbursementComplete = sameCycle && committee.disbursementBackfillComplete;
+        const completedStream: ItemizedSyncResult = {
+          synced: 0,
+          errors: 0,
+          nextCursor: null,
+          exhausted: true,
+        };
+
+        const [receipts, disbursements] = await Promise.all([
+          backfilling && receiptComplete
+            ? Promise.resolve(completedStream)
+            : this.syncReceipts({
+                committeeId: committee.committeeId,
+                twoYearTransactionPeriod: cycle,
+                minDate,
+                maxDate,
+                maxPages: env.ITEMIZED_MAX_PAGES,
+                cursor: backfilling && sameCycle ? readCursor(committee.receiptSyncCursor) : undefined,
+              }),
+          backfilling && disbursementComplete
+            ? Promise.resolve(completedStream)
+            : this.syncDisbursements({
+                committeeId: committee.committeeId,
+                twoYearTransactionPeriod: cycle,
+                minDate,
+                maxDate,
+                maxPages: env.ITEMIZED_MAX_PAGES,
+                cursor: backfilling && sameCycle
+                  ? readCursor(committee.disbursementSyncCursor)
+                  : undefined,
+              }),
+        ]);
+
+        const errors = receipts.errors + disbursements.errors;
+        stats.committeesProcessed++;
+        stats.receiptsSynced += receipts.synced;
+        stats.disbursementsSynced += disbursements.synced;
+        stats.errors += errors;
+
+        const attemptedAt = new Date();
+        const nextReceiptComplete = receiptComplete || receipts.exhausted;
+        const nextDisbursementComplete = disbursementComplete || disbursements.exhausted;
+        const backfillComplete = nextReceiptComplete && nextDisbursementComplete;
+        await prisma.committee.update({
+          where: { id: committee.id },
+          data: {
+            itemizedLastAttemptedAt: attemptedAt,
+            ...(errors === 0
+              ? {
+                  itemizedSyncCycle: cycle,
+                  receiptBackfillComplete: backfilling ? nextReceiptComplete : true,
+                  disbursementBackfillComplete: backfilling ? nextDisbursementComplete : true,
+                  receiptSyncCursor:
+                    backfilling && !nextReceiptComplete && receipts.nextCursor
+                      ? receipts.nextCursor
+                      : Prisma.DbNull,
+                  disbursementSyncCursor:
+                    backfilling && !nextDisbursementComplete && disbursements.nextCursor
+                      ? disbursements.nextCursor
+                      : Prisma.DbNull,
+                  ...(!backfilling || backfillComplete
+                    ? { itemizedLastSyncedAt: attemptedAt }
+                    : {}),
+                }
+              : {}),
+            itemizedSyncError: errors > 0 ? `${errors} row(s) failed to import` : null,
+          },
+        });
+      } catch (error) {
+        stats.errors++;
+        await prisma.committee.update({
+          where: { id: committee.id },
+          data: {
+            itemizedLastAttemptedAt: new Date(),
+            itemizedSyncError: error instanceof Error ? error.message : 'Unknown sync error',
+          },
+        });
+      }
+    }
+
+    return stats;
+  }
+
   /**
    * Get candidate-level financial data
    */
@@ -169,21 +365,27 @@ export class FinanceService {
    * Get receipts for a committee with pagination
    */
   async getReceipts(params: {
-    committeeId: string;
+    committeeIds: string[];
+    cycle?: number;
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Receipt>> {
-    const { committeeId, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
+    const where = {
+      committeeId: { in: committeeIds },
+      memoedSubtotal: false,
+      ...(cycle ? receiptCycleFilter(cycle) : {}),
+    };
 
     const [receipts, total] = await Promise.all([
       prisma.receipt.findMany({
-        where: { committeeId },
+        where,
         skip,
         take,
         orderBy: { contributionReceiptDate: 'desc' },
       }),
-      prisma.receipt.count({ where: { committeeId } }),
+      prisma.receipt.count({ where }),
     ]);
 
     return createPaginationResult(receipts, total, page, perPage);
@@ -193,21 +395,27 @@ export class FinanceService {
    * Get disbursements for a committee with pagination
    */
   async getDisbursements(params: {
-    committeeId: string;
+    committeeIds: string[];
+    cycle?: number;
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Disbursement>> {
-    const { committeeId, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
     const { skip, take } = getPaginationParams(page, perPage);
+    const where = {
+      committeeId: { in: committeeIds },
+      memoedSubtotal: false,
+      ...(cycle ? disbursementCycleFilter(cycle) : {}),
+    };
 
     const [disbursements, total] = await Promise.all([
       prisma.disbursement.findMany({
-        where: { committeeId },
+        where,
         skip,
         take,
         orderBy: { disbursementDate: 'desc' },
       }),
-      prisma.disbursement.count({ where: { committeeId } }),
+      prisma.disbursement.count({ where }),
     ]);
 
     return createPaginationResult(disbursements, total, page, perPage);
@@ -297,21 +505,42 @@ export class FinanceService {
     minDate?: string;
     maxDate?: string;
     maxPages?: number;
-  }): Promise<{ synced: number; errors: number }> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
+    cursor?: KeysetCursor;
+  }): Promise<ItemizedSyncResult> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
 
     console.log(`🔄 Syncing receipts for committee ${committeeId}`);
 
     try {
-      const fecReceipts = await fecApiService.getAllReceipts({
+      const fecBatch = await fecApiService.getReceiptBatch({
         committeeId,
         twoYearTransactionPeriod,
         minDate,
         maxDate,
         maxPages,
+        cursor,
       });
+      const fecReceipts = fecBatch.results;
 
       console.log(`📥 Found ${fecReceipts.length} receipts`);
+
+      // Never remove legacy data until the replacement fetch has succeeded.
+      // When a cycle window is supplied, only replace legacy rows in that
+      // window so a 2026 refresh cannot erase older-cycle history.
+      await prisma.receipt.deleteMany({
+        where: {
+          committeeId,
+          sourceId: null,
+          ...(minDate || maxDate
+            ? {
+                contributionReceiptDate: {
+                  ...(minDate ? { gte: new Date(`${minDate}T00:00:00Z`) } : {}),
+                  ...(maxDate ? { lte: new Date(`${maxDate}T23:59:59Z`) } : {}),
+                },
+              }
+            : {}),
+        },
+      });
 
       let synced = 0;
       let errors = 0;
@@ -322,9 +551,24 @@ export class FinanceService {
         const batch = fecReceipts.slice(i, i + batchSize);
 
         try {
-          await prisma.receipt.createMany({
-            data: batch.map((receipt) => ({
+          const data = batch.map((receipt) => ({
+              sourceId: stableSourceId('receipt', receipt.sub_id, [
+                receipt.committee.committee_id,
+                receipt.contributor_name,
+                receipt.contribution_receipt_amount,
+                receipt.contribution_receipt_date,
+                receipt.image_number,
+              ]),
+              transactionId: receipt.transaction_id,
+              fileNumber: receipt.file_number,
+              amendmentIndicator: receipt.amendment_indicator,
+              cycle: receipt.two_year_transaction_period ?? inferCycle(
+                twoYearTransactionPeriod,
+                receipt.contribution_receipt_date,
+              ),
+              memoedSubtotal: receipt.memoed_subtotal ?? false,
               committeeId: receipt.committee.committee_id,
+              contributorCommitteeId: receipt.contributor_committee_id,
               contributorName: receipt.contributor_name,
               contributorState: receipt.contributor_state,
               contributorCity: receipt.contributor_city,
@@ -336,11 +580,18 @@ export class FinanceService {
                 : null,
               receiptType: receipt.receipt_type,
               imageNumber: receipt.image_number,
-            })),
-            skipDuplicates: true,
+            }));
+
+          // Replace fetched source rows atomically so records imported before
+          // this migration receive cycle/memo metadata on their next refresh.
+          const result = await prisma.$transaction(async (tx) => {
+            await tx.receipt.deleteMany({
+              where: { sourceId: { in: data.map((receipt) => receipt.sourceId) } },
+            });
+            return tx.receipt.createMany({ data, skipDuplicates: true });
           });
 
-          synced += batch.length;
+          synced += result.count;
           console.log(`📊 Progress: ${synced}/${fecReceipts.length} receipts synced`);
         } catch (error) {
           console.error(`❌ Error inserting receipt batch:`, error);
@@ -350,7 +601,12 @@ export class FinanceService {
 
       console.log(`✅ Synced ${synced} receipts, ${errors} errors`);
 
-      return { synced, errors };
+      return {
+        synced,
+        errors,
+        nextCursor: fecBatch.nextCursor,
+        exhausted: fecBatch.exhausted,
+      };
     } catch (error) {
       console.error('❌ Error syncing receipts:', error);
       throw error;
@@ -366,21 +622,39 @@ export class FinanceService {
     minDate?: string;
     maxDate?: string;
     maxPages?: number;
-  }): Promise<{ synced: number; errors: number }> {
-    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5 } = params;
+    cursor?: KeysetCursor;
+  }): Promise<ItemizedSyncResult> {
+    const { committeeId, twoYearTransactionPeriod, minDate, maxDate, maxPages = 5, cursor } = params;
 
     console.log(`🔄 Syncing disbursements for committee ${committeeId}`);
 
     try {
-      const fecDisbursements = await fecApiService.getAllDisbursements({
+      const fecBatch = await fecApiService.getDisbursementBatch({
         committeeId,
         twoYearTransactionPeriod,
         minDate,
         maxDate,
         maxPages,
+        cursor,
       });
+      const fecDisbursements = fecBatch.results;
 
       console.log(`📥 Found ${fecDisbursements.length} disbursements`);
+
+      await prisma.disbursement.deleteMany({
+        where: {
+          committeeId,
+          sourceId: null,
+          ...(minDate || maxDate
+            ? {
+                disbursementDate: {
+                  ...(minDate ? { gte: new Date(`${minDate}T00:00:00Z`) } : {}),
+                  ...(maxDate ? { lte: new Date(`${maxDate}T23:59:59Z`) } : {}),
+                },
+              }
+            : {}),
+        },
+      });
 
       let synced = 0;
       let errors = 0;
@@ -391,8 +665,22 @@ export class FinanceService {
         const batch = fecDisbursements.slice(i, i + batchSize);
 
         try {
-          await prisma.disbursement.createMany({
-            data: batch.map((disbursement) => ({
+          const data = batch.map((disbursement) => ({
+              sourceId: stableSourceId('disbursement', disbursement.sub_id, [
+                disbursement.committee.committee_id,
+                disbursement.recipient_name,
+                disbursement.disbursement_amount,
+                disbursement.disbursement_date,
+                disbursement.image_number,
+              ]),
+              transactionId: disbursement.transaction_id,
+              fileNumber: disbursement.file_number,
+              amendmentIndicator: disbursement.amendment_indicator,
+              cycle: disbursement.two_year_transaction_period ?? inferCycle(
+                twoYearTransactionPeriod,
+                disbursement.disbursement_date,
+              ),
+              memoedSubtotal: disbursement.memoed_subtotal ?? false,
               committeeId: disbursement.committee.committee_id,
               recipientName: disbursement.recipient_name,
               disbursementType: disbursement.disbursement_type,
@@ -402,11 +690,16 @@ export class FinanceService {
                 : null,
               disbursementDescription: disbursement.disbursement_description,
               imageNumber: disbursement.image_number,
-            })),
-            skipDuplicates: true,
+            }));
+
+          const result = await prisma.$transaction(async (tx) => {
+            await tx.disbursement.deleteMany({
+              where: { sourceId: { in: data.map((disbursement) => disbursement.sourceId) } },
+            });
+            return tx.disbursement.createMany({ data, skipDuplicates: true });
           });
 
-          synced += batch.length;
+          synced += result.count;
           console.log(`📊 Progress: ${synced}/${fecDisbursements.length} disbursements synced`);
         } catch (error) {
           console.error(`❌ Error inserting disbursement batch:`, error);
@@ -416,7 +709,12 @@ export class FinanceService {
 
       console.log(`✅ Synced ${synced} disbursements, ${errors} errors`);
 
-      return { synced, errors };
+      return {
+        synced,
+        errors,
+        nextCursor: fecBatch.nextCursor,
+        exhausted: fecBatch.exhausted,
+      };
     } catch (error) {
       console.error('❌ Error syncing disbursements:', error);
       throw error;
@@ -443,6 +741,7 @@ export class FinanceService {
     fundingSources: { type: string; amount: number; percentage: number }[];
     topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[];
     spendingCategories: { category: string; amount: number; percentage: number }[];
+    itemizedCoverage: ItemizedCoverage;
     lastSynced: string;
   }> {
     // Single optimized query to get all data at once
@@ -453,9 +752,7 @@ export class FinanceService {
           where: { cycle },
           take: 1,
         },
-        committees: {
-          take: 1, // Only need primary committee
-        },
+        committees: true,
       },
     });
 
@@ -491,17 +788,41 @@ export class FinanceService {
       }
     }
 
-    // Get top donors and spending categories from primary committee (if exists)
+    // Aggregate itemized data across every authorized committee for this cycle.
     let topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[] = [];
     let spendingCategories: { category: string; amount: number; percentage: number }[] = [];
 
-    const primaryCommittee = candidate.committees?.[0];
+    const committeeIds = candidate.committees.map((committee) => committee.committeeId);
+    const completedCommittees = candidate.committees.filter(
+      (committee) =>
+        committee.itemizedSyncCycle === cycle &&
+        committee.receiptBackfillComplete &&
+        committee.disbursementBackfillComplete,
+    );
+    const lastSuccessfulSync = completedCommittees.reduce<Date | null>((latest, committee) => {
+      if (!committee.itemizedLastSyncedAt) return latest;
+      return !latest || committee.itemizedLastSyncedAt > latest
+        ? committee.itemizedLastSyncedAt
+        : latest;
+    }, null);
+    const itemizedCoverage: ItemizedCoverage = {
+      status:
+        committeeIds.length > 0 && completedCommittees.length === committeeIds.length
+          ? 'complete'
+          : candidate.committees.some((committee) => committee.itemizedLastAttemptedAt)
+            ? 'partial'
+            : 'not_started',
+      committeesTotal: committeeIds.length,
+      committeesComplete: completedCommittees.length,
+      committeesWithErrors: candidate.committees.filter((committee) => committee.itemizedSyncError).length,
+      lastSuccessfulSync: lastSuccessfulSync?.toISOString() ?? null,
+    };
     
-    if (primaryCommittee) {
+    if (committeeIds.length > 0) {
       // Run both queries in parallel for speed
       [topDonors, spendingCategories] = await Promise.all([
-        this.getTopDonors(primaryCommittee.committeeId, 10),
-        this.getSpendingCategories(primaryCommittee.committeeId),
+        this.getTopDonors(committeeIds, cycle, 10),
+        this.getSpendingCategories(committeeIds, cycle),
       ]);
     }
 
@@ -520,6 +841,7 @@ export class FinanceService {
       fundingSources,
       topDonors,
       spendingCategories,
+      itemizedCoverage,
       lastSynced: candidateFinancial?.lastUpdated?.toISOString() || 'Not synced',
     };
   }
@@ -528,14 +850,18 @@ export class FinanceService {
    * Get funding sources breakdown by receipt type
    * Categorizes contributions into: Individual, PAC, Party, Self-funded, Other
    */
-  async getFundingSourcesBreakdown(committeeId: string): Promise<{
+  async getFundingSourcesBreakdown(committeeIds: string[], cycle: number): Promise<{
     type: string;
     amount: number;
     percentage: number;
   }[]> {
     // Get all receipts for this committee
     const receipts = await prisma.receipt.findMany({
-      where: { committeeId },
+      where: {
+        committeeId: { in: committeeIds },
+        memoedSubtotal: false,
+        ...receiptCycleFilter(cycle),
+      },
       select: {
         receiptType: true,
         contributionReceiptAmount: true,
@@ -594,7 +920,7 @@ export class FinanceService {
   /**
    * Get top donors/contributors for a committee
    */
-  async getTopDonors(committeeId: string, limit: number = 10): Promise<{
+  async getTopDonors(committeeIds: string[], cycle: number, limit: number = 10): Promise<{
     name: string;
     employer: string | null;
     occupation: string | null;
@@ -605,7 +931,10 @@ export class FinanceService {
     const topDonors = await prisma.receipt.groupBy({
       by: ['contributorName', 'contributorEmployer', 'contributorOccupation', 'contributorState'],
       where: {
-        committeeId,
+        committeeId: { in: committeeIds },
+        memoedSubtotal: false,
+        contributionReceiptAmount: { gt: 0 },
+        ...receiptCycleFilter(cycle),
         contributorName: { not: null },
       },
       _sum: {
@@ -631,14 +960,19 @@ export class FinanceService {
   /**
    * Get spending categories breakdown from disbursements
    */
-  async getSpendingCategories(committeeId: string): Promise<{
+  async getSpendingCategories(committeeIds: string[], cycle: number): Promise<{
     category: string;
     amount: number;
     percentage: number;
   }[]> {
     // Get all disbursements for this committee
     const disbursements = await prisma.disbursement.findMany({
-      where: { committeeId },
+      where: {
+        committeeId: { in: committeeIds },
+        memoedSubtotal: false,
+        disbursementAmount: { gt: 0 },
+        ...disbursementCycleFilter(cycle),
+      },
       select: {
         disbursementType: true,
         disbursementDescription: true,

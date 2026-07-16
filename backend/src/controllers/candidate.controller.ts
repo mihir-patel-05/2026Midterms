@@ -107,7 +107,7 @@ export class CandidateController {
         candidate.committees.map(async (committee: any) => {
           const summary = await financeService.getFinancialSummary(
             committee.committeeId,
-            cycle ? parseInt(cycle as string) : undefined
+            cycle ? parseInt(cycle as string) : 2026
           );
           return {
             committee,
@@ -201,7 +201,7 @@ export class CandidateController {
   async getCandidateReceipts(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { page, perPage } = req.query;
+      const { page, perPage, cycle } = req.query;
 
       // Get candidate and their primary committee
       const candidate = await candidateService.getCandidateById(id);
@@ -211,10 +211,9 @@ export class CandidateController {
         return;
       }
 
-      // Get receipts from the first committee (primary)
-      const committeeId = candidate.committees[0].committeeId;
       const receipts = await financeService.getReceipts({
-        committeeId,
+        committeeIds: candidate.committees.map((committee: any) => committee.committeeId),
+        cycle: cycle ? parseInt(cycle as string) : 2026,
         page: page ? parseInt(page as string) : undefined,
         perPage: perPage ? parseInt(perPage as string) : undefined,
       });
@@ -233,7 +232,7 @@ export class CandidateController {
   async getCandidateDisbursements(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { page, perPage } = req.query;
+      const { page, perPage, cycle } = req.query;
 
       // Get candidate and their primary committee
       const candidate = await candidateService.getCandidateById(id);
@@ -243,10 +242,9 @@ export class CandidateController {
         return;
       }
 
-      // Get disbursements from the first committee (primary)
-      const committeeId = candidate.committees[0].committeeId;
       const disbursements = await financeService.getDisbursements({
-        committeeId,
+        committeeIds: candidate.committees.map((committee: any) => committee.committeeId),
+        cycle: cycle ? parseInt(cycle as string) : 2026,
         page: page ? parseInt(page as string) : undefined,
         perPage: perPage ? parseInt(perPage as string) : undefined,
       });

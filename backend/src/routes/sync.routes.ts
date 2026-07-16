@@ -1,21 +1,17 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
-import { env } from '../config/env.js';
 import { triggerManualSync } from '../jobs/scheduler.js';
+import { verifySyncAuth } from '../middleware/sync-auth.js';
+import { SyncAlreadyRunningError } from '../services/sync-lock.service.js';
 
 const router = Router();
 
-// Configuration for full sync
-const SYNC_CONFIG = {
-  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC'],
-  offices: ['S', 'H'],
-  cycles: [2026],
-  batchSize: 5,
-  skipIfSyncedWithinHours: 12,
-};
+// All sync operations and their logs are operational endpoints. They must
+// never become public merely because an environment variable is missing.
+router.use(verifySyncAuth);
 
 /**
  * POST /api/sync/full
@@ -24,18 +20,8 @@ const SYNC_CONFIG = {
  * 
  * Usage: curl -X POST http://localhost:3001/api/sync/full -H "x-sync-key: YOUR_KEY"
  */
-router.post('/full', async (req, res) => {
+const runFullSync = async (_req: Request, res: Response) => {
   try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
-    // Trigger the same sync that the scheduler runs
     await triggerManualSync();
 
     res.json({
@@ -44,123 +30,24 @@ router.post('/full', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error in full sync:', error);
+    if (error instanceof SyncAlreadyRunningError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ 
       error: 'Failed to complete sync', 
       message: error.message 
     });
   }
-});
+};
+
+router.post('/full', runFullSync);
 
 /**
  * POST /api/sync/all
  * Legacy endpoint - redirects to /api/sync/full
  */
-router.post('/all', async (req, res) => {
-  try {
-    // Check for sync API key (optional security)
-    const syncKey = req.headers['x-sync-key'] as string;
-    const expectedKey = process.env.SYNC_API_KEY;
-    
-    if (expectedKey && syncKey !== expectedKey) {
-      res.status(401).json({ error: 'Unauthorized: Invalid sync key' });
-      return;
-    }
-
-    console.log('🚀 Starting full sync via API...');
-    const startTime = Date.now();
-
-    const stats = {
-      candidatesSynced: 0,
-      candidatesErrors: 0,
-      candidatesSkipped: 0,
-      financesSynced: 0,
-      financesErrors: 0,
-      committeesSynced: 0,
-      committeesErrors: 0,
-    };
-
-    // Step 1: Sync candidates
-    for (const state of SYNC_CONFIG.states) {
-      for (const office of SYNC_CONFIG.offices) {
-        try {
-          const result = await candidateService.syncCandidates({
-            state,
-            office,
-            cycle: SYNC_CONFIG.cycles[0],
-            maxPages: 3,
-          });
-          stats.candidatesSynced += result.synced;
-          stats.candidatesErrors += result.errors;
-        } catch (error: any) {
-          console.error(`Error syncing ${state} ${office}:`, error.message);
-          stats.candidatesErrors++;
-        }
-      }
-    }
-
-    // Step 2: Sync financials + committees for candidates
-    const skipThreshold = new Date(Date.now() - SYNC_CONFIG.skipIfSyncedWithinHours * 60 * 60 * 1000);
-    
-    const allCandidates = await prisma.candidate.findMany({
-      where: { cycles: { hasSome: SYNC_CONFIG.cycles } },
-      select: {
-        candidateId: true,
-        name: true,
-        financials: {
-          where: { cycle: SYNC_CONFIG.cycles[0] },
-          select: { lastUpdated: true },
-          take: 1,
-        },
-      },
-    });
-
-    const candidatesToSync = allCandidates.filter(c => {
-      const lastSync = c.financials?.[0]?.lastUpdated;
-      return !lastSync || new Date(lastSync) < skipThreshold;
-    });
-
-    stats.candidatesSkipped = allCandidates.length - candidatesToSync.length;
-
-    // Process in batches
-    for (let i = 0; i < candidatesToSync.length; i += SYNC_CONFIG.batchSize) {
-      const batch = candidatesToSync.slice(i, i + SYNC_CONFIG.batchSize);
-      
-      await Promise.all(batch.map(async (candidate) => {
-        try {
-          const [finResult, commResult] = await Promise.all([
-            financeService.syncCandidateFinancials(candidate.candidateId, SYNC_CONFIG.cycles[0]),
-            candidateService.syncCandidateCommittees(candidate.candidateId),
-          ]);
-          stats.financesSynced += finResult.synced;
-          stats.financesErrors += finResult.errors;
-          stats.committeesSynced += commResult.synced;
-          stats.committeesErrors += commResult.errors;
-        } catch (error: any) {
-          console.error(`Error syncing ${candidate.name}:`, error.message);
-          stats.financesErrors++;
-        }
-      }));
-
-      // Small delay between batches
-      if (i + SYNC_CONFIG.batchSize < candidatesToSync.length) {
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-    }
-
-    const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(2);
-
-    console.log(`✅ Full sync completed in ${duration} minutes`);
-
-    res.json({
-      message: 'Full sync completed',
-      duration: `${duration} minutes`,
-      stats,
-    });
-  } catch (error: any) {
-    console.error('Error in full sync:', error);
-    res.status(500).json({ error: 'Failed to complete sync', message: error.message });
-  }
-});
+router.post('/all', runFullSync);
 
 // Sync candidates from FEC API
 router.post('/candidates', (req, res) => candidateController.syncCandidates(req, res));

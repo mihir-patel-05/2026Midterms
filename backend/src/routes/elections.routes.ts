@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { electionController } from '../controllers/election.controller.js';
+import { verifyAdminAuth } from '../controllers/admin.controller.js';
 
 const router = Router();
 
@@ -16,15 +17,15 @@ router.get('/', (req, res) => electionController.getElections(req, res));
 router.get('/:id', (req, res) => electionController.getElectionById(req, res));
 
 // Generate elections from candidate data
-router.post('/generate', (req, res) => electionController.generateElections(req, res));
+router.post('/generate', verifyAdminAuth, (req, res) => electionController.generateElections(req, res));
 
 // Create a new election
-router.post('/', (req, res) => electionController.createElection(req, res));
+router.post('/', verifyAdminAuth, (req, res) => electionController.createElection(req, res));
 
 // Update an election
-router.put('/:id', (req, res) => electionController.updateElection(req, res));
+router.put('/:id', verifyAdminAuth, (req, res) => electionController.updateElection(req, res));
 
 // Delete an election
-router.delete('/:id', (req, res) => electionController.deleteElection(req, res));
+router.delete('/:id', verifyAdminAuth, (req, res) => electionController.deleteElection(req, res));
 
 export default router;

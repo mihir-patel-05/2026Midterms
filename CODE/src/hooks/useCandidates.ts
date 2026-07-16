@@ -44,6 +44,15 @@ export default function useCandidates(
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const search = params?.search;
+  const state = params?.state;
+  const office = params?.office;
+  const party = params?.party;
+  const cycle = params?.cycle;
+  const page = params?.page;
+  const perPage = params?.perPage;
+  const includeFunds = params?.includeFunds;
+  const hasFinancialData = params?.hasFinancialData;
 
   const fetchCandidates = async () => {
     try {
@@ -79,9 +88,20 @@ export default function useCandidates(
         setLoading(true);
         setError(null);
 
-        console.log('[useCandidates] Fetching candidates with params:', params);
+        const requestParams = {
+          search,
+          state,
+          office,
+          party,
+          cycle,
+          page,
+          perPage,
+          includeFunds,
+          hasFinancialData,
+        };
+        console.log('[useCandidates] Fetching candidates with params:', requestParams);
 
-        const response = await getCandidates(params);
+        const response = await getCandidates(requestParams);
 
         // Only update state if component is still mounted
         if (isMounted) {
@@ -113,15 +133,15 @@ export default function useCandidates(
       console.log('[useCandidates] Cleanup: Component unmounted');
     };
   }, [
-    params?.search,
-    params?.state,
-    params?.office,
-    params?.party,
-    params?.cycle,
-    params?.page,
-    params?.perPage,
-    params?.includeFunds,
-    params?.hasFinancialData,
+    search,
+    state,
+    office,
+    party,
+    cycle,
+    page,
+    perPage,
+    includeFunds,
+    hasFinancialData,
   ]); // Re-fetch when params change
 
   return {

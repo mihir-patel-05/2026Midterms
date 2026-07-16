@@ -136,6 +136,14 @@ model Committee {
   state           String?
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
+  itemizedLastSyncedAt DateTime?       @map("itemized_last_synced_at")
+  itemizedLastAttemptedAt DateTime?    @map("itemized_last_attempted_at")
+  itemizedSyncError    String?         @map("itemized_sync_error") @db.Text
+  itemizedSyncCycle    Int?            @map("itemized_sync_cycle")
+  receiptSyncCursor    Json?           @map("receipt_sync_cursor")
+  disbursementSyncCursor Json?         @map("disbursement_sync_cursor")
+  receiptBackfillComplete Boolean      @default(false) @map("receipt_backfill_complete")
+  disbursementBackfillComplete Boolean @default(false) @map("disbursement_backfill_complete")
 
   // Relations
   candidate           Candidate?          @relation(fields: [candidateId], references: [candidateId])
@@ -146,6 +154,7 @@ model Committee {
   @@index([committeeId])
   @@index([candidateId])
   @@index([state])
+  @@index([itemizedLastAttemptedAt])
   @@map("committees")
 }
 
@@ -155,7 +164,7 @@ model Election {
   state           String              // Two-letter state code
   district        String?             // For House races
   officeType      String              @map("office_type") // HOUSE, SENATE
-  electionDate    DateTime            @map("election_date")
+  electionDate    DateTime            @map("election_date") @db.Date
   electionType    String              @map("election_type") // PRIMARY, GENERAL
   cycle           Int                 // Election year
   createdAt       DateTime            @default(now()) @map("created_at")
@@ -179,6 +188,7 @@ model CandidateElection {
   isIncumbent     Boolean     @default(false) @map("is_incumbent")
   result          String?     // WON, LOST, PENDING
   votePercentage  Float?      @map("vote_percentage")
+  ballotStatus    String      @default("UNCONFIRMED") @map("ballot_status") // CONFIRMED | UNCONFIRMED
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
@@ -218,7 +228,14 @@ model FinancialSummary {
 // Itemized receipts (Schedule A)
 model Receipt {
   id                          String      @id @default(uuid())
+  sourceId                    String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
+  transactionId               String?     @map("transaction_id")
+  fileNumber                  Int?        @map("file_number")
+  amendmentIndicator          String?     @map("amendment_indicator")
+  cycle                       Int?
+  memoedSubtotal              Boolean     @default(false) @map("memoed_subtotal")
   committeeId                 String      @map("committee_id")
+  contributorCommitteeId      String?     @map("contributor_committee_id")
   contributorName             String?     @map("contributor_name")
   contributorState            String?     @map("contributor_state")
   contributorCity             String?     @map("contributor_city")
@@ -234,6 +251,9 @@ model Receipt {
   committee   Committee   @relation(fields: [committeeId], references: [committeeId])
 
   @@index([committeeId])
+  @@index([committeeId, cycle])
+  @@index([committeeId, transactionId])
+  @@index([contributorCommitteeId])
   @@index([contributorName])
   @@index([contributionReceiptDate])
   @@index([contributionReceiptAmount])
@@ -243,6 +263,12 @@ model Receipt {
 // Itemized disbursements (Schedule B)
 model Disbursement {
   id                      String      @id @default(uuid())
+  sourceId                String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
+  transactionId           String?     @map("transaction_id")
+  fileNumber              Int?        @map("file_number")
+  amendmentIndicator      String?     @map("amendment_indicator")
+  cycle                   Int?
+  memoedSubtotal          Boolean     @default(false) @map("memoed_subtotal")
   committeeId             String      @map("committee_id")
   recipientName           String?     @map("recipient_name")
   disbursementType        String?     @map("disbursement_type")
@@ -256,6 +282,8 @@ model Disbursement {
   committee   Committee   @relation(fields: [committeeId], references: [committeeId])
 
   @@index([committeeId])
+  @@index([committeeId, cycle])
+  @@index([committeeId, transactionId])
   @@index([disbursementDate])
   @@index([disbursementAmount])
   @@map("disbursements")
@@ -305,6 +333,18 @@ model SyncLog {
   @@map("sync_logs")
 }
 
+// Cross-process lease used to prevent overlapping scheduled/manual sync jobs.
+model SyncLease {
+  name                String      @id
+  token               String
+  expiresAt           DateTime    @map("expires_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([expiresAt])
+  @@map("sync_leases")
+}
+
 // Admin users for dashboard authentication
 model AdminUser {
   id              String      @id @default(uuid())
@@ -316,9 +356,27 @@ model AdminUser {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
+  sessions        AdminSession[]
+
   @@index([username])
   @@index([email])
   @@map("admin_users")
+}
+
+// Durable admin sessions. Only a SHA-256 hash of the bearer token is stored.
+model AdminSession {
+  id              String      @id @default(uuid())
+  tokenHash       String      @unique @map("token_hash")
+  adminUserId     String      @map("admin_user_id")
+  expiresAt       DateTime    @map("expires_at")
+  lastUsedAt      DateTime    @default(now()) @map("last_used_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  adminUser       AdminUser   @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
 }
 
 // Counties (US Census gazetteer)
@@ -395,7 +453,7 @@ model SavedSimulation {
 model Deadline {
   id          String    @id @default(uuid())
   title       String                              // e.g., "Primary Registration Deadline"
-  date        DateTime
+  date        DateTime  @db.Date
   type        String                              // "registration" | "election" | "other"
   states      String[]                            // e.g., ["CA", "TX"] or ["ALL"]
   description String?   @db.Text

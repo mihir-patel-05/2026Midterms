@@ -11,11 +11,23 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
+import { electionService } from '../services/election.service.js';
+import {
+  acquireSyncLease,
+  recoverStaleSyncLogs,
+  releaseSyncLease,
+  SyncAlreadyRunningError,
+} from '../services/sync-lock.service.js';
 
 // Configuration for scheduled syncs
 const SYNC_CONFIG = {
-  // Battleground states (can be expanded to all states)
-  states: ['AZ', 'GA', 'NV', 'PA', 'WI', 'MI', 'NC', 'FL', 'OH', 'TX'],
+  states: [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+  ],
   
   // Offices to sync
   offices: ['S', 'H'], // S = Senate, H = House
@@ -41,6 +53,12 @@ interface SyncStats {
   financesErrors: number;
   committeesSynced: number;
   committeesErrors: number;
+  receiptsSynced: number;
+  disbursementsSynced: number;
+  itemizedErrors: number;
+  electionsCreated: number;
+  candidateLinksCreated: number;
+  electionErrors: number;
   duration: number;
 }
 
@@ -49,20 +67,34 @@ interface SyncStats {
  */
 async function runScheduledSync(): Promise<void> {
   const startTime = Date.now();
+
+  const recovered = await recoverStaleSyncLogs();
+  if (recovered > 0) {
+    console.warn(`⚠️  Marked ${recovered} abandoned sync log(s) as failed`);
+  }
+
+  const leaseToken = await acquireSyncLease('fec-full');
+  if (!leaseToken) throw new SyncAlreadyRunningError();
   
   // Create initial sync log entry
-  const syncLog = await prisma.syncLog.create({
-    data: {
-      syncType: 'full',
-      status: 'started',
-      metadata: {
-        states: SYNC_CONFIG.states,
-        offices: SYNC_CONFIG.offices,
-        cycles: SYNC_CONFIG.cycles,
-        scheduledSync: true,
+  let syncLog;
+  try {
+    syncLog = await prisma.syncLog.create({
+      data: {
+        syncType: 'full',
+        status: 'started',
+        metadata: {
+          states: SYNC_CONFIG.states,
+          offices: SYNC_CONFIG.offices,
+          cycles: SYNC_CONFIG.cycles,
+          scheduledSync: true,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    await releaseSyncLease('fec-full', leaseToken);
+    throw error;
+  }
 
   console.log('\n' + '='.repeat(70));
   console.log('🔄 SCHEDULED FEC DATA SYNC STARTED');
@@ -81,6 +113,12 @@ async function runScheduledSync(): Promise<void> {
     financesErrors: 0,
     committeesSynced: 0,
     committeesErrors: 0,
+    receiptsSynced: 0,
+    disbursementsSynced: 0,
+    itemizedErrors: 0,
+    electionsCreated: 0,
+    candidateLinksCreated: 0,
+    electionErrors: 0,
     duration: 0,
   };
 
@@ -204,6 +242,23 @@ async function runScheduledSync(): Promise<void> {
       `📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`
     );
 
+    // Step 3: Refresh a bounded, oldest-first batch of itemized finance data.
+    const itemized = await financeService.syncItemizedBatch(SYNC_CONFIG.cycles[0]);
+    stats.receiptsSynced = itemized.receiptsSynced;
+    stats.disbursementsSynced = itemized.disbursementsSynced;
+    stats.itemizedErrors = itemized.errors;
+    console.log(
+      `📄 Itemized finance: ${itemized.committeesProcessed} committees, ` +
+      `${itemized.receiptsSynced} receipts, ${itemized.disbursementsSynced} disbursements, ` +
+      `${itemized.errors} errors\n`
+    );
+
+    // Step 4: Keep race shells and active FEC filing links in sync.
+    const elections = await electionService.generateElections(SYNC_CONFIG.cycles[0]);
+    stats.electionsCreated = elections.electionsCreated;
+    stats.candidateLinksCreated = elections.candidateLinksCreated;
+    stats.electionErrors = elections.errors;
+
     stats.duration = Date.now() - startTime;
 
     // Update sync log as completed
@@ -212,9 +267,19 @@ async function runScheduledSync(): Promise<void> {
       data: {
         status: 'completed',
         recordsProcessed:
-          stats.candidatesSynced + stats.financesSynced + stats.committeesSynced,
+          stats.candidatesSynced +
+          stats.financesSynced +
+          stats.committeesSynced +
+          stats.receiptsSynced +
+          stats.disbursementsSynced +
+          stats.electionsCreated +
+          stats.candidateLinksCreated,
         recordsErrors:
-          stats.candidatesErrors + stats.financesErrors + stats.committeesErrors,
+          stats.candidatesErrors +
+          stats.financesErrors +
+          stats.committeesErrors +
+          stats.itemizedErrors +
+          stats.electionErrors,
         recordsSkipped: stats.candidatesSkipped,
         completedAt: new Date(),
         duration: stats.duration,
@@ -252,6 +317,8 @@ async function runScheduledSync(): Promise<void> {
     });
 
     throw error;
+  } finally {
+    await releaseSyncLease('fec-full', leaseToken);
   }
 }
 
@@ -322,4 +389,3 @@ export async function triggerManualSync(): Promise<void> {
   console.log('\n🔧 Manual sync triggered via API');
   await runScheduledSync();
 }
-

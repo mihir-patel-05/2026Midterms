@@ -12,16 +12,17 @@ const app: Application = express();
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      process.env.ADMIN_URL,
-      'http://localhost:5173',  // Vite default (main frontend)
-      'http://localhost:5174',  // Admin dashboard
+      env.FRONTEND_URL,
+      env.ADMIN_URL,
+      ...(env.NODE_ENV !== 'production'
+        ? ['http://localhost:5173', 'http://localhost:5174']
+        : []),
     ].filter(Boolean);
 
     // Allow requests with no origin (server-to-server, curl, etc.)
     if (!origin) {
       callback(null, true);
-    } else if (allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+    } else if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -104,24 +105,25 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 const startServer = async () => {
+  const port = env.PORT;
+
+  // Start listening independently from database readiness. Kubernetes/Railway
+  // and Docker can now distinguish a live process from a ready dependency via
+  // /api/health (503 until PostgreSQL becomes reachable).
+  app.listen(port, () => {
+    console.log(`\n🚀 Server is running on port ${port}`);
+    console.log(`📡 Environment: ${env.NODE_ENV}`);
+    console.log(`🔗 API available at: http://localhost:${port}/api`);
+    console.log(`📊 Health check: http://localhost:${port}/api/health\n`);
+  });
+
+  initializeScheduler();
+
   try {
-    // Test database connection
     await prisma.$connect();
     console.log('✅ Database connected successfully');
-
-    // Initialize scheduled jobs
-    initializeScheduler();
-
-    const port = env.PORT;
-    app.listen(port, () => {
-      console.log(`\n🚀 Server is running on port ${port}`);
-      console.log(`📡 Environment: ${env.NODE_ENV}`);
-      console.log(`🔗 API available at: http://localhost:${port}/api`);
-      console.log(`📊 Health check: http://localhost:${port}/api/health\n`);
-    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('⚠️  Database unavailable at startup; health endpoint will report 503:', error);
   }
 };
 

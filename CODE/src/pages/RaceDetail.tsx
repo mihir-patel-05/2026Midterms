@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Candidate } from "@/types/candidate";
+import { formatCalendarDate } from "@/lib/calendarDate";
 
 const stateCodeToName: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
@@ -54,6 +55,9 @@ export default function RaceDetail() {
 
   const incumbentCE = election?.candidateElections?.find((ce) => ce.isIncumbent);
   const incumbent = incumbentCE?.candidate;
+  const hasUnconfirmedCandidates = election?.candidateElections?.some(
+    (ce) => ce.ballotStatus !== 'CONFIRMED',
+  );
 
   return (
     <Layout>
@@ -78,7 +82,7 @@ export default function RaceDetail() {
               <p className="mt-2 text-muted-foreground">
                 {election.electionType === "PRIMARY" ? "Primary" : "General"} Election
                 {" \u2014 "}
-                {new Date(election.electionDate).toLocaleDateString("en-US", {
+                {formatCalendarDate(election.electionDate, {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -92,7 +96,7 @@ export default function RaceDetail() {
                   {election.electionType === "PRIMARY" ? "Primary" : "General"}
                 </Badge>
                 <Badge variant="outline">
-                  {candidates.length} candidate{candidates.length !== 1 ? "s" : ""}
+                  {candidates.length} FEC filing{candidates.length !== 1 ? "s" : ""}
                 </Badge>
               </div>
             </>
@@ -149,7 +153,7 @@ export default function RaceDetail() {
                   <div>
                     <p className="text-xs text-muted-foreground">Election Date</p>
                     <p className="font-medium text-foreground">
-                      {new Date(election.electionDate).toLocaleDateString("en-US", {
+                      {formatCalendarDate(election.electionDate, {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
@@ -158,9 +162,7 @@ export default function RaceDetail() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Candidates</p>
-                    <p className="font-medium text-foreground">
-                      {candidates.length} running
-                    </p>
+                    <p className="font-medium text-foreground">{candidates.length} filed</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Incumbent</p>
@@ -187,6 +189,13 @@ export default function RaceDetail() {
                   <Users className="h-5 w-5 text-primary" />
                   Candidates ({candidates.length})
                 </h2>
+
+                {hasUnconfirmedCandidates && candidates.length > 0 && (
+                  <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                    These candidates have active 2026 FEC filings. Their primary result and
+                    general-election ballot status have not yet been verified with the state election office.
+                  </div>
+                )}
 
                 {candidates.length === 0 ? (
                   <div className="text-center py-12">
