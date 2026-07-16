@@ -104,24 +104,25 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 const startServer = async () => {
+  const port = env.PORT;
+
+  // Start listening independently from database readiness. Kubernetes/Railway
+  // and Docker can now distinguish a live process from a ready dependency via
+  // /api/health (503 until PostgreSQL becomes reachable).
+  app.listen(port, () => {
+    console.log(`\n🚀 Server is running on port ${port}`);
+    console.log(`📡 Environment: ${env.NODE_ENV}`);
+    console.log(`🔗 API available at: http://localhost:${port}/api`);
+    console.log(`📊 Health check: http://localhost:${port}/api/health\n`);
+  });
+
+  initializeScheduler();
+
   try {
-    // Test database connection
     await prisma.$connect();
     console.log('✅ Database connected successfully');
-
-    // Initialize scheduled jobs
-    initializeScheduler();
-
-    const port = env.PORT;
-    app.listen(port, () => {
-      console.log(`\n🚀 Server is running on port ${port}`);
-      console.log(`📡 Environment: ${env.NODE_ENV}`);
-      console.log(`🔗 API available at: http://localhost:${port}/api`);
-      console.log(`📊 Health check: http://localhost:${port}/api/health\n`);
-    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('⚠️  Database unavailable at startup; health endpoint will report 503:', error);
   }
 };
 
