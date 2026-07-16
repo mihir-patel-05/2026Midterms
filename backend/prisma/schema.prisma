@@ -139,6 +139,11 @@ model Committee {
   itemizedLastSyncedAt DateTime?       @map("itemized_last_synced_at")
   itemizedLastAttemptedAt DateTime?    @map("itemized_last_attempted_at")
   itemizedSyncError    String?         @map("itemized_sync_error") @db.Text
+  itemizedSyncCycle    Int?            @map("itemized_sync_cycle")
+  receiptSyncCursor    Json?           @map("receipt_sync_cursor")
+  disbursementSyncCursor Json?         @map("disbursement_sync_cursor")
+  receiptBackfillComplete Boolean      @default(false) @map("receipt_backfill_complete")
+  disbursementBackfillComplete Boolean @default(false) @map("disbursement_backfill_complete")
 
   // Relations
   candidate           Candidate?          @relation(fields: [candidateId], references: [candidateId])
