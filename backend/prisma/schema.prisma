@@ -137,6 +137,7 @@ model Committee {
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
   itemizedLastSyncedAt DateTime?       @map("itemized_last_synced_at")
+  itemizedLastAttemptedAt DateTime?    @map("itemized_last_attempted_at")
   itemizedSyncError    String?         @map("itemized_sync_error") @db.Text
 
   // Relations
@@ -148,6 +149,7 @@ model Committee {
   @@index([committeeId])
   @@index([candidateId])
   @@index([state])
+  @@index([itemizedLastAttemptedAt])
   @@map("committees")
 }
 
