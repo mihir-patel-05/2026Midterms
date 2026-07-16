@@ -78,7 +78,10 @@ export class FinanceService {
           { itemizedLastSyncedAt: { lt: staleBefore } },
         ],
       },
-      orderBy: { itemizedLastSyncedAt: { sort: 'asc', nulls: 'first' } },
+      orderBy: [
+        { itemizedLastAttemptedAt: { sort: 'asc', nulls: 'first' } },
+        { itemizedLastSyncedAt: { sort: 'asc', nulls: 'first' } },
+      ],
       take: env.ITEMIZED_COMMITTEES_PER_RUN,
     });
 
@@ -116,10 +119,12 @@ export class FinanceService {
         stats.disbursementsSynced += disbursements.synced;
         stats.errors += errors;
 
+        const attemptedAt = new Date();
         await prisma.committee.update({
           where: { id: committee.id },
           data: {
-            itemizedLastSyncedAt: new Date(),
+            itemizedLastAttemptedAt: attemptedAt,
+            ...(errors === 0 ? { itemizedLastSyncedAt: attemptedAt } : {}),
             itemizedSyncError: errors > 0 ? `${errors} row(s) failed to import` : null,
           },
         });
@@ -128,7 +133,7 @@ export class FinanceService {
         await prisma.committee.update({
           where: { id: committee.id },
           data: {
-            itemizedLastSyncedAt: new Date(),
+            itemizedLastAttemptedAt: new Date(),
             itemizedSyncError: error instanceof Error ? error.message : 'Unknown sync error',
           },
         });
