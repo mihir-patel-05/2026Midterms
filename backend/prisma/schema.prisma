@@ -218,7 +218,9 @@ model FinancialSummary {
 // Itemized receipts (Schedule A)
 model Receipt {
   id                          String      @id @default(uuid())
+  sourceId                    String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
   committeeId                 String      @map("committee_id")
+  contributorCommitteeId      String?     @map("contributor_committee_id")
   contributorName             String?     @map("contributor_name")
   contributorState            String?     @map("contributor_state")
   contributorCity             String?     @map("contributor_city")
@@ -234,6 +236,7 @@ model Receipt {
   committee   Committee   @relation(fields: [committeeId], references: [committeeId])
 
   @@index([committeeId])
+  @@index([contributorCommitteeId])
   @@index([contributorName])
   @@index([contributionReceiptDate])
   @@index([contributionReceiptAmount])
@@ -243,6 +246,7 @@ model Receipt {
 // Itemized disbursements (Schedule B)
 model Disbursement {
   id                      String      @id @default(uuid())
+  sourceId                String?     @unique @map("source_id") // FEC sub_id or deterministic fallback
   committeeId             String      @map("committee_id")
   recipientName           String?     @map("recipient_name")
   disbursementType        String?     @map("disbursement_type")

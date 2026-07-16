@@ -111,11 +111,13 @@ export interface FECCandidateTotals {
 }
 
 export interface FECReceipt {
+  sub_id?: string | number;
   committee: {
     committee_id: string;
     name?: string;
   };
   contributor_name?: string;
+  contributor_committee_id?: string;
   contributor_state?: string;
   contributor_city?: string;
   contributor_employer?: string;
@@ -128,6 +130,7 @@ export interface FECReceipt {
 }
 
 export interface FECDisbursement {
+  sub_id?: string | number;
   committee: {
     committee_id: string;
     name?: string;

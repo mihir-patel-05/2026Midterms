@@ -8,6 +8,14 @@ import {
   FECCandidateTotals,
 } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { createHash } from 'crypto';
+
+function stableSourceId(kind: 'receipt' | 'disbursement', sourceId: string | number | undefined, fields: unknown[]): string {
+  if (sourceId !== undefined && sourceId !== null && String(sourceId).trim()) {
+    return `fec:${String(sourceId)}`;
+  }
+  return `fallback:${kind}:${createHash('sha256').update(JSON.stringify(fields)).digest('hex')}`;
+}
 
 /**
  * Service for managing campaign finance data
@@ -322,9 +330,17 @@ export class FinanceService {
         const batch = fecReceipts.slice(i, i + batchSize);
 
         try {
-          await prisma.receipt.createMany({
+          const result = await prisma.receipt.createMany({
             data: batch.map((receipt) => ({
+              sourceId: stableSourceId('receipt', receipt.sub_id, [
+                receipt.committee.committee_id,
+                receipt.contributor_name,
+                receipt.contribution_receipt_amount,
+                receipt.contribution_receipt_date,
+                receipt.image_number,
+              ]),
               committeeId: receipt.committee.committee_id,
+              contributorCommitteeId: receipt.contributor_committee_id,
               contributorName: receipt.contributor_name,
               contributorState: receipt.contributor_state,
               contributorCity: receipt.contributor_city,
@@ -340,7 +356,7 @@ export class FinanceService {
             skipDuplicates: true,
           });
 
-          synced += batch.length;
+          synced += result.count;
           console.log(`📊 Progress: ${synced}/${fecReceipts.length} receipts synced`);
         } catch (error) {
           console.error(`❌ Error inserting receipt batch:`, error);
@@ -391,8 +407,15 @@ export class FinanceService {
         const batch = fecDisbursements.slice(i, i + batchSize);
 
         try {
-          await prisma.disbursement.createMany({
+          const result = await prisma.disbursement.createMany({
             data: batch.map((disbursement) => ({
+              sourceId: stableSourceId('disbursement', disbursement.sub_id, [
+                disbursement.committee.committee_id,
+                disbursement.recipient_name,
+                disbursement.disbursement_amount,
+                disbursement.disbursement_date,
+                disbursement.image_number,
+              ]),
               committeeId: disbursement.committee.committee_id,
               recipientName: disbursement.recipient_name,
               disbursementType: disbursement.disbursement_type,
@@ -406,7 +429,7 @@ export class FinanceService {
             skipDuplicates: true,
           });
 
-          synced += batch.length;
+          synced += result.count;
           console.log(`📊 Progress: ${synced}/${fecDisbursements.length} disbursements synced`);
         } catch (error) {
           console.error(`❌ Error inserting disbursement batch:`, error);

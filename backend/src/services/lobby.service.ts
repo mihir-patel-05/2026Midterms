@@ -70,8 +70,12 @@ const COMPILED: CompiledLobby[] = LOBBIES.map((l) => ({
 function matchLobby(
   contributorName: string | null,
   contributorEmployer: string | null,
+  contributorCommitteeId: string | null,
 ): CompiledLobby | null {
   for (const lobby of COMPILED) {
+    if (contributorCommitteeId && lobby.committeeIdSet.has(contributorCommitteeId)) {
+      return lobby;
+    }
     if (contributorName) {
       for (const re of lobby.nameRegexes) {
         if (re.test(contributorName)) return lobby;
@@ -157,6 +161,10 @@ export class LobbyService {
 
     // Build the OR pre-filter from every name/employer pattern across all lobbies.
     const orFilters: object[] = [];
+    const knownContributorCommitteeIds = LOBBIES.flatMap((lobby) => lobby.committeeIds);
+    if (knownContributorCommitteeIds.length > 0) {
+      orFilters.push({ contributorCommitteeId: { in: knownContributorCommitteeIds } });
+    }
     for (const lobby of LOBBIES) {
       for (const pattern of lobby.namePatterns) {
         const term = patternToSqlSubstring(pattern);
@@ -187,6 +195,7 @@ export class LobbyService {
         select: {
           contributorName: true,
           contributorEmployer: true,
+          contributorCommitteeId: true,
           contributionReceiptAmount: true,
         },
       }),
@@ -202,7 +211,11 @@ export class LobbyService {
     let totalLobbyAmount = 0;
 
     for (const r of candidateReceipts) {
-      const lobby = matchLobby(r.contributorName, r.contributorEmployer);
+      const lobby = matchLobby(
+        r.contributorName,
+        r.contributorEmployer,
+        r.contributorCommitteeId,
+      );
       if (!lobby) continue;
 
       const amount = r.contributionReceiptAmount?.toNumber() ?? 0;
