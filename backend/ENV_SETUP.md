@@ -11,7 +11,7 @@ DATABASE_URL="postgresql://username:password@localhost:5432/database_name?schema
 # FEC API Configuration
 FEC_API_KEY="YOUR_FEC_API_KEY_HERE"
 FEC_API_BASE_URL="https://api.open.fec.gov/v1"
-FEC_API_MAX_REQUESTS_PER_HOUR="120"
+FEC_API_MAX_REQUESTS_PER_HOUR="1000"
 
 # Server Configuration
 PORT="3001"
@@ -78,4 +78,3 @@ After setting up environment variables:
    ⏰ FEC Data Sync Scheduler initialized
    📅 Schedule: Every Sunday at 2:00 AM EST
    ```
-

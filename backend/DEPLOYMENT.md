@@ -73,7 +73,7 @@ railway variables set FEC_API_KEY=MZHQDPqUKjrbJEmqYvwEKgrf8Q0FfGjwAsFamjTe
 railway variables set FEC_API_BASE_URL=https://api.open.fec.gov/v1
 
 # Rate limiting
-railway variables set FEC_API_MAX_REQUESTS_PER_HOUR=120
+railway variables set FEC_API_MAX_REQUESTS_PER_HOUR=1000
 ```
 
 **Note:** Your `DATABASE_URL` should already be set from your existing PostgreSQL database on Railway.

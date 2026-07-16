@@ -10,7 +10,7 @@ const envSchema = z.object({
   FEC_API_BASE_URL: z.string().default('https://api.open.fec.gov/v1'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('120'),
+  FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
   ITEMIZED_COMMITTEES_PER_RUN: z.string().default('10'),
   ITEMIZED_MAX_PAGES: z.string().default('5'),
   ITEMIZED_REFRESH_HOURS: z.string().default('72'),

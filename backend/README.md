@@ -166,7 +166,7 @@ backend/
 - `FEC_API_BASE_URL` - FEC API base URL (default: https://api.open.fec.gov/v1)
 - `PORT` - Server port (default: 3001)
 - `NODE_ENV` - Environment (development/production)
-- `FEC_API_MAX_REQUESTS_PER_HOUR` - Rate limit (default: 120)
+- `FEC_API_MAX_REQUESTS_PER_HOUR` - Rate limit for a standard registered key (default: 1000)
 
 ## Production Deployment
 
