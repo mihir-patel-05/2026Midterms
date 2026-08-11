@@ -469,7 +469,325 @@ These are valuable (and detailed in [`feature_roadmap.md`](./feature_roadmap.md)
 
 ---
 
-## 9. Appendix — Prisma Models Present Today
+## 9. Two‑Week Feasibility Assessment (Aug 11 – Aug 24, 2026)
+
+**Question asked:** can the entire Section 6 plan be implemented in the two weeks before the fall semester starts?
+
+**Answer: No — and it is not close.** Attempting it would produce a half‑finished version of every workstream, which for an election product is worse than a smaller, finished one.
+
+### 9.1 The arithmetic
+
+The Gantt in §6 schedules 11 workstreams totalling ~**238 workstream‑days**, overlapped across 12 calendar weeks. That overlap only works with **2–3 people running in parallel**. Compressing 238 workstream‑days into 14 solo calendar days is a ~17× compression. Even at an aggressive 10 productive hours/day, two weeks is ~140 hours — roughly **15–20 workstream‑days of real capacity**, before the AWS migration is counted.
+
+### 9.2 Per‑item verdict
+
+| ID | Item | Two‑week verdict | Why |
+|---|---|---|---|
+| P0.1 | Test harness + CI gate | ✅ **Yes** (scoped) | Vitest + CI job is hours. Unit tests for the pure functions (`simulateFromRows`, `lobby.service` matching, `calendar-date.ts`, `pagination.ts`) are 1–2 days. Full API integration suite against ephemeral Postgres → trim to a smoke subset. |
+| P0.2 | Provenance & freshness + corrections | ✅ **Yes** (slice) | `meta` envelope derives from existing `lastUpdated`/`SyncLog` — no migration. `CorrectionReport` model + admin list is one small migration. |
+| P0.3 | Chat grounding + persistence | ✅ **Yes** | `chat.controller.ts` is self‑contained; swap the module‑level `conversations` object for two Prisma models and inject retrieved rows into the prompt. ~2 days. |
+| P0.4 | Finance QA / amendment reconciliation | 🟡 **Partial** | Reconciliation unit tests + reusing `analyze-data-coverage.ts` as a report: yes. Admin delta alerting: cut. |
+| P1.1 | Primary + ballot verification | ❌ **No** | The schema work is small; the **actual cost is 50 states of manual verification against official SoS sources**. That is data‑entry labor, not engineering, and it cannot be compressed. |
+| P1.2 | State voting rules + My Ballot | ❌ **No** | Needs a geocoding/district‑resolver provider (selection + account + cost), a privacy review, plus 50 states of curated `StateVotingRule` rows. Highest‑value feature in the plan and the one most damaged by rushing. |
+| P1.3 | Candidate profile completeness | 🟡 **Stretch** | The *incumbent* half is genuinely small — `legislators-current.yaml` is already fetched by `ideology.service.ts` and carries bio/website/social fields. Challengers have no source and need admin entry. Ship incumbents only, if time remains. |
+| P1.4 | Incumbent voting records | ❌ **No** | New `LegislativeAction` model + a new ingestion source + a new profile tab. This is a genuine 3–4 week item. |
+| P1.5 | Outside / independent expenditures | ❌ **No** | Reuses finance patterns, but Schedule E ingestion, amendment idempotency, and support/oppose UI is 3+ weeks. |
+| P2.1 | Live results mode | ❌ **No** | Blocked on a **vendor contract** (AP / Decision Desk). Procurement alone outlasts the window. |
+| P2.2 | Load test + incident runbook | 🟡 **Partial** | A basic k6 run against the AWS deployment is half a day and worth doing as part of the migration. Full runbook: defer. |
+
+**Realistic two‑week yield: all of P0 (≈4 of 11 items, ~35–40% of the plan) plus the AWS migration.** That is a good outcome — P0 is explicitly the set §6 says must be underway before anything else starts, and the plan's own guiding principle is *"do not start anything that can't ship, be sourced, and be verified in time."* Two weeks is enough to finish the foundation; it is not enough to also build the accountability content on top of it.
+
+### 9.3 Why this is still the right two weeks
+
+P0 + AWS is the correct thing to spend the window on precisely *because* the remaining items must be built during the semester on nights and weekends. Part‑time work on an untested codebase with no deploy pipeline is where projects die. Finishing the test gate, the provenance convention, and a real deploy target first means every P1 item afterward lands on rails.
+
+**Post‑window sequencing (semester, ~10 hrs/week):** P1.3 incumbents → P1.4 voting records → P1.1 primaries/ballot → P1.5 outside spending → P1.2 My Ballot. That ordering front‑loads items with an existing data source and defers the ones needing procurement or bulk curation. At 10 hrs/week from Aug 25 to Nov 3 (~10 weeks, ~100 hours) you should expect to land **two, maybe three** of those five. Plan the pre‑election scope accordingly, and decide now which two matter most.
+
+---
+
+## 10. The Two‑Week Plan (Aug 11 – Aug 24, 2026)
+
+**Sequencing logic:** tests first (a safety net costs 2 days and protects every subsequent change), then the **database move to Supabase**, then compute to AWS, then the remaining P0 work shipped through the new pipeline.
+
+**Why the database moves first, on its own:** migrating Postgres and migrating compute are two independent failure domains, and doing them in one step means any breakage is ambiguous — you won't know whether it's a connection‑pooling problem or an App Runner problem. Point the **still‑running Railway backend** at Supabase first and let it bake for a day. Railway stays as a working rollback the entire time, and by the time you stand up App Runner the only new variable is the compute layer.
+
+This ordering also *removes* work from the AWS side: with Postgres living outside AWS behind a public TLS endpoint, you no longer need a VPC, private subnets, a VPC connector, or (critically) a **NAT gateway — that alone is ~$32/mo you now don't pay**.
+
+```mermaid
+gantt
+    title Two-Week Solo Sprint (Aug 11 – Aug 24)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %d
+
+    section Foundation
+    Vitest + CI test gate (P0.1)        :d1, 2026-08-11, 2d
+
+    section Step 1 — Database
+    Supabase provision + data migration :d2, 2026-08-13, 2d
+    Bake on Railway backend             :crit, d2b, 2026-08-15, 1d
+
+    section Step 2 — AWS Compute
+    ECR + App Runner + secrets          :d3, 2026-08-15, 2d
+    S3/CloudFront SPAs + DNS cutover    :d4, 2026-08-17, 1d
+    Sync job → EventBridge + ECS        :d5, 2026-08-18, 1d
+
+    section Remaining P0
+    Chat grounding + persistence (P0.3) :d6, 2026-08-19, 2d
+    Provenance + corrections (P0.2)     :d7, 2026-08-21, 2d
+    Finance QA slice (P0.4)             :d8, 2026-08-23, 1d
+    Buffer / smoke test / docs          :d9, 2026-08-24, 1d
+```
+
+| Days | Work | Done when |
+|---|---|---|
+| 1–2 | **P0.1.** Vitest in `backend/` + `CODE/`, `test` script, `test` job in `ci.yml` gating merges. Unit tests for `simulation.service`, `lobby.service`, finance aggregation, `calendar-date.ts`, `pagination.ts`. FEC client fixtures. | CI fails on a deliberately broken assertion. |
+| 3–4 | **Supabase (Step 1).** Provision project, `pg_dump`/`pg_restore` from Railway, add `directUrl` to `schema.prisma`, wire Supavisor pooler URLs, lock down PostgREST exposure, row‑count reconciliation. **Repoint the existing Railway backend at Supabase.** | `SELECT count(*)` on `Receipt`/`Disbursement` matches Railway, and the Railway‑hosted API serves live traffic off Supabase. |
+| 5–6 | **AWS compute (Step 2).** Account + budget alarm, GitHub OIDC role, ECR repo, App Runner service, Secrets Manager wiring, `/api/health/live` split. No VPC needed. | App Runner URL serves `/api/candidates` with real data. |
+| 7 | **AWS frontends.** Build `CODE/` and `admin-dashboard/` with the new `VITE_API_URL`, push to S3, CloudFront + ACM cert + SPA error mapping, update `FRONTEND_URL`/`ADMIN_URL`, DNS cutover. | Both SPAs load over HTTPS on the real domain, no CORS errors. |
+| 8 | **Sync job.** Disable in‑process `node-cron` in production; EventBridge Scheduler → ECS Fargate task running `npm run sync:all`. Retire or repoint `sync-fec-data.yml`. | A manually triggered task completes and writes a `SyncLog` row. |
+| 9–10 | **P0.3.** Persist chat to Postgres, retrieval grounding over candidate/election/finance/deadline rows, refusal instruction, disclaimer + source links in the UI. | Restarting the service preserves history; an off‑topic question gets the refusal. |
+| 11–12 | **P0.2.** `meta` envelope on public endpoints, `FreshnessBadge`/`SourceLink` components, `POST /api/corrections` + admin triage list. | Finance totals and deadlines render a visible freshness badge. |
+| 13 | **P0.4.** Amendment‑reconciliation unit tests with fixtures; promote `analyze-data-coverage.ts` to a per‑candidate itemized‑coverage report. | Coverage report runs against production data. |
+| 14 | **Buffer.** k6 smoke load test, README/runbook update, cost check. Do not start anything new. | — |
+
+**Cut list if you fall behind** (drop in this order): day‑13 finance QA → the corrections endpoint (keep the `meta` envelope, it's the convention other work depends on) → frontend Vitest (keep backend). **Never cut days 3–8** — a half‑migrated deploy is the one failure mode with no good recovery during a semester. If you must stop mid‑migration, **stop after day 4**: Supabase + Railway is a perfectly stable resting state you can sit on for weeks. Supabase + half‑configured App Runner is not.
+
+---
+
+## 11. Migration Guide — Supabase (Database) → AWS (Backend + Frontend)
+
+Two moves, done in order, with a stable resting state in between:
+
+1. **Step 1 — Database:** Railway Postgres → **Supabase**, while the backend keeps running on Railway.
+2. **Step 2 — Compute:** Railway backend → **AWS App Runner**, Vercel SPAs → **S3 + CloudFront**.
+
+### 11.1 Where you are today vs. target
+
+| Component | Today | Target | Step |
+|---|---|---|---|
+| Postgres | Railway Postgres | **Supabase Postgres** (Supavisor pooler) | 1 |
+| Migrations | `db-migrate.yml` → `prisma migrate deploy` from a GH runner | **Unchanged** — keeps working, now against Supabase's `DIRECT_URL` | 1 |
+| Backend API | Railway (`backend-deploy.yml`, `railway up`) | **AWS App Runner** (container from ECR) | 2 |
+| Public frontend | Vercel (`frontend-deploy.yml`) | **S3 + CloudFront** | 2 |
+| Admin dashboard | Vercel (`admin-deploy.yml`) | **S3 + CloudFront** (separate distribution) | 2 |
+| Scheduled sync | In‑process `node-cron` (`jobs/scheduler.ts`) **and** `sync-fec-data.yml` curl | **EventBridge Scheduler → ECS Fargate task** | 2 |
+| Secrets | Railway/Vercel/GitHub env vars | **AWS Secrets Manager** | 2 |
+
+**What this ordering buys you:** because Postgres ends up *outside* AWS behind a public TLS endpoint, the AWS side needs **no VPC, no private subnets, no VPC connector, and no NAT gateway**. That is both a large chunk of setup you skip and ~$32/mo of NAT charges you never pay. It also means `db-migrate.yml` keeps working exactly as written — a GitHub runner can reach Supabase directly, which it could never do with an RDS instance in a private subnet.
+
+### 11.2 Target architecture
+
+```mermaid
+flowchart TB
+    U["👤 Voter"] --> CF["CloudFront<br/>+ ACM cert (us-east-1)"]
+    ADMU["🔐 Admin"] --> CF2["CloudFront (admin)"]
+    CF --> S3A[("S3: CODE/ build")]
+    CF2 --> S3B[("S3: admin-dashboard/ build")]
+
+    CF -->|/api/*| AR["AWS App Runner<br/>Express + Prisma<br/>1 vCPU / 2 GB<br/>(no VPC connector)"]
+    CF2 -->|/api/*| AR
+
+    AR --> SM["Secrets Manager<br/>DATABASE_URL, DIRECT_URL,<br/>FEC_API_KEY, GEMINI_API_KEY,<br/>RESEARCHER_JWT_SECRET"]
+    AR --> CW["CloudWatch Logs + alarms"]
+
+    AR -->|TLS, port 6543<br/>transaction pooler| SUPA
+    ECS -->|TLS| SUPA
+
+    EB["EventBridge Scheduler<br/>Sun/Tue/Thu 02:00 ET"] --> ECS["ECS Fargate one-off task<br/>public subnet, public IP<br/>npm run sync:all"]
+    ECS -->|rate-limited| FEC["FEC API"]
+
+    subgraph Supabase["🟢 Supabase (outside AWS)"]
+        SUPA[("PostgreSQL 16<br/>Supavisor pooler")]
+        SUPA --- PGA["Dashboard · daily backups<br/>SQL editor · advisors"]
+    end
+
+    GH["GitHub Actions<br/>(OIDC role, no static keys)"] -->|docker push| ECR[("ECR")]
+    ECR --> AR
+    GH -->|s3 sync + invalidation| S3A
+    GH -->|prisma migrate deploy<br/>via DIRECT_URL| SUPA
+```
+
+---
+
+### 11.3 Step 1 — Database to Supabase (days 3–4)
+
+#### 11.3.1 Provision
+
+- Create the project in a region physically near your chosen AWS region (`us-east-1` ↔ Supabase `us-east-1`) — every query crosses the public internet now, so cross‑region latency is real and additive.
+- **Choose the Pro plan ($25/mo) for production.** The free tier caps at 500 MB and **pauses the project after 7 days of inactivity**, which is disqualifying for a live site. Check your dump size first (`Receipt` and `Disbursement` are by far your largest tables) — if it's near 500 MB you have no choice anyway. Keep a *separate* free‑tier project as a staging/dev database; that's the right use for the free tier.
+
+#### 11.3.2 Move the data
+
+```bash
+# From Railway → local dump (public schema only; Supabase owns its own schemas)
+pg_dump --no-owner --no-acl -n public -Fc "$RAILWAY_DATABASE_URL" -f midterms.dump
+
+# → Supabase, via the SESSION pooler (port 5432), not the transaction pooler
+pg_restore --no-owner --no-acl --no-comments \
+  -d "postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres" \
+  midterms.dump
+```
+
+Use a `pg_dump` binary at version 16+ to match. Restore through the **session** pooler or a direct connection — the transaction pooler on 6543 will choke on a restore.
+
+**Verify before proceeding.** Compare `count(*)` on `Candidate`, `Receipt`, `Disbursement`, `CountyResult`, `CandidateFinancial` between Railway and Supabase. `Receipt`/`Disbursement` matter most: they carry the itemized backfill cursors, and a partial restore means re‑running a bounded backfill against a rate‑limited FEC API. Also confirm `_prisma_migrations` came across, or `prisma migrate deploy` will try to replay every migration from the baseline.
+
+#### 11.3.3 Wire Prisma to the pooler
+
+Supabase gives you three connection strings. Prisma needs two of them, and picking wrong is the most common way this migration goes sideways:
+
+| Purpose | Port | Host | Use for |
+|---|---|---|---|
+| Transaction pooler | **6543** | `aws-0-<region>.pooler.supabase.com` | `DATABASE_URL` — normal app queries |
+| Session pooler | **5432** | `aws-0-<region>.pooler.supabase.com` | `DIRECT_URL` — migrations, restores |
+| Direct | 5432 | `db.<ref>.supabase.co` | Avoid — **IPv6‑only** without the paid IPv4 add‑on, and App Runner / Fargate / GitHub runners are IPv4 |
+
+Update `backend/prisma/schema.prisma`:
+
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // transaction pooler, 6543
+  directUrl = env("DIRECT_URL")     // session pooler, 5432
+}
+```
+
+`DATABASE_URL` must carry `?pgbouncer=true&connection_limit=1` — without `pgbouncer=true`, Prisma's prepared statements break against a transaction‑mode pooler with errors that look like random query failures under concurrency. `DIRECT_URL` is what `prisma migrate deploy` uses; the transaction pooler cannot run migrations (no advisory locks, no prepared statements).
+
+**`DIRECT_URL` now has to exist everywhere `DATABASE_URL` does**, because Prisma reads it straight from the environment when it loads the datasource — a missing value fails at generate/validate time, not just at migrate time. Three places to update besides your secret stores:
+
+- `docker-compose.yml` (line 28) — set `DIRECT_URL` to the same local Postgres URL.
+- `.github/workflows/docker-build.yml` (line 63) — add a dummy `DIRECT_URL` next to the existing dummy `DATABASE_URL`.
+- `backend/src/scripts/test-fec-pagination.ts` (line 5) — mirror the existing `DATABASE_URL ??=` default.
+
+Add `DIRECT_URL: z.string()` to the Zod schema in `backend/src/config/env.ts` so a missing value fails loudly at boot rather than mysteriously at first query.
+
+#### 11.3.4 Lock down PostgREST — do not skip this
+
+**Supabase automatically exposes every table in the `public` schema through its REST API, readable with the `anon` key — and the `anon` key is public by design.** Your Prisma‑created tables have no row‑level security, so the moment the restore finishes, your entire database is world‑readable to anyone who finds the project URL. This is the single biggest difference from Railway or RDS, and it is easy to miss because nothing warns you.
+
+Prisma connects as the `postgres` role, which bypasses RLS, so locking things down costs you nothing functionally:
+
+```sql
+-- 1. Revoke the PostgREST roles outright
+revoke all on all tables    in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+revoke all on all functions in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables    from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+
+-- 2. Belt and braces: RLS on with zero policies = deny-all for anon/authenticated.
+--    Run the generated output; Prisma's `postgres` role is unaffected.
+select format('alter table public.%I enable row level security;', tablename)
+from pg_tables where schemaname = 'public';
+```
+
+Then open **Database → Advisors** in the Supabase dashboard and confirm there are no "RLS disabled in public" errors left. Re‑run this SQL after any future migration that adds a table — the `alter default privileges` line covers new tables for grants, but RLS must be enabled per table.
+
+#### 11.3.5 Bake on Railway (day 5, before touching AWS)
+
+Set `DATABASE_URL` and `DIRECT_URL` on the **existing Railway backend** to the Supabase pooler URLs and redeploy. Exercise the real paths: load candidate profiles, hit `/api/candidates/:id/finances/detailed`, run an admin sync, log into the researcher portal. Watch for pooler connection errors under the sync job specifically — that's your highest‑concurrency workload.
+
+Leave the Railway database intact and take a final dump before you delete anything. This is your rollback: one environment‑variable change reverts the entire step.
+
+---
+
+### 11.4 Step 2 — Compute to AWS (days 5–8)
+
+#### 11.4.1 Why App Runner
+
+| Option | Setup effort | ~Cost/mo | Verdict |
+|---|---|---|---|
+| **App Runner** | Low — point it at ECR; it handles TLS, scaling, deploys | **$15–25** | ✅ **Recommended.** Closest thing to the Railway experience you already have, and you keep `backend/Dockerfile` essentially unchanged. With Postgres on Supabase you don't even need the VPC connector. |
+| ECS Fargate + ALB | High — task defs, target groups, ALB, autoscaling | $35–55 (ALB alone ~$18) | Only if you outgrow App Runner's knobs. You're already adding ECS for the sync task, so this stays an easy later move. |
+| Elastic Beanstalk | Medium | $20–30 | Legacy‑feeling; no reason to pick it for a container you already build. |
+| Lightsail Containers | Lowest | $10–15 | Cheapest, and Supabase‑over‑public‑TLS removes its usual VPC drawback. Viable if cost is the deciding factor, but weaker CI/CD integration. |
+| Lambda + API Gateway | High rewrite | $1–5 | Prisma cold starts and the long‑running sync job make this a bad fit. Don't. |
+
+#### 11.4.2 Steps
+
+**A. Account and guardrails (½ day)**
+- One region, never mixed. `us-east-1` is simplest — CloudFront's ACM certificate *must* live there regardless.
+- MFA on root; create an admin IAM user; stop using root.
+- **AWS Budgets alert at $50/mo.** Do this first. It is the most important step on a student account.
+- GitHub OIDC provider + a deploy role scoped to ECR push, S3 write, CloudFront invalidation, and `ecs:RunTask`. **No long‑lived AWS access keys in GitHub secrets.**
+
+**B. Secrets (1 hour)**
+`backend/src/config/env.ts` hard‑fails at boot without `DATABASE_URL`, `FEC_API_KEY`, and `GEMINI_API_KEY`, and additionally throws in production unless `RESEARCHER_JWT_SECRET` is ≥32 characters. Create all of those plus `DIRECT_URL` in Secrets Manager, and generate a real JWT secret (`openssl rand -base64 48`) rather than carrying the dev default forward.
+
+**C. Container + App Runner (1 day)**
+- ECR repo; build and push using the existing `backend/Dockerfile`.
+- App Runner service: port 3001, **no VPC connector** (default public egress reaches both Supabase and the FEC API), secrets injected from Secrets Manager, health check path **`/api/health/live`** (see gotcha 1), auto‑deploy on ECR push.
+- Replace `backend-deploy.yml`'s `railway up` step with build → push to ECR.
+
+**D. Frontends (½ day)**
+- Two S3 buckets (private, no website hosting) + two CloudFront distributions with Origin Access Control.
+- **CloudFront custom error responses: 403 → `/index.html` (200) and 404 → `/index.html` (200)** — React Router deep links 404 without this.
+- `VITE_API_URL` is **baked in at build time**, so App Runner must exist before you build. Rewrite `frontend-deploy.yml` / `admin-deploy.yml` to `npm run build` → `aws s3 sync --delete` → `aws cloudfront create-invalidation`.
+- Update `FRONTEND_URL` and `ADMIN_URL` on App Runner to the final origins — `server.ts` does **exact‑string** origin matching with no wildcards, so a trailing slash or an `http`/`https` mismatch is an instant CORS failure.
+
+**E. Scheduled sync (½ day)**
+EventBridge Scheduler → `ecs:RunTask` on Fargate, same image, command override `npm run sync:all`. Run the task in a **public subnet with a public IP** — it only needs to reach Supabase and the FEC API, both public, so you avoid a NAT gateway entirely. See gotcha 2 for why the current setup can't just be lifted over.
+
+**F. Cutover (½ day)**
+Run App Runner and Railway in parallel for 24–48 hours against the same Supabase database. Point DNS at CloudFront (Route 53 alias records), watch CloudWatch logs and the `SyncLog` table through one full sync cycle, **then** tear down Railway and Vercel.
+
+### 11.5 Cost
+
+| Line item | ~Monthly |
+|---|---|
+| Supabase Pro | $25 |
+| App Runner (2 GB provisioned ≈ $13 + active vCPU) | $15–25 |
+| S3 + CloudFront | $1–3 |
+| Secrets Manager (5 secrets × $0.40) | $2 |
+| ECR + EventBridge + Fargate sync task | ~$1 |
+| Route 53 hosted zone | $0.50 |
+| **Total** | **≈ $45–55/mo** |
+
+Worth being straight with yourself: this is **more** than self‑hosting Postgres on RDS `db.t4g.micro` (~$15/mo, free for 12 months on a new account). You're paying roughly $10–25/mo extra for Supabase's managed backups, dashboard, SQL editor, pooler, and advisors — and for not operating a VPC. For a solo developer heading into a semester, that trade is defensible; just make it deliberately rather than discovering the bill later. AWS free tier covers CloudFront's first 1 TB/mo of egress for 12 months; **App Runner has no free tier.**
+
+### 11.6 Gotchas specific to this codebase
+
+1. **`/api/health` returns 503 when Postgres is unreachable** (`backend/src/routes/index.ts`). Point App Runner's health check at it and a transient Supabase blip will kill and recycle healthy instances in a loop. **Split it:** add `/api/health/live` returning 200 unconditionally for the App Runner health check, and keep `/api/health` as the readiness/monitoring endpoint. ~10 lines, and the highest‑value fix in this section. This matters *more* with Supabase than it would with RDS, because the database is now across the public internet.
+
+2. **The FEC sync will not survive App Runner's request timeout.** `sync-fec-data.yml` POSTs `/api/sync/all` with `--max-time 600`, but App Runner caps request timeouts at 120s by default (max 300s). A 50‑state sync runs far longer. It also runs *again* in‑process via `node-cron` in `jobs/scheduler.ts`. Fix both: gate `initializeScheduler()` behind a `DISABLE_SCHEDULER` env var in production, and move the work to the EventBridge → Fargate task. The `SyncLease` model already gives you cross‑process safety, so an overlap won't corrupt data — but you'd be burning duplicate calls against a rate‑limited API.
+
+3. **Pooler connection limits during sync.** Supabase Pro's transaction pooler allows far fewer connections than you'd assume, and the sync job is your most concurrent workload. Keep `connection_limit=1` in `DATABASE_URL` for App Runner (Prisma multiplexes fine through the pooler) and set a low explicit limit on the Fargate sync task too. Symptom if you get this wrong: sync failures that only appear at scale and look like random FEC errors.
+
+4. **`db-migrate.yml` keeps working — but must use `DIRECT_URL`.** Set the repo's `PRODUCTION_DATABASE_URL` secret to the **session pooler** string (port 5432), not the transaction pooler. Keep the existing `environment: production` manual approval gate. (Had the database gone to RDS in a private subnet, this workflow would have needed a full rewrite to an ECS task — the Supabase route avoids that entirely.)
+
+5. **App Runner can run multiple instances.** The chat controller's module‑level `conversations` object is per‑instance, so histories will appear to vanish as requests land on different instances. P0.3 (days 9–10) fixes this — but if you deploy before P0.3, **pin App Runner to max 1 instance** in the interim.
+
+6. **`npx prisma generate` on every container start** (the current `CMD` in `backend/Dockerfile`) adds seconds to cold starts and requires network access at boot. Move `prisma generate` fully into the build stage — `npm run build` already runs it — and simplify the runtime `CMD` to `node dist/server.js`.
+
+7. **CloudFront caches your API if you let it.** If you route `/api/*` through CloudFront, attach the `CachingDisabled` policy to that behavior and forward `Origin`, `Authorization`, and `x-sync-key`. Silent caching of admin or finance responses is a nasty, hard‑to‑diagnose bug.
+
+8. **Don't adopt Supabase Auth.** You already have working admin sessions (hashed bearer tokens) and researcher JWTs. Swapping auth systems is a multi‑day project with real security risk and zero voter‑facing value in this window. Use Supabase as plain managed Postgres.
+
+9. **`docker-compose.yml` stays** as the local dev environment — local Postgres, not Supabase. Just add the `DIRECT_URL` variable so Prisma loads.
+
+### 11.7 Definition of done
+
+**Step 1 — Supabase**
+- [ ] Row counts on `Candidate` / `Receipt` / `Disbursement` / `CountyResult` / `CandidateFinancial` match Railway.
+- [ ] `_prisma_migrations` restored; `prisma migrate deploy` is a no‑op.
+- [ ] `directUrl` in `schema.prisma`; `DIRECT_URL` set in compose, `docker-build.yml`, and `env.ts`.
+- [ ] PostgREST locked down; **Supabase Advisors shows zero "RLS disabled in public" errors.**
+- [ ] Railway backend serving live traffic off Supabase for 24h with no pooler errors.
+- [ ] Final Railway dump archived.
+
+**Step 2 — AWS**
+- [ ] Budget alarm active; root MFA on; no static AWS keys in GitHub.
+- [ ] App Runner health check on `/api/health/live`, not `/api/health`.
+- [ ] Both SPAs load over HTTPS on the production domain with zero CORS errors, and a hard refresh on a deep link (`/candidates/:id`) returns 200.
+- [ ] `db-migrate.yml` runs green against the Supabase session pooler.
+- [ ] One full `sync:all` completes via EventBridge and writes a `SyncLog` row.
+- [ ] CloudWatch alarms on App Runner 5xx rate; Supabase disk‑usage alert configured.
+- [ ] Railway and Vercel projects deleted.
+
+---
+
+## 12. Appendix — Prisma Models Present Today
 
 `Candidate`, `CandidateFinancial`, `Committee`, `Election`, `CandidateElection`, `FinancialSummary`, `Receipt`, `Disbursement`, `IdeologyScore`, `SyncLog`, `SyncLease`, `AdminUser`, `AdminSession`, `County`, `CountyResult`, `ResearcherUser`, `SavedSimulation`, `Deadline`.
 
