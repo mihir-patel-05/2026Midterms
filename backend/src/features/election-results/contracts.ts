@@ -225,6 +225,9 @@ export const ContestResultSchema = z
 
     const candidateIds = new Set(result.candidates.map(candidate => candidate.id));
     const candidacyIds = new Set(result.candidates.map(candidate => candidate.candidacyId));
+    const candidacyByCandidateId = new Map(
+      result.candidates.map(candidate => [candidate.id, candidate.candidacyId])
+    );
 
     if (candidateIds.size !== result.candidates.length) {
       context.addIssue({
@@ -244,8 +247,11 @@ export const ContestResultSchema = z
 
     const validateCandidateResults = (
       candidateResults: z.infer<typeof CandidateResultSchema>[],
+      totalVotes: number,
       path: Array<string | number>
     ) => {
+      const resultCandidateIds = new Set<string>();
+
       for (const [index, candidateResult] of candidateResults.entries()) {
         if (!candidateIds.has(candidateResult.candidateId)) {
           context.addIssue({
@@ -262,16 +268,49 @@ export const ContestResultSchema = z
             path: [...path, index, 'candidacyId'],
           });
         }
+
+        if (
+          candidacyByCandidateId.has(candidateResult.candidateId) &&
+          candidacyByCandidateId.get(candidateResult.candidateId) !== candidateResult.candidacyId
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'candidateId and candidacyId must reference the same candidate',
+            path: [...path, index, 'candidacyId'],
+          });
+        }
+
+        if (resultCandidateIds.has(candidateResult.candidateId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'candidate results must not contain duplicate candidates',
+            path: [...path, index, 'candidateId'],
+          });
+        }
+
+        resultCandidateIds.add(candidateResult.candidateId);
+      }
+
+      const listedVotes = candidateResults.reduce(
+        (sum, candidateResult) => sum + candidateResult.votes,
+        0
+      );
+      if (listedVotes > totalVotes) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'candidate vote sum cannot exceed totalVotes',
+          path,
+        });
       }
     };
 
-    validateCandidateResults(result.candidateResults, ['candidateResults']);
+    validateCandidateResults(result.candidateResults, result.totalVotes, ['candidateResults']);
     for (const [index, reportingUnitResult] of result.reportingUnitResults.entries()) {
-      validateCandidateResults(reportingUnitResult.candidateResults, [
-        'reportingUnitResults',
-        index,
-        'candidateResults',
-      ]);
+      validateCandidateResults(
+        reportingUnitResult.candidateResults,
+        reportingUnitResult.totalVotes,
+        ['reportingUnitResults', index, 'candidateResults']
+      );
     }
 
     if (result.certificationState === 'CERTIFIED' && result.status !== 'COMPLETE') {

@@ -112,6 +112,49 @@ test('certified results must be complete', () => {
   );
 });
 
+test('candidate result ids must reference the same candidate and candidacy', () => {
+  const invalid: ElectionResultsResponse = structuredClone(mockPartialSenateResultsFixture);
+  assert.ok(invalid.data);
+  invalid.data.candidateResults[0].candidacyId = invalid.data.candidates[1].candidacyId;
+
+  const parsed = ElectionResultsResponseSchema.safeParse(invalid);
+  assert.equal(parsed.success, false);
+  assert.ok(
+    parsed.error.issues.some(
+      issue => issue.message === 'candidateId and candidacyId must reference the same candidate'
+    ),
+    parsed.error.message
+  );
+});
+
+test('candidate results reject duplicate candidate rows', () => {
+  const invalid: ElectionResultsResponse = structuredClone(mockPartialSenateResultsFixture);
+  assert.ok(invalid.data);
+  invalid.data.candidateResults[1] = structuredClone(invalid.data.candidateResults[0]);
+
+  const parsed = ElectionResultsResponseSchema.safeParse(invalid);
+  assert.equal(parsed.success, false);
+  assert.ok(
+    parsed.error.issues.some(
+      issue => issue.message === 'candidate results must not contain duplicate candidates'
+    ),
+    parsed.error.message
+  );
+});
+
+test('listed candidate votes cannot exceed the reported total vote count', () => {
+  const invalid: ElectionResultsResponse = structuredClone(mockPartialSenateResultsFixture);
+  assert.ok(invalid.data);
+  invalid.data.candidateResults[0].votes = invalid.data.totalVotes + 1;
+
+  const parsed = ElectionResultsResponseSchema.safeParse(invalid);
+  assert.equal(parsed.success, false);
+  assert.ok(
+    parsed.error.issues.some(issue => issue.message === 'candidate vote sum cannot exceed totalVotes'),
+    parsed.error.message
+  );
+});
+
 test('provider feature flags are keyed by their matching provider key', () => {
   assert.equal(ElectionResultsFeatureFlagsSchema.safeParse(mockElectionResultsFeatureFlags).success, true);
 
