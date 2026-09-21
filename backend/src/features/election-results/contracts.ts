@@ -42,12 +42,12 @@ export const ResultStatusSchema = z.enum([
   'UNAVAILABLE',
 ]);
 export const CertificationStateSchema = z.enum([
-  'UNCERTIFIED',
+  'UNOFFICIAL',
   'PARTIALLY_CERTIFIED',
   'CERTIFIED',
 ]);
 export const SourceHealthSchema = z.enum([
-  'HEALTHY',
+  'CURRENT',
   'DEGRADED',
   'STALE',
   'UNAVAILABLE',

@@ -48,7 +48,7 @@ test('fixtures cover Senate, House, statewide, county, stale, partial, certified
   assert.equal(mockCertifiedStatewideResultsFixture.data?.status, 'COMPLETE');
 
   assert.equal(mockCountyResultsFixture.data?.reportingUnit.type, 'COUNTY');
-  assert.equal(mockCountyResultsFixture.data?.certificationState, 'UNCERTIFIED');
+  assert.equal(mockCountyResultsFixture.data?.certificationState, 'UNOFFICIAL');
 
   assert.equal(mockUnavailableResultsFixture.data, null);
   assert.equal(mockUnavailableResultsFixture.meta.responseStatus, 'UNAVAILABLE');

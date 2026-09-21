@@ -23,7 +23,7 @@ const mockSource = (
   name: 'Election Dashboard Fictional Fixture',
   url: 'https://fixtures.example.test/election-results',
   type: 'MOCK_FIXTURE',
-  health: 'HEALTHY',
+  health: 'CURRENT',
   isMock: true,
   updatedAt,
   lastCheckedAt: updatedAt,
@@ -132,7 +132,7 @@ export const mockPartialSenateResultsFixture: ElectionResultsResponse = {
           precincts: { reported: 98, total: 120, percentage: 81.67 },
         },
         status: 'IN_PROGRESS',
-        certificationState: 'UNCERTIFIED',
+        certificationState: 'UNOFFICIAL',
         updatedAt: senateUpdatedAt,
       },
       {
@@ -156,7 +156,7 @@ export const mockPartialSenateResultsFixture: ElectionResultsResponse = {
           precincts: { reported: 76, total: 110, percentage: 69.09 },
         },
         status: 'IN_PROGRESS',
-        certificationState: 'UNCERTIFIED',
+        certificationState: 'UNOFFICIAL',
         updatedAt: senateUpdatedAt,
       },
     ],
@@ -166,7 +166,7 @@ export const mockPartialSenateResultsFixture: ElectionResultsResponse = {
       precincts: { reported: 744, total: 1_200, percentage: 62 },
     },
     status: 'IN_PROGRESS',
-    certificationState: 'UNCERTIFIED',
+    certificationState: 'UNOFFICIAL',
     updatedAt: senateUpdatedAt,
   },
   meta: {
@@ -251,7 +251,7 @@ export const mockStaleHouseResultsFixture: ElectionResultsResponse = {
       precincts: { reported: 283, total: 410, percentage: 69.02 },
     },
     status: 'DELAYED',
-    certificationState: 'UNCERTIFIED',
+    certificationState: 'UNOFFICIAL',
     updatedAt: houseUpdatedAt,
   },
   meta: {
@@ -417,7 +417,7 @@ export const mockCountyResultsFixture: ElectionResultsResponse = {
       precincts: { reported: 104, total: 120, percentage: 86.67 },
     },
     status: 'IN_PROGRESS',
-    certificationState: 'UNCERTIFIED',
+    certificationState: 'UNOFFICIAL',
     updatedAt: countyUpdatedAt,
   },
   meta: {

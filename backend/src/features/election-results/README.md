@@ -16,7 +16,10 @@ implement, or make coverage claims about an external provider.
 Important semantics:
 
 - `status` describes result reporting; `certificationState` separately describes certification.
-  Complete reporting is not treated as certification.
+  Complete reporting is not treated as certification. Certification uses `UNOFFICIAL`,
+  `PARTIALLY_CERTIFIED`, and `CERTIFIED`.
+- Source health uses `CURRENT` for a source updating within its expected interval; degraded, stale,
+  unavailable, and not-configured states remain explicit.
 - Progress counts may be `null` when a source does not publish them. Missing progress is not
   represented as zero.
 - `freshness`, `coverage`, and `responseStatus` are independent so clients can clearly display
