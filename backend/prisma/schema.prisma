@@ -38,6 +38,7 @@ model Candidate {
   candidateElections  CandidateElection[]
   ideologyScores      IdeologyScore[]
   financials          CandidateFinancial[]
+  normalizedCandidacies Candidacy[]          @relation("LegacyCandidateCandidacies")
 
   @@index([candidateId])
   @@index([name])
@@ -172,6 +173,7 @@ model Election {
 
   // Relations
   candidateElections  CandidateElection[]
+  normalizedContest   Contest?            @relation("LegacyElectionContest")
 
   @@index([state])
   @@index([electionDate])
@@ -195,6 +197,7 @@ model CandidateElection {
   // Relations
   candidate   Candidate   @relation(fields: [candidateId], references: [candidateId])
   election    Election    @relation(fields: [electionId], references: [id])
+  normalizedCandidacy Candidacy? @relation("LegacyCandidateElectionCandidacy")
 
   @@unique([candidateId, electionId])
   @@index([candidateId])
@@ -465,4 +468,571 @@ model Deadline {
   @@index([date])
   @@index([isActive])
   @@map("deadlines")
+}
+
+// Provider-neutral election/result models. The legacy Candidate, Election,
+// CandidateElection, County, and CountyResult models remain unchanged and can
+// be linked during a reviewed backfill.
+
+enum ElectionEventType {
+  GENERAL
+  PRIMARY
+  RUNOFF
+  SPECIAL
+  OTHER
+}
+
+enum ElectionEventStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+enum ContestStatus {
+  SCHEDULED
+  OPEN
+  UNCONTESTED
+  REPORTING
+  COMPLETE
+  CANCELLED
+}
+
+enum BallotStatus {
+  UNCONFIRMED
+  FEC_FILED
+  BALLOT_CONFIRMED
+  WITHDRAWN
+  DISQUALIFIED
+  WRITE_IN
+}
+
+enum DataSourceType {
+  OFFICIAL_FEDERAL
+  OFFICIAL_STATE
+  OFFICIAL_LOCAL
+  LICENSED_PROVIDER
+  MOCK_FIXTURE
+  OTHER
+}
+
+enum SourceHealthStatus {
+  CURRENT
+  STALE
+  DEGRADED
+  UNAVAILABLE
+  NOT_CONFIGURED
+}
+
+enum IngestionRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum IngestionErrorSeverity {
+  WARNING
+  ERROR
+  FATAL
+}
+
+enum RawArtifactStatus {
+  FETCHED
+  VALIDATED
+  REJECTED
+}
+
+enum GeographyUnitType {
+  NATION
+  STATE
+  CONGRESSIONAL_DISTRICT
+  COUNTY
+  PRECINCT
+  SPLIT_PRECINCT
+  MUNICIPALITY
+  OTHER
+}
+
+enum GeographyRelationshipType {
+  CONTAINS
+  INTERSECTS
+  EQUIVALENT_TO
+}
+
+enum ReportingUnitType {
+  NATION
+  STATE
+  DISTRICT
+  COUNTY
+  PRECINCT
+  SPLIT_PRECINCT
+  BALLOT_BATCH
+  OTHER
+}
+
+enum SnapshotPublicationStatus {
+  STAGED
+  PUBLISHED
+  SUPERSEDED
+  REJECTED
+}
+
+enum ReportingStatus {
+  NOT_STARTED
+  PARTIAL
+  COMPLETE
+  DELAYED
+  SUSPENDED
+  UNAVAILABLE
+}
+
+enum CertificationStatus {
+  UNOFFICIAL
+  CANVASSING
+  CERTIFIED
+  RECOUNT
+  CONTESTED
+}
+
+enum CertificationEventType {
+  UNOFFICIAL_RESULTS_PUBLISHED
+  CANVASS_STARTED
+  AUDIT_STARTED
+  CERTIFIED
+  RECOUNT_STARTED
+  RECOUNT_COMPLETED
+  CONTESTED
+  CORRECTED
+}
+
+model DataSource {
+  id                     String             @id @default(uuid())
+  key                    String             @unique
+  name                   String
+  type                   DataSourceType
+  authority              String?
+  homepageUrl            String?            @map("homepage_url")
+  attributionText        String             @map("attribution_text")
+  licenseName            String?            @map("license_name")
+  licenseUrl             String?            @map("license_url")
+  coverageDescription    String?            @map("coverage_description") @db.Text
+  expectedCadenceSeconds Int?               @map("expected_cadence_seconds")
+  healthStatus           SourceHealthStatus @default(NOT_CONFIGURED) @map("health_status")
+  lastCheckedAt          DateTime?          @map("last_checked_at")
+  lastSuccessfulAt       DateTime?          @map("last_successful_at")
+  isEnabled              Boolean            @default(false) @map("is_enabled")
+  isMock                 Boolean            @default(false) @map("is_mock")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  electionEvents      ElectionEvent[]
+  contests            Contest[]
+  candidacies         Candidacy[]
+  reportingUnits      ReportingUnit[]
+  ingestionRuns       IngestionRun[]
+  rawArtifacts        RawArtifact[]
+  resultSnapshots     ResultSnapshot[]
+  certificationEvents CertificationEvent[]
+
+  @@index([type])
+  @@index([healthStatus])
+  @@index([isEnabled, isMock])
+  @@map("data_sources")
+}
+
+model ElectionEvent {
+  id               String              @id @default(uuid())
+  name             String
+  electionDate     DateTime            @map("election_date") @db.Date
+  type             ElectionEventType
+  status           ElectionEventStatus @default(SCHEDULED)
+  cycle            Int
+  stateCode        String?             @map("state_code")
+  sourceId         String?             @map("source_id")
+  sourceElectionId String?             @map("source_election_id")
+  sourceUrl        String?             @map("source_url")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  source   DataSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  contests Contest[]
+
+  @@unique([sourceId, sourceElectionId])
+  @@index([electionDate])
+  @@index([cycle, stateCode])
+  @@index([status])
+  @@map("election_events")
+}
+
+model Contest {
+  id                 String        @id @default(uuid())
+  electionEventId    String        @map("election_event_id")
+  sourceId           String?       @map("source_id")
+  sourceContestId    String?       @map("source_contest_id")
+  legacyElectionId   String?       @unique @map("legacy_election_id")
+  electionDistrictId String?       @map("election_district_id")
+  currentSnapshotId  String?       @unique @map("current_snapshot_id")
+  name               String
+  office             String
+  officeLevel        String?       @map("office_level")
+  stateCode          String?       @map("state_code")
+  districtCode       String?       @map("district_code")
+  status             ContestStatus @default(SCHEDULED)
+  voteFor            Int           @default(1) @map("vote_for")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  electionEvent       ElectionEvent        @relation(fields: [electionEventId], references: [id], onDelete: Cascade)
+  source              DataSource?          @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  legacyElection      Election?            @relation("LegacyElectionContest", fields: [legacyElectionId], references: [id], onDelete: SetNull)
+  electionDistrict    GeographyUnit?       @relation(fields: [electionDistrictId], references: [id], onDelete: SetNull)
+  currentSnapshot     ResultSnapshot?      @relation("CurrentContestSnapshot", fields: [currentSnapshotId], references: [id], onDelete: SetNull)
+  candidacies         Candidacy[]
+  snapshots           ResultSnapshot[]     @relation("ContestResultSnapshots")
+  certificationEvents CertificationEvent[]
+  ingestionErrors     IngestionError[]
+
+  @@unique([sourceId, sourceContestId])
+  @@index([electionEventId, office, districtCode])
+  @@index([stateCode, office])
+  @@index([status])
+  @@map("contests")
+}
+
+model Person {
+  id             String   @id @default(uuid())
+  displayName    String   @map("display_name")
+  normalizedName String   @map("normalized_name")
+  firstName      String?  @map("first_name")
+  middleName     String?  @map("middle_name")
+  lastName       String?  @map("last_name")
+  suffix         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  candidacies Candidacy[]
+
+  @@index([normalizedName])
+  @@map("people")
+}
+
+model Party {
+  id           String   @id @default(uuid())
+  name         String
+  abbreviation String?
+  sourceCode   String?  @map("source_code")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  candidacies Candidacy[]
+
+  @@unique([name, sourceCode])
+  @@index([abbreviation])
+  @@map("parties")
+}
+
+model Candidacy {
+  id                        String       @id @default(uuid())
+  personId                  String       @map("person_id")
+  contestId                 String       @map("contest_id")
+  partyId                   String?      @map("party_id")
+  sourceId                  String?      @map("source_id")
+  sourceCandidateId         String?      @map("source_candidate_id")
+  fecCandidateId            String?      @map("fec_candidate_id")
+  legacyCandidateId         String?      @map("legacy_candidate_id")
+  legacyCandidateElectionId String?      @unique @map("legacy_candidate_election_id")
+  ballotName                String?      @map("ballot_name")
+  ballotOrder               Int?         @map("ballot_order")
+  ballotStatus              BallotStatus @default(UNCONFIRMED) @map("ballot_status")
+  isIncumbent               Boolean      @default(false) @map("is_incumbent")
+  createdAt                 DateTime     @default(now()) @map("created_at")
+  updatedAt                 DateTime     @updatedAt @map("updated_at")
+
+  person                  Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
+  contest                 Contest            @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  party                   Party?             @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  source                  DataSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  legacyCandidate         Candidate?         @relation("LegacyCandidateCandidacies", fields: [legacyCandidateId], references: [id], onDelete: SetNull)
+  legacyCandidateElection CandidateElection? @relation("LegacyCandidateElectionCandidacy", fields: [legacyCandidateElectionId], references: [id], onDelete: SetNull)
+  votes                   CandidateVote[]
+
+  @@unique([contestId, personId])
+  @@unique([sourceId, sourceCandidateId, contestId])
+  @@index([contestId, ballotOrder])
+  @@index([fecCandidateId])
+  @@index([legacyCandidateId])
+  @@index([ballotStatus])
+  @@map("candidacies")
+}
+
+model GeographyVersion {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  vintage     String
+  congress    Int?
+  sourceUrl   String    @map("source_url")
+  sha256      String
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  units GeographyUnit[]
+
+  @@unique([vintage, congress, sha256])
+  @@map("geography_versions")
+}
+
+model GeographyUnit {
+  id           String            @id @default(uuid())
+  versionId    String            @map("version_id")
+  type         GeographyUnitType
+  geoid        String
+  name         String
+  stateCode    String?           @map("state_code")
+  districtCode String?           @map("district_code")
+  countyFips   String?           @map("county_fips")
+  metadata     Json?
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  version         GeographyVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  parentRelations GeographyRelation[] @relation("GeographyHierarchyParent")
+  childRelations  GeographyRelation[] @relation("GeographyHierarchyChild")
+  reportingUnits  ReportingUnit[]
+  contests        Contest[]
+
+  @@unique([versionId, type, geoid])
+  @@index([versionId, stateCode, type])
+  @@index([countyFips])
+  @@map("geography_units")
+}
+
+model GeographyRelation {
+  parentId          String                    @map("parent_id")
+  childId           String                    @map("child_id")
+  relationshipType  GeographyRelationshipType @map("relationship_type")
+  overlapPercentage Decimal?                  @map("overlap_percentage") @db.Decimal(7, 4)
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  parent GeographyUnit @relation("GeographyHierarchyParent", fields: [parentId], references: [id], onDelete: Cascade)
+  child  GeographyUnit @relation("GeographyHierarchyChild", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@id([parentId, childId, relationshipType])
+  @@index([childId, relationshipType])
+  @@map("geography_relations")
+}
+
+model ReportingUnit {
+  id              String            @id @default(uuid())
+  sourceId        String            @map("source_id")
+  geographyUnitId String?           @map("geography_unit_id")
+  parentId        String?           @map("parent_id")
+  sourceUnitId    String            @map("source_unit_id")
+  name            String
+  type            ReportingUnitType
+  isDistricted    Boolean           @default(false) @map("is_districted")
+  isMailOnly      Boolean           @default(false) @map("is_mail_only")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  source         DataSource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  geographyUnit  GeographyUnit?  @relation(fields: [geographyUnitId], references: [id], onDelete: SetNull)
+  parent         ReportingUnit?  @relation("ReportingUnitHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children       ReportingUnit[] @relation("ReportingUnitHierarchy")
+  candidateVotes CandidateVote[]
+  contestMetrics ContestMetric[]
+
+  @@unique([sourceId, sourceUnitId])
+  @@index([geographyUnitId])
+  @@index([parentId])
+  @@index([type])
+  @@map("reporting_units")
+}
+
+model IngestionRun {
+  id              String             @id @default(uuid())
+  sourceId        String             @map("source_id")
+  status          IngestionRunStatus @default(QUEUED)
+  parserVersion   String             @map("parser_version")
+  startedAt       DateTime?          @map("started_at")
+  completedAt     DateTime?          @map("completed_at")
+  recordsFetched  Int                @default(0) @map("records_fetched")
+  recordsAccepted Int                @default(0) @map("records_accepted")
+  recordsRejected Int                @default(0) @map("records_rejected")
+  errorSummary    String?            @map("error_summary") @db.Text
+  metadata        Json?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  source              DataSource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  artifacts           RawArtifact[]
+  errors              IngestionError[]
+  resultSnapshots     ResultSnapshot[]
+  certificationEvents CertificationEvent[]
+
+  @@index([sourceId, startedAt])
+  @@index([status, createdAt])
+  @@map("ingestion_runs")
+}
+
+model RawArtifact {
+  id              String            @id @default(uuid())
+  sourceId        String            @map("source_id")
+  ingestionRunId  String            @map("ingestion_run_id")
+  status          RawArtifactStatus @default(FETCHED)
+  storageKey      String            @map("storage_key")
+  contentSha256   String            @map("content_sha256")
+  contentType     String?           @map("content_type")
+  payloadByteSize BigInt?           @map("payload_byte_size")
+  sourceUrl       String?           @map("source_url")
+  sourceUpdatedAt DateTime?         @map("source_updated_at")
+  fetchedAt       DateTime          @default(now()) @map("fetched_at")
+  httpStatus      Int?              @map("http_status")
+  etag            String?
+  lastModified    String?           @map("last_modified")
+  isMock          Boolean           @default(false) @map("is_mock")
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  source       DataSource       @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun IngestionRun     @relation(fields: [ingestionRunId], references: [id], onDelete: Cascade)
+  snapshots    ResultSnapshot[]
+  errors       IngestionError[]
+
+  @@unique([sourceId, contentSha256])
+  @@index([ingestionRunId])
+  @@index([status, fetchedAt])
+  @@map("raw_artifacts")
+}
+
+model IngestionError {
+  id             String                 @id @default(uuid())
+  ingestionRunId String                 @map("ingestion_run_id")
+  rawArtifactId  String?                @map("raw_artifact_id")
+  contestId      String?                @map("contest_id")
+  severity       IngestionErrorSeverity @default(ERROR)
+  code           String
+  message        String                 @db.Text
+  recordKey      String?                @map("record_key")
+  details        Json?
+  occurredAt     DateTime               @default(now()) @map("occurred_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  ingestionRun IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Cascade)
+  rawArtifact  RawArtifact? @relation(fields: [rawArtifactId], references: [id], onDelete: SetNull)
+  contest      Contest?     @relation(fields: [contestId], references: [id], onDelete: SetNull)
+
+  @@index([ingestionRunId, severity])
+  @@index([rawArtifactId])
+  @@index([contestId])
+  @@map("ingestion_errors")
+}
+
+model ResultSnapshot {
+  id                String                    @id @default(uuid())
+  contestId         String                    @map("contest_id")
+  sourceId          String                    @map("source_id")
+  ingestionRunId    String?                   @map("ingestion_run_id")
+  rawArtifactId     String?                   @map("raw_artifact_id")
+  sourceSnapshotId  String?                   @map("source_snapshot_id")
+  payloadSha256     String                    @map("payload_sha256")
+  publicationStatus SnapshotPublicationStatus @default(STAGED) @map("publication_status")
+  reportingStatus   ReportingStatus           @default(NOT_STARTED) @map("reporting_status")
+  certification     CertificationStatus       @default(UNOFFICIAL)
+  sourceUpdatedAt   DateTime?                 @map("source_updated_at")
+  receivedAt        DateTime                  @default(now()) @map("received_at")
+  publishedAt       DateTime?                 @map("published_at")
+  isPartial         Boolean                   @default(false) @map("is_partial")
+  isMock            Boolean                   @default(false) @map("is_mock")
+  notes             String?                   @db.Text
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  contest           Contest         @relation("ContestResultSnapshots", fields: [contestId], references: [id], onDelete: Cascade)
+  source            DataSource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun      IngestionRun?   @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+  rawArtifact       RawArtifact?    @relation(fields: [rawArtifactId], references: [id], onDelete: SetNull)
+  currentForContest Contest?        @relation("CurrentContestSnapshot")
+  candidateVotes    CandidateVote[]
+  contestMetrics    ContestMetric[]
+
+  @@unique([contestId, sourceId, payloadSha256])
+  @@index([contestId, publishedAt])
+  @@index([sourceId, sourceUpdatedAt])
+  @@index([publicationStatus, reportingStatus])
+  @@map("result_snapshots")
+}
+
+model CandidateVote {
+  id                   String   @id @default(uuid())
+  snapshotId           String   @map("snapshot_id")
+  candidacyId          String   @map("candidacy_id")
+  reportingUnitId      String   @map("reporting_unit_id")
+  voteType             String   @default("TOTAL") @map("vote_type")
+  votes                BigInt
+  sourceVotePercentage Decimal? @map("source_vote_percentage") @db.Decimal(7, 4)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  snapshot      ResultSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  candidacy     Candidacy      @relation(fields: [candidacyId], references: [id], onDelete: Restrict)
+  reportingUnit ReportingUnit  @relation(fields: [reportingUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([snapshotId, candidacyId, reportingUnitId, voteType])
+  @@index([snapshotId, reportingUnitId])
+  @@index([candidacyId, snapshotId])
+  @@map("candidate_votes")
+}
+
+model ContestMetric {
+  id                      String   @id @default(uuid())
+  snapshotId              String   @map("snapshot_id")
+  reportingUnitId         String   @map("reporting_unit_id")
+  ballotsCast             BigInt?  @map("ballots_cast")
+  votesCounted            BigInt?  @map("votes_counted")
+  registeredVoters        BigInt?  @map("registered_voters")
+  reportingUnitsTotal     Int?     @map("reporting_units_total")
+  reportingUnitsReporting Int?     @map("reporting_units_reporting")
+  precinctsTotal          Int?     @map("precincts_total")
+  precinctsReporting      Int?     @map("precincts_reporting")
+  reportingPercentage     Decimal? @map("reporting_percentage") @db.Decimal(7, 4)
+  isComplete              Boolean? @map("is_complete")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  snapshot      ResultSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  reportingUnit ReportingUnit  @relation(fields: [reportingUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([snapshotId, reportingUnitId])
+  @@index([reportingUnitId])
+  @@map("contest_metrics")
+}
+
+model CertificationEvent {
+  id             String                 @id @default(uuid())
+  contestId      String                 @map("contest_id")
+  sourceId       String                 @map("source_id")
+  ingestionRunId String?                @map("ingestion_run_id")
+  type           CertificationEventType
+  certification  CertificationStatus
+  effectiveAt    DateTime               @map("effective_at")
+  sourceUrl      String                 @map("source_url")
+  notes          String?                @db.Text
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  contest      Contest       @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  source       DataSource    @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun IngestionRun? @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+
+  @@index([contestId, effectiveAt])
+  @@index([sourceId])
+  @@map("certification_events")
 }

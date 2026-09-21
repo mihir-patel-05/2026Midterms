@@ -1,0 +1,75 @@
+{
+  "fixtureNotice": "FICTIONAL MOCK DATA ONLY. This is not a provider payload and makes no coverage claim.",
+  "fixtureVersion": "1.0.0",
+  "source": {
+    "key": "fictional-day0-fixture",
+    "name": "Day 0 Fictional Results Fixture",
+    "url": "https://example.invalid/2026/results/zz/house-00",
+    "isMock": true
+  },
+  "sourceUpdatedAt": "2026-11-04T02:15:00.000Z",
+  "election": {
+    "sourceElectionId": "MOCK-2026-GENERAL-ZZ",
+    "name": "Fictional Example State 2026 General Election",
+    "date": "2026-11-03",
+    "type": "GENERAL",
+    "stateCode": "ZZ"
+  },
+  "contest": {
+    "sourceContestId": "MOCK-ZZ-HOUSE-00",
+    "name": "Fictional Example State U.S. House District 00",
+    "office": "US_HOUSE",
+    "districtCode": "00",
+    "reportingStatus": "PARTIAL",
+    "certification": "UNOFFICIAL"
+  },
+  "candidates": [
+    {
+      "sourceCandidateId": "MOCK-CANDIDATE-A",
+      "name": "Alex Example",
+      "party": "Example Party A",
+      "ballotOrder": 1,
+      "ballotStatus": "BALLOT_CONFIRMED"
+    },
+    {
+      "sourceCandidateId": "MOCK-CANDIDATE-B",
+      "name": "Bailey Sample",
+      "party": "Example Party B",
+      "ballotOrder": 2,
+      "ballotStatus": "BALLOT_CONFIRMED"
+    }
+  ],
+  "reportingUnits": [
+    {
+      "sourceUnitId": "MOCK-ZZ-CD-00",
+      "name": "Fictional Example State District 00",
+      "type": "DISTRICT"
+    }
+  ],
+  "results": [
+    {
+      "sourceCandidateId": "MOCK-CANDIDATE-A",
+      "sourceUnitId": "MOCK-ZZ-CD-00",
+      "voteType": "TOTAL",
+      "votes": 12345,
+      "sourceVotePercentage": 51.3402
+    },
+    {
+      "sourceCandidateId": "MOCK-CANDIDATE-B",
+      "sourceUnitId": "MOCK-ZZ-CD-00",
+      "voteType": "TOTAL",
+      "votes": 11700,
+      "sourceVotePercentage": 48.6598
+    }
+  ],
+  "metrics": {
+    "sourceUnitId": "MOCK-ZZ-CD-00",
+    "votesCounted": 24045,
+    "reportingUnitsTotal": 100,
+    "reportingUnitsReporting": 73,
+    "precinctsTotal": 100,
+    "precinctsReporting": 73,
+    "reportingPercentage": 73.0,
+    "isComplete": false
+  }
+}
