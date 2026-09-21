@@ -1,0 +1,2258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A standalone proof-of-concept interface for a 2026 U.S. midterm election dashboard. All displayed election data is fictional mock data."
+    />
+    <title>ElectionScope 2026 — Dashboard Proof of Concept</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1220'/%3E%3Cpath d='M17 18h30v28H17z' fill='none' stroke='%235ce1c0' stroke-width='4'/%3E%3Cpath d='m23 30 6 6 13-14' fill='none' stroke='%23f7f9fc' stroke-linecap='round' stroke-linejoin='round' stroke-width='4'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #070b12;
+        --surface: #0b111d;
+        --surface-2: #101827;
+        --surface-3: #162236;
+        --line: #253249;
+        --line-soft: rgba(121, 143, 173, 0.18);
+        --text: #f7f9fc;
+        --muted: #93a4bd;
+        --quiet: #607089;
+        --teal: #5ce1c0;
+        --teal-deep: #143e3a;
+        --blue: #6eb6ff;
+        --blue-deep: #163552;
+        --coral: #ff8c7c;
+        --coral-deep: #4c2629;
+        --amber: #f4c769;
+        --purple: #b5a4ff;
+        --green: #74d89a;
+        --danger: #ff6f79;
+        --shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+        --radius-sm: 8px;
+        --radius: 13px;
+        --header-height: 68px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--bg);
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 72% 8%, rgba(43, 110, 118, 0.13), transparent 30rem),
+          radial-gradient(circle at 22% 86%, rgba(63, 78, 137, 0.12), transparent 28rem),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+
+      button,
+      input,
+      select {
+        color: inherit;
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      button,
+      [role="button"] {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--teal);
+        outline-offset: 3px;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: grid;
+        grid-template-columns: minmax(230px, auto) minmax(300px, 1fr) auto;
+        min-height: var(--header-height);
+        align-items: center;
+        gap: 22px;
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(7, 11, 18, 0.92);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(92, 225, 192, 0.42);
+        border-radius: 10px;
+        background: linear-gradient(145deg, rgba(92, 225, 192, 0.18), rgba(92, 225, 192, 0.03));
+        box-shadow: inset 0 0 18px rgba(92, 225, 192, 0.06);
+      }
+
+      .brand-mark svg {
+        width: 21px;
+        height: 21px;
+      }
+
+      .brand-name {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .brand-name strong {
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .brand-name span {
+        color: var(--teal);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .global-search {
+        position: relative;
+        width: min(680px, 100%);
+        justify-self: center;
+      }
+
+      .global-search svg {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+        width: 17px;
+        height: 17px;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .global-search input {
+        width: 100%;
+        height: 42px;
+        padding: 0 96px 0 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: none;
+        background: #0e1623;
+        color: var(--text);
+        font-size: 0.9rem;
+        transition: border-color 160ms ease, box-shadow 160ms ease;
+      }
+
+      .global-search input:focus {
+        border-color: rgba(92, 225, 192, 0.62);
+        box-shadow: 0 0 0 4px rgba(92, 225, 192, 0.08);
+      }
+
+      .global-search kbd {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        padding: 4px 7px;
+        transform: translateY(-50%);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-2);
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.7rem;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .mode-pill,
+      .icon-button {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface-2);
+      }
+
+      .mode-pill {
+        gap: 8px;
+        padding: 0 12px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--teal);
+        box-shadow: 0 0 0 4px rgba(92, 225, 192, 0.12);
+      }
+
+      .icon-button {
+        width: 38px;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .icon-button:hover {
+        border-color: #3b4b65;
+        background: var(--surface-3);
+      }
+
+      .mock-banner {
+        display: flex;
+        min-height: 36px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-bottom: 1px solid rgba(244, 199, 105, 0.25);
+        background: rgba(244, 199, 105, 0.07);
+        color: #f6d995;
+        font-size: 0.78rem;
+        letter-spacing: 0.01em;
+        text-align: center;
+      }
+
+      .mock-banner strong {
+        font-weight: 800;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 240px minmax(500px, 1fr) 390px;
+        min-height: calc(100vh - var(--header-height) - 36px);
+      }
+
+      .sidebar,
+      .detail-panel {
+        min-width: 0;
+        background: rgba(10, 16, 27, 0.72);
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+        padding: 18px 15px 30px;
+      }
+
+      .detail-panel {
+        border-left: 1px solid var(--line);
+        padding: 18px;
+      }
+
+      .side-section + .side-section {
+        margin-top: 24px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .eyebrow,
+      .section-label {
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .section-label {
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .select-wrap {
+        position: relative;
+      }
+
+      select {
+        width: 100%;
+        min-height: 42px;
+        appearance: none;
+        padding: 0 36px 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface-2);
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 650;
+      }
+
+      .select-wrap::after {
+        position: absolute;
+        top: 50%;
+        right: 13px;
+        color: var(--muted);
+        content: "⌄";
+        pointer-events: none;
+        transform: translateY(-58%);
+      }
+
+      .filter-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .filter-button,
+      .layer-button {
+        display: grid;
+        width: 100%;
+        min-height: 41px;
+        align-items: center;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.86rem;
+        text-align: left;
+        transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+      }
+
+      .filter-button {
+        grid-template-columns: 26px 1fr auto;
+        gap: 8px;
+        padding: 0 10px;
+      }
+
+      .filter-button:hover,
+      .layer-button:hover {
+        background: rgba(255, 255, 255, 0.035);
+        color: var(--text);
+      }
+
+      .filter-button.active,
+      .layer-button.active {
+        border-color: rgba(92, 225, 192, 0.27);
+        background: rgba(92, 225, 192, 0.09);
+        color: var(--text);
+      }
+
+      .filter-icon {
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--teal);
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .filter-count {
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.055);
+        color: var(--quiet);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .layer-button {
+        grid-template-columns: 18px 1fr;
+        gap: 10px;
+        padding: 0 10px;
+      }
+
+      .layer-swatch {
+        width: 14px;
+        height: 14px;
+        border: 1px solid currentColor;
+        border-radius: 4px;
+      }
+
+      .layer-swatch.districts {
+        background: repeating-linear-gradient(135deg, transparent 0 3px, currentColor 3px 4px);
+      }
+
+      .layer-swatch.counties {
+        background-image: radial-gradient(currentColor 1px, transparent 1px);
+        background-size: 4px 4px;
+      }
+
+      .data-health {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.022);
+      }
+
+      .health-head,
+      .health-row,
+      .inline-split {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .health-head {
+        margin-bottom: 10px;
+        font-size: 0.82rem;
+        font-weight: 750;
+      }
+
+      .health-row {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .health-row + .health-row {
+        margin-top: 7px;
+      }
+
+      .health-value {
+        color: var(--green);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .main-canvas {
+        position: relative;
+        min-width: 0;
+        padding: 18px 20px 22px;
+        overflow: hidden;
+      }
+
+      .main-canvas::before {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background-image:
+          linear-gradient(rgba(121, 143, 173, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(121, 143, 173, 0.035) 1px, transparent 1px);
+        background-size: 32px 32px;
+        content: "";
+        mask-image: linear-gradient(to bottom, black, transparent 88%);
+      }
+
+      .canvas-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 22px;
+        margin-bottom: 14px;
+      }
+
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .breadcrumb span:last-child {
+        color: var(--teal);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 5px;
+        font-size: clamp(1.45rem, 2.2vw, 2.2rem);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+      }
+
+      .canvas-subtitle {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .live-clock {
+        min-width: 155px;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface);
+        text-align: right;
+      }
+
+      .live-clock strong {
+        display: block;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .live-clock span {
+        color: var(--quiet);
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 9px;
+        margin-bottom: 16px;
+      }
+
+      .stat-card {
+        min-width: 0;
+        padding: 11px 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 9px;
+        background: rgba(13, 21, 34, 0.72);
+      }
+
+      .stat-card span {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--quiet);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .stat-card strong {
+        display: block;
+        overflow: hidden;
+        font-size: 1.05rem;
+        font-variant-numeric: tabular-nums;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .map-card {
+        position: relative;
+        min-height: 490px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background:
+          linear-gradient(180deg, rgba(17, 27, 43, 0.76), rgba(8, 13, 22, 0.96)),
+          var(--surface);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .map-card::before {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 51% 44%, rgba(92, 225, 192, 0.07), transparent 34%),
+          linear-gradient(rgba(92, 225, 192, 0.018) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(92, 225, 192, 0.018) 1px, transparent 1px);
+        background-size: auto, 24px 24px, 24px 24px;
+        content: "";
+        pointer-events: none;
+      }
+
+      .map-toolbar {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .map-toolbar strong {
+        font-size: 0.88rem;
+      }
+
+      .map-toolbar span {
+        color: var(--quiet);
+        font-size: 0.73rem;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+
+      .legend-item.ready {
+        color: var(--teal);
+      }
+
+      .legend-item.partial {
+        color: var(--amber);
+      }
+
+      .legend-item.pending {
+        color: var(--quiet);
+      }
+
+      .us-tile-map {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: min(920px, 100%);
+        margin: 24px auto 6px;
+        grid-template-columns: repeat(12, minmax(31px, 1fr));
+        grid-template-rows: repeat(8, minmax(35px, 1fr));
+        gap: 5px;
+      }
+
+      .state-tile {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        min-height: 45px;
+        place-items: center;
+        border: 1px solid #34445e;
+        border-radius: 8px;
+        background: linear-gradient(145deg, #172338, #111a2b);
+        color: #c6d2e5;
+        cursor: pointer;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: clamp(0.66rem, 1vw, 0.82rem);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        transition:
+          transform 120ms ease,
+          border-color 120ms ease,
+          background 120ms ease,
+          color 120ms ease;
+      }
+
+      .state-tile::after {
+        position: absolute;
+        right: 5px;
+        bottom: 5px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--state-status, var(--quiet));
+        content: "";
+        box-shadow: 0 0 9px color-mix(in srgb, var(--state-status, var(--quiet)) 60%, transparent);
+      }
+
+      .state-tile:hover {
+        z-index: 2;
+        border-color: #6380a8;
+        color: white;
+        transform: translateY(-2px);
+      }
+
+      .state-tile.active {
+        z-index: 3;
+        border-color: var(--teal);
+        background: linear-gradient(145deg, #1a4f4a, #12322f);
+        color: white;
+        box-shadow: 0 0 0 3px rgba(92, 225, 192, 0.11), 0 10px 24px rgba(0, 0, 0, 0.32);
+      }
+
+      .us-tile-map.district-mode .state-tile {
+        background:
+          repeating-linear-gradient(90deg, transparent 0 18%, rgba(110, 182, 255, 0.12) 18% 20%),
+          linear-gradient(145deg, #172338, #111a2b);
+      }
+
+      .us-tile-map.county-mode .state-tile {
+        background:
+          radial-gradient(circle, rgba(244, 199, 105, 0.34) 0 1px, transparent 1.5px) 0 0 / 8px 8px,
+          linear-gradient(145deg, #172338, #111a2b);
+      }
+
+      .map-tooltip {
+        position: fixed;
+        z-index: 100;
+        display: none;
+        min-width: 172px;
+        padding: 10px 12px;
+        border: 1px solid #3a4d69;
+        border-radius: 9px;
+        background: rgba(8, 13, 22, 0.96);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+      }
+
+      .map-tooltip.visible {
+        display: block;
+      }
+
+      .map-tooltip strong,
+      .map-tooltip span {
+        display: block;
+      }
+
+      .map-tooltip strong {
+        margin-bottom: 5px;
+        font-size: 0.82rem;
+      }
+
+      .map-tooltip span {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .map-caption {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-top: 10px;
+        color: var(--quiet);
+        font-size: 0.7rem;
+      }
+
+      .map-caption span:last-child {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: right;
+      }
+
+      .event-rail {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 12px;
+        margin-top: 13px;
+      }
+
+      .rail-card {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: rgba(12, 19, 31, 0.82);
+      }
+
+      .rail-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 11px;
+      }
+
+      .rail-head h2 {
+        margin-bottom: 0;
+        font-size: 0.9rem;
+      }
+
+      .rail-head span {
+        color: var(--quiet);
+        font-size: 0.7rem;
+      }
+
+      .activity-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .activity-row {
+        display: grid;
+        grid-template-columns: 48px 8px 1fr;
+        align-items: start;
+        gap: 9px;
+      }
+
+      .activity-row time {
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.69rem;
+      }
+
+      .activity-marker {
+        width: 7px;
+        height: 7px;
+        margin-top: 4px;
+        border-radius: 50%;
+        background: var(--teal);
+      }
+
+      .activity-row p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .activity-row p strong {
+        color: var(--text);
+      }
+
+      .coverage-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .coverage-row {
+        display: grid;
+        grid-template-columns: 82px 1fr 36px;
+        align-items: center;
+        gap: 9px;
+        font-size: 0.72rem;
+      }
+
+      .coverage-row span:first-child {
+        color: var(--muted);
+      }
+
+      .coverage-row strong {
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.68rem;
+        text-align: right;
+      }
+
+      .bar {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: #1c293b;
+      }
+
+      .bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--teal), var(--blue));
+      }
+
+      .detail-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 15px;
+      }
+
+      .state-identity {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+
+      .state-monogram {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(92, 225, 192, 0.36);
+        border-radius: 10px;
+        background: var(--teal-deep);
+        color: var(--teal);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 800;
+      }
+
+      .detail-head h2 {
+        margin-bottom: 2px;
+        font-size: 1.1rem;
+      }
+
+      .detail-head p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      .fresh-badge,
+      .tag,
+      .result-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .fresh-badge {
+        min-height: 27px;
+        padding: 0 9px;
+        border: 1px solid rgba(92, 225, 192, 0.24);
+        background: rgba(92, 225, 192, 0.08);
+        color: var(--teal);
+        font-size: 0.64rem;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        margin-bottom: 15px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #090f19;
+      }
+
+      .tab-button {
+        min-height: 35px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.76rem;
+        font-weight: 750;
+      }
+
+      .tab-button.active {
+        background: var(--surface-3);
+        color: var(--text);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.22);
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      .panel-card {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: rgba(15, 24, 39, 0.8);
+      }
+
+      .panel-card + .panel-card {
+        margin-top: 11px;
+      }
+
+      .panel-card h3 {
+        margin-bottom: 3px;
+        font-size: 0.9rem;
+      }
+
+      .panel-card > p {
+        margin-bottom: 11px;
+        color: var(--muted);
+        font-size: 0.74rem;
+      }
+
+      .race-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 13px;
+      }
+
+      .result-status {
+        min-height: 24px;
+        padding: 0 8px;
+        background: rgba(244, 199, 105, 0.1);
+        color: var(--amber);
+        font-size: 0.61rem;
+        white-space: nowrap;
+      }
+
+      .candidate-result {
+        position: relative;
+        padding: 10px 0;
+      }
+
+      .candidate-result + .candidate-result {
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .candidate-line {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        gap: 12px;
+      }
+
+      .candidate-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .candidate-avatar {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        background: var(--avatar-bg, var(--blue-deep));
+        color: var(--avatar-color, var(--blue));
+        font-size: 0.68rem;
+        font-weight: 850;
+      }
+
+      .candidate-name strong,
+      .candidate-name span {
+        display: block;
+      }
+
+      .candidate-name strong {
+        overflow: hidden;
+        font-size: 0.82rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .candidate-name span {
+        color: var(--quiet);
+        font-size: 0.67rem;
+      }
+
+      .candidate-total {
+        text-align: right;
+      }
+
+      .candidate-total strong,
+      .candidate-total span {
+        display: block;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .candidate-total strong {
+        font-size: 0.88rem;
+      }
+
+      .candidate-total span {
+        color: var(--muted);
+        font-size: 0.68rem;
+      }
+
+      .result-bar {
+        height: 4px;
+        margin-top: 8px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: #1a2637;
+      }
+
+      .result-bar span {
+        display: block;
+        width: var(--width);
+        height: 100%;
+        border-radius: inherit;
+        background: var(--color);
+      }
+
+      .reporting-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 11px;
+        padding-top: 11px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+
+      .county-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .county-row {
+        display: grid;
+        grid-template-columns: 1fr 58px 50px;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 8px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.025);
+        font-size: 0.72rem;
+      }
+
+      .county-row span:first-child {
+        color: #d7dfeb;
+      }
+
+      .county-row span:nth-child(2),
+      .county-row strong {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+
+      .county-row span:nth-child(2) {
+        color: var(--muted);
+      }
+
+      .county-row strong {
+        color: var(--teal);
+        font-size: 0.7rem;
+      }
+
+      .source-note {
+        margin-top: 11px;
+        padding: 9px 10px;
+        border-left: 2px solid var(--amber);
+        background: rgba(244, 199, 105, 0.055);
+        color: #d7c28b;
+        font-size: 0.68rem;
+        line-height: 1.5;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .metric {
+        padding: 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .metric span,
+      .metric strong {
+        display: block;
+      }
+
+      .metric span {
+        margin-bottom: 2px;
+        color: var(--quiet);
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        font-size: 0.92rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .finance-candidates {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        margin-bottom: 11px;
+      }
+
+      .finance-candidate {
+        min-height: 38px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 750;
+      }
+
+      .finance-candidate.active {
+        border-color: rgba(92, 225, 192, 0.34);
+        background: rgba(92, 225, 192, 0.08);
+        color: var(--text);
+      }
+
+      .finance-chart {
+        display: grid;
+        gap: 9px;
+        margin-top: 13px;
+      }
+
+      .finance-row {
+        display: grid;
+        grid-template-columns: 105px 1fr 48px;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.68rem;
+      }
+
+      .finance-row .bar {
+        height: 7px;
+      }
+
+      .finance-row strong {
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.66rem;
+        text-align: right;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 0;
+      }
+
+      .timeline-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 68px 1fr;
+        gap: 11px;
+        min-height: 48px;
+        padding-bottom: 12px;
+      }
+
+      .timeline-row:not(:last-child)::after {
+        position: absolute;
+        top: 18px;
+        bottom: -1px;
+        left: 74px;
+        width: 1px;
+        background: var(--line);
+        content: "";
+      }
+
+      .timeline-row time {
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.66rem;
+      }
+
+      .timeline-copy {
+        position: relative;
+        padding-left: 14px;
+      }
+
+      .timeline-copy::before {
+        position: absolute;
+        top: 4px;
+        left: -1px;
+        width: 7px;
+        height: 7px;
+        border: 2px solid var(--surface-2);
+        border-radius: 50%;
+        background: var(--teal);
+        content: "";
+      }
+
+      .timeline-copy strong,
+      .timeline-copy span {
+        display: block;
+      }
+
+      .timeline-copy strong {
+        margin-bottom: 2px;
+        font-size: 0.73rem;
+      }
+
+      .timeline-copy span {
+        color: var(--muted);
+        font-size: 0.68rem;
+      }
+
+      .detail-footer {
+        margin-top: 13px;
+        padding-top: 13px;
+        border-top: 1px solid var(--line);
+        color: var(--quiet);
+        font-size: 0.66rem;
+        line-height: 1.55;
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 120;
+        display: flex;
+        max-width: min(370px, calc(100vw - 36px));
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid #3b4d68;
+        border-radius: 10px;
+        background: rgba(10, 16, 27, 0.97);
+        box-shadow: var(--shadow);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px);
+        transition: opacity 170ms ease, transform 170ms ease;
+      }
+
+      .toast.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .toast strong,
+      .toast span {
+        display: block;
+      }
+
+      .toast strong {
+        margin-bottom: 2px;
+        font-size: 0.78rem;
+      }
+
+      .toast span {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      @media (max-width: 1180px) {
+        .app-shell {
+          grid-template-columns: 210px minmax(470px, 1fr) 350px;
+        }
+
+        .topbar {
+          grid-template-columns: auto 1fr auto;
+        }
+
+        .brand-name span,
+        .mode-pill span:last-child {
+          display: none;
+        }
+
+        .main-canvas {
+          padding-inline: 14px;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .topbar {
+          grid-template-columns: 1fr auto;
+        }
+
+        .global-search {
+          grid-column: 1 / -1;
+          grid-row: 2;
+          max-width: none;
+        }
+
+        .topbar {
+          padding-bottom: 12px;
+        }
+
+        .app-shell {
+          grid-template-columns: 180px minmax(0, 1fr);
+        }
+
+        .detail-panel {
+          grid-column: 1 / -1;
+          border-top: 1px solid var(--line);
+          border-left: 0;
+        }
+
+        .detail-panel-inner {
+          display: grid;
+          grid-template-columns: minmax(240px, 0.7fr) minmax(420px, 1.3fr);
+          gap: 18px;
+        }
+
+        .detail-intro {
+          min-width: 0;
+        }
+
+        .detail-content {
+          min-width: 0;
+        }
+
+        .event-rail {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar {
+          position: relative;
+          gap: 10px;
+          padding-inline: 14px;
+        }
+
+        .brand-name strong {
+          font-size: 0.92rem;
+        }
+
+        .mode-pill {
+          padding: 0 9px;
+        }
+
+        .mock-banner {
+          padding-inline: 12px;
+        }
+
+        .app-shell {
+          display: block;
+        }
+
+        .sidebar {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 12px;
+        }
+
+        .side-section,
+        .side-section + .side-section {
+          margin: 0;
+          padding: 0;
+          border: 0;
+        }
+
+        .side-section:nth-child(n + 3) {
+          display: none;
+        }
+
+        .filter-list {
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .filter-button {
+          display: flex;
+          min-height: 40px;
+          justify-content: center;
+          padding: 0 7px;
+          text-align: center;
+        }
+
+        .filter-icon,
+        .filter-count {
+          display: none;
+        }
+
+        .main-canvas {
+          padding: 14px 10px 18px;
+        }
+
+        .canvas-head {
+          align-items: stretch;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .live-clock {
+          min-width: 0;
+          text-align: left;
+        }
+
+        .stat-strip {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .map-card {
+          min-height: 0;
+          padding: 13px 9px;
+        }
+
+        .map-toolbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .legend {
+          justify-content: flex-start;
+        }
+
+        .us-tile-map {
+          gap: 3px;
+          margin-top: 18px;
+          grid-template-columns: repeat(12, minmax(19px, 1fr));
+          grid-template-rows: repeat(8, minmax(28px, 1fr));
+        }
+
+        .state-tile {
+          min-height: 32px;
+          border-radius: 5px;
+          font-size: 0.55rem;
+        }
+
+        .state-tile::after {
+          right: 3px;
+          bottom: 3px;
+          width: 3px;
+          height: 3px;
+        }
+
+        .map-caption {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .map-caption span:last-child {
+          text-align: left;
+        }
+
+        .event-rail {
+          display: block;
+        }
+
+        .rail-card + .rail-card {
+          margin-top: 10px;
+        }
+
+        .detail-panel {
+          padding: 14px 10px 24px;
+        }
+
+        .detail-panel-inner {
+          display: block;
+        }
+
+        .detail-content {
+          margin-top: 14px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand" aria-label="ElectionScope home">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4.5 4.5h15v15h-15z" stroke="currentColor" stroke-width="1.7" />
+            <path d="m8 11 2.7 2.8L16.5 8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" />
+          </svg>
+        </div>
+        <div class="brand-name">
+          <strong>ElectionScope</strong>
+          <span>2026</span>
+        </div>
+      </div>
+
+      <label class="global-search">
+        <span class="sr-only">Search states, districts, counties, or candidates</span>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7" />
+          <path d="m16 16 4 4" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" />
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search states, districts, counties, or candidates…" autocomplete="off" />
+        <kbd>/</kbd>
+      </label>
+
+      <div class="top-actions">
+        <div class="mode-pill" aria-label="Prototype data feed status">
+          <i class="status-dot" aria-hidden="true"></i>
+          <span>Demo feed</span>
+        </div>
+        <button class="icon-button" type="button" id="infoButton" aria-label="About this prototype">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" />
+            <path d="M12 10v6M12 7.5v.1" stroke="currentColor" stroke-linecap="round" stroke-width="1.9" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="mock-banner" role="note">
+      <strong>Proof of concept:</strong>
+      all candidates, vote totals, reporting percentages, financial figures, and update events are fictional mock data.
+    </div>
+
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Dashboard filters">
+        <section class="side-section">
+          <label class="section-label" for="cycleSelect">Election cycle</label>
+          <div class="select-wrap">
+            <select id="cycleSelect">
+              <option selected>2026 General</option>
+              <option>2026 Primaries</option>
+              <option>2024 Historical</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <span class="section-label">Office</span>
+          <div class="filter-list" id="officeFilters">
+            <button class="filter-button active" type="button" data-office="all">
+              <span class="filter-icon">◎</span>
+              <span>All federal</span>
+              <span class="filter-count">468</span>
+            </button>
+            <button class="filter-button" type="button" data-office="senate">
+              <span class="filter-icon">S</span>
+              <span>U.S. Senate</span>
+              <span class="filter-count">33</span>
+            </button>
+            <button class="filter-button" type="button" data-office="house">
+              <span class="filter-icon">H</span>
+              <span>U.S. House</span>
+              <span class="filter-count">435</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <span class="section-label">Map layer</span>
+          <div class="filter-list" id="layerFilters">
+            <button class="layer-button active" type="button" data-layer="states">
+              <span class="layer-swatch"></span>
+              <span>States</span>
+            </button>
+            <button class="layer-button" type="button" data-layer="districts">
+              <span class="layer-swatch districts"></span>
+              <span>House districts</span>
+            </button>
+            <button class="layer-button" type="button" data-layer="counties">
+              <span class="layer-swatch counties"></span>
+              <span>Counties</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <span class="section-label">Data status</span>
+          <div class="data-health">
+            <div class="health-head">
+              <span>Source health</span>
+              <span class="health-value">Demo</span>
+            </div>
+            <div class="health-row"><span>Contest records</span><span>468</span></div>
+            <div class="health-row"><span>County feeds</span><span>2,486</span></div>
+            <div class="health-row"><span>Last refresh</span><span>18 sec</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="main-canvas" aria-labelledby="dashboardTitle">
+        <div class="canvas-head">
+          <div>
+            <div class="breadcrumb"><span>United States</span><span>›</span><span id="breadcrumbState">Michigan</span></div>
+            <h1 id="dashboardTitle">Federal election monitor</h1>
+            <p class="canvas-subtitle" id="canvasSubtitle">State, congressional district, county, and campaign-finance drill-down</p>
+          </div>
+          <div class="live-clock" aria-live="polite">
+            <strong id="clock">--:--:-- ET</strong>
+            <span>Mock snapshot time</span>
+          </div>
+        </div>
+
+        <div class="stat-strip" aria-label="National summary">
+          <div class="stat-card"><span>Federal contests</span><strong id="contestCount">468</strong></div>
+          <div class="stat-card"><span>Selected state</span><strong id="selectedStateStat">Michigan</strong></div>
+          <div class="stat-card"><span>House districts</span><strong id="districtCount">13</strong></div>
+          <div class="stat-card"><span>Result status</span><strong id="resultStatusStat">Mock reporting</strong></div>
+        </div>
+
+        <section class="map-card" aria-labelledby="mapHeading">
+          <div class="map-toolbar">
+            <div>
+              <strong id="mapHeading">United States election map</strong>
+              <span id="layerDescription">Select a state to inspect its federal contests</span>
+            </div>
+            <div class="legend" aria-label="Source readiness legend">
+              <span class="legend-item ready"><i class="legend-dot"></i>Source ready</span>
+              <span class="legend-item partial"><i class="legend-dot"></i>Partial detail</span>
+              <span class="legend-item pending"><i class="legend-dot"></i>Not configured</span>
+            </div>
+          </div>
+
+          <div class="us-tile-map" id="usMap" role="group" aria-label="Interactive United States state tile map"></div>
+
+          <div class="map-caption">
+            <span>State tile cartogram shown for a dependency-free prototype; production would use Census district and county vector tiles.</span>
+            <span id="mapReadout">LAYER: STATES · GEO VINTAGE: MOCK-120</span>
+          </div>
+        </section>
+
+        <div class="event-rail">
+          <section class="rail-card" aria-labelledby="activityHeading">
+            <div class="rail-head">
+              <h2 id="activityHeading">Latest source activity</h2>
+              <span>Demo stream</span>
+            </div>
+            <div class="activity-list" id="activityList">
+              <div class="activity-row">
+                <time>21:14</time><i class="activity-marker"></i>
+                <p><strong>MI county snapshot updated.</strong> Four reporting units changed; prior snapshot retained.</p>
+              </div>
+              <div class="activity-row">
+                <time>21:12</time><i class="activity-marker" style="background: var(--blue)"></i>
+                <p><strong>Finance read model refreshed.</strong> Coverage through mock filing period M10.</p>
+              </div>
+              <div class="activity-row">
+                <time>21:08</time><i class="activity-marker" style="background: var(--amber)"></i>
+                <p><strong>County feed delayed.</strong> The last valid snapshot remains visible with a freshness notice.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="rail-card" aria-labelledby="coverageHeading">
+            <div class="rail-head">
+              <h2 id="coverageHeading">Demo coverage</h2>
+              <span>Prototype only</span>
+            </div>
+            <div class="coverage-grid">
+              <div class="coverage-row"><span>Contests</span><div class="bar"><span style="width: 100%"></span></div><strong>100%</strong></div>
+              <div class="coverage-row"><span>Ballot status</span><div class="bar"><span style="width: 84%"></span></div><strong>84%</strong></div>
+              <div class="coverage-row"><span>County detail</span><div class="bar"><span style="width: 67%"></span></div><strong>67%</strong></div>
+              <div class="coverage-row"><span>FEC finance</span><div class="bar"><span style="width: 92%"></span></div><strong>92%</strong></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <aside class="detail-panel" aria-label="Selected state and race details">
+        <div class="detail-panel-inner">
+          <div class="detail-intro">
+            <div class="detail-head">
+              <div class="state-identity">
+                <div class="state-monogram" id="stateMonogram">MI</div>
+                <div>
+                  <h2 id="stateName">Michigan</h2>
+                  <p id="stateMeta">13 House · 1 Senate contest</p>
+                </div>
+              </div>
+              <span class="fresh-badge">Fresh · 18s</span>
+            </div>
+
+            <div class="tabs" role="tablist" aria-label="State details">
+              <button class="tab-button active" type="button" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+              <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="results">Counties</button>
+              <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="finance">Finance</button>
+            </div>
+          </div>
+
+          <div class="detail-content">
+            <div class="tab-panel active" id="overviewPanel" role="tabpanel">
+              <section class="panel-card">
+                <div class="race-title">
+                  <div>
+                    <span class="eyebrow" id="raceEyebrow">U.S. House · District 07</span>
+                    <h3 id="raceTitle">Michigan District 07</h3>
+                  </div>
+                  <span class="result-status">Mock unofficial</span>
+                </div>
+
+                <div id="candidateResults"></div>
+
+                <div class="reporting-line">
+                  <span id="reportingText">62.4% of reporting units</span>
+                  <strong id="totalVotes">213,842 votes</strong>
+                </div>
+              </section>
+
+              <section class="panel-card">
+                <h3>Statewide snapshot</h3>
+                <p>Compact factual totals for the selected state.</p>
+                <div class="metric-grid">
+                  <div class="metric"><span>House contests</span><strong id="metricHouse">13</strong></div>
+                  <div class="metric"><span>Senate contests</span><strong>1</strong></div>
+                  <div class="metric"><span>Counties</span><strong id="metricCounties">83</strong></div>
+                  <div class="metric"><span>Finance coverage</span><strong>92%</strong></div>
+                </div>
+              </section>
+
+              <section class="panel-card">
+                <h3>Snapshot history</h3>
+                <p>Corrections are retained rather than overwriting earlier data.</p>
+                <div class="timeline">
+                  <div class="timeline-row">
+                    <time>21:14:02</time>
+                    <div class="timeline-copy"><strong>Snapshot 184 promoted</strong><span>4 county units changed · validation passed</span></div>
+                  </div>
+                  <div class="timeline-row">
+                    <time>21:09:41</time>
+                    <div class="timeline-copy"><strong>Snapshot 183 preserved</strong><span>Source correction reduced one county total</span></div>
+                  </div>
+                  <div class="timeline-row">
+                    <time>20:58:16</time>
+                    <div class="timeline-copy"><strong>Feed entered reporting mode</strong><span>Official source status: unofficial</span></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="tab-panel" id="resultsPanel" role="tabpanel">
+              <section class="panel-card">
+                <h3 id="countyHeading">County reporting · MI-07</h3>
+                <p>District-specific county totals only; no whole-county duplication across split districts.</p>
+                <div class="county-list" id="countyList"></div>
+                <div class="source-note">
+                  Mock data. Production county totals would be displayed only when the official or licensed source provides a valid district-specific breakdown.
+                </div>
+              </section>
+
+              <section class="panel-card">
+                <h3>Result semantics</h3>
+                <p>Each state can expose different reporting units and progress measures.</p>
+                <div class="metric-grid">
+                  <div class="metric"><span>Status</span><strong>Unofficial</strong></div>
+                  <div class="metric"><span>Unit type</span><strong>County</strong></div>
+                  <div class="metric"><span>Source time</span><strong>21:13 ET</strong></div>
+                  <div class="metric"><span>Snapshot</span><strong>#184</strong></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="tab-panel" id="financePanel" role="tabpanel">
+              <section class="panel-card">
+                <h3>Candidate finance</h3>
+                <p>Fictional demonstration of the planned FEC finance drill-down.</p>
+                <div class="finance-candidates" id="financeCandidates"></div>
+                <div class="metric-grid">
+                  <div class="metric"><span>Total receipts</span><strong id="financeReceipts">$6.8M</strong></div>
+                  <div class="metric"><span>Cash on hand</span><strong id="financeCash">$1.9M</strong></div>
+                  <div class="metric"><span>Disbursements</span><strong id="financeSpent">$4.7M</strong></div>
+                  <div class="metric"><span>Debts</span><strong id="financeDebt">$82K</strong></div>
+                </div>
+                <div class="finance-chart" id="financeChart"></div>
+                <div class="source-note">Mock financial figures. Production totals would display the FEC coverage period, report type, source link, and itemization completeness.</div>
+              </section>
+
+              <section class="panel-card">
+                <h3>Outside spending</h3>
+                <p>Support and opposition remain separate and are never netted.</p>
+                <div class="metric-grid">
+                  <div class="metric"><span>Supporting</span><strong>$742K</strong></div>
+                  <div class="metric"><span>Opposing</span><strong>$416K</strong></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="detail-footer">
+              Source contract: MOCK-STATE-FEED · geography: MOCK-120 · values shown here are illustrative and must not be interpreted as real election information.
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div class="map-tooltip" id="mapTooltip" role="tooltip"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <div class="status-dot" aria-hidden="true"></div>
+      <div><strong id="toastTitle">Prototype interaction</strong><span id="toastMessage">State selected.</span></div>
+    </div>
+
+    <script>
+      const states = [
+        { code: "AK", name: "Alaska", row: 8, col: 1, districts: 1, counties: 30, status: "partial" },
+        { code: "ME", name: "Maine", row: 1, col: 12, districts: 2, counties: 16, status: "ready" },
+        { code: "VT", name: "Vermont", row: 2, col: 10, districts: 1, counties: 14, status: "pending" },
+        { code: "NH", name: "New Hampshire", row: 2, col: 11, districts: 2, counties: 10, status: "ready" },
+        { code: "WA", name: "Washington", row: 3, col: 1, districts: 10, counties: 39, status: "ready" },
+        { code: "ID", name: "Idaho", row: 3, col: 2, districts: 2, counties: 44, status: "partial" },
+        { code: "MT", name: "Montana", row: 3, col: 3, districts: 2, counties: 56, status: "ready" },
+        { code: "ND", name: "North Dakota", row: 3, col: 4, districts: 1, counties: 53, status: "pending" },
+        { code: "MN", name: "Minnesota", row: 3, col: 5, districts: 8, counties: 87, status: "ready" },
+        { code: "WI", name: "Wisconsin", row: 3, col: 6, districts: 8, counties: 72, status: "ready" },
+        { code: "MI", name: "Michigan", row: 3, col: 7, districts: 13, counties: 83, status: "ready" },
+        { code: "NY", name: "New York", row: 3, col: 9, districts: 26, counties: 62, status: "ready" },
+        { code: "MA", name: "Massachusetts", row: 3, col: 10, districts: 9, counties: 14, status: "partial" },
+        { code: "OR", name: "Oregon", row: 4, col: 1, districts: 6, counties: 36, status: "partial" },
+        { code: "NV", name: "Nevada", row: 4, col: 2, districts: 4, counties: 17, status: "ready" },
+        { code: "WY", name: "Wyoming", row: 4, col: 3, districts: 1, counties: 23, status: "pending" },
+        { code: "SD", name: "South Dakota", row: 4, col: 4, districts: 1, counties: 66, status: "partial" },
+        { code: "IA", name: "Iowa", row: 4, col: 5, districts: 4, counties: 99, status: "ready" },
+        { code: "IL", name: "Illinois", row: 4, col: 6, districts: 17, counties: 102, status: "ready" },
+        { code: "IN", name: "Indiana", row: 4, col: 7, districts: 9, counties: 92, status: "partial" },
+        { code: "OH", name: "Ohio", row: 4, col: 8, districts: 15, counties: 88, status: "ready" },
+        { code: "PA", name: "Pennsylvania", row: 4, col: 9, districts: 17, counties: 67, status: "ready" },
+        { code: "NJ", name: "New Jersey", row: 4, col: 10, districts: 12, counties: 21, status: "ready" },
+        { code: "CT", name: "Connecticut", row: 4, col: 11, districts: 5, counties: 9, status: "partial" },
+        { code: "RI", name: "Rhode Island", row: 4, col: 12, districts: 2, counties: 5, status: "pending" },
+        { code: "CA", name: "California", row: 5, col: 1, districts: 52, counties: 58, status: "ready" },
+        { code: "UT", name: "Utah", row: 5, col: 2, districts: 4, counties: 29, status: "ready" },
+        { code: "CO", name: "Colorado", row: 5, col: 3, districts: 8, counties: 64, status: "ready" },
+        { code: "NE", name: "Nebraska", row: 5, col: 4, districts: 3, counties: 93, status: "partial" },
+        { code: "MO", name: "Missouri", row: 5, col: 5, districts: 8, counties: 115, status: "ready" },
+        { code: "KY", name: "Kentucky", row: 5, col: 6, districts: 6, counties: 120, status: "partial" },
+        { code: "WV", name: "West Virginia", row: 5, col: 7, districts: 2, counties: 55, status: "pending" },
+        { code: "VA", name: "Virginia", row: 5, col: 8, districts: 11, counties: 133, status: "ready" },
+        { code: "MD", name: "Maryland", row: 5, col: 9, districts: 8, counties: 24, status: "ready" },
+        { code: "DE", name: "Delaware", row: 5, col: 10, districts: 1, counties: 3, status: "partial" },
+        { code: "AZ", name: "Arizona", row: 6, col: 2, districts: 9, counties: 15, status: "ready" },
+        { code: "NM", name: "New Mexico", row: 6, col: 3, districts: 3, counties: 33, status: "partial" },
+        { code: "KS", name: "Kansas", row: 6, col: 4, districts: 4, counties: 105, status: "ready" },
+        { code: "AR", name: "Arkansas", row: 6, col: 5, districts: 4, counties: 75, status: "pending" },
+        { code: "TN", name: "Tennessee", row: 6, col: 6, districts: 9, counties: 95, status: "ready" },
+        { code: "NC", name: "North Carolina", row: 6, col: 8, districts: 14, counties: 100, status: "ready" },
+        { code: "SC", name: "South Carolina", row: 6, col: 9, districts: 7, counties: 46, status: "partial" },
+        { code: "OK", name: "Oklahoma", row: 7, col: 4, districts: 5, counties: 77, status: "partial" },
+        { code: "LA", name: "Louisiana", row: 7, col: 5, districts: 6, counties: 64, status: "ready" },
+        { code: "MS", name: "Mississippi", row: 7, col: 6, districts: 4, counties: 82, status: "pending" },
+        { code: "AL", name: "Alabama", row: 7, col: 7, districts: 7, counties: 67, status: "partial" },
+        { code: "GA", name: "Georgia", row: 7, col: 8, districts: 14, counties: 159, status: "ready" },
+        { code: "HI", name: "Hawaii", row: 8, col: 2, districts: 2, counties: 5, status: "partial" },
+        { code: "TX", name: "Texas", row: 8, col: 5, districts: 38, counties: 254, status: "ready" },
+        { code: "FL", name: "Florida", row: 8, col: 9, districts: 28, counties: 67, status: "ready" }
+      ];
+
+      const mockCandidates = {
+        house: [
+          { name: "Jordan Lee", party: "Unity Party", initials: "JL", votes: 109584, pct: 51.2, color: "var(--blue)", avatarBg: "var(--blue-deep)" },
+          { name: "Morgan Ruiz", party: "Civic Party", initials: "MR", votes: 101446, pct: 47.4, color: "var(--coral)", avatarBg: "var(--coral-deep)" },
+          { name: "Casey Patel", party: "Independent", initials: "CP", votes: 2812, pct: 1.4, color: "var(--purple)", avatarBg: "#302b54" }
+        ],
+        senate: [
+          { name: "Taylor Brooks", party: "Civic Party", initials: "TB", votes: 1203948, pct: 49.8, color: "var(--coral)", avatarBg: "var(--coral-deep)" },
+          { name: "Riley Chen", party: "Unity Party", initials: "RC", votes: 1193472, pct: 49.3, color: "var(--blue)", avatarBg: "var(--blue-deep)" },
+          { name: "Avery Morgan", party: "Independent", initials: "AM", votes: 21867, pct: 0.9, color: "var(--purple)", avatarBg: "#302b54" }
+        ]
+      };
+
+      const financeData = {
+        "Jordan Lee": {
+          receipts: "$6.8M", cash: "$1.9M", spent: "$4.7M", debt: "$82K",
+          sources: [["Individuals", 74, "$5.0M"], ["Committees", 16, "$1.1M"], ["Candidate", 6, "$410K"], ["Other", 4, "$290K"]]
+        },
+        "Morgan Ruiz": {
+          receipts: "$5.9M", cash: "$1.4M", spent: "$4.4M", debt: "$121K",
+          sources: [["Individuals", 68, "$4.0M"], ["Committees", 22, "$1.3M"], ["Candidate", 4, "$236K"], ["Other", 6, "$354K"]]
+        },
+        "Taylor Brooks": {
+          receipts: "$14.2M", cash: "$3.8M", spent: "$10.1M", debt: "$164K",
+          sources: [["Individuals", 71, "$10.1M"], ["Committees", 19, "$2.7M"], ["Candidate", 3, "$426K"], ["Other", 7, "$994K"]]
+        },
+        "Riley Chen": {
+          receipts: "$13.6M", cash: "$3.2M", spent: "$10.0M", debt: "$98K",
+          sources: [["Individuals", 76, "$10.3M"], ["Committees", 14, "$1.9M"], ["Candidate", 5, "$680K"], ["Other", 5, "$680K"]]
+        }
+      };
+
+      const countyNames = {
+        MI: ["Ingham", "Eaton", "Livingston", "Clinton", "Jackson"],
+        CA: ["Los Angeles", "Orange", "Riverside", "San Bernardino", "Ventura"],
+        TX: ["Harris", "Dallas", "Tarrant", "Bexar", "Travis"],
+        PA: ["Philadelphia", "Allegheny", "Montgomery", "Bucks", "Lancaster"],
+        GA: ["Fulton", "Gwinnett", "Cobb", "DeKalb", "Chatham"],
+        AZ: ["Maricopa", "Pima", "Pinal", "Yavapai", "Coconino"]
+      };
+
+      const statusColors = {
+        ready: "var(--teal)",
+        partial: "var(--amber)",
+        pending: "var(--quiet)"
+      };
+
+      const ui = {
+        selectedState: "MI",
+        officeFilter: "all",
+        office: "house",
+        layer: "states",
+        activeFinanceCandidate: "Jordan Lee"
+      };
+
+      const mapEl = document.getElementById("usMap");
+      const tooltip = document.getElementById("mapTooltip");
+      const toast = document.getElementById("toast");
+      let toastTimer;
+
+      function renderMap() {
+        mapEl.innerHTML = "";
+        mapEl.className = `us-tile-map ${ui.layer === "districts" ? "district-mode" : ""} ${ui.layer === "counties" ? "county-mode" : ""}`;
+
+        states.forEach((state) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `state-tile${state.code === ui.selectedState ? " active" : ""}`;
+          button.style.gridRow = state.row;
+          button.style.gridColumn = state.col;
+          button.style.setProperty("--state-status", statusColors[state.status]);
+          button.textContent = state.code;
+          button.setAttribute("aria-label", `${state.name}: ${state.districts} House districts, ${state.status} demo source`);
+          button.addEventListener("click", () => selectState(state.code));
+          button.addEventListener("mouseenter", (event) => showTooltip(event, state));
+          button.addEventListener("mousemove", positionTooltip);
+          button.addEventListener("mouseleave", hideTooltip);
+          mapEl.appendChild(button);
+        });
+      }
+
+      function showTooltip(event, state) {
+        const label = state.status === "ready" ? "Source ready" : state.status === "partial" ? "Partial detail" : "Not configured";
+        tooltip.innerHTML = `<strong>${state.name}</strong><span>${state.districts} House district${state.districts === 1 ? "" : "s"} · ${state.counties} counties</span><span>${label} · mock data</span>`;
+        tooltip.classList.add("visible");
+        positionTooltip(event);
+      }
+
+      function positionTooltip(event) {
+        const x = Math.min(event.clientX + 14, window.innerWidth - 195);
+        const y = Math.min(event.clientY + 14, window.innerHeight - 95);
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+      }
+
+      function hideTooltip() {
+        tooltip.classList.remove("visible");
+      }
+
+      function selectState(code) {
+        ui.selectedState = code;
+        const state = states.find((item) => item.code === code);
+        document.getElementById("breadcrumbState").textContent = state.name;
+        document.getElementById("selectedStateStat").textContent = state.name;
+        document.getElementById("districtCount").textContent = state.districts;
+        document.getElementById("stateMonogram").textContent = state.code;
+        document.getElementById("stateName").textContent = state.name;
+        document.getElementById("stateMeta").textContent = `${state.districts} House · 1 Senate contest`;
+        document.getElementById("metricHouse").textContent = state.districts;
+        document.getElementById("metricCounties").textContent = state.counties;
+        updateRace();
+        renderMap();
+        showToast(`${state.name} selected`, `${state.districts} House districts and ${state.counties} county records in this mock view.`);
+      }
+
+      function updateRace() {
+        const state = states.find((item) => item.code === ui.selectedState);
+        const isSenate = ui.office === "senate";
+        const district = String(Math.max(1, Math.min(state.districts, 7))).padStart(2, "0");
+        const candidates = mockCandidates[isSenate ? "senate" : "house"];
+        const total = candidates.reduce((sum, candidate) => sum + candidate.votes, 0);
+        const reporting = (51 + ((state.districts * 7 + state.counties) % 42)).toFixed(1);
+
+        document.getElementById("raceEyebrow").textContent = isSenate ? "U.S. Senate · Statewide" : `U.S. House · District ${district}`;
+        document.getElementById("raceTitle").textContent = isSenate ? `${state.name} Senate` : `${state.name} District ${district}`;
+        document.getElementById("countyHeading").textContent = `County reporting · ${isSenate ? state.code + " statewide" : state.code + "-" + district}`;
+        document.getElementById("reportingText").textContent = `${reporting}% of reporting units`;
+        document.getElementById("totalVotes").textContent = `${total.toLocaleString()} votes`;
+        document.getElementById("contestCount").textContent = ui.officeFilter === "all" ? "468" : ui.officeFilter === "senate" ? "33" : "435";
+
+        renderCandidateResults(candidates);
+        renderCounties(state, candidates);
+        renderFinanceCandidates(candidates);
+      }
+
+      function renderCandidateResults(candidates) {
+        const container = document.getElementById("candidateResults");
+        container.innerHTML = candidates
+          .map(
+            (candidate) => `
+              <div class="candidate-result">
+                <div class="candidate-line">
+                  <div class="candidate-name">
+                    <span class="candidate-avatar" style="--avatar-bg:${candidate.avatarBg};--avatar-color:${candidate.color}">${candidate.initials}</span>
+                    <span><strong>${candidate.name}</strong><span>${candidate.party} · fictional</span></span>
+                  </div>
+                  <div class="candidate-total"><strong>${candidate.pct.toFixed(1)}%</strong><span>${candidate.votes.toLocaleString()} votes</span></div>
+                </div>
+                <div class="result-bar"><span style="--width:${candidate.pct}%;--color:${candidate.color}"></span></div>
+              </div>
+            `
+          )
+          .join("");
+      }
+
+      function renderCounties(state, candidates) {
+        const fallback = ["Central", "North", "East", "South", "West"].map((name) => `${state.name} ${name}`);
+        const names = countyNames[state.code] || fallback;
+        const container = document.getElementById("countyList");
+        container.innerHTML = names
+          .map((name, index) => {
+            const reporting = Math.max(28, 97 - index * 11 - (state.districts % 7));
+            const lead = index % 2 === 0 ? candidates[0].initials : candidates[1].initials;
+            const votes = 18400 + state.counties * 29 + index * 6217;
+            return `<div class="county-row"><span>${name}</span><span>${reporting}% in</span><strong>${lead} · ${votes.toLocaleString()}</strong></div>`;
+          })
+          .join("");
+      }
+
+      function renderFinanceCandidates(candidates) {
+        const available = candidates.filter((candidate) => financeData[candidate.name]);
+        if (!available.length) return;
+        if (!available.some((candidate) => candidate.name === ui.activeFinanceCandidate)) {
+          ui.activeFinanceCandidate = available[0].name;
+        }
+
+        document.getElementById("financeCandidates").innerHTML = available
+          .map(
+            (candidate) => `<button type="button" class="finance-candidate${candidate.name === ui.activeFinanceCandidate ? " active" : ""}" data-finance-candidate="${candidate.name}">${candidate.name}</button>`
+          )
+          .join("");
+
+        document.querySelectorAll("[data-finance-candidate]").forEach((button) => {
+          button.addEventListener("click", () => {
+            ui.activeFinanceCandidate = button.dataset.financeCandidate;
+            renderFinanceCandidates(candidates);
+          });
+        });
+        renderFinanceDetails();
+      }
+
+      function renderFinanceDetails() {
+        const data = financeData[ui.activeFinanceCandidate] || financeData["Jordan Lee"];
+        document.getElementById("financeReceipts").textContent = data.receipts;
+        document.getElementById("financeCash").textContent = data.cash;
+        document.getElementById("financeSpent").textContent = data.spent;
+        document.getElementById("financeDebt").textContent = data.debt;
+        document.getElementById("financeChart").innerHTML = data.sources
+          .map(
+            ([label, pct, amount]) => `<div class="finance-row"><span>${label}</span><div class="bar"><span style="width:${pct}%"></span></div><strong>${amount}</strong></div>`
+          )
+          .join("");
+      }
+
+      function showToast(title, message) {
+        document.getElementById("toastTitle").textContent = title;
+        document.getElementById("toastMessage").textContent = message;
+        toast.classList.add("visible");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("visible"), 3200);
+      }
+
+      document.querySelectorAll("[data-office]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-office]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          ui.officeFilter = button.dataset.office;
+          ui.office = button.dataset.office === "senate" ? "senate" : "house";
+          updateRace();
+          showToast("Office filter updated", button.textContent.trim().replace(/\s+/g, " "));
+        });
+      });
+
+      document.querySelectorAll("[data-layer]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-layer]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          ui.layer = button.dataset.layer;
+          const labels = {
+            states: "Select a state to inspect its federal contests",
+            districts: "District segmentation preview; production would use Census vector boundaries",
+            counties: "County segmentation preview; detail appears only when source semantics are valid"
+          };
+          document.getElementById("layerDescription").textContent = labels[ui.layer];
+          document.getElementById("mapReadout").textContent = `LAYER: ${ui.layer.toUpperCase()} · GEO VINTAGE: MOCK-120`;
+          renderMap();
+        });
+      });
+
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-tab]").forEach((item) => {
+            item.classList.remove("active");
+            item.setAttribute("aria-selected", "false");
+          });
+          document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+          button.classList.add("active");
+          button.setAttribute("aria-selected", "true");
+          document.getElementById(`${button.dataset.tab}Panel`).classList.add("active");
+        });
+      });
+
+      const searchInput = document.getElementById("searchInput");
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        const query = searchInput.value.trim().toLowerCase();
+        const match = states.find((state) => state.code.toLowerCase() === query || state.name.toLowerCase().includes(query));
+        if (match) {
+          selectState(match.code);
+          searchInput.blur();
+        } else if (query) {
+          showToast("No mock match", "Try a state name or two-letter code, such as Michigan or MI.");
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "/" && document.activeElement !== searchInput) {
+          event.preventDefault();
+          searchInput.focus();
+        }
+        if (event.key === "Escape") {
+          searchInput.blur();
+          hideTooltip();
+        }
+      });
+
+      document.getElementById("cycleSelect").addEventListener("change", (event) => {
+        showToast("Prototype cycle changed", `${event.target.value} selected. The layout is preserved with mock data.`);
+      });
+
+      document.getElementById("infoButton").addEventListener("click", () => {
+        showToast("Standalone proof of concept", "This file demonstrates layout and interaction only. It has no live APIs or real election data.");
+      });
+
+      function updateClock() {
+        const now = new Date();
+        const text = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        }).format(now);
+        document.getElementById("clock").textContent = `${text} ET`;
+      }
+
+      renderMap();
+      updateRace();
+      updateClock();
+      setInterval(updateClock, 1000);
+    </script>
+  </body>
+</html>
