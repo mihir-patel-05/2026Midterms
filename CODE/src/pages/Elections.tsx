@@ -9,7 +9,7 @@ import { Calendar, Users, ChevronRight, Filter, ArrowLeft, Search, Loader2 } fro
 import { USMap } from "@/components/home/USMap";
 import { Input } from "@/components/ui/input";
 import { getElectionsByState, getStateElectionCounts } from "@/lib/api";
-import type { Election, StateElectionCount } from "@/types/candidate";
+import type { Election } from "@/types/candidate";
 import { formatCalendarDate } from "@/lib/calendarDate";
 
 // State name mapping for display
@@ -32,6 +32,8 @@ const ALL_STATES = Object.entries(stateCodeToName).map(([code, name]) => ({
   name,
   races: 0, // Default to 0 races
 }));
+
+type StateMapRow = (typeof ALL_STATES)[number];
 
 function getCompetitivenessColor(rating?: string): string {
   if (!rating) return "bg-muted text-muted-foreground";
@@ -64,7 +66,7 @@ export default function Elections() {
   });
 
   // Merge API data with all states - ensure every state is included
-  const states: StateElectionCount[] = ALL_STATES.map(state => {
+  const states: StateMapRow[] = ALL_STATES.map(state => {
     // Find matching state data from API
     const apiData = stateCountsData?.states.find(s => s.state === state.code);
 
