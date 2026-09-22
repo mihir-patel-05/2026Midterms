@@ -61,4 +61,3 @@ Rejected because the prototype is intentionally fictional and omits the operatio
 
 - [U.S. Election Assistance Commission: Election Results, Canvass, and Certification](https://www.eac.gov/election-officials/election-results-canvass-and-certification)
 - [NIST Election Results Reporting Common Data Format](https://pages.nist.gov/ElectionResultsReporting/)
-

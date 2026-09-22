@@ -625,4 +625,3 @@ ALTER TABLE "certification_events" ADD CONSTRAINT "certification_events_source_i
 
 -- AddForeignKey
 ALTER TABLE "certification_events" ADD CONSTRAINT "certification_events_ingestion_run_id_fkey" FOREIGN KEY ("ingestion_run_id") REFERENCES "ingestion_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
