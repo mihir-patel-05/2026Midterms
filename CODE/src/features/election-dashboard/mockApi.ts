@@ -12,6 +12,7 @@ export interface MockDashboardData {
   results: ContestResultViewModel[];
   metadata: ResponseMetadataContract;
   metadataByContest: Record<string, ResponseMetadataContract>;
+  manifest: DashboardBootstrapResponse["data"]["manifest"];
 }
 
 export async function loadMockDashboard(signal?: AbortSignal): Promise<MockDashboardData> {
@@ -19,7 +20,7 @@ export async function loadMockDashboard(signal?: AbortSignal): Promise<MockDashb
   const response = await fetch(`${baseUrl}/api/v1/bootstrap`, { signal });
   if (!response.ok) throw new Error(`Mock results API returned ${response.status}`);
   const payload = (await response.json()) as DashboardBootstrapResponse;
-  if (payload.meta.contractVersion !== "1.0.0" || !payload.meta.isMockData || payload.meta.dataMode !== "MOCK") {
+  if (payload.meta.contractVersion !== "1.0.0" || !payload.meta.isMockData || payload.meta.dataMode !== "MOCK" || payload.data.manifest.version !== "mock-v1") {
     throw new Error("Unexpected results contract or data mode");
   }
 
@@ -46,5 +47,5 @@ export async function loadMockDashboard(signal?: AbortSignal): Promise<MockDashb
 
   const metadataByContest = Object.fromEntries(available.map((item) => [item.data!.contest.id, item.meta]));
 
-  return { contests, candidates, results, metadata: payload.meta, metadataByContest };
+  return { contests, candidates, results, metadata: payload.meta, metadataByContest, manifest: payload.data.manifest };
 }

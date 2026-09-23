@@ -265,6 +265,7 @@ INSERT INTO "certification_events" (
 UPDATE "contests"
 SET "current_snapshot_id" = 'mock-result-snapshot-day0',
     "updated_at" = '2026-11-04T02:15:02.000Z'
-WHERE "id" = 'mock-contest-zz-house-00';
+WHERE "id" = 'mock-contest-zz-house-00'
+  AND "current_snapshot_id" IS NULL;
 
 COMMIT;

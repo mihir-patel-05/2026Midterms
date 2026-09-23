@@ -13,13 +13,8 @@ import type { DashboardOfficeFilter, DashboardViewState } from "./types";
 import "./election-dashboard.css";
 
 function isStateCode(value: string | null) {
-  return Boolean(value && displayStates.some((state) => state.code === value.toUpperCase()));
+  return Boolean(value && (value.toUpperCase() === "EX" || stateMapItems.some((state) => state.code === value.toUpperCase())));
 }
-
-const displayStates = [
-  ...stateMapItems,
-  { code: "EX", name: "Fictional Example State", row: 8, column: 12, coverage: "PARTIAL" as const },
-];
 
 const officeFilters: DashboardOfficeFilter[] = [
   "ALL",
@@ -54,6 +49,11 @@ export function ElectionDashboardShell() {
     return () => controller.abort();
   }, []);
 
+  const mockState = dashboard?.manifest?.states.find((state) => state.code === "EX");
+  const displayStates = [
+    ...stateMapItems,
+    { code: "EX", name: mockState?.name ?? "Fictional Example State", row: 8, column: 12, coverage: mockState?.coverage ?? "UNKNOWN" as const },
+  ];
   const selectedState = displayStates.find((state) => state.code === stateCode) ?? displayStates[0];
   const filteredContests = (dashboard?.contests ?? []).filter(
     (contest) => contest.jurisdiction.stateCode === stateCode && (office === "ALL" || contest.officeType === office),
@@ -135,8 +135,6 @@ export function ElectionDashboardShell() {
               result={selectedResult}
               candidates={candidates}
               finance={[]}
-              stateName={selectedState.name}
-              district={district}
             />
           ) : (
             <section className="ed-panel ed-empty-panel"><Database aria-hidden="true" /><h2>{viewState === "loading" ? "Waiting for fixture" : "No result snapshot"}</h2><p>{viewState === "loading" ? "The shell remains usable while mock data loads." : "Unavailable sources do not produce zero totals or implied results."}</p></section>

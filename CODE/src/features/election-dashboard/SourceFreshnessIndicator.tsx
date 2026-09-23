@@ -30,7 +30,7 @@ export function SourceFreshnessIndicator({ source, metadata }: { source: SourceS
       <a className="ed-source-link" href={source.url} target="_blank" rel="noreferrer">
         Mock source URL <ExternalLink aria-hidden="true" />
       </a>
-      <p className="ed-source-note">This reserved <code>example.invalid</code> link cannot resolve and is present only to exercise the source contract.</p>
+      <p className="ed-source-note">This reserved test-domain link is fictional and is present only to exercise the source contract.</p>
     </section>
   );
 }

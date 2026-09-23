@@ -10,13 +10,11 @@ import type {
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("en-US");
 
-export function RaceDetailPanel({ contest, result, candidates, finance, stateName, district }: {
+export function RaceDetailPanel({ contest, result, candidates, finance }: {
   contest: ContestViewModel;
   result?: ContestResultViewModel;
   candidates: CandidateContract[];
   finance: FinanceSummaryViewModel[];
-  stateName: string;
-  district: string;
 }) {
   const orderedCandidates = [...candidates].sort(
     (a, b) => (a.ballotOrder ?? Number.MAX_SAFE_INTEGER) - (b.ballotOrder ?? Number.MAX_SAFE_INTEGER),

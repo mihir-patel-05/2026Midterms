@@ -165,16 +165,6 @@ export interface StateMapItemViewModel {
   coverage: CoverageStatus;
 }
 
-export interface ElectionDashboardFixture {
-  election: ElectionContract;
-  contests: ContestViewModel[];
-  candidates: CandidateContract[];
-  results: ContestResultViewModel[];
-  finance: FinanceSummaryViewModel[];
-  sourceStatus: SourceStatusContract;
-  metadata: ResponseMetadataContract;
-}
-
 export interface ElectionResultsResponseContract {
   data: ({
     snapshotId: string;
