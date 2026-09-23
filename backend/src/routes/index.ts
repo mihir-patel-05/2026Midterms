@@ -7,6 +7,7 @@ import deadlinesRoutes from './deadlines.routes.js';
 import chatRoutes from './chat.routes.js';
 import researcherAuthRoutes from './researcher-auth.routes.js';
 import researchRoutes from './research.routes.js';
+import resultsV1Routes from './results-v1.routes.js';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { prisma } from '../config/database.js';
 
@@ -21,6 +22,7 @@ router.use('/deadlines', deadlinesRoutes);
 router.use('/chat', chatRoutes);
 router.use('/auth/researcher', researcherAuthRoutes);
 router.use('/research', researchRoutes);
+router.use('/v1', resultsV1Routes);
 
 // Static catalog of supported lobbies (for UI legends/filters)
 router.get('/lobbies', (req, res) => candidateController.getLobbyCatalog(req, res));

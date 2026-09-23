@@ -16,7 +16,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "ingest:day0-fixture": "tsx src/scripts/ingest-day0-fixture.ts",
-    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts",
+    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts src/routes/results-v1.routes.test.ts",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
     "test:fec-pagination": "tsx src/scripts/test-fec-pagination.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
