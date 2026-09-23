@@ -43,7 +43,7 @@ export function DashboardControls({
         </select>
         <label className="ed-field-label" htmlFor="dashboard-district">Mock district</label>
         <select id="dashboard-district" value={district} onChange={(event) => onDistrictChange(event.target.value)}>
-          {["01", "02", "03", "04", "07"].map((item) => <option key={item} value={item}>District {item}</option>)}
+          {["00", "01", "02", "03", "04", "07"].map((item) => <option key={item} value={item}>District {item}</option>)}
         </select>
       </section>
 
