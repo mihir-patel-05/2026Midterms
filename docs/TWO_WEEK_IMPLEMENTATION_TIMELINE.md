@@ -420,3 +420,74 @@ The beta deadline should not become the final feature deadline. Use the remainin
 8. A final feature freeze at least one week before November 3.
 
 The two-week plan succeeds when it produces a narrow, complete, rehearsable system. It fails if parallel agents create many disconnected features while the results pipeline, source semantics, or deployment path remains unfinished.
+
+## 12. Day 0 actual progress — September 21, 2026
+
+This section records implementation progress without replacing the original schedule above.
+
+### Source and scope decision
+
+- Selected the documented **mock-only, provider-disabled** path until a licensed provider or reviewed official-source adapter set is approved.
+- Recorded the interim decision and provider approval checklist in `docs/adr/0001-provider-neutral-results-foundation.md`.
+- Nationwide live coverage is not claimed. No provider API, credential name, license term, or source capability was invented.
+- Scope remains federal House and Senate for the beta. Statewide and county fixtures exist only to exercise the normalized contract and UI states.
+
+### Lane A — data platform
+
+- Added additive Prisma models and a migration for election events, contests, people, parties, candidacies, geography, reporting units, data sources, ingestion runs/errors, raw artifacts, result snapshots, candidate votes, contest metrics, and certification events.
+- Preserved all legacy models and added only optional bridge relations.
+- Added a deterministic, idempotent, explicitly fictional `ZZ` fixture and documented migration, rollback, and forward-fix procedures.
+- Kept reporting progress independent from certification state and kept mock sources disabled by default.
+
+### Lane B — normalized results contract
+
+- Added strict Zod/TypeScript contracts for elections, contests, candidates, reporting units, result rows, source status, response metadata, and provider feature flags.
+- Added parser interfaces only; no external provider implementation exists.
+- Added fictional Senate, House, statewide, county, stale, partial, certified, and unavailable fixtures.
+- Added ten unit tests covering mock/live labeling, progress bounds, certification completeness, candidate identity pairs, duplicate rows, vote totals, and provider flag keys.
+
+### Lane C — product shell
+
+- Added the `/election-dashboard` route behind `VITE_FEATURE_ELECTION_DASHBOARD` and `VITE_RESULTS_PROVIDER_MOCK_ENABLED`; both default to `false`.
+- Added reusable state cartogram, filters, race list, race detail, candidate finance, source/freshness, and explicit loading/stale/partial/unavailable components.
+- Kept all displayed result and finance values fictional and visibly labeled mock.
+- Added URL-addressable state, district, office, and contest selection, keyboard navigation, responsive styles, and a disabled-route state.
+- Code-split the dashboard route so the shell does not increase the main route bundle by its full size.
+
+### Lane D — Railway and engineering operations
+
+- Documented the proposed web, API, ingestion worker, results poller, PostgreSQL, Redis, object storage, and FEC cron topology in `docs/RAILWAY_DAY_0_OPERATIONS.md`.
+- Added server and client feature-flag/environment names without secrets.
+- Split API liveness (`/api/health/live`) from database readiness (`/api/health/ready`) while preserving `/api/health` compatibility.
+- Configured Railway to run migrations once as an API pre-deploy command and changed the Docker smoke test to use liveness.
+- Added backend tests, Prisma validation, and backend/frontend/admin type-check gates to CI.
+
+### Verification completed
+
+- Backend results tests: 10 passed.
+- Backend type-check and production build: passed.
+- Prisma format, schema validation, and client generation: passed.
+- Public frontend lint, type-check, and production build with mock flags enabled: passed.
+- Admin frontend type-check and production build: passed.
+- Local flagged dashboard route HTTP smoke check: `200 OK`.
+- Repository whitespace check: passed.
+
+The public frontend build still reports the existing Browserslist-age warning and a main bundle chunk larger than 500 kB. The new dashboard is emitted as a separate approximately 25 kB minified JavaScript chunk. Browser automation could not run because no supported browser surface or `agent-browser` executable was available in the environment.
+
+### Blockers and unresolved decisions
+
+1. Product/legal must choose a licensed results provider or approve a limited official-source coverage matrix before any live provider flag can be added.
+2. Redistribution, caching, archival, replay, source timestamp, correction, and certification semantics require written approval for the selected source.
+3. Production Census geography vintage and checksum remain unselected.
+4. Redis and object storage are justified by the target architecture but intentionally not provisioned or integrated until the queue/raw-artifact vertical slice is implemented.
+5. The additive migration was validated but not applied to any database; the configured local environment points to an external database and this Day 0 task did not authorize deployment or remote mutation.
+
+### Exact Day 1 actions
+
+1. Product/legal: complete the provider decision checklist in ADR 0001 and supply one authorized recorded payload, or explicitly approve continued mock-only work.
+2. Engineering: freeze one shared normalized response version and add a backend-to-frontend mapper/API stub using the current fictional fixture.
+3. Data: apply the migration to a disposable local PostgreSQL instance, seed the SQL fixture twice, and assert idempotency and rollback/forward-fix behavior.
+4. Ingestion: implement fixture-only fetch → hash → raw artifact → parse → validate → stage → atomic publish; add rejection and last-known-good tests.
+5. API: add feature-flagged `/api/v1` bootstrap, current-contest result, and source-status endpoints with the common metadata envelope and ETags.
+6. Product: replace the cartogram placeholder only after choosing the Census geography version; connect the shell to the feature-flagged mock API instead of local fixture imports.
+7. QA: run browser automation at desktop and mobile widths in an environment with a supported browser, including keyboard navigation and all five data states.

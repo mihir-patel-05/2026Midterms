@@ -18,6 +18,12 @@ const envSchema = z.object({
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
   FRONTEND_URL: z.string().url().optional(),
   ADMIN_URL: z.string().url().optional(),
+  FEATURE_ELECTION_DASHBOARD: z.enum(['true', 'false']).default('false'),
+  RESULTS_PROVIDER_MOCK_ENABLED: z.enum(['true', 'false']).default('false'),
+  RESULTS_PROVIDER_ENABLED_IDS: z.string().default(''),
+  RESULTS_STALE_AFTER_SECONDS: z.string().regex(/^[1-9]\d*$/).default('300'),
+  RESULTS_POLL_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('30'),
+  RESULTS_PARSER_VERSION: z.string().default('unconfigured'),
 
   // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
   // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
@@ -61,4 +67,11 @@ export const env = {
   ITEMIZED_MAX_PAGES: parseInt(parsed.data.ITEMIZED_MAX_PAGES, 10),
   ITEMIZED_REFRESH_HOURS: parseInt(parsed.data.ITEMIZED_REFRESH_HOURS, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
+  FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
+  RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
+  RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
+    .map((providerId) => providerId.trim())
+    .filter(Boolean),
+  RESULTS_STALE_AFTER_SECONDS: parseInt(parsed.data.RESULTS_STALE_AFTER_SECONDS, 10),
+  RESULTS_POLL_INTERVAL_SECONDS: parseInt(parsed.data.RESULTS_POLL_INTERVAL_SECONDS, 10),
 };

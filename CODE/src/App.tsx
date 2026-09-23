@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +18,8 @@ import RaceTracker from "./pages/research/RaceTracker";
 import Simulator from "./pages/research/Simulator";
 import { RequireResearcher } from "./components/research/RequireResearcher";
 
+const ElectionDashboard = lazy(() => import("./pages/ElectionDashboard"));
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -34,6 +37,14 @@ const App = () => (
           <Route path="/candidates/:id" element={<Candidates />} />
           <Route path="/voter-resources" element={<VoterResources />} />
           <Route path="/about" element={<About />} />
+          <Route
+            path="/election-dashboard"
+            element={
+              <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading dashboard…</main>}>
+                <ElectionDashboard />
+              </Suspense>
+            }
+          />
           <Route path="/research/login" element={<ResearcherLogin />} />
           <Route
             path="/research"
