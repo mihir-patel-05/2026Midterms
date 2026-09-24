@@ -41,9 +41,10 @@ export function DashboardControls({
         <select id="dashboard-state" value={stateCode} onChange={(event) => onStateChange(event.target.value)}>
           {states.map((state) => <option key={state.code} value={state.code}>{state.name}</option>)}
         </select>
-        <label className="ed-field-label" htmlFor="dashboard-district">Mock district</label>
+        <label className="ed-field-label" htmlFor="dashboard-district">House district</label>
         <select id="dashboard-district" value={district} onChange={(event) => onDistrictChange(event.target.value)}>
-          {["00", "01", "02", "03", "04", "07"].map((item) => <option key={item} value={item}>District {item}</option>)}
+          <option value="00">All districts</option>
+          {Array.from({ length: 53 }, (_, index) => String(index + 1).padStart(2, '0')).map((item) => <option key={item} value={item}>District {item}</option>)}
         </select>
       </section>
 

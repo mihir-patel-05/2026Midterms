@@ -36,6 +36,30 @@
 .ed-map-panel { padding: 16px; }
 .ed-panel { padding: 15px; }
 .ed-panel + .ed-panel, .ed-map-panel + .ed-panel { margin-top: 14px; }
+.ed-predictions { margin-bottom: 14px; }
+.ed-predictions .ed-panel-heading h2 { display: flex; align-items: center; gap: 8px; }
+.ed-predictions .ed-panel-heading h2 svg { width: 18px; color: #73e4cb; }
+.ed-predictions .ed-panel-heading time { color: #a7bad0; font-size: .72rem; white-space: nowrap; }
+.ed-predictions-note { margin: 10px 0 14px; color: #a7bad0; font-size: .78rem; line-height: 1.5; }
+.ed-predictions-warning { margin: 8px 0; color: #f8d791; font-size: .78rem; }
+.ed-predictions-groups { display: grid; gap: 12px; }
+.ed-predictions-group { padding-top: 12px; border-top: 1px solid #26364b; }
+.ed-predictions-group h3 { margin: 0 0 8px; font-size: .86rem; }
+.ed-predictions-group > p { margin: 0; color: #8ea2bd; font-size: .76rem; }
+.ed-predictions-quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 7px; }
+.ed-predictions-quotes a { display: grid; grid-template-columns: 1fr auto; gap: 2px 7px; padding: 10px; border: 1px solid #344960; border-radius: 8px; background: #112033; color: #eff5fc; text-decoration: none; }
+.ed-predictions-quotes a:hover { border-color: #73e4cb; }
+.ed-predictions-source { grid-column: 1 / -1; color: #8ea2bd; font-size: .67rem; text-transform: uppercase; letter-spacing: .08em; }
+.ed-predictions-outcome { font-size: .8rem; }
+.ed-predictions-quotes strong { font-size: 1.05rem; color: #aaf5e3; }
+.ed-predictions-quotes small { color: #90a5bd; font-size: .68rem; }
+.ed-predictions-quotes svg { width: 13px; height: 13px; justify-self: end; color: #90a5bd; }
+.ed-live-content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.ed-live-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.ed-live-filters label { color: #b7c5d8; font-size: .8rem; font-weight: 700; }
+.ed-live-filters select { width: min(250px, 100%); }
+.ed-live-filters select:disabled { opacity: .5; }
+.ed-live-dashboard .ed-topbar a { color: #aaf5e3; font-size: .8rem; }
 .ed-panel-heading, .ed-detail-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .ed-panel-heading h2, .ed-panel-heading h3, .ed-detail-title h2 { margin: 4px 0 0; font-size: .98rem; }
 .ed-map-heading { align-items: center; }

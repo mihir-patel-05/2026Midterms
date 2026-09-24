@@ -8,6 +8,7 @@ import { loadMockDashboard, type MockDashboardData } from "./mockApi";
 import { NationalMap } from "./NationalMap";
 import { RaceDetailPanel } from "./RaceDetailPanel";
 import { RaceList } from "./RaceList";
+import { PredictionMarketsPanel } from "./PredictionMarketsPanel";
 import { SourceFreshnessIndicator } from "./SourceFreshnessIndicator";
 import type { DashboardOfficeFilter, DashboardViewState } from "./types";
 import "./election-dashboard.css";
@@ -117,6 +118,7 @@ export function ElectionDashboardShell() {
             <div><span>Result status</span><strong>{viewState === "unavailable" ? "Unavailable" : "Unofficial"}</strong></div>
             <div><span>Provider</span><strong>None connected</strong></div>
           </div>
+          <PredictionMarketsPanel stateCode={stateCode === 'EX' ? null : stateCode} district={stateCode === 'EX' || district === '00' ? null : district} />
           <NationalMap states={displayStates} selectedState={stateCode} onSelect={setStateCode} />
           <RaceList
             contests={filteredContests}
