@@ -59,6 +59,8 @@ export async function ingestDay0Fixture(db: PrismaClient, raw?: Buffer) {
     await writeFile(`${artifactDir}/${sha256}.json`, bytes, { flag: 'wx' });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    const stored = await readFile(`${artifactDir}/${sha256}.json`);
+    if (!stored.equals(bytes)) throw new Error('Content-addressed mock artifact does not match its SHA-256 key');
   }
 
   const run = await db.ingestionRun.create({
@@ -119,9 +121,9 @@ export async function ingestDay0Fixture(db: PrismaClient, raw?: Buffer) {
         reportingPercentage: new Prisma.Decimal(fixture.metrics.reportingPercentage), isComplete: fixture.metrics.isComplete,
       } });
       await publishSnapshot(tx, contest.id, snapshot.id);
+      await tx.ingestionRun.update({ where: { id: run.id }, data: { status: 'SUCCEEDED', completedAt: new Date(), recordsAccepted: 1 } });
       return { id: snapshot.id, contestId: contest.id };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    await db.ingestionRun.update({ where: { id: run.id }, data: { status: 'SUCCEEDED', completedAt: new Date(), recordsAccepted: 1 } });
     return { replayed: false, snapshotId: snapshotId.id, contestId: snapshotId.contestId, sha256 };
   } catch (error) {
     await db.ingestionRun.update({ where: { id: run.id }, data: { status: 'FAILED', completedAt: new Date(), recordsRejected: 1, errorSummary: error instanceof Error ? error.message : 'Publication failed' } });

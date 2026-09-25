@@ -1,6 +1,6 @@
 # Environment Variables Setup
 
-## Required Environment Variables
+## Environment Variables
 
 Create a `.env` file in the `backend/` directory with the following variables:
 
@@ -9,9 +9,12 @@ Create a `.env` file in the `backend/` directory with the following variables:
 DATABASE_URL="postgresql://username:password@localhost:5432/database_name?schema=public"
 
 # FEC API Configuration
-FEC_API_KEY="YOUR_FEC_API_KEY_HERE"
+FEC_API_KEY=""
 FEC_API_BASE_URL="https://api.open.fec.gov/v1"
 FEC_API_MAX_REQUESTS_PER_HOUR="1000"
+
+# Chat is optional during mock-only development
+GEMINI_API_KEY=""
 
 # Server Configuration
 PORT="3001"
@@ -24,12 +27,13 @@ FRONTEND_URL="http://localhost:5173"
 SYNC_API_KEY="your-secret-sync-key"
 ```
 
+The server and mock election dashboard start with blank FEC and Gemini keys. FEC sync stays disabled, and chat returns 503 until its key is set. The fictional results fixture and `/api/v1` mock endpoints do not contact either service.
+
 ## Getting an FEC API Key
 
 1. Visit https://api.open.fec.gov/developers/
 2. Sign up for a free API key (no credit card required)
-3. You'll receive your API key immediately
-4. Add it to your `.env` file
+3. Add the issued key to your `.env` file
 
 ## Database Setup
 
@@ -50,11 +54,11 @@ SYNC_API_KEY="your-secret-sync-key"
 
 ## Validation
 
-The application will validate environment variables on startup. If any required variables are missing, you'll see an error message like:
+The application will validate required environment variables on startup. For example, a missing database URL produces a validation error:
 
 ```
 ❌ Invalid environment variables: {
-  FEC_API_KEY: [ 'Required' ]
+  DATABASE_URL: [ 'Required' ]
 }
 ```
 

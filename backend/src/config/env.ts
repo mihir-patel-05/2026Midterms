@@ -5,8 +5,9 @@ config();
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
-  FEC_API_KEY: z.string(),
-  GEMINI_API_KEY: z.string(),
+  // The mock election dashboard must boot before external credentials exist.
+  FEC_API_KEY: z.string().trim().optional(),
+  GEMINI_API_KEY: z.string().trim().optional(),
   FEC_API_BASE_URL: z.string().default('https://api.open.fec.gov/v1'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

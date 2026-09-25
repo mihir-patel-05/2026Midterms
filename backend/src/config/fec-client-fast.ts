@@ -70,6 +70,7 @@ export class FECClientFast {
     endpoint: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<FECPaginatedResponse<T>>> {
+    if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured; FEC sync is unavailable');
     // Create unique job ID
     const params = new URLSearchParams(config?.params || {});
     const jobId = `GET ${endpoint}${params.toString() ? '?' + params.toString() : ''}`;

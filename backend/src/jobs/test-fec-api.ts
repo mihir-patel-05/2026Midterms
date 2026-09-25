@@ -15,6 +15,7 @@ async function testFecApi() {
   console.log('\n' + '='.repeat(60));
   console.log('🧪 Testing FEC API Connection');
   console.log('='.repeat(60));
+  if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured');
   console.log(`🔑 API Key: ${env.FEC_API_KEY.substring(0, 10)}...`);
   console.log(`🌐 Base URL: ${env.FEC_API_BASE_URL}`);
   console.log('='.repeat(60) + '\n');
