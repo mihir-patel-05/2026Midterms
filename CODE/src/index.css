@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:wght@400..800&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -125,6 +125,92 @@
     --sidebar-border: 220 20% 20%;
     --sidebar-ring: 175 55% 45%;
   }
+
+  /*
+   * New frontend (VITE_FEATURE_NEW_FRONTEND). Palette ported from
+   * docs/prototypes/election-dashboard-poc.html; remaps the shadcn tokens so
+   * every components/ui primitive picks up the dark election-monitor look.
+   */
+  :root[data-frontend="v2"] {
+    color-scheme: dark;
+
+    --background: 218 44% 5%;
+    --foreground: 216 45% 98%;
+
+    --card: 220 45% 8%;
+    --card-foreground: 216 45% 98%;
+
+    --popover: 219 42% 11%;
+    --popover-foreground: 216 45% 98%;
+
+    --primary: 165 69% 62%;
+    --primary-foreground: 218 44% 5%;
+    --primary-glow: 165 69% 70%;
+
+    --secondary: 41 86% 68%;
+    --secondary-foreground: 218 44% 5%;
+
+    --muted: 218 42% 15%;
+    --muted-foreground: 216 24% 66%;
+
+    --accent: 218 42% 15%;
+    --accent-foreground: 216 45% 98%;
+
+    --destructive: 356 100% 72%;
+    --destructive-foreground: 218 44% 5%;
+
+    --border: 218 33% 22%;
+    --input: 218 33% 22%;
+    --ring: 165 69% 62%;
+
+    --radius: 0.8125rem;
+
+    --navy: 216 45% 98%;
+    --navy-light: 216 24% 66%;
+    --teal-soft: 174 51% 16%;
+    --amber-soft: 41 40% 16%;
+    --success: 143 56% 65%;
+    --info: 210 100% 72%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(174, 51%, 16%) 0%, hsl(209, 58%, 20%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(220, 45%, 8%) 0%, hsl(218, 44%, 5%) 100%);
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 8px 24px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 14px 35px rgb(0 0 0 / 0.32);
+    --shadow-xl: 0 22px 70px rgb(0 0 0 / 0.34);
+    --shadow-glow: 0 0 20px hsl(165 69% 62% / 0.25);
+
+    --sidebar-background: 220 45% 8%;
+    --sidebar-foreground: 216 45% 98%;
+    --sidebar-primary: 165 69% 62%;
+    --sidebar-primary-foreground: 218 44% 5%;
+    --sidebar-accent: 218 42% 15%;
+    --sidebar-accent-foreground: 216 45% 98%;
+    --sidebar-border: 218 33% 22%;
+    --sidebar-ring: 165 69% 62%;
+  }
+
+  /* Prototype-only tokens. Defined for both frontends so v2 components render
+     the same wherever they are mounted. */
+  :root {
+    --surface: 220 45% 8%;
+    --surface-2: 219 42% 11%;
+    --surface-3: 218 42% 15%;
+    --line: 218 33% 22%;
+    --line-soft: 215 22% 58% / 0.18;
+    --quiet: 217 18% 46%;
+    --signal-teal: 165 69% 62%;
+    --signal-teal-deep: 174 51% 16%;
+    --signal-blue: 210 100% 72%;
+    --signal-blue-deep: 209 58% 20%;
+    --signal-coral: 7 100% 74%;
+    --signal-coral-deep: 355 33% 22%;
+    --signal-amber: 41 86% 68%;
+    --signal-purple: 251 100% 82%;
+    --signal-green: 143 56% 65%;
+    --signal-danger: 356 100% 72%;
+  }
 }
 
 @layer base {
@@ -135,6 +221,18 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Source Sans 3', system-ui, sans-serif;
+  }
+
+  :root[data-frontend="v2"] body {
+    background:
+      radial-gradient(circle at 72% 8%, rgb(43 110 118 / 0.13), transparent 30rem),
+      radial-gradient(circle at 22% 86%, rgb(63 78 137 / 0.12), transparent 28rem),
+      hsl(var(--background));
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  :root[data-frontend="v2"] :is(h1, h2, h3, h4, h5, h6) {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {

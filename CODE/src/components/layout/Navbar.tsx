@@ -3,11 +3,12 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Vote, MapPin, Users, FileText, Info, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { electionDashboardEnabled } from "@/lib/featureFlags";
 
 const navLinks = [
   { to: "/", label: "Home", icon: Vote },
   { to: "/elections", label: "Elections", icon: MapPin },
-  ...(import.meta.env.VITE_FEATURE_ELECTION_DASHBOARD === 'true' ? [{ to: '/election-dashboard', label: 'Markets', icon: TrendingUp }] : []),
+  ...(electionDashboardEnabled ? [{ to: '/election-dashboard', label: 'Markets', icon: TrendingUp }] : []),
   { to: "/candidates", label: "Candidates", icon: Users },
   { to: "/voter-resources", label: "Voter Resources", icon: FileText },
   { to: "/about", label: "About", icon: Info },

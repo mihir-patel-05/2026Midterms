@@ -6,8 +6,7 @@ import { PredictionMarketsPanel } from "@/features/election-dashboard/Prediction
 import { stateMapItems } from "@/features/election-dashboard/map";
 import "@/features/election-dashboard/election-dashboard.css";
 
-const dashboardEnabled = import.meta.env.VITE_FEATURE_ELECTION_DASHBOARD === "true";
-const mockProviderEnabled = import.meta.env.VITE_RESULTS_PROVIDER_MOCK_ENABLED === "true";
+import { electionDashboardEnabled as dashboardEnabled, mockResultsProviderEnabled as mockProviderEnabled } from "@/lib/featureFlags";
 
 export default function ElectionDashboard() {
   if (dashboardEnabled && mockProviderEnabled) return <ElectionDashboardShell />;
