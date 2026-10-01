@@ -6,6 +6,7 @@ import { CanvasHeader } from "./CanvasHeader";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
+import { FinanceTab } from "./FinanceTab";
 import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
@@ -175,7 +176,7 @@ export function ElectionMonitor() {
               {results && <SemanticsCard results={results} />}
             </>
           }
-          finance={<section className="em-card"><h3>Candidate finance</h3><p>Select a contest to compare its candidates' FEC filings.</p></section>}
+          finance={<FinanceTab key={contest?.id ?? "none"} contest={contest} />}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}
         />
       </div>
