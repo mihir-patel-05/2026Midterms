@@ -637,6 +637,9 @@ model DataSource {
   rawArtifacts        RawArtifact[]
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
+  marketSnapshots     MarketSnapshot[]
+  indicatorSeries     IndicatorSeries[]
+  districtProfiles    DistrictProfile[]
 
   @@index([type])
   @@index([healthStatus])
@@ -695,6 +698,7 @@ model Contest {
   snapshots           ResultSnapshot[]     @relation("ContestResultSnapshots")
   certificationEvents CertificationEvent[]
   ingestionErrors     IngestionError[]
+  marketSnapshots     MarketSnapshot[]
 
   @@unique([sourceId, sourceContestId])
   @@index([electionEventId, office, districtCode])
@@ -799,11 +803,12 @@ model GeographyUnit {
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
 
-  version         GeographyVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  parentRelations GeographyRelation[] @relation("GeographyHierarchyParent")
-  childRelations  GeographyRelation[] @relation("GeographyHierarchyChild")
-  reportingUnits  ReportingUnit[]
-  contests        Contest[]
+  version          GeographyVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  parentRelations  GeographyRelation[] @relation("GeographyHierarchyParent")
+  childRelations   GeographyRelation[] @relation("GeographyHierarchyChild")
+  reportingUnits   ReportingUnit[]
+  contests         Contest[]
+  districtProfiles DistrictProfile[]
 
   @@unique([versionId, type, geoid])
   @@index([versionId, stateCode, type])
@@ -1035,4 +1040,164 @@ model CertificationEvent {
   @@index([contestId, effectiveAt])
   @@index([sourceId])
   @@map("certification_events")
+}
+
+// Intel v2 batch 1: market history, economic indicators, district profiles,
+// and the agent run log. See docs/DATABASE_SCHEMA.md#intel-v2-proposed-schema.
+
+enum MarketProvider {
+  KALSHI
+  POLYMARKET
+}
+
+enum MarketScope {
+  NATIONAL_HOUSE
+  NATIONAL_SENATE
+  STATE_SENATE
+  HOUSE_DISTRICT
+}
+
+enum MarketPriceType {
+  MIDPOINT
+  LAST_TRADE
+  OUTCOME_PRICE
+}
+
+enum IndicatorFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum AgentKind {
+  NEWS_TRIAGE
+  DISTRICT_ISSUES
+  WHY_IT_MOVED
+  SIGNAL_DIVERGENCE
+  DAILY_BRIEF
+  CANDIDATE_POSITIONS
+  DATA_QA
+  ASK_THE_RACE
+  ELECTION_NIGHT
+}
+
+// Hourly prediction-market price per provider market outcome. Prices are
+// fractions in [0, 1] (enforced by CHECK constraints in the migration) and are
+// market prices, not forecasts.
+model MarketSnapshot {
+  id             String          @id @default(uuid())
+  sourceId       String          @map("source_id")
+  provider       MarketProvider
+  scope          MarketScope
+  sourceEventId  String          @map("source_event_id") // Kalshi event ticker or Polymarket slug
+  sourceMarketId String          @map("source_market_id") // Kalshi market ticker or Polymarket market ID
+  outcome        String
+  contestId      String?         @map("contest_id") // Null for national control markets
+  stateCode      String?         @map("state_code")
+  districtCode   String?         @map("district_code")
+  priceType      MarketPriceType @map("price_type")
+  price          Decimal         @db.Decimal(5, 4)
+  yesBid         Decimal?        @map("yes_bid") @db.Decimal(5, 4)
+  yesAsk         Decimal?        @map("yes_ask") @db.Decimal(5, 4)
+  volume         Decimal?        @db.Decimal(18, 2)
+  liquidity      Decimal?        @db.Decimal(18, 2)
+  sourceUrl      String?         @map("source_url")
+  capturedHour   DateTime        @map("captured_hour") // Truncated to the hour
+  fetchedAt      DateTime        @map("fetched_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  source  DataSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  contest Contest?   @relation(fields: [contestId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, sourceMarketId, capturedHour])
+  @@index([contestId, capturedHour])
+  @@index([scope, stateCode, districtCode, capturedHour])
+  @@map("market_snapshots")
+}
+
+// Economic indicator catalog (e.g. FRED DGS10, T10Y2Y, VIXCLS).
+model IndicatorSeries {
+  id          String             @id @default(uuid())
+  key         String             @unique
+  name        String
+  unit        String
+  frequency   IndicatorFrequency
+  description String?            @db.Text
+  sourceId    String             @map("source_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  source       DataSource             @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  observations IndicatorObservation[]
+
+  @@index([sourceId])
+  @@map("indicator_series")
+}
+
+model IndicatorObservation {
+  id         String   @id @default(uuid())
+  seriesId   String   @map("series_id")
+  observedAt DateTime @map("observed_at") @db.Date
+  value      Decimal  @db.Decimal(18, 6)
+  fetchedAt  DateTime @map("fetched_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  series IndicatorSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, observedAt])
+  @@map("indicator_observations")
+}
+
+// District fundamentals and ACS demographics per census vintage.
+// geographyUnitId stays null until the geography vintage is chosen.
+model DistrictProfile {
+  id                    String   @id @default(uuid())
+  stateCode             String   @map("state_code")
+  districtCode          String   @map("district_code")
+  geographyUnitId       String?  @map("geography_unit_id")
+  acsYear               Int      @map("acs_year")
+  pres2024Margin        Decimal? @map("pres_2024_margin") @db.Decimal(6, 4) // D minus R, as a fraction
+  partisanLean          Decimal? @map("partisan_lean") @db.Decimal(6, 4)
+  population            Int?
+  medianHouseholdIncome Int?     @map("median_household_income")
+  demographics          Json?
+  sourceId              String   @map("source_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  geographyUnit GeographyUnit? @relation(fields: [geographyUnitId], references: [id], onDelete: SetNull)
+  source        DataSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([stateCode, districtCode, acsYear])
+  @@index([geographyUnitId])
+  @@map("district_profiles")
+}
+
+// One LLM agent job. Stores enough to trace and reproduce any AI output.
+// The trigger_signal_id link to race_signal_events arrives in batch 2.
+model AgentRun {
+  id            String             @id @default(uuid())
+  agent         AgentKind
+  model         String
+  promptVersion String             @map("prompt_version")
+  schemaVersion String             @map("schema_version")
+  status        IngestionRunStatus @default(QUEUED)
+  inputSha256   String             @map("input_sha256")
+  input         Json
+  rawOutput     Json?              @map("raw_output")
+  error         String?            @db.Text
+  inputTokens   Int?               @map("input_tokens")
+  outputTokens  Int?               @map("output_tokens")
+  startedAt     DateTime?          @map("started_at")
+  completedAt   DateTime?          @map("completed_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  @@unique([agent, promptVersion, inputSha256])
+  @@index([agent, createdAt])
+  @@index([status, createdAt])
+  @@map("agent_runs")
 }
