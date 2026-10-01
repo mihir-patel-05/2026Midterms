@@ -71,15 +71,16 @@ export function ElectionDashboardShell() {
   const previewCoverage = viewState === "ready" ? selectedMetadata?.coverage ?? "UNKNOWN" : viewState === "unavailable" ? "NONE" : "PARTIAL";
   const previewResponseStatus = viewState === "ready" ? selectedMetadata?.responseStatus ?? "UNAVAILABLE" : viewState === "unavailable" ? "UNAVAILABLE" : "PARTIAL";
 
+  const activeContestId = selectedContest?.id;
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     next.set("state", stateCode);
     next.set("district", district);
     next.set("office", office);
-    if (selectedContest) next.set("contest", selectedContest.id);
+    if (activeContestId) next.set("contest", activeContestId);
     else next.delete("contest");
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
-  }, [district, office, searchParams, selectedContest?.id, setSearchParams, stateCode]);
+  }, [activeContestId, district, office, searchParams, setSearchParams, stateCode]);
 
   function updateOffice(nextOffice: DashboardOfficeFilter) {
     setOffice(nextOffice);
