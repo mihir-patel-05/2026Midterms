@@ -191,7 +191,7 @@ export default function RaceDetail() {
                 </h2>
 
                 {hasUnconfirmedCandidates && candidates.length > 0 && (
-                  <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                  <div className="mb-5 rounded-lg border border-secondary/40 bg-amber-soft p-4 text-sm text-foreground">
                     These candidates have active 2026 FEC filings. Their primary result and
                     general-election ballot status have not yet been verified with the state election office.
                   </div>

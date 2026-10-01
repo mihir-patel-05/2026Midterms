@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Users, ChevronRight, Filter, ArrowLeft, Search, Loader2 } from "lucide-react";
 import { USMap } from "@/components/home/USMap";
+import { StatesMap } from "@/features/election-monitor/map/StatesMap";
+import { newFrontendEnabled } from "@/lib/featureFlags";
 import { Input } from "@/components/ui/input";
 import { getElectionsByState, getStateElectionCounts } from "@/lib/api";
 import type { Election } from "@/types/candidate";
@@ -50,6 +52,7 @@ export default function Elections() {
   const [hoveredState, setHoveredState] = useState<string | null>(null);
 
   const stateCode = state ? state.toUpperCase() : null;
+  const navigate = useNavigate();
 
   // Fetch state election counts for the map
   const { data: stateCountsData, isLoading: isLoadingCounts } = useQuery({
@@ -313,11 +316,18 @@ export default function Elections() {
                 </div>
               ) : (
                 <div className="mb-12">
-                  <USMap
-                    states={states}
-                    hoveredState={hoveredState}
-                    onStateHover={setHoveredState}
-                  />
+                  {newFrontendEnabled ? (
+                    <StatesMap
+                      racesByState={stateCountsData ? Object.fromEntries(stateCountsData.states.map((item) => [item.state, item.races])) : undefined}
+                      onSelectState={(code) => navigate(`/elections/${code.toLowerCase()}`)}
+                    />
+                  ) : (
+                    <USMap
+                      states={states}
+                      hoveredState={hoveredState}
+                      onStateHover={setHoveredState}
+                    />
+                  )}
                 </div>
               )}
 

@@ -20,6 +20,8 @@
     --primary: 175 65% 35%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 175 60% 45%;
+    /* Text on .gradient-hero surfaces. */
+    --hero-foreground: 0 0% 100%;
 
     /* Warm amber accents */
     --secondary: 38 90% 50%;
@@ -89,6 +91,7 @@
     --primary: 175 55% 45%;
     --primary-foreground: 220 30% 10%;
     --primary-glow: 175 50% 55%;
+    --hero-foreground: 220 30% 10%;
 
     --secondary: 38 80% 55%;
     --secondary-foreground: 220 30% 10%;
@@ -146,6 +149,7 @@
     --primary: 165 69% 62%;
     --primary-foreground: 218 44% 5%;
     --primary-glow: 165 69% 70%;
+    --hero-foreground: 216 45% 98%;
 
     --secondary: 41 86% 68%;
     --secondary-foreground: 218 44% 5%;

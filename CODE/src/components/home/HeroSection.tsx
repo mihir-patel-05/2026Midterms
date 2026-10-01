@@ -22,7 +22,7 @@ export function HeroSection() {
       <div className="container relative py-20 md:py-32">
         <div className="mx-auto max-w-4xl text-center">
           {/* Election Countdown Badge */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm font-medium text-primary-foreground backdrop-blur-sm animate-fade-in">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-hero-foreground/10 px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-sm animate-fade-in">
             <Calendar className="h-4 w-4" />
             <span>
               {daysUntilElection > 0
@@ -32,14 +32,14 @@ export function HeroSection() {
           </div>
 
           {/* Main Headline */}
-          <h1 className="mb-6 font-heading text-4xl font-bold tracking-tight text-primary-foreground sm:text-5xl md:text-6xl animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+          <h1 className="mb-6 font-heading text-4xl font-bold tracking-tight text-hero-foreground sm:text-5xl md:text-6xl animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             Know Your Candidates.
             <br />
             <span className="text-secondary">Vote Informed.</span>
           </h1>
 
           {/* Subheadline */}
-          <p className="mb-10 text-lg text-primary-foreground/80 sm:text-xl max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+          <p className="mb-10 text-lg text-hero-foreground/80 sm:text-xl max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: "200ms" }}>
             Transparent, non-partisan information on federal elections. 
             Explore candidates, track campaign funding, and find your polling place.
           </p>
@@ -85,12 +85,12 @@ export function HeroSection() {
 
 function FeatureCard({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
   return (
-    <div className="rounded-xl bg-primary-foreground/10 p-6 backdrop-blur-sm border border-primary-foreground/10 hover:bg-primary-foreground/15 transition-colors">
+    <div className="rounded-xl bg-hero-foreground/10 p-6 backdrop-blur-sm border border-hero-foreground/10 hover:bg-hero-foreground/15 transition-colors">
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
         <Icon className="h-5 w-5" />
       </div>
-      <h3 className="mb-2 font-heading text-lg font-semibold text-primary-foreground">{title}</h3>
-      <p className="text-sm text-primary-foreground/70">{description}</p>
+      <h3 className="mb-2 font-heading text-lg font-semibold text-hero-foreground">{title}</h3>
+      <p className="text-sm text-hero-foreground/70">{description}</p>
     </div>
   );
 }

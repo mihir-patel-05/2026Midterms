@@ -86,6 +86,7 @@ export default {
           soft: "hsl(var(--line-soft))",
         },
         quiet: "hsl(var(--quiet))",
+        "hero-foreground": "hsl(var(--hero-foreground))",
         signal: {
           teal: "hsl(var(--signal-teal))",
           "teal-deep": "hsl(var(--signal-teal-deep))",

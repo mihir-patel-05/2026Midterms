@@ -56,10 +56,10 @@ export default function VoterResources() {
       {/* Hero */}
       <section className="gradient-hero py-16">
         <div className="container text-center">
-          <h1 className="font-heading text-3xl font-bold text-primary-foreground sm:text-4xl mb-4">
+          <h1 className="font-heading text-3xl font-bold text-hero-foreground sm:text-4xl mb-4">
             Voter Resources
           </h1>
-          <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
+          <p className="text-lg text-hero-foreground/80 max-w-2xl mx-auto">
             Everything you need to participate in upcoming elections. Register to vote,
             find your polling place, and learn about absentee voting options.
           </p>
