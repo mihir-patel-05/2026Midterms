@@ -2,7 +2,7 @@
 
 **Status:** describes the schema as implemented in `backend/prisma/schema.prisma` after migration `20260921120000_day0_election_results_foundation`.  
 **Engine:** PostgreSQL 16 via Prisma 6. 35 models, 16 enums, 6 migrations.  
-**Proposed:** Intel v2 tables are in [their own section](#intel-v2-proposed-schema) and have not been migrated yet.
+**Intel v2:** batch 1 is migrated (`20261001220824_intel_v2_batch1`). Later batches are proposed in [their own section](#intel-v2-proposed-schema).
 
 This is the reference for how our data is organized. The rationale for the results tables is in [ADR 0001](adr/0001-provider-neutral-results-foundation.md), and the publication rules are in [DAY_0_DATABASE_NOTES.md](DAY_0_DATABASE_NOTES.md). Section 6 of the [implementation plan](ELECTION_DASHBOARD_RAILWAY_IMPLEMENTATION_PLAN.md#6-postgresql-design) has the original target design.
 
@@ -300,7 +300,7 @@ These are differences between the plan and the implemented schema, or places whe
 
 ## Intel v2: proposed schema
 
-**Status:** proposed and not migrated. This section covers the data that [INTEL_V2_PLAN.md](product/INTEL_V2_PLAN.md) needs. It follows the same conventions as the rest of the schema and is fully additive.
+**Status:** batch 1 (`market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs`) is migrated in `20261001220824_intel_v2_batch1`. Batches 2–4 are proposed and not migrated. This section covers the data that [INTEL_V2_PLAN.md](product/INTEL_V2_PLAN.md) needs. It follows the same conventions as the rest of the schema and is fully additive.
 
 ### Design decisions
 
@@ -425,7 +425,7 @@ Outside spending (FEC Schedule E) is tracked separately in [mihir-patel-05/2026m
 
 Order follows the plan's timeline:
 
-1. **Oct 1–7:** `market_snapshots`, `indicator_series`/`indicator_observations`, `district_profiles`, `agent_runs`
+1. **Oct 1–7 (done):** `market_snapshots`, `indicator_series`/`indicator_observations`, `district_profiles`, `agent_runs`. `agent_runs.trigger_signal_id` is deferred to batch 2, when `race_signal_events` exists.
 2. **Oct 8–14:** `articles`, `article_tags`, `agent_outputs`, `agent_output_citations`, `race_signal_events`, `win_probability_values`
 3. **Oct 15–24:** `polls`, `poll_results`, `early_vote_reports`, `control_simulations`
 4. **Oct 25–Nov 3:** `race_calls`. The schema freeze applies after this.
