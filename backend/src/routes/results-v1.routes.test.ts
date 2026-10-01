@@ -21,3 +21,10 @@ test('mock API builders return valid normalized fixtures with stable ETags', asy
   assert.equal(etagFor(payload), etagFor(mockBootstrapPayload()));
   assert.notEqual(etagFor(payload), etagFor(mockSourceStatusPayload()));
 });
+
+test('stable ETags ignore per-request generatedAt stamps but track data changes', async () => {
+  const { stableEtagFor } = await import('./results-v1.routes.js');
+  const body = (generatedAt: string, votes: number) => ({ data: { votes }, meta: { generatedAt } });
+  assert.equal(stableEtagFor(body('2026-11-04T02:00:00.000Z', 1)), stableEtagFor(body('2026-11-04T02:05:00.000Z', 1)));
+  assert.notEqual(stableEtagFor(body('2026-11-04T02:00:00.000Z', 1)), stableEtagFor(body('2026-11-04T02:00:00.000Z', 2)));
+});
