@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { loadMockDashboard } from "@/features/election-dashboard/mockApi";
+import type { SourceStatusContract } from "@/features/election-dashboard/types";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { FICTIONAL_STATE_CODE } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
@@ -70,6 +71,23 @@ export function useMockResultsFeed() {
 
       const stateName = data.manifest.states.find((state) => state.code === FICTIONAL_STATE_CODE)?.name ?? "Fictional Example State";
       return { contests, resultsByContest, stateName, generatedAt: data.metadata.generatedAt };
+    },
+  });
+}
+
+/** Results-source health from /api/v1/sources/status (mock feed only for now). */
+export function useResultsSourceStatus() {
+  return useQuery({
+    queryKey: ["election-monitor", "source-status"],
+    enabled: mockResultsProviderEnabled,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async ({ signal }) => {
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const response = await fetch(`${baseUrl}/api/v1/sources/status`, { signal });
+      if (!response.ok) throw new Error(`Source status returned ${response.status}`);
+      const payload = (await response.json()) as { data: { sources: SourceStatusContract[] } };
+      return payload.data.sources;
     },
   });
 }

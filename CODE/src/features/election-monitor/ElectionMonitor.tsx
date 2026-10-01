@@ -6,10 +6,12 @@ import { CanvasHeader } from "./CanvasHeader";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
-import { useMockResultsFeed } from "./mockResults";
+import { HistoryCard } from "./HistoryCard";
+import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
 import { useStateContests, useStateCounts } from "./realData";
 import { Sidebar } from "./Sidebar";
+import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
 import type { MapView } from "./map/ElectionMap";
 import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
@@ -23,6 +25,7 @@ export function ElectionMonitor() {
   const [params, update] = useMonitorParams();
   const mockFeed = useMockResultsFeed();
   const counts = useStateCounts();
+  const sourceStatus = useResultsSourceStatus();
   const isFictionalSelection = params.state === FICTIONAL_STATE_CODE && mockResultsProviderEnabled;
   const realContests = useStateContests(isFictionalSelection ? null : params.state);
 
@@ -60,7 +63,9 @@ export function ElectionMonitor() {
   const visibleContests = stateContests.filter(
     (contest) => contestMatchesOffice(contest, params.office) && (!params.district || contest.office !== "US_HOUSE" || contest.district === params.district),
   );
-  const contest = visibleContests.find((item) => item.id === params.contest) ?? visibleContests[0];
+  const contest = visibleContests.find((item) => item.id === params.contest)
+    ?? (params.district ? visibleContests.find((item) => item.office === "US_HOUSE" && item.district === params.district) : undefined)
+    ?? visibleContests[0];
   const results = contest ? mockFeed.data?.resultsByContest[contest.id] : undefined;
 
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, contest: null }), [update]);
@@ -141,7 +146,13 @@ export function ElectionMonitor() {
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
           tab={params.tab}
           onTabChange={(tab) => update({ tab })}
-          overview={<RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />}
+          overview={
+            <>
+              <RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />
+              {selectedState && haveContests && stateContests.length > 0 && <SnapshotCard stateName={selectedState.name} contests={stateContests} />}
+              {results && <HistoryCard results={results} sources={sourceStatus.data} />}
+            </>
+          }
           counties={<UnitsCard results={results} resultsAvailable={mockResultsProviderEnabled} heading={contest ? `County reporting · ${contest.district ? districtLabel(contest.stateCode, contest.district) : contest.stateCode}` : "County reporting"} />}
           finance={<section className="em-card"><h3>Candidate finance</h3><p>Select a contest to compare its candidates' FEC filings.</p></section>}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}

@@ -266,3 +266,15 @@
 .em-map-frame .maplibregl-ctrl-attrib a { color: hsl(var(--muted-foreground)); }
 .em-map-frame .maplibregl-ctrl-attrib-button { filter: invert(1); }
 @media (max-width: 720px) { .em-map-frame { height: 340px; } .em-map-jumps button { padding: 0 8px; } }
+
+/* Snapshot history timeline */
+.em-timeline { display: grid; margin: 0; padding: 0; list-style: none; }
+.em-timeline-row { position: relative; display: grid; grid-template-columns: 68px 1fr; gap: 11px; min-height: 48px; padding-bottom: 12px; }
+.em-timeline-row:not(:last-child)::after { position: absolute; top: 18px; bottom: -1px; left: 74px; width: 1px; background: hsl(var(--line)); content: ""; }
+.em-timeline-row time { color: hsl(var(--quiet)); font: 0.66rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.em-timeline-copy { position: relative; padding-left: 14px; }
+.em-timeline-copy::before { position: absolute; top: 4px; left: -1px; width: 7px; height: 7px; border: 2px solid hsl(var(--surface-2)); border-radius: 50%; background: hsl(var(--signal-teal)); content: ""; }
+.em-timeline-copy strong, .em-timeline-copy span { display: block; }
+.em-timeline-copy strong { margin-bottom: 2px; font-size: 0.73rem; }
+.em-timeline-copy span { color: hsl(var(--muted-foreground)); font-size: 0.68rem; }
+.em-candidate-name .em-avatar { display: grid; color: var(--avatar-fg); font-size: 0.68rem; }
