@@ -6,8 +6,8 @@ export interface ShellNavLink {
   icon: LucideIcon;
 }
 
-/** Where the election monitor lives. */
-export const DASHBOARD_PATH = "/election-dashboard";
+/** The election monitor is the home page of the new frontend (see App.tsx). */
+export const DASHBOARD_PATH = "/";
 
 export const shellNavLinks: ShellNavLink[] = [
   { to: DASHBOARD_PATH, label: "Dashboard", icon: LayoutDashboard },
