@@ -1,6 +1,5 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
-import { NationalMap } from "@/features/election-dashboard/NationalMap";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { CanvasHeader } from "./CanvasHeader";
@@ -11,10 +10,13 @@ import { useMockResultsFeed } from "./mockResults";
 import { RaceCard } from "./RaceCard";
 import { Sidebar } from "./Sidebar";
 import { StatStrip } from "./StatStrip";
-import type { MonitorStateSummary, OfficeFilter } from "./types";
+import type { MapView } from "./map/ElectionMap";
+import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
 import "./monitor.css";
+
+const ElectionMap = lazy(() => import("./map/ElectionMap"));
 
 export function ElectionMonitor() {
   const [params, update] = useMonitorParams();
@@ -45,7 +47,16 @@ export function ElectionMonitor() {
   const contest = visibleContests.find((item) => item.id === params.contest) ?? visibleContests[0];
   const results = contest ? mockFeed.data?.resultsByContest[contest.id] : undefined;
 
-  const selectState = (code: string | null) => update({ state: code, district: null, contest: null });
+  const selectState = useCallback((code: string | null) => update({ state: code, district: null, contest: null }), [update]);
+  const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
+  const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
+  const describeState = useCallback((code: string) => {
+    const state = states.find((item) => item.code === code);
+    return {
+      title: state?.name ?? code,
+      lines: [state?.contests === null || state?.contests === undefined ? "Contest count not loaded" : `${state.contests} federal contests`],
+    };
+  }, [states]);
 
   return (
     <AppShell variant="app">
@@ -88,12 +99,17 @@ export function ElectionMonitor() {
               { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
             ]}
           />
-          <MapCard layer={params.layer} readout={`LAYER: ${params.layer.toUpperCase()}`}>
-            <NationalMap
-              states={stateMapItems.map((item) => ({ ...item, coverage: "NONE" as const }))}
-              selectedState={selectedState?.code ?? ""}
-              onSelect={selectState}
-            />
+          <MapCard layer={params.layer} readout={`LAYER: ${params.layer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}>
+            <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
+              <ElectionMap
+                readiness={readiness}
+                selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
+                initialView={params.view}
+                describeState={describeState}
+                onSelectState={selectState}
+                onViewChange={onViewChange}
+              />
+            </Suspense>
           </MapCard>
         </section>
 

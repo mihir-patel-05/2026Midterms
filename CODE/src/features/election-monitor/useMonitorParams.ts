@@ -17,6 +17,17 @@ export interface MonitorParams {
   contest: string | null;
   layer: MapLayer;
   tab: DetailTab;
+  /** Shareable camera, like `?lat=…&lon=…&zoom=…`; null until the user pans or zooms. */
+  view: { lat: number; lon: number; zoom: number } | null;
+}
+
+function parseView(searchParams: URLSearchParams) {
+  const lat = Number(searchParams.get("lat"));
+  const lon = Number(searchParams.get("lon"));
+  const zoom = Number(searchParams.get("zoom"));
+  const valid = searchParams.has("lat") && searchParams.has("lon") && searchParams.has("zoom")
+    && Math.abs(lat) <= 85 && Math.abs(lon) <= 180 && zoom >= 0 && zoom <= 22;
+  return valid ? { lat, lon, zoom } : null;
 }
 
 /**
@@ -36,13 +47,21 @@ export function useMonitorParams() {
       contest: searchParams.get("contest"),
       layer: pick(searchParams.get("layer"), layers, "states"),
       tab: pick(searchParams.get("tab"), tabs, "overview"),
+      view: parseView(searchParams),
     };
   }, [searchParams]);
 
   const update = useCallback((patch: Partial<MonitorParams>) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      for (const [key, value] of Object.entries(patch)) {
+      const { view, ...rest } = patch;
+      if (view !== undefined) {
+        for (const key of ["lat", "lon", "zoom"] as const) {
+          if (view) next.set(key, String(view[key]));
+          else next.delete(key);
+        }
+      }
+      for (const [key, value] of Object.entries(rest)) {
         const isDefault = value === null || value === undefined
           || (key === "office" && value === "ALL")
           || (key === "layer" && value === "states")
