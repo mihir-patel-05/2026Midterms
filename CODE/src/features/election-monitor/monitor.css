@@ -293,3 +293,25 @@
 .em-finance-row strong { color: hsl(var(--foreground)); font: 0.66rem ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
 .em-bar { height: 7px; overflow: hidden; border-radius: 99px; background: hsl(var(--surface-3)); }
 .em-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, hsl(var(--signal-teal)), hsl(var(--signal-blue))); }
+
+/* Activity & coverage rail */
+.em-rail-empty { margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.75rem; }
+.em-activity { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.em-activity li { display: grid; grid-template-columns: 42px 8px 1fr; align-items: start; gap: 9px; }
+.em-activity time { color: hsl(var(--quiet)); font: 0.69rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.em-activity i { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; }
+.em-activity p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.75rem; }
+.em-activity strong { color: hsl(var(--foreground)); }
+.em-coverage { display: grid; gap: 8px; }
+.em-coverage-row { display: grid; grid-template-columns: 112px 1fr 36px; align-items: center; gap: 9px; font-size: 0.72rem; }
+.em-coverage-row > span:first-child { color: hsl(var(--muted-foreground)); }
+.em-coverage-row em { color: hsl(var(--quiet)); font-size: 0.68rem; font-style: normal; }
+.em-coverage-row strong { font: 0.68rem ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+.em-coverage-row .em-bar { height: 5px; }
+.em-rail-wide { grid-column: 1 / -1; min-width: 0; }
+.em-rail .ed-panel { padding: 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface) / 0.82); box-shadow: none; }
+.em-rail .ed-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.em-rail .ed-panel-heading h2 { margin: 4px 0 0; font-size: 0.9rem; }
+.em-rail .ed-eyebrow { display: block; color: hsl(var(--quiet)); font: 800 0.7rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; }
+.em-rail .ed-empty { color: hsl(var(--muted-foreground)); font-size: 0.76rem; }
+@media (max-width: 720px) { .em-rail-wide { margin-top: 10px; } }

@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
+import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { CanvasHeader } from "./CanvasHeader";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DetailPanel } from "./DetailPanel";
@@ -19,6 +21,8 @@ import type { MapTarget, MapView } from "./map/ElectionMap";
 import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
+// Prediction-market panel styles live with the legacy dashboard.
+import "@/features/election-dashboard/election-dashboard.css";
 import "./monitor.css";
 
 const ElectionMap = lazy(() => import("./map/ElectionMap"));
@@ -96,6 +100,37 @@ export function ElectionMonitor() {
   }, [states, selectedState?.code, stateContests]);
   const selectDistrict = useCallback((state: string, district: string) => update({ state, district, contest: null }), [update]);
 
+  const activity = useMemo(() => {
+    const items: ActivityItem[] = [];
+    const iso = (ms: number) => new Date(ms).toISOString();
+    if (counts.dataUpdatedAt) items.push({ at: iso(counts.dataUpdatedAt), tone: "teal", title: "Race counts refreshed", detail: `${numberFormat.format(nationalRaces ?? 0)} races across ${statesWithRaces ?? 0} states.` });
+    if (counts.errorUpdatedAt && counts.isError) items.push({ at: iso(counts.errorUpdatedAt), tone: "danger", title: "Elections API unreachable", detail: "Counts are hidden rather than shown as zero." });
+    if (selectedState && !isFictionalSelection && realContests.dataUpdatedAt) {
+      const candidates = (realContests.data ?? []).reduce((sum, item) => sum + item.candidates.length, 0);
+      items.push({ at: iso(realContests.dataUpdatedAt), tone: "blue", title: `${selectedState.name} contests loaded`, detail: `${realContests.data?.length ?? 0} general-election contests, ${candidates} candidates.` });
+    }
+    if (selectedState && !isFictionalSelection && realContests.isError && realContests.errorUpdatedAt) items.push({ at: iso(realContests.errorUpdatedAt), tone: "danger", title: `${selectedState.name} contests unavailable`, detail: "The elections API did not respond." });
+    for (const source of sourceStatus.data ?? []) {
+      items.push({ at: source.lastCheckedAt, tone: source.health === "CURRENT" ? "amber" : "danger", title: "Results source checked", detail: `${source.isMock ? "Fictional fixture" : source.name} · ${source.health.toLowerCase().replace("_", " ")}.` });
+    }
+    if (results) items.push({ at: results.updatedAt, tone: "amber", title: "Result snapshot", detail: `${results.meta.isMockData ? "Mock " : ""}${results.reportingPercent === null ? "reporting unknown" : `${results.reportingPercent.toFixed(1)}% reporting`}.` });
+    return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 4);
+  }, [counts.dataUpdatedAt, counts.errorUpdatedAt, counts.isError, nationalRaces, statesWithRaces, selectedState, isFictionalSelection, realContests.dataUpdatedAt, realContests.data, realContests.isError, realContests.errorUpdatedAt, sourceStatus.data, results]);
+
+  const coverage: CoverageItem[] = [
+    { label: "States with races", ratio: statesWithRaces === null ? null : statesWithRaces / stateMapItems.length, note: "Loading" },
+    ...(haveContests && stateContests.length > 0
+      ? [
+          { label: "Contests w/ candidates", ratio: stateContests.filter((item) => item.candidates.length > 0).length / stateContests.length },
+          (() => {
+            const all = stateContests.flatMap((item) => item.candidates);
+            return { label: "Ballot confirmed", ratio: all.length ? all.filter((item) => item.ballotStatus !== "UNCONFIRMED").length / all.length : null, note: "No candidates" };
+          })(),
+        ]
+      : []),
+    { label: "Live results", ratio: null, note: mockResultsProviderEnabled ? "Mock fixtures only" : "No provider connected" },
+  ];
+
   return (
     <AppShell variant="app">
       <div className="em-shell">
@@ -154,6 +189,12 @@ export function ElectionMonitor() {
               />
             </Suspense>
           </MapCard>
+          <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
+            <PredictionMarketsPanel
+              stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
+              district={selectedState && !selectedState.isFictional && params.district ? params.district : null}
+            />
+          </ActivityRail>
         </section>
 
         <DetailPanel
