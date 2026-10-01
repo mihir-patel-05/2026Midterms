@@ -7,6 +7,7 @@
  */
 
 import cron from 'node-cron';
+import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
@@ -336,29 +337,33 @@ export function initializeScheduler(): void {
   // Validate cron expression
   const cronExpression = '0 2 * * 0,2,4'; // Every Sunday, Tuesday, Thursday at 2:00 AM
 
-  if (!cron.validate(cronExpression)) {
+  if (env.FEC_API_KEY && !cron.validate(cronExpression)) {
     console.error('❌ Invalid cron expression:', cronExpression);
     return;
   }
 
-  // Schedule the job
-  const scheduledTask = cron.schedule(
-    cronExpression,
-    async () => {
-      console.log('\n⏰ Scheduled FEC sync triggered');
-      try {
-        await runScheduledSync();
-      } catch (error) {
-        console.error('❌ Scheduled sync failed:', error);
+  if (env.FEC_API_KEY) {
+    // Schedule the job only when FEC access is configured.
+    cron.schedule(
+      cronExpression,
+      async () => {
+        console.log('\n⏰ Scheduled FEC sync triggered');
+        try {
+          await runScheduledSync();
+        } catch (error) {
+          console.error('❌ Scheduled sync failed:', error);
+        }
+      },
+      {
+        timezone: 'America/New_York', // Adjust to your timezone
       }
-    },
-    {
-      timezone: 'America/New_York', // Adjust to your timezone
-    }
-  );
+    );
 
-  console.log('⏰ FEC Data Sync Scheduler initialized');
-  console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
+    console.log('⏰ FEC Data Sync Scheduler initialized');
+    console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
+  } else {
+    console.log('FEC sync scheduler disabled: FEC_API_KEY is not configured');
+  }
 
   // Ideology scores change slowly (PRD calls for monthly refresh). Run on the
   // 1st of each month, independently of the FEC sync. Isolated and idempotent —
@@ -386,6 +391,7 @@ export function initializeScheduler(): void {
  * Manual trigger for testing (callable from API)
  */
 export async function triggerManualSync(): Promise<void> {
+  if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured; FEC sync is unavailable');
   console.log('\n🔧 Manual sync triggered via API');
   await runScheduledSync();
 }

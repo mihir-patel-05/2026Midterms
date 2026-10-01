@@ -17,6 +17,7 @@ export default {
       fontFamily: {
         sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
         heading: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -75,6 +76,29 @@ export default {
         },
         success: "hsl(var(--success))",
         info: "hsl(var(--info))",
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          2: "hsl(var(--surface-2))",
+          3: "hsl(var(--surface-3))",
+        },
+        line: {
+          DEFAULT: "hsl(var(--line))",
+          soft: "hsl(var(--line-soft))",
+        },
+        quiet: "hsl(var(--quiet))",
+        "hero-foreground": "hsl(var(--hero-foreground))",
+        signal: {
+          teal: "hsl(var(--signal-teal))",
+          "teal-deep": "hsl(var(--signal-teal-deep))",
+          blue: "hsl(var(--signal-blue))",
+          "blue-deep": "hsl(var(--signal-blue-deep))",
+          coral: "hsl(var(--signal-coral))",
+          "coral-deep": "hsl(var(--signal-coral-deep))",
+          amber: "hsl(var(--signal-amber))",
+          purple: "hsl(var(--signal-purple))",
+          green: "hsl(var(--signal-green))",
+          danger: "hsl(var(--signal-danger))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

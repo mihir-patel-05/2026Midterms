@@ -10,13 +10,11 @@ import type {
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("en-US");
 
-export function RaceDetailPanel({ contest, result, candidates, finance, stateName, district }: {
+export function RaceDetailPanel({ contest, result, candidates, finance }: {
   contest: ContestViewModel;
   result?: ContestResultViewModel;
   candidates: CandidateContract[];
   finance: FinanceSummaryViewModel[];
-  stateName: string;
-  district: string;
 }) {
   const orderedCandidates = [...candidates].sort(
     (a, b) => (a.ballotOrder ?? Number.MAX_SAFE_INTEGER) - (b.ballotOrder ?? Number.MAX_SAFE_INTEGER),
@@ -30,7 +28,7 @@ export function RaceDetailPanel({ contest, result, candidates, finance, stateNam
   const reported = result.reportingProgress.precincts.reported;
   const total = result.reportingProgress.precincts.total;
   const reportingPercent = result.reportingProgress.precincts.percentage;
-  const title = contest.officeTitle.replace("Mock", stateName).replace("07", district);
+  const title = contest.officeTitle;
 
   return (
     <section className="ed-panel ed-detail" aria-labelledby="race-detail-heading">
@@ -60,7 +58,7 @@ export function RaceDetailPanel({ contest, result, candidates, finance, stateNam
 
       <div className="ed-unit-list" aria-label="Mock reporting units">
         {result.reportingUnits.map((unit) => (
-          <div key={unit.reportingUnit.id}><span>{unit.reportingUnit.name}</span><strong>{unit.reported}/{unit.total} units</strong></div>
+          <div key={unit.reportingUnit.id}><span>{unit.reportingUnit.name}</span><strong>{unit.reported ?? "Unknown"}/{unit.total ?? "unknown"} units</strong></div>
         ))}
       </div>
 

@@ -133,7 +133,7 @@ export default function Simulator() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Democrat swing</Label>
-                  <span className="text-sm tabular-nums text-blue-600">
+                  <span className="text-sm tabular-nums text-info">
                     {demSwing > 0 ? '+' : ''}{demSwing.toFixed(1)}pp
                   </span>
                 </div>
@@ -149,7 +149,7 @@ export default function Simulator() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Republican swing</Label>
-                  <span className="text-sm tabular-nums text-red-600">
+                  <span className="text-sm tabular-nums text-destructive">
                     {repSwing > 0 ? '+' : ''}{repSwing.toFixed(1)}pp
                   </span>
                 </div>
@@ -257,14 +257,14 @@ function RaceTable({ races }: { races: SimulationResponse['races'] }) {
               <TableCell className="font-medium">{r.state}</TableCell>
               <TableCell>{r.officeType}</TableCell>
               <TableCell>{r.district ?? '—'}</TableCell>
-              <TableCell className={`text-right tabular-nums ${r.baselineMargin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              <TableCell className={`text-right tabular-nums ${r.baselineMargin >= 0 ? 'text-info' : 'text-destructive'}`}>
                 {formatMarginText(r.baselineMargin)}
               </TableCell>
-              <TableCell className={`text-right tabular-nums ${r.simulatedMargin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              <TableCell className={`text-right tabular-nums ${r.simulatedMargin >= 0 ? 'text-info' : 'text-destructive'}`}>
                 {formatMarginText(r.simulatedMargin)}
               </TableCell>
               <TableCell>
-                <span className={r.simulatedWinner === 'D' ? 'text-blue-600' : r.simulatedWinner === 'R' ? 'text-red-600' : 'text-muted-foreground'}>
+                <span className={r.simulatedWinner === 'D' ? 'text-info' : r.simulatedWinner === 'R' ? 'text-destructive' : 'text-muted-foreground'}>
                   {r.simulatedWinner ?? '—'}
                 </span>
                 {r.flipped && <span className="ml-2 text-xs text-primary">FLIP</span>}

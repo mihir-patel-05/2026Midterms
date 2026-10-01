@@ -16,10 +16,10 @@ export default function About() {
       {/* Hero */}
       <section className="gradient-hero py-16">
         <div className="container text-center">
-          <h1 className="font-heading text-3xl font-bold text-primary-foreground sm:text-4xl mb-4">
+          <h1 className="font-heading text-3xl font-bold text-hero-foreground sm:text-4xl mb-4">
             About VoteInformed
           </h1>
-          <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto">
+          <p className="text-lg text-hero-foreground/80 max-w-2xl mx-auto">
             Empowering informed civic participation through transparent,
             non-partisan election data and voter education.
           </p>

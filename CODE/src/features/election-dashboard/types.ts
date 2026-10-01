@@ -128,8 +128,8 @@ export interface ContestViewModel extends ContestContract {
 
 export interface ReportingUnitProgressViewModel {
   reportingUnit: ReportingUnitContract;
-  reported: number;
-  total: number;
+  reported: number | null;
+  total: number | null;
 }
 
 export interface ContestResultViewModel {
@@ -165,14 +165,33 @@ export interface StateMapItemViewModel {
   coverage: CoverageStatus;
 }
 
-export interface ElectionDashboardFixture {
-  election: ElectionContract;
-  contests: ContestViewModel[];
-  candidates: CandidateContract[];
-  results: ContestResultViewModel[];
-  finance: FinanceSummaryViewModel[];
-  sourceStatus: SourceStatusContract;
-  metadata: ResponseMetadataContract;
+export interface ElectionResultsResponseContract {
+  data: ({
+    snapshotId: string;
+    election: ElectionContract;
+    contest: ContestContract;
+    reportingUnit: ReportingUnitContract;
+    candidates: CandidateContract[];
+    candidateResults: CandidateResultContract[];
+    totalVotes: number;
+    reportingProgress: ReportingProgressContract;
+    status: ResultStatus;
+    certificationState: CertificationState;
+    updatedAt: string;
+    reportingUnitResults: Array<{
+      reportingUnit: ReportingUnitContract;
+      reportingProgress: ReportingProgressContract;
+    }>;
+  }) | null;
+  meta: ResponseMetadataContract;
+}
+
+export interface DashboardBootstrapResponse {
+  data: {
+    manifest: { version: string; states: Array<{ code: string; name: string; coverage: CoverageStatus }> };
+    results: ElectionResultsResponseContract[];
+  };
+  meta: ResponseMetadataContract;
 }
 
 export type DashboardViewState = "ready" | "loading" | "stale" | "partial" | "unavailable";
