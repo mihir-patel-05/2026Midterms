@@ -29,8 +29,35 @@ Important semantics:
 - No winner, forecast, probability, candidate rating, endorsement, or ideological score is part of
   this contract.
 
+## Read path and plugging in a provider
+
+`read-model.ts` serves `/api/v1` results from each contest's published current snapshot
+(`Contest.currentSnapshotId`). `RESULTS_READ_SOURCE=database` is the default. Set it to `fixtures`
+to serve the in-memory fictional fixtures instead.
+
+A provider plugs in without route changes:
+
+1. Insert a `DataSource` row. Set `homepageUrl` (otherwise the latest raw artifact's `sourceUrl`
+   is used, and a source with neither is not served), `attributionText` (used as the disclaimer
+   for mock sources) and `expectedCadenceSeconds` (feeds staleness).
+2. Ingest into `ResultSnapshot`, `CandidateVote` (`voteType` `TOTAL`) and `ContestMetric`, then call
+   `publishSnapshot()` in the same transaction.
+3. Make the source eligible. Mock sources (`isMock`, `MOCK_FIXTURE`) need
+   `RESULTS_PROVIDER_MOCK_ENABLED=true`. Live sources need `isEnabled` and their `key` in
+   `RESULTS_PROVIDER_ENABLED_IDS`.
+
+The contest-level totals come from the metric for the contest's `electionDistrictId`, or else the
+snapshot's single top-level reporting unit. Other units become `reportingUnitResults`. Every
+response is validated against the contract. A snapshot that fails validation, for example votes
+above the counted total or certified results that are not complete, is withheld as
+`UNAVAILABLE` and a warning is logged.
+
 Run the focused tests from `backend/`:
 
 ```bash
 node --import tsx --test src/features/election-results/contracts.test.ts
 ```
+
+`npm run test:results` runs the whole suite. The database tests are skipped unless
+`TEST_DATABASE_URL` points at a disposable, migrated database with
+`prisma/fixtures/day0-provider-neutral.mock.sql` applied.
