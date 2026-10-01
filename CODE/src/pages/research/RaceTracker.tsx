@@ -201,7 +201,7 @@ export default function RaceTracker() {
                             <TableCell>{c.countyName}</TableCell>
                             <TableCell className="text-right tabular-nums">{c.demPct.toFixed(1)}</TableCell>
                             <TableCell className="text-right tabular-nums">{c.repPct.toFixed(1)}</TableCell>
-                            <TableCell className={`text-right tabular-nums ${c.margin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            <TableCell className={`text-right tabular-nums ${c.margin >= 0 ? 'text-info' : 'text-destructive'}`}>
                               {formatMargin(c.margin)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{c.totalVotes.toLocaleString()}</TableCell>
