@@ -1,13 +1,14 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Info, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "./BrandMark";
+import { GlobalSearch } from "./GlobalSearch";
 import { isNavLinkActive, shellNavLinks } from "./navLinks";
 
-export function TopBar({ search }: { search?: ReactNode }) {
+export function TopBar() {
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -35,7 +36,7 @@ export function TopBar({ search }: { search?: ReactNode }) {
           })}
         </nav>
 
-        <div className="hidden min-w-0 flex-1 justify-center md:flex">{search}</div>
+        <div className="hidden min-w-0 flex-1 justify-center md:flex"><GlobalSearch /></div>
 
         <div className="ml-auto flex items-center gap-2.5 md:ml-0">
           <span className="hidden min-h-[38px] items-center gap-2 rounded-[9px] border border-line bg-surface-2 px-3 text-[0.72rem] font-bold uppercase tracking-[0.04em] text-muted-foreground sm:inline-flex">
@@ -62,7 +63,7 @@ export function TopBar({ search }: { search?: ReactNode }) {
             </SheetTrigger>
             <SheetContent side="right" className="w-72 border-line bg-surface">
               <SheetHeader><SheetTitle>Menu</SheetTitle></SheetHeader>
-              {search && <div className="mt-4 md:hidden">{search}</div>}
+              <div className="mt-4 md:hidden"><GlobalSearch /></div>
               <nav aria-label="Primary" className="mt-4 grid gap-1">
                 {shellNavLinks.map((link) => {
                   const active = isNavLinkActive(pathname, link.to);

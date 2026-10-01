@@ -6,8 +6,11 @@ export interface ShellNavLink {
   icon: LucideIcon;
 }
 
+/** Where the election monitor lives. */
+export const DASHBOARD_PATH = "/election-dashboard";
+
 export const shellNavLinks: ShellNavLink[] = [
-  { to: "/election-dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: DASHBOARD_PATH, label: "Dashboard", icon: LayoutDashboard },
   { to: "/elections", label: "Elections", icon: MapPin },
   { to: "/candidates", label: "Candidates", icon: Users },
   { to: "/voter-resources", label: "Voter Resources", icon: FileText },
