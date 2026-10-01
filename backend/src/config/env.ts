@@ -25,6 +25,8 @@ const envSchema = z.object({
   RESULTS_STALE_AFTER_SECONDS: z.string().regex(/^[1-9]\d*$/).default('300'),
   RESULTS_POLL_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('30'),
   RESULTS_PARSER_VERSION: z.string().default('unconfigured'),
+  // Where /api/v1 results come from: published DB snapshots, or the in-memory fictional fixtures.
+  RESULTS_READ_SOURCE: z.enum(['database', 'fixtures']).default('database'),
 
   // Ideology scoring (GovTrack-based) data sources — see src/services/ideology.service.ts
   // The Congress whose voting/cosponsorship record powers incumbent ideology scores.
