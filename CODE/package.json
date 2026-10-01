@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:geo": "node scripts/build-geo.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -81,7 +82,10 @@
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
+    "shapefile": "^0.6.6",
     "tailwindcss": "^3.4.17",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "us-atlas": "^3.0.1",

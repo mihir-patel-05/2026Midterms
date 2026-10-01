@@ -249,7 +249,8 @@
   background: hsl(var(--surface-2) / 0.92); color: hsl(var(--muted-foreground)); font-size: 0.72rem; font-weight: 700;
 }
 .em-map-jumps button:hover { color: hsl(var(--foreground)); border-color: hsl(var(--signal-teal) / 0.4); }
-.em-map-chip { position: absolute; bottom: 10px; left: 10px; display: inline-flex; align-items: center; color: hsl(var(--signal-amber)); }
+.em-map-chips { position: absolute; bottom: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 120px); pointer-events: none; }
+.em-map-chip { display: inline-flex; align-items: center; color: hsl(var(--signal-amber)); }
 .em-map-tooltip {
   position: absolute; z-index: 5; min-width: 160px; padding: 9px 11px; pointer-events: none; transform: translate(12px, 12px);
   border: 1px solid hsl(var(--line)); border-radius: 9px; background: hsl(var(--surface) / 0.97); box-shadow: var(--shadow-lg);
@@ -278,3 +279,4 @@
 .em-timeline-copy strong { margin-bottom: 2px; font-size: 0.73rem; }
 .em-timeline-copy span { color: hsl(var(--muted-foreground)); font-size: 0.68rem; }
 .em-candidate-name .em-avatar { display: grid; color: var(--avatar-fg); font-size: 0.68rem; }
+.em-limitations { margin: 11px 0 0; padding-left: 16px; color: hsl(var(--muted-foreground)); font-size: 0.68rem; line-height: 1.5; list-style: disc; }

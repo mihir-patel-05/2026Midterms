@@ -10,10 +10,11 @@ import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
 import { useStateContests, useStateCounts } from "./realData";
+import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
-import type { MapView } from "./map/ElectionMap";
+import type { MapTarget, MapView } from "./map/ElectionMap";
 import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
@@ -71,16 +72,28 @@ export function ElectionMonitor() {
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, contest: null }), [update]);
   const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
-  const describeState = useCallback((code: string) => {
-    const state = states.find((item) => item.code === code);
+  const describe = useCallback((target: MapTarget) => {
+    const state = states.find((item) => item.code === target.state);
+    if (target.kind === "county") {
+      return { title: `${target.name} County`, lines: [state?.name ?? target.state, "No county results source connected"] };
+    }
+    if (target.kind === "district") {
+      const label = districtLabel(target.state, target.district);
+      const onFile = target.state === selectedState?.code ? stateContests.find((item) => item.office === "US_HOUSE" && item.district === target.district) : undefined;
+      return {
+        title: label,
+        lines: [onFile ? `${onFile.candidates.length} ${onFile.candidates.length === 1 ? "candidate" : "candidates"} on file` : target.state === selectedState?.code ? "No contest on file" : "Click to load this state's contests"],
+      };
+    }
     return {
-      title: state?.name ?? code,
+      title: state?.name ?? target.state,
       lines: [
         state?.contests === null || state?.contests === undefined ? "Contest count not loaded" : `${state.contests} ${state.contests === 1 ? "race" : "races"} on file`,
         state?.readiness === "partial" ? "No candidates on file yet" : "",
       ].filter(Boolean),
     };
-  }, [states]);
+  }, [states, selectedState?.code, stateContests]);
+  const selectDistrict = useCallback((state: string, district: string) => update({ state, district, contest: null }), [update]);
 
   return (
     <AppShell variant="app">
@@ -128,11 +141,14 @@ export function ElectionMonitor() {
           <MapCard layer={params.layer} readout={`LAYER: ${params.layer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}>
             <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
               <ElectionMap
+                layer={params.layer}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
+                selectedDistrict={params.district}
                 initialView={params.view}
-                describeState={describeState}
+                describe={describe}
                 onSelectState={selectState}
+                onSelectDistrict={selectDistrict}
                 onViewChange={onViewChange}
               />
             </Suspense>
@@ -153,7 +169,12 @@ export function ElectionMonitor() {
               {results && <HistoryCard results={results} sources={sourceStatus.data} />}
             </>
           }
-          counties={<UnitsCard results={results} resultsAvailable={mockResultsProviderEnabled} heading={contest ? `County reporting · ${contest.district ? districtLabel(contest.stateCode, contest.district) : contest.stateCode}` : "County reporting"} />}
+          counties={
+            <>
+              <UnitsCard results={results} resultsAvailable={mockResultsProviderEnabled} heading={contest ? `County reporting · ${contest.district ? districtLabel(contest.stateCode, contest.district) : contest.stateCode}` : "County reporting"} />
+              {results && <SemanticsCard results={results} />}
+            </>
+          }
           finance={<section className="em-card"><h3>Candidate finance</h3><p>Select a contest to compare its candidates' FEC filings.</p></section>}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}
         />
