@@ -82,7 +82,7 @@ export default function ElectionMap({ readiness, selectedState, initialView, des
           source: "states",
           paint: {
             "fill-color": readinessColor as unknown as string,
-            "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.34, ["boolean", ["feature-state", "hover"], false], 0.26, 0.12],
+            "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.34, ["boolean", ["feature-state", "hover"], false], 0.28, 0.16],
           },
         }, firstLabel);
         map.addLayer({

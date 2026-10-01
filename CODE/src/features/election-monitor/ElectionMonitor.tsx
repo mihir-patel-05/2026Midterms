@@ -3,11 +3,12 @@ import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { CanvasHeader } from "./CanvasHeader";
-import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE } from "./constants";
+import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
 import { useMockResultsFeed } from "./mockResults";
 import { RaceCard } from "./RaceCard";
+import { useStateContests, useStateCounts } from "./realData";
 import { Sidebar } from "./Sidebar";
 import { StatStrip } from "./StatStrip";
 import type { MapView } from "./map/ElectionMap";
@@ -21,25 +22,40 @@ const ElectionMap = lazy(() => import("./map/ElectionMap"));
 export function ElectionMonitor() {
   const [params, update] = useMonitorParams();
   const mockFeed = useMockResultsFeed();
+  const counts = useStateCounts();
+  const isFictionalSelection = params.state === FICTIONAL_STATE_CODE && mockResultsProviderEnabled;
+  const realContests = useStateContests(isFictionalSelection ? null : params.state);
 
   const states = useMemo<MonitorStateSummary[]>(() => {
-    const list: MonitorStateSummary[] = stateMapItems.map((item) => ({ code: item.code, name: item.name, contests: null, readiness: "pending" }));
+    const list: MonitorStateSummary[] = stateMapItems.map((item) => {
+      const races = counts.data ? counts.data[item.code] ?? 0 : null;
+      const loaded = params.state === item.code ? realContests.data : undefined;
+      const readiness: Readiness = !races
+        ? "pending"
+        : loaded && loaded.length > 0 && loaded.every((contest) => contest.candidates.length === 0) ? "partial" : "ready";
+      return { code: item.code, name: item.name, contests: races, readiness };
+    });
     if (mockResultsProviderEnabled) {
       list.push({ code: FICTIONAL_STATE_CODE, name: mockFeed.data?.stateName ?? "Fictional Example State", contests: mockFeed.data?.contests.length ?? null, readiness: "partial", isFictional: true });
     }
     return list;
-  }, [mockFeed.data]);
+  }, [counts.data, mockFeed.data, params.state, realContests.data]);
 
   const selectedState = states.find((state) => state.code === params.state) ?? null;
   const stateContests = useMemo(
-    () => (mockFeed.data?.contests ?? []).filter((contest) => contest.stateCode === selectedState?.code),
-    [mockFeed.data, selectedState?.code],
+    () => (isFictionalSelection ? mockFeed.data?.contests ?? [] : realContests.data ?? []),
+    [isFictionalSelection, mockFeed.data, realContests.data],
   );
+  const contestsLoading = Boolean(selectedState) && (isFictionalSelection ? mockFeed.isLoading : realContests.isLoading);
+  const contestsError = Boolean(selectedState) && (isFictionalSelection ? mockFeed.isError : realContests.isError);
+  const haveContests = Boolean(selectedState) && !contestsLoading && !contestsError;
   const officeCounts: Record<OfficeFilter, number | null> = {
-    ALL: selectedState ? stateContests.length : null,
-    US_SENATE: selectedState ? stateContests.filter((contest) => contest.office === "US_SENATE").length : null,
-    US_HOUSE: selectedState ? stateContests.filter((contest) => contest.office === "US_HOUSE").length : null,
+    ALL: haveContests ? stateContests.length : null,
+    US_SENATE: haveContests ? stateContests.filter((contest) => contest.office === "US_SENATE").length : null,
+    US_HOUSE: haveContests ? stateContests.filter((contest) => contest.office === "US_HOUSE").length : null,
   };
+  const nationalRaces = counts.data ? Object.values(counts.data).reduce((sum, value) => sum + value, 0) : null;
+  const statesWithRaces = counts.data ? Object.values(counts.data).filter((value) => value > 0).length : null;
   const districts = [...new Set(stateContests.flatMap((contest) => (contest.office === "US_HOUSE" && contest.district ? [contest.district] : [])))].sort();
   const visibleContests = stateContests.filter(
     (contest) => contestMatchesOffice(contest, params.office) && (!params.district || contest.office !== "US_HOUSE" || contest.district === params.district),
@@ -54,7 +70,10 @@ export function ElectionMonitor() {
     const state = states.find((item) => item.code === code);
     return {
       title: state?.name ?? code,
-      lines: [state?.contests === null || state?.contests === undefined ? "Contest count not loaded" : `${state.contests} federal contests`],
+      lines: [
+        state?.contests === null || state?.contests === undefined ? "Contest count not loaded" : `${state.contests} ${state.contests === 1 ? "race" : "races"} on file`,
+        state?.readiness === "partial" ? "No candidates on file yet" : "",
+      ].filter(Boolean),
     };
   }, [states]);
 
@@ -70,11 +89,13 @@ export function ElectionMonitor() {
           officeCounts={officeCounts}
           layer={params.layer}
           health={{
-            label: mockResultsProviderEnabled ? (mockFeed.isError ? "Down" : "Mock") : "None",
-            tone: mockResultsProviderEnabled && !mockFeed.isError ? "warn" : "bad",
+            label: counts.isError ? "Down" : counts.isLoading ? "Checking" : "Online",
+            tone: counts.isError ? "bad" : counts.isLoading ? "warn" : "good",
             rows: [
+              { label: "Races on file", value: nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
+              { label: "States covered", value: statesWithRaces === null ? "–" : String(statesWithRaces) },
               { label: "Results", value: mockResultsProviderEnabled ? "Mock fixtures" : "Not connected" },
-              { label: "Mock contests", value: mockFeed.data ? String(mockFeed.data.contests.length) : "–" },
+              { label: "Last refresh", value: counts.dataUpdatedAt ? formatEtTime(new Date(counts.dataUpdatedAt).toISOString()) + " ET" : "–" },
             ],
           }}
           onStateChange={selectState}
@@ -93,9 +114,9 @@ export function ElectionMonitor() {
           />
           <StatStrip
             stats={[
-              { label: "Contests in view", value: selectedState ? String(visibleContests.length) : "–" },
+              { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
               { label: "Selected state", value: selectedState?.name ?? "United States" },
-              { label: "House districts", value: selectedState ? String(districts.length) : "–" },
+              { label: "House districts", value: haveContests ? String(districts.length) : "–" },
               { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
             ]}
           />
@@ -116,11 +137,11 @@ export function ElectionMonitor() {
         <DetailPanel
           monogram={selectedState?.code ?? "US"}
           title={selectedState?.name ?? "United States"}
-          meta={selectedState ? `${officeCounts.US_HOUSE ?? 0} House · ${officeCounts.US_SENATE ?? 0} Senate contests` : "Select a state to begin"}
+          meta={!selectedState ? "Select a state to begin" : contestsLoading ? "Loading contests…" : contestsError ? "Contests unavailable" : `${officeCounts.US_HOUSE} House · ${officeCounts.US_SENATE} Senate ${officeCounts.US_SENATE === 1 ? "contest" : "contests"}`}
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
           tab={params.tab}
           onTabChange={(tab) => update({ tab })}
-          overview={<RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} onSelectContest={(id) => update({ contest: id })} />}
+          overview={<RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />}
           counties={<UnitsCard results={results} resultsAvailable={mockResultsProviderEnabled} heading={contest ? `County reporting · ${contest.district ? districtLabel(contest.stateCode, contest.district) : contest.stateCode}` : "County reporting"} />}
           finance={<section className="em-card"><h3>Candidate finance</h3><p>Select a contest to compare its candidates' FEC filings.</p></section>}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}

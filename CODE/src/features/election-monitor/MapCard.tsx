@@ -15,9 +15,9 @@ export function MapCard({ layer, readout, children }: { layer: keyof typeof laye
           <span>{layerDescriptions[layer]}</span>
         </div>
         <div className="em-legend" aria-label="Data readiness legend">
-          <span className="em-legend-item" data-readiness="ready"><i />Contests &amp; finance</span>
-          <span className="em-legend-item" data-readiness="partial"><i />Contests only</span>
-          <span className="em-legend-item" data-readiness="pending"><i />Not loaded</span>
+          <span className="em-legend-item" data-readiness="ready"><i />Races on file</span>
+          <span className="em-legend-item" data-readiness="partial"><i />No candidates yet</span>
+          <span className="em-legend-item" data-readiness="pending"><i />No data</span>
         </div>
       </div>
       {children}

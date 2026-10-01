@@ -165,7 +165,7 @@
   border-radius: 50%; background: var(--avatar-bg); color: var(--avatar-fg); font-size: 0.68rem; font-weight: 850;
 }
 .em-candidate-name strong, .em-candidate-name span { display: block; }
-.em-candidate-name strong { overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.em-candidate-name strong { overflow: hidden; color: hsl(var(--foreground)); font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
 .em-candidate-name a:hover strong { text-decoration: underline; }
 .em-candidate-name span { color: hsl(var(--quiet)); font-size: 0.67rem; }
 .em-candidate-total { text-align: right; }

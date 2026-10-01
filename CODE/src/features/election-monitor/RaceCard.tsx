@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { Vote } from "lucide-react";
+import { CloudOff, Loader2, Vote } from "lucide-react";
 import { districtLabel, initials, numberFormat, officeLabels, partyTone } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
 
@@ -14,6 +14,9 @@ export function RaceCard({
   contest,
   results,
   resultsAvailable,
+  loading,
+  error,
+  hasState,
   onSelectContest,
 }: {
   contests: MonitorContest[];
@@ -21,12 +24,22 @@ export function RaceCard({
   results: MonitorResults | undefined;
   /** False when no results provider is configured at all. */
   resultsAvailable: boolean;
+  loading: boolean;
+  error: boolean;
+  hasState: boolean;
   onSelectContest: (id: string) => void;
 }) {
   if (!contest) {
+    const [Icon, title, copy] = loading
+      ? [Loader2, "Loading contests", "Fetching this state's federal contests."]
+      : error
+        ? [CloudOff, "Contests unavailable", "The elections API could not be reached. Nothing is shown rather than guessing."]
+        : hasState
+          ? [Vote, "No contests match", "No general-election contests on file match these filters."]
+          : [Vote, "No state selected", "Pick a state on the map or in the Location selector to see its federal contests."];
     return (
-      <section className="em-card">
-        <div className="em-empty"><Vote aria-hidden="true" /><strong>No contest selected</strong><span>Pick a state on the map or in the sidebar to see its federal contests.</span></div>
+      <section className="em-card" aria-live="polite">
+        <div className="em-empty"><Icon aria-hidden="true" className={loading ? "animate-spin" : undefined} /><strong>{title}</strong><span>{copy}</span></div>
       </section>
     );
   }
