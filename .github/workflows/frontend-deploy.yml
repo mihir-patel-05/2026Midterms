@@ -33,6 +33,9 @@ jobs:
         run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          # Rollback switch: set the repository variable to 'false' to ship the legacy frontend.
+          VITE_FEATURE_NEW_FRONTEND: ${{ vars.VITE_FEATURE_NEW_FRONTEND || 'true' }}
+          VITE_MAP_STYLE_URL: ${{ vars.VITE_MAP_STYLE_URL }}
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
