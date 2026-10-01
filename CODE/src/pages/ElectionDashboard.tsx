@@ -6,9 +6,11 @@ import { PredictionMarketsPanel } from "@/features/election-dashboard/Prediction
 import { stateMapItems } from "@/features/election-dashboard/map";
 import "@/features/election-dashboard/election-dashboard.css";
 
-import { electionDashboardEnabled as dashboardEnabled, mockResultsProviderEnabled as mockProviderEnabled } from "@/lib/featureFlags";
+import { ElectionMonitor } from "@/features/election-monitor/ElectionMonitor";
+import { electionDashboardEnabled as dashboardEnabled, mockResultsProviderEnabled as mockProviderEnabled, newFrontendEnabled } from "@/lib/featureFlags";
 
 export default function ElectionDashboard() {
+  if (newFrontendEnabled) return <ElectionMonitor />;
   if (dashboardEnabled && mockProviderEnabled) return <ElectionDashboardShell />;
   if (dashboardEnabled) return <LivePredictionDashboard />;
 
