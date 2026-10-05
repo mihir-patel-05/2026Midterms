@@ -26,6 +26,11 @@ fecRateLimiter.on('failed', async (error, jobInfo) => {
     console.warn(`⚠️  FEC API request failed: ${error.message}`);
   }
 
+  // Client errors (bad key, bad params, not found) fail the same way on retry.
+  // Only rate limiting (429), server errors and network failures are retried.
+  const status = (error as { response?: { status?: number } }).response?.status;
+  if (status !== undefined && status < 500 && status !== 429) return;
+
   // Retry with exponential backoff
   if (jobInfo.retryCount < 3) {
     const delay = Math.pow(2, jobInfo.retryCount) * 1000;

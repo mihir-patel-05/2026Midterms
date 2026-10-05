@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '../config/database.js';
 
-const DEFAULT_LEASE_MS = 6 * 60 * 60 * 1000;
-const STALE_SYNC_MS = 6 * 60 * 60 * 1000;
+// A full sync makes ~2 requests per funded candidate (~4h at 1,000 req/hr).
+const DEFAULT_LEASE_MS = 12 * 60 * 60 * 1000;
+const STALE_SYNC_MS = 12 * 60 * 60 * 1000;
 
 export class SyncAlreadyRunningError extends Error {
   constructor() {

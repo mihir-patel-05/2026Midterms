@@ -112,7 +112,12 @@ export class FECClient {
       hasMore = page < pagination.pages;
       page++;
 
-      if (hasMore) {
+      if (hasMore && page > maxPages) {
+        console.warn(
+          `⚠️  ${endpoint}: stopped at ${maxPages} of ${pagination.pages} pages; ` +
+          `${pagination.count - maxPages * 100} result(s) not fetched`
+        );
+      } else if (hasMore) {
         console.log(
           `📄 Fetching page ${page}/${pagination.pages} for ${endpoint}...`
         );
@@ -192,6 +197,15 @@ export class FECClient {
 
     return { results: allResults, nextCursor: cursor, exhausted: false };
   }
+}
+
+/**
+ * True when OpenFEC rejected the API key itself. Every later request would fail
+ * the same way, so syncs should stop instead of counting thousands of errors.
+ */
+export function isFecAuthError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return status === 401 || status === 403;
 }
 
 // Export singleton instance

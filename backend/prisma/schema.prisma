@@ -111,6 +111,9 @@ model CandidateFinancial {
   lastReportTypeFull       String?   @map("last_report_type_full")
   lastBeginningImageNumber String?   @map("last_beginning_image_number")
   electionFull             Boolean?  @map("election_full")
+  // Set only by the per-candidate totals sync. Rows written by the bulk sync have
+  // headline totals but no source breakdown (party, self-funded, unitemized).
+  detailedSyncedAt         DateTime? @map("detailed_synced_at")
 
   lastUpdated DateTime @default(now()) @map("last_updated")
   createdAt   DateTime @default(now()) @map("created_at")

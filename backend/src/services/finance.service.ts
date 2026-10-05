@@ -6,6 +6,7 @@ import {
   FECReceipt,
   FECDisbursement,
   FECCandidateTotals,
+  FECCandidateTotalsSummary,
 } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
 import { createHash } from 'crypto';
@@ -66,6 +67,27 @@ export interface ItemizedCoverage {
   committeesComplete: number;
   committeesWithErrors: number;
   lastSuccessfulSync: string | null;
+}
+
+/**
+ * Headline totals from a /candidates/totals/ row. Only fields that endpoint
+ * reports are included, so a bulk refresh never zeroes the source breakdown
+ * written by the per-candidate sync.
+ */
+export function bulkTotalsData(row: FECCandidateTotalsSummary, syncedAt: Date) {
+  return {
+    candidateElectionYear: row.candidate_election_year,
+    receipts: row.receipts ?? 0,
+    disbursements: row.disbursements ?? 0,
+    cashOnHand: row.cash_on_hand_end_period ?? 0,
+    debtsOwed: row.debts_owed_by_committee ?? 0,
+    individualItemizedContributions: row.individual_itemized_contributions ?? 0,
+    pacContributions: row.other_political_committee_contributions ?? 0,
+    transfersFromAffiliatedCommittee: row.transfers_from_other_authorized_committee ?? 0,
+    coverageStartDate: row.coverage_start_date ? new Date(row.coverage_start_date) : null,
+    coverageEndDate: row.coverage_end_date ? new Date(row.coverage_end_date) : null,
+    lastUpdated: syncedAt,
+  };
 }
 
 function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
@@ -301,6 +323,7 @@ export class FinanceService {
             lastBeginningImageNumber: fecTotal.last_beginning_image_number,
             electionFull: fecTotal.election_full,
             lastUpdated: new Date(),
+            detailedSyncedAt: new Date(),
           };
 
           await prisma.candidateFinancial.upsert({
@@ -742,6 +765,8 @@ export class FinanceService {
     topDonors: { name: string; employer: string | null; occupation: string | null; amount: number; state: string | null }[];
     spendingCategories: { category: string; amount: number; percentage: number }[];
     itemizedCoverage: ItemizedCoverage;
+    /** False while only bulk headline totals are on file. */
+    breakdownAvailable: boolean;
     lastSynced: string;
   }> {
     // Single optimized query to get all data at once
@@ -761,11 +786,13 @@ export class FinanceService {
     }
 
     const candidateFinancial = candidate.financials?.[0] || null;
+    const breakdownAvailable = Boolean(candidateFinancial?.detailedSyncedAt);
 
-    // Build funding sources from candidate-level data
+    // Build funding sources from candidate-level data. Bulk-only rows lack the
+    // party, self-funded and unitemized figures, so a mix built from them would mislead.
     let fundingSources: { type: string; amount: number; percentage: number }[] = [];
 
-    if (candidateFinancial) {
+    if (candidateFinancial && breakdownAvailable) {
       const individual = candidateFinancial.individualContributions?.toNumber() || 0;
       const pac = candidateFinancial.pacContributions?.toNumber() || 0;
       const party = candidateFinancial.partyContributions?.toNumber() || 0;
@@ -842,6 +869,7 @@ export class FinanceService {
       topDonors,
       spendingCategories,
       itemizedCoverage,
+      breakdownAvailable,
       lastSynced: candidateFinancial?.lastUpdated?.toISOString() || 'Not synced',
     };
   }

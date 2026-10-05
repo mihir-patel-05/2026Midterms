@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js';
 import { Candidate, Committee } from '@prisma/client';
 import { fecApiService, FECCandidate, FECCommittee } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { bulkTotalsData } from './finance.service.js';
 
 const publicCommitteeSelect = {
   id: true,
@@ -146,12 +147,61 @@ export class CandidateService {
   }
 
   /**
+   * Sync every active candidate for one chamber, with headline finance totals,
+   * from OpenFEC's bulk /candidates/totals/ endpoint (~40 requests per chamber).
+   * Fetch failures throw so a partial candidate list is never mistaken for a
+   * complete one.
+   */
+  async syncCandidatesWithTotals(params: {
+    office: 'H' | 'S';
+    cycle: number;
+  }): Promise<{ synced: number; errors: number }> {
+    const { office, cycle } = params;
+    const fetched = await fecApiService.getCandidateTotalsSummaries({ office, electionYear: cycle });
+    const syncedAt = new Date();
+
+    // OpenFEC occasionally returns a stub row with no name. It cannot be shown,
+    // and inside a batch transaction it would roll back every valid row with it.
+    const rows = fetched.filter((row) => row.candidate_id && row.name);
+    let synced = 0;
+    let errors = fetched.length - rows.length;
+    if (errors > 0) console.warn(`⚠️  Skipped ${errors} ${office} row(s) with no candidate id or name`);
+    const batchSize = 100;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      try {
+        await prisma.$transaction(
+          batch.flatMap((row) => {
+            const financial = bulkTotalsData(row, syncedAt);
+            const rowCycle = row.cycle ?? cycle;
+            return [
+              this.upsertCandidate(row),
+              prisma.candidateFinancial.upsert({
+                where: { candidateId_cycle: { candidateId: row.candidate_id, cycle: rowCycle } },
+                update: financial,
+                create: { candidateId: row.candidate_id, cycle: rowCycle, ...financial },
+              }),
+            ];
+          }),
+        );
+        synced += batch.length;
+      } catch (error) {
+        console.error(`❌ ${office} candidates ${i + 1}-${i + batch.length} failed to save:`, error);
+        errors += batch.length;
+      }
+    }
+
+    console.log(`✅ ${office === 'S' ? 'Senate' : 'House'}: ${synced} candidates with totals, ${errors} errors`);
+    return { synced, errors };
+  }
+
+  /**
    * Create or update a candidate from FEC data
    */
-  async upsertCandidate(fecCandidate: FECCandidate): Promise<Candidate> {
+  upsertCandidate(fecCandidate: FECCandidate) {
     // Normalize office value to 'H' or 'S' for consistency
     const normalizedOffice = this.normalizeOffice(fecCandidate.office) || 'UNKNOWN';
-    
+
     return prisma.candidate.upsert({
       where: { candidateId: fecCandidate.candidate_id },
       update: {

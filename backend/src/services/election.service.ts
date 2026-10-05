@@ -20,6 +20,33 @@ interface CreateElectionData {
   cycle: number;
 }
 
+/**
+ * House seats per state after the 2020 apportionment (435 total), plus DC and
+ * the territories, which each elect one non-voting delegate.
+ */
+const HOUSE_SEATS: Record<string, number> = {
+  AL: 7, AK: 1, AZ: 9, AR: 4, CA: 52, CO: 8, CT: 5, DE: 1, FL: 28, GA: 14,
+  HI: 2, ID: 2, IL: 17, IN: 9, IA: 4, KS: 4, KY: 6, LA: 6, ME: 2, MD: 8,
+  MA: 9, MI: 13, MN: 8, MS: 4, MO: 8, MT: 2, NE: 3, NV: 4, NH: 2, NJ: 12,
+  NM: 3, NY: 26, NC: 14, ND: 1, OH: 15, OK: 5, OR: 6, PA: 17, RI: 2, SC: 7,
+  SD: 1, TN: 9, TX: 38, UT: 4, VT: 1, VA: 11, WA: 10, WV: 2, WI: 8, WY: 1,
+  DC: 1, AS: 1, GU: 1, MP: 1, PR: 1, VI: 1,
+};
+
+/**
+ * Two-digit district for a House filing ("00" for at-large seats), or null
+ * when the filing names a district that does not exist. FEC filings include
+ * typos (e.g. GA-23, NM-66) and blanks that would otherwise become fake races.
+ */
+export function houseDistrict(state: string, district: string | null | undefined): string | null {
+  const seats = HOUSE_SEATS[state];
+  if (!seats) return null;
+  if (seats === 1) return '00';
+  if (!district || !/^\d{1,2}$/.test(district.trim())) return null;
+  const number = parseInt(district, 10);
+  return number >= 1 && number <= seats ? String(number).padStart(2, '0') : null;
+}
+
 export class ElectionService {
   /**
    * Get elections with filters and pagination
@@ -126,6 +153,11 @@ export class ElectionService {
                 state: true,
                 office: true,
                 district: true,
+                financials: {
+                  where: { cycle },
+                  select: { receipts: true, disbursements: true, cashOnHand: true, lastUpdated: true },
+                  take: 1,
+                },
               },
             },
           },
@@ -287,10 +319,15 @@ export class ElectionService {
         candidates: typeof candidates;
       }> = {};
 
+      let invalidDistricts = 0;
       for (const candidate of candidates) {
         // Normalize office to SENATE/HOUSE
         const officeType = candidate.office?.toUpperCase() === 'S' ? 'SENATE' : 'HOUSE';
-        const district = officeType === 'HOUSE' ? candidate.district : null;
+        const district = officeType === 'HOUSE' ? houseDistrict(candidate.state, candidate.district) : null;
+        if (officeType === 'HOUSE' && !district) {
+          invalidDistricts++;
+          continue;
+        }
         const key = `${candidate.state}-${officeType}-${district || 'statewide'}`;
 
         if (!races[key]) {
@@ -304,6 +341,9 @@ export class ElectionService {
         races[key].candidates.push(candidate);
       }
 
+      if (invalidDistricts > 0) {
+        console.warn(`  ⚠️  Skipped ${invalidDistricts} House candidate(s) filed under a district that does not exist`);
+      }
       console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
 
       // General election date: First Tuesday after first Monday in November

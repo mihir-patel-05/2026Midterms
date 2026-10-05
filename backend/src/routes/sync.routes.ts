@@ -24,9 +24,9 @@ const runFullSync = async (_req: Request, res: Response) => {
   try {
     await triggerManualSync();
 
-    res.json({
-      message: 'Full sync completed successfully',
-      note: 'Check console logs for detailed progress',
+    res.status(202).json({
+      message: 'Full sync started',
+      note: 'A full sync runs for hours. Track it with GET /api/sync/status.',
     });
   } catch (error: any) {
     console.error('Error in full sync:', error);
@@ -35,7 +35,7 @@ const runFullSync = async (_req: Request, res: Response) => {
       return;
     }
     res.status(500).json({ 
-      error: 'Failed to complete sync', 
+      error: 'Failed to start sync', 
       message: error.message 
     });
   }
