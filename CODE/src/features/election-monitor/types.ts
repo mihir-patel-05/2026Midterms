@@ -36,6 +36,9 @@ export interface MonitorCandidate {
   party: string | null;
   isIncumbent: boolean;
   ballotStatus?: "CONFIRMED" | "UNCONFIRMED";
+  /** FEC headline totals for the cycle; null when no filing is on file. */
+  receipts?: number | null;
+  cashOnHand?: number | null;
 }
 
 export interface MonitorContest {

@@ -77,6 +77,13 @@ export interface Candidate {
   // Relations (optional, only included in detail view)
   committees?: Committee[];
   ideologyScores?: IdeologyScore[];
+  /** Headline FEC totals for the requested cycle (elections-by-state responses). Decimals arrive as strings. */
+  financials?: Array<{
+    receipts: string | number;
+    disbursements: string | number;
+    cashOnHand: string | number;
+    lastUpdated: string;
+  }>;
 
   // Computed fields (when includeFunds=true)
   totalFundsRaised?: number;
@@ -226,6 +233,8 @@ export interface DetailedFinanceResponse {
   topDonors: TopDonor[];
   spendingCategories: SpendingCategory[];
   itemizedCoverage: ItemizedCoverage;
+  /** False while only headline totals are on file; the source mix is not yet reliable. */
+  breakdownAvailable?: boolean;
   lastSynced: string;
 }
 

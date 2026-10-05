@@ -36,16 +36,23 @@ export function toMonitorContest(election: Election): MonitorContest {
     electionType: election.electionType,
     candidates: (election.candidateElections ?? [])
       .filter((entry) => entry.candidate)
-      .map((entry) => ({
-        id: entry.candidate!.id,
-        profileId: entry.candidate!.id,
-        fecId: entry.candidate!.candidateId,
-        name: displayName(entry.candidate!.name),
-        party: entry.candidate!.party ?? null,
-        isIncumbent: entry.isIncumbent,
-        ballotStatus: entry.ballotStatus,
-      }))
-      .sort((a, b) => Number(b.isIncumbent) - Number(a.isIncumbent) || a.name.localeCompare(b.name)),
+      .map((entry) => {
+        const totals = entry.candidate!.financials?.[0];
+        return {
+          id: entry.candidate!.id,
+          profileId: entry.candidate!.id,
+          fecId: entry.candidate!.candidateId,
+          name: displayName(entry.candidate!.name),
+          party: entry.candidate!.party ?? null,
+          isIncumbent: entry.isIncumbent,
+          ballotStatus: entry.ballotStatus,
+          receipts: totals ? Number(totals.receipts) : null,
+          cashOnHand: totals ? Number(totals.cashOnHand) : null,
+        };
+      })
+      // FEC lists every active filer, including primary losers it has not
+      // marked inactive, so lead with the incumbent and the biggest fundraisers.
+      .sort((a, b) => Number(b.isIncumbent) - Number(a.isIncumbent) || (b.receipts ?? -1) - (a.receipts ?? -1) || a.name.localeCompare(b.name)),
   };
 }
 

@@ -4,6 +4,14 @@ import { CloudOff, Loader2, Vote } from "lucide-react";
 import { districtLabel, initials, numberFormat, officeLabels, partyTone } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
 
+const compactMoney = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+
+function fundingLine(receipts: number | null | undefined, cashOnHand: number | null | undefined) {
+  if (receipts === null || receipts === undefined) return null;
+  if (receipts === 0) return "No FEC receipts reported";
+  return `Raised ${compactMoney.format(receipts)}${cashOnHand !== null && cashOnHand !== undefined ? ` · ${compactMoney.format(cashOnHand)} cash on hand` : ""}`;
+}
+
 function contestHeading(contest: MonitorContest) {
   if (contest.isFictional) return contest.title;
   return contest.office === "US_HOUSE" ? `${officeLabels.US_HOUSE} · ${districtLabel(contest.stateCode, contest.district)}` : `${officeLabels[contest.office]} · ${contest.stateCode}`;
@@ -78,10 +86,12 @@ export function RaceCard({
       ) : ordered.map((candidate, index) => {
         const tone = partyTone(candidate.party, index);
         const result = resultById.get(candidate.id);
+        const funding = fundingLine(candidate.receipts, candidate.cashOnHand);
         const name = (
           <span>
             <strong>{candidate.name}</strong>
             <span>{candidate.party ?? "No party listed"}{candidate.isIncumbent ? " · incumbent" : ""}{candidate.ballotStatus === "UNCONFIRMED" ? " · ballot unconfirmed" : ""}</span>
+            {funding && <span>{funding}</span>}
           </span>
         );
         return (

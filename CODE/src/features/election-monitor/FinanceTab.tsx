@@ -28,7 +28,8 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
 
   const summary = finance.data?.summary;
   const hasFilings = Boolean(summary && (summary.totalReceipts > 0 || summary.totalDisbursements > 0 || summary.cashOnHand > 0));
-  const mix = summary
+  const breakdownAvailable = finance.data?.breakdownAvailable !== false;
+  const mix = summary && breakdownAvailable
     ? [
         { label: "Individuals", value: summary.individualContributions },
         { label: "PACs", value: summary.pacContributions },
@@ -53,17 +54,20 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
           <div className="em-metric"><dt>Disbursements</dt><dd>{money(summary.totalDisbursements)}</dd></div>
           <div className="em-metric"><dt>Debts</dt><dd>{money(summary.debtOwed)}</dd></div>
         </dl>
-        <div className="em-finance-chart" aria-label="Receipts by source">
-          {mix.map((item) => (
-            <div className="em-finance-row" key={item.label}>
-              <span>{item.label}</span>
-              <div className="em-bar" aria-hidden="true"><span style={{ width: `${(item.value / mixMax) * 100}%` }} /></div>
-              <strong>{money(item.value)}</strong>
-            </div>
-          ))}
-        </div>
+        {mix.length > 0 && (
+          <div className="em-finance-chart" aria-label="Receipts by source">
+            {mix.map((item) => (
+              <div className="em-finance-row" key={item.label}>
+                <span>{item.label}</span>
+                <div className="em-bar" aria-hidden="true"><span style={{ width: `${(item.value / mixMax) * 100}%` }} /></div>
+                <strong>{money(item.value)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="em-note">
           FEC filings, {MONITOR_CYCLE} cycle{summary.lastUpdated ? `, updated ${new Date(summary.lastUpdated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}.
+          {breakdownAvailable ? "" : " Breakdown by source is still syncing."}
           {finance.data?.itemizedCoverage.status === "partial" ? " Itemized detail is still syncing for some committees." : ""}
         </div>
       </>

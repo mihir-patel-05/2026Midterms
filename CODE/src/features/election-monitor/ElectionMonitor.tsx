@@ -64,7 +64,8 @@ export function ElectionMonitor() {
     US_HOUSE: haveContests ? stateContests.filter((contest) => contest.office === "US_HOUSE").length : null,
   };
   const nationalRaces = counts.data ? Object.values(counts.data).reduce((sum, value) => sum + value, 0) : null;
-  const statesWithRaces = counts.data ? Object.values(counts.data).filter((value) => value > 0).length : null;
+  // DC and the territories elect House delegates but are not on the state map.
+  const statesWithRaces = counts.data ? stateMapItems.filter((item) => (counts.data[item.code] ?? 0) > 0).length : null;
   const districts = [...new Set(stateContests.flatMap((contest) => (contest.office === "US_HOUSE" && contest.district ? [contest.district] : [])))].sort();
   const visibleContests = stateContests.filter(
     (contest) => contestMatchesOffice(contest, params.office) && (!params.district || contest.office !== "US_HOUSE" || contest.district === params.district),
