@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, TrendingUp } from 'lucide-react';
+import { useKalshiMarkets } from '@/features/election-monitor/useKalshiLive';
 
 type Scope = 'NATIONAL_HOUSE' | 'NATIONAL_SENATE' | 'STATE_SENATE' | 'HOUSE_DISTRICT';
 interface Quote {
@@ -36,9 +37,19 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
       if (!response.ok) throw new Error(`Prediction markets API returned ${response.status}`);
       return response.json() as Promise<MarketResponse>;
     },
+    // Kalshi rows update live below; this refresh mostly serves Polymarket.
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
   });
+  const live = useKalshiMarkets();
+  const isLive = live.status === 'live';
+  const liveByUrl = new Map([...live.markets.values()].map((market) => [market.url, market]));
+  const withLive = (quote: Quote): Quote => {
+    const market = quote.provider === 'KALSHI' && isLive ? liveByUrl.get(quote.url) : undefined;
+    return market?.pricePercent != null && market.priceType
+      ? { ...quote, pricePercent: market.pricePercent, priceType: market.priceType, fetchedAt: market.updatedAt }
+      : quote;
+  };
   const scopes: Scope[] = ['NATIONAL_HOUSE', 'NATIONAL_SENATE'];
   if (stateCode) scopes.push('STATE_SENATE');
   if (stateCode && district) scopes.push('HOUSE_DISTRICT');
@@ -47,7 +58,9 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
     <section className="ed-panel ed-predictions" aria-labelledby="prediction-markets-heading">
       <div className="ed-panel-heading">
         <div><span className="ed-eyebrow">Live market prices</span><h2 id="prediction-markets-heading"><TrendingUp aria-hidden="true" /> Prediction markets</h2></div>
-        {data && <time dateTime={data.fetchedAt}>Checked {new Date(data.fetchedAt).toLocaleTimeString()}</time>}
+        {data && (isLive
+          ? <span className="ed-predictions-live">Kalshi live · Polymarket checked {new Date(data.fetchedAt).toLocaleTimeString()}</span>
+          : <time dateTime={data.fetchedAt}>Checked {new Date(data.fetchedAt).toLocaleTimeString()}</time>)}
       </div>
       <p className="ed-predictions-note">Traded prices reflect market views, not election results or polling. Providers use different settlement rules; open each market to read them.</p>
       {isLoading && <p className="ed-empty" role="status">Loading Kalshi and Polymarket prices…</p>}
@@ -58,7 +71,7 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
         )}
         <div className="ed-predictions-groups">
           {scopes.map((scope) => {
-            const quotes = data.quotes.filter((quote) => quote.scope === scope);
+            const quotes = data.quotes.filter((quote) => quote.scope === scope).map(withLive);
             return <div className="ed-predictions-group" key={scope}>
               <h3>{scopeTitles[scope]}{scope === 'STATE_SENATE' ? ` · ${stateCode}` : scope === 'HOUSE_DISTRICT' ? ` · ${stateCode}-${district}` : ''}</h3>
               {quotes.length === 0 ? <p>{Object.values(data.providerStatus).includes('unavailable') ? 'No quote available from reachable providers.' : 'No matching open market found.'}</p> : <div className="ed-predictions-quotes">

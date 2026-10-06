@@ -19,3 +19,6 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+
+# Kalshi API private keys
+*.pem

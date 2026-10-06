@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CloudOff, Loader2, Vote } from "lucide-react";
 import { districtLabel, initials, numberFormat, officeLabels, partyTone } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
+import { useRaceOdds } from "./useKalshiLive";
 
 const compactMoney = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 
@@ -10,6 +11,35 @@ function fundingLine(receipts: number | null | undefined, cashOnHand: number | n
   if (receipts === null || receipts === undefined) return null;
   if (receipts === 0) return "No FEC receipts reported";
   return `Raised ${compactMoney.format(receipts)}${cashOnHand !== null && cashOnHand !== undefined ? ` · ${compactMoney.format(cashOnHand)} cash on hand` : ""}`;
+}
+
+/** Kalshi prices for this contest; renders nothing when Kalshi has no market for it. */
+function MarketOdds({ contest }: { contest: MonitorContest }) {
+  const { status, markets } = useRaceOdds(contest.isFictional ? null : contest.stateCode, contest.office, contest.district);
+  const priced = markets.filter((market) => market.pricePercent !== null);
+  if (priced.length === 0) return null;
+  return (
+    <div className="em-odds" role="group" aria-label="Kalshi market prices">
+      <div className="em-odds-head">
+        <span className="em-eyebrow">Kalshi market</span>
+        <span>{status === "live" ? <><span className="em-live-dot" aria-hidden="true" />Live</> : "Delayed"}</span>
+      </div>
+      {priced.map((market, index) => {
+        const tone = partyTone(market.party === "D" ? "DEM" : market.party === "R" ? "REP" : null, index);
+        return (
+          <a key={market.ticker} className="em-odds-row" href={market.url} target="_blank" rel="noopener noreferrer"
+            aria-label={`${market.outcome}: ${market.pricePercent!.toFixed(1)}% on Kalshi`}>
+            <span>{market.outcome}{market.party ? ` (${market.party})` : ""}</span>
+            <strong key={market.updatedAt} data-moved={market.moved}>{market.pricePercent!.toFixed(1)}%</strong>
+            <span className="em-result-bar" aria-hidden="true">
+              <span style={{ "--width": `${market.pricePercent}%`, "--color": tone.fg } as CSSProperties} />
+            </span>
+          </a>
+        );
+      })}
+      <small>Traded price, not a forecast or result.</small>
+    </div>
+  );
 }
 
 function contestHeading(contest: MonitorContest) {
@@ -80,6 +110,8 @@ export function RaceCard({
           ? <span className="em-pill" data-tone="amber">{contest.isFictional ? "Mock " : ""}{results.certificationState.toLowerCase().replace("_", " ")}</span>
           : <span className="em-pill" data-tone="muted">{contest.electionType.toLowerCase()}</span>}
       </div>
+
+      <MarketOdds contest={contest} />
 
       {ordered.length === 0 ? (
         <p className="em-empty">No candidates are on file for this contest yet.</p>

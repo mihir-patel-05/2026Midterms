@@ -5,6 +5,7 @@ import { env } from './config/env.js';
 import { prisma } from './config/database.js';
 import routes from './routes/index.js';
 import { initializeScheduler } from './jobs/scheduler.js';
+import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
 
 const app: Application = express();
 
@@ -118,6 +119,7 @@ const startServer = async () => {
   });
 
   initializeScheduler();
+  void kalshiLiveFeed.start().catch((error) => console.error('❌ Kalshi live feed failed to start:', error));
 
   try {
     await prisma.$connect();
@@ -130,12 +132,14 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  kalshiLiveFeed.stop();
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  kalshiLiveFeed.stop();
   await prisma.$disconnect();
   process.exit(0);
 });

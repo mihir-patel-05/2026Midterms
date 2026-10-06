@@ -5,6 +5,7 @@ import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { CanvasHeader } from "./CanvasHeader";
+import { ControlOddsBanner } from "./ControlOddsBanner";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
@@ -171,6 +172,7 @@ export function ElectionMonitor() {
             onReset={() => selectState(null)}
             onStateCrumb={() => update({ district: null, contest: null })}
           />
+          <ControlOddsBanner />
           <StatStrip
             stats={[
               { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },

@@ -16,7 +16,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "ingest:day0-fixture": "tsx src/scripts/ingest-day0-fixture.ts",
-    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts src/features/election-results/read-model.test.ts src/features/election-results/read-model.db.test.ts src/routes/results-v1.routes.test.ts src/services/fec-sync.test.ts src/services/district-lookup.test.ts",
+    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts src/features/election-results/read-model.test.ts src/features/election-results/read-model.db.test.ts src/routes/results-v1.routes.test.ts src/services/fec-sync.test.ts src/services/district-lookup.test.ts src/services/kalshi/kalshi.test.ts",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
     "test:fec-pagination": "tsx src/scripts/test-fec-pagination.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
@@ -55,6 +55,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
     "prisma": "^6.1.0",
+    "ws": "^8.22.0",
     "yaml": "^2.9.0",
     "zod": "^3.25.76"
   },
@@ -63,6 +64,7 @@
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.16.5",
+    "@types/ws": "^8.18.2",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   }

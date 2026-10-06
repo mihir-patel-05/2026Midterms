@@ -40,6 +40,7 @@
 .ed-predictions .ed-panel-heading h2 { display: flex; align-items: center; gap: 8px; }
 .ed-predictions .ed-panel-heading h2 svg { width: 18px; color: #73e4cb; }
 .ed-predictions .ed-panel-heading time { color: #a7bad0; font-size: .72rem; white-space: nowrap; }
+.ed-predictions .ed-panel-heading .ed-predictions-live { color: #73e4cb; font-size: .72rem; text-align: right; }
 .ed-predictions-note { margin: 10px 0 14px; color: #a7bad0; font-size: .78rem; line-height: 1.5; }
 .ed-predictions-warning { margin: 8px 0; color: #f8d791; font-size: .78rem; }
 .ed-predictions-groups { display: grid; gap: 12px; }

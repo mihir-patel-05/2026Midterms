@@ -317,3 +317,52 @@
 .em-rail .ed-eyebrow { display: block; color: hsl(var(--quiet)); font: 800 0.7rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; }
 .em-rail .ed-empty { color: hsl(var(--muted-foreground)); font-size: 0.76rem; }
 @media (max-width: 720px) { .em-rail-wide { margin-top: 10px; } }
+
+/* Kalshi live markets: chamber control banner and race-card odds */
+.em-control-banner {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 9px;
+  margin-bottom: 9px; padding: 9px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; background: hsl(var(--surface) / 0.72);
+}
+.em-control-meta { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 6px; }
+.em-control-meta .em-pill { align-self: flex-start; }
+.em-control {
+  display: block; min-width: 0; padding: 8px 10px; border: 1px solid hsl(var(--line-soft)); border-radius: 8px;
+  background: hsl(var(--surface-2) / 0.6); color: inherit; text-decoration: none;
+}
+.em-control:hover, .em-control:focus-visible { border-color: hsl(var(--line)); }
+.em-control-head { display: flex; align-items: center; justify-content: space-between; color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.em-control-head svg { width: 12px; height: 12px; }
+.em-control-values { display: flex; justify-content: space-between; margin: 3px 0 6px; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.em-control-bar { height: 6px; overflow: hidden; border-radius: 99px; background: var(--rep-color); }
+.em-control-bar span { display: block; width: var(--dem); height: 100%; background: var(--dem-color); transition: width 0.4s ease; }
+.em-control-note { grid-column: 1 / -1; margin: 0 6px; color: hsl(var(--quiet)); font-size: 0.68rem; }
+
+.em-live-dot {
+  display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%;
+  background: hsl(var(--signal-teal)); vertical-align: middle; animation: em-live-pulse 2s ease-in-out infinite;
+}
+@keyframes em-live-pulse { 50% { opacity: 0.35; } }
+
+.em-odds { margin-bottom: 13px; padding: 10px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; background: hsl(var(--surface) / 0.6); }
+.em-odds-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; color: hsl(var(--muted-foreground)); font-size: 0.7rem; }
+.em-odds-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; padding: 5px 0; color: inherit; font-size: 0.8rem; text-decoration: none; }
+.em-odds-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-odds-row strong { font-variant-numeric: tabular-nums; }
+.em-odds-row .em-result-bar { display: block; grid-column: 1 / -1; margin-top: 4px; }
+.em-odds-row:hover > span:first-child { text-decoration: underline; }
+.em-odds small { display: block; margin-top: 4px; color: hsl(var(--quiet)); font-size: 0.66rem; }
+
+/* Brief highlight when a live price moves; keyed remounts restart the animation. */
+[data-moved="up"] { animation: em-tick-up 1.2s ease-out; }
+[data-moved="down"] { animation: em-tick-down 1.2s ease-out; }
+@keyframes em-tick-up { from { background: hsl(var(--signal-teal) / 0.3); } }
+@keyframes em-tick-down { from { background: hsl(var(--signal-coral) / 0.3); } }
+
+@media (max-width: 720px) {
+  .em-control-banner { grid-template-columns: minmax(0, 1fr); }
+  .em-control-meta { flex-direction: row; align-items: center; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .em-live-dot, [data-moved] { animation: none; }
+  .em-control-bar span { transition: none; }
+}

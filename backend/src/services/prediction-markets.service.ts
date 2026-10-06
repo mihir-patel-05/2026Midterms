@@ -1,5 +1,13 @@
 /** Public, read-only 2026 general-election market quotes. */
-export type MarketScope = 'NATIONAL_HOUSE' | 'NATIONAL_SENATE' | 'STATE_SENATE' | 'HOUSE_DISTRICT';
+import {
+  isOpen, isStateCode, marketUrl, partyFromTicker, partyNames, quotePrice, stateNames, validPrice,
+  type KalshiEvent, type MarketScope,
+} from './kalshi/shared.js';
+import { getLiveEventQuotes } from './kalshi/live-feed.js';
+import { env } from '../config/env.js';
+
+export { isStateCode };
+export type { MarketScope };
 export type MarketProvider = 'KALSHI' | 'POLYMARKET';
 export interface MarketQuote {
   provider: MarketProvider;
@@ -12,16 +20,6 @@ export interface MarketQuote {
   fetchedAt: string;
 }
 
-interface KalshiMarket {
-  ticker?: string;
-  title?: string;
-  yes_sub_title?: string;
-  status?: string;
-  yes_bid_dollars?: string;
-  yes_ask_dollars?: string;
-  last_price_dollars?: string;
-}
-interface KalshiEvent { event_ticker?: string; title?: string; markets?: KalshiMarket[] }
 interface PolyMarket {
   question?: string;
   groupItemTitle?: string;
@@ -40,7 +38,7 @@ interface PolyEvent {
   markets?: PolyMarket[];
 }
 
-const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2';
+const KALSHI_API = env.KALSHI_REST_URL;
 const POLY_API = 'https://gamma-api.polymarket.com';
 const CACHE_MS = 60_000;
 const cache = new Map<string, { expires: number; value: PredictionMarketResponse }>();
@@ -61,40 +59,24 @@ async function getJson<T>(url: string): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
-function validPrice(value: unknown): number | null {
-  if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const price = Number(value);
-  return Number.isFinite(price) && price > 0 && price < 1 ? price : null;
-}
-
-function partyFromKalshiTicker(ticker: string): string | null {
-  if (ticker.endsWith('-D')) return 'Democratic Party';
-  if (ticker.endsWith('-R')) return 'Republican Party';
-  return null;
-}
-
 async function kalshiQuotes(ticker: string, scope: MarketScope, fetchedAt: string): Promise<MarketQuote[]> {
+  // Prefer the WebSocket price board when it is live; it is fresher and costs no request.
+  const live = getLiveEventQuotes(ticker);
+  if (live) {
+    return live.map((quote) => ({ provider: 'KALSHI' as const, scope, eventTitle: quote.eventTitle, outcome: quote.outcome,
+      pricePercent: quote.pricePercent, priceType: quote.priceType, url: quote.url, fetchedAt: quote.updatedAt }));
+  }
   const event = await getJson<{ event?: KalshiEvent }>(`${KALSHI_API}/events/${ticker}?with_nested_markets=true`);
   if (!event?.event || event.event.event_ticker !== ticker) return [];
   const title = event.event.title || ticker;
   return (event.event.markets || []).flatMap((market) => {
-    if (market.status !== 'active' && market.status !== 'open') return [];
-    const outcome = market.yes_sub_title || partyFromKalshiTicker(market.ticker || '') || market.title;
+    if (!isOpen(market)) return [];
+    const party = partyFromTicker(market.ticker || '');
+    const outcome = market.yes_sub_title || (party && partyNames[party]) || market.title;
     if (!outcome) return [];
-    const bid = validPrice(market.yes_bid_dollars);
-    const ask = validPrice(market.yes_ask_dollars);
-    const midpoint = bid !== null && ask !== null && bid <= ask ? (bid + ask) / 2 : null;
-    const price = midpoint ?? validPrice(market.last_price_dollars);
-    if (price === null) return [];
-    return [{
-      provider: 'KALSHI' as const, scope, eventTitle: title, outcome,
-      pricePercent: Math.round(price * 1000) / 10,
-      priceType: midpoint === null ? 'LAST_TRADE' as const : 'MIDPOINT' as const,
-      url: market.ticker
-        ? `https://kalshi.com/markets_by_ticker/${encodeURIComponent(market.ticker.toLowerCase())}`
-        : `https://kalshi.com/markets/${ticker.split('-')[0].toLowerCase()}/-/${ticker.toLowerCase()}`,
-      fetchedAt,
-    }];
+    const quote = quotePrice(market.yes_bid_dollars, market.yes_ask_dollars, market.last_price_dollars);
+    if (!quote) return [];
+    return [{ provider: 'KALSHI' as const, scope, eventTitle: title, outcome, ...quote, url: marketUrl(ticker, market.ticker), fetchedAt }];
   });
 }
 
@@ -139,17 +121,6 @@ async function polyByExactTitle(query: string, expected: RegExp): Promise<PolyEv
     !/primary|special election/i.test(event.title || '') ? event : null;
 }
 
-const stateNames: Record<string, string> = {
-  AL:'Alabama', AK:'Alaska', AZ:'Arizona', AR:'Arkansas', CA:'California', CO:'Colorado', CT:'Connecticut', DE:'Delaware',
-  FL:'Florida', GA:'Georgia', HI:'Hawaii', ID:'Idaho', IL:'Illinois', IN:'Indiana', IA:'Iowa', KS:'Kansas', KY:'Kentucky',
-  LA:'Louisiana', ME:'Maine', MD:'Maryland', MA:'Massachusetts', MI:'Michigan', MN:'Minnesota', MS:'Mississippi',
-  MO:'Missouri', MT:'Montana', NE:'Nebraska', NV:'Nevada', NH:'New Hampshire', NJ:'New Jersey', NM:'New Mexico',
-  NY:'New York', NC:'North Carolina', ND:'North Dakota', OH:'Ohio', OK:'Oklahoma', OR:'Oregon', PA:'Pennsylvania',
-  RI:'Rhode Island', SC:'South Carolina', SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah', VT:'Vermont',
-  VA:'Virginia', WA:'Washington', WV:'West Virginia', WI:'Wisconsin', WY:'Wyoming',
-};
-export function isStateCode(code: string): boolean { return code in stateNames; }
-
 async function collect(state: string | null, district: string | null): Promise<PredictionMarketResponse> {
   const fetchedAt = new Date().toISOString();
   const jobs: Array<{ provider: MarketProvider; run: () => Promise<MarketQuote[]> }> = [
@@ -161,6 +132,8 @@ async function collect(state: string | null, district: string | null): Promise<P
   if (state) {
     jobs.push(
       { provider: 'KALSHI', run: () => kalshiQuotes(`SENATE${state}-26`, 'STATE_SENATE', fetchedAt) },
+      // Special Senate elections (e.g. OH, FL in 2026) live in a separate series.
+      { provider: 'KALSHI', run: () => kalshiQuotes(`SENATE${state}S-26`, 'STATE_SENATE', fetchedAt) },
       { provider: 'POLYMARKET', run: async () => polyQuotes(await polyByExactTitle(`${stateNames[state]} Senate Election Winner`, new RegExp(`^${stateNames[state]} (?:Senate (?:Election )?Winner|Senate Election)$`, 'i')), 'STATE_SENATE', fetchedAt) },
     );
   }
