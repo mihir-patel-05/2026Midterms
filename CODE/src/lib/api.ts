@@ -433,4 +433,21 @@ export async function clearChatHistory(sessionId: string): Promise<{
 }
 
 // Export API base URL for reference
+export interface DistrictLookupResponse {
+  formattedAddress: string;
+  accuracyType: string | null;
+  location: { lat: number; lng: number };
+  congress: 120;
+  /** Largest share first; a ZIP or partial address can span districts. District "00" is at-large. */
+  districts: Array<{ state: string; district: string; proportion: number }>;
+}
+
+/**
+ * The 2026 congressional district(s) for an address or ZIP (Geocodio cd120).
+ * Each call is billed, so only call it when the user asks for a lookup.
+ */
+export async function lookupDistrict(address: string): Promise<DistrictLookupResponse> {
+  return fetchAPI(`/districts/lookup?${new URLSearchParams({ address: address.trim() })}`);
+}
+
 export { API_BASE_URL };

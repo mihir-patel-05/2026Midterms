@@ -18,6 +18,7 @@ import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
 import type { MapTarget, MapView } from "./map/ElectionMap";
+import { isRedistricted } from "./map/redistricting";
 import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
@@ -88,7 +89,10 @@ export function ElectionMonitor() {
       const onFile = target.state === selectedState?.code ? stateContests.find((item) => item.office === "US_HOUSE" && item.district === target.district) : undefined;
       return {
         title: label,
-        lines: [onFile ? `${onFile.candidates.length} ${onFile.candidates.length === 1 ? "candidate" : "candidates"} on file` : target.state === selectedState?.code ? "No contest on file" : "Click to load this state's contests"],
+        lines: [
+          onFile ? `${onFile.candidates.length} ${onFile.candidates.length === 1 ? "candidate" : "candidates"} on file` : target.state === selectedState?.code ? "No contest on file" : "Click to load this state's contests",
+          isRedistricted(target.state) ? "Outline shows 2024 lines; this state redrew for 2026" : "",
+        ].filter(Boolean),
       };
     }
     return {
@@ -207,6 +211,11 @@ export function ElectionMonitor() {
           onTabChange={(tab) => update({ tab })}
           overview={
             <>
+              {isRedistricted(selectedState?.code) && (
+                <p className="em-note" role="note">
+                  {selectedState!.name} adopted a new congressional map for 2026. District outlines on the map show the 2024 lines, so search your address to find your 2026 district.
+                </p>
+              )}
               <RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />
               {selectedState && haveContests && stateContests.length > 0 && <SnapshotCard stateName={selectedState.name} contests={stateContests} />}
               {results && <HistoryCard results={results} sources={sourceStatus.data} />}

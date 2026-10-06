@@ -18,6 +18,7 @@ export function MapCard({ layer, readout, children }: { layer: keyof typeof laye
           <span className="em-legend-item" data-readiness="ready"><i />Races on file</span>
           <span className="em-legend-item" data-readiness="partial"><i />No candidates yet</span>
           <span className="em-legend-item" data-readiness="pending"><i />No data</span>
+          {layer === "districts" && <span className="em-legend-item" data-readiness="outdated"><i />2026 lines differ</span>}
         </div>
       </div>
       {children}

@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-06",
+  "source": "Provisional: TX confirmed by a direct Geocodio cd120 lookup (Austin moves from TX-37 to TX-10). Rerun `npm run build:redistricting` to detect every state.",
+  "states": {
+    "TX": {
+      "changedDistricts": [],
+      "manual": true
+    }
+  }
+}

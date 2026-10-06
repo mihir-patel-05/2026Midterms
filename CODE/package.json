@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:geo": "node scripts/build-geo.mjs"
+    "build:geo": "node scripts/build-geo.mjs",
+    "build:redistricting": "node scripts/build-redistricting.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -69,6 +70,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@turf/point-on-feature": "^7.4.0",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",

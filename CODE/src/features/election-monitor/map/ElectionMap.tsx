@@ -16,6 +16,7 @@ import {
   type StateFeature,
 } from "./geo";
 import { resolveMapStyle } from "./mapStyle";
+import { REDISTRICTED_STATES } from "./redistricting";
 
 export interface MapView {
   lat: number;
@@ -46,6 +47,8 @@ const COLORS = { teal: "#5ce1c0", blue: "#6eb6ff", amber: "#f4c769", quiet: "#60
 const readinessColor = ["match", ["coalesce", ["feature-state", "readiness"], "pending"], "ready", COLORS.teal, "partial", COLORS.amber, COLORS.quiet];
 const hovered = ["boolean", ["feature-state", "hover"], false];
 const INTERACTIVE = ["districts-fill", "counties-fill", "states-fill"] as const;
+/** Districts in states that adopted a new map for 2026; their outlines are the 119th Congress lines. */
+const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED_STATES]]];
 
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
@@ -124,6 +127,10 @@ export default function ElectionMap(props: ElectionMapProps) {
         } }, beforeId);
         map.addLayer({ id: "districts-line", type: "line", source: "districts", layout: { visibility: "none" }, paint: {
           "line-color": COLORS.teal, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.4, 8, 1.4] as never,
+        } }, beforeId);
+        map.addLayer({ id: "districts-outdated-line", type: "line", source: "districts", layout: { visibility: "none" }, filter: redistrictedFilter as never, paint: {
+          "line-color": COLORS.amber, "line-opacity": 0.85, "line-dasharray": [2, 2],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.6, 8, 1.6] as never,
         } }, beforeId);
         map.addLayer({ id: "states-line", type: "line", source: "states", paint: {
           "line-color": COLORS.line, "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 7, 1.4] as never,
@@ -235,13 +242,17 @@ export default function ElectionMap(props: ElectionMapProps) {
     const map = mapRef.current;
     if (!map || !ready) return;
     const show = (ids: string[], visible: boolean) => ids.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
-    show(["districts-fill", "districts-line"], layer === "districts");
+    show(["districts-fill", "districts-line", "districts-outdated-line"], layer === "districts");
     show(["counties-fill", "counties-line"], layer === "counties");
     map.setPaintProperty("states-fill", "fill-opacity", layer === "states"
       ? ["case", ["boolean", ["feature-state", "selected"], false], 0.34, hovered, 0.28, 0.16]
       : ["case", hovered, 0.12, 0.05]);
     const stateFilter = selectedState ? ["==", ["get", "state"], selectedState] : null;
-    for (const id of ["districts-fill", "districts-line", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
+    for (const id of ["districts-fill", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
+    // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
+    const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
+    map.setFilter("districts-line", both(["!", redistrictedFilter]));
+    map.setFilter("districts-outdated-line", both(redistrictedFilter));
   }, [layer, ready, selectedState]);
 
   // Readiness colouring.

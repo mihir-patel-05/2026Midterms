@@ -107,6 +107,8 @@
 .em-legend-item[data-readiness="ready"] { color: hsl(var(--signal-teal)); }
 .em-legend-item[data-readiness="partial"] { color: hsl(var(--signal-amber)); }
 .em-legend-item[data-readiness="pending"] { color: hsl(var(--quiet)); }
+.em-legend-item[data-readiness="outdated"] { color: hsl(var(--signal-amber)); }
+.em-legend-item[data-readiness="outdated"] i { height: 0; border-radius: 0; border-top: 2px dashed currentColor; background: none; }
 .em-map-caption {
   position: relative; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between;
   gap: 18px; margin-top: 10px; color: hsl(var(--quiet)); font-size: 0.7rem;

@@ -3,16 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { getCandidates } from "@/lib/api";
+import { getCandidates, lookupDistrict } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PATH } from "./navLinks";
 
 interface SearchResult {
   key: string;
-  kind: "State" | "District" | "Candidate";
+  kind: "State" | "District" | "Candidate" | "Address";
   label: string;
   detail: string;
-  to: string;
+  /** Where the result navigates; absent on the address row, which runs a lookup instead. */
+  to?: string;
+}
+
+/** A pending or finished address lookup for one query. */
+type AddressLookup =
+  | { query: string; status: "loading" }
+  | { query: string; status: "error"; message: string }
+  | { query: string; status: "choices"; choices: SearchResult[] };
+
+/** A ZIP, or something with a house number and a street, e.g. "500 Congress Ave Austin". */
+function looksLikeAddress(term: string) {
+  return /^\d{5}(-\d{4})?$/.test(term) || (term.length >= 8 && /\d/.test(term) && /\s/.test(term));
+}
+
+function districtTo(state: string, district: string) {
+  return `${DASHBOARD_PATH}?state=${state}&district=${district}&layer=districts`;
 }
 
 const statesByCode = new Map(stateMapItems.map((state) => [state.code, state.name]));
@@ -41,6 +57,7 @@ export function GlobalSearch({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const term = useDebounced(query.trim(), 200);
+  const [lookup, setLookup] = useState<AddressLookup | null>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -59,6 +76,9 @@ export function GlobalSearch({ className }: { className?: string }) {
     if (!term) return [];
     const lower = term.toLowerCase();
     const results: SearchResult[] = [];
+    if (looksLikeAddress(term)) {
+      results.push({ key: "address", kind: "Address", label: `Find 2026 district for "${term}"`, detail: "Looks up the address with the 2026 district maps" });
+    }
     const district = term.match(/^([A-Za-z]{2})[-\s]?(\d{1,2}|AL)$/i);
     if (district && statesByCode.has(district[1].toUpperCase())) {
       const code = district[1].toUpperCase();
@@ -99,14 +119,45 @@ export function GlobalSearch({ className }: { className?: string }) {
     },
   });
 
-  const results = [...local, ...(candidates.data ?? [])];
+  const activeLookup = lookup && lookup.query === term ? lookup : null;
+  const results = activeLookup
+    ? activeLookup.status === "choices" ? activeLookup.choices : []
+    : [...local, ...(candidates.data ?? [])];
   const showList = open && term.length > 0;
-  const choose = (result: SearchResult | undefined) => {
-    if (!result) return;
+  const go = (to: string) => {
     setOpen(false);
     setQuery("");
+    setLookup(null);
     inputRef.current?.blur();
-    navigate(result.to);
+    navigate(to);
+  };
+  // Lookups are billed, so they run only when the address row is chosen, never per keystroke.
+  const runLookup = async (address: string) => {
+    setLookup({ query: address, status: "loading" });
+    try {
+      const response = await lookupDistrict(address);
+      const choices = response.districts.map<SearchResult>(({ state, district, proportion }) => ({
+        key: `a-${state}-${district}`,
+        kind: "District",
+        label: `${state}-${district === "00" ? "AL" : district}`,
+        detail: response.districts.length > 1
+          ? `${Math.round(proportion * 100)}% of ${response.formattedAddress || "this area"}`
+          : `2026 district for ${response.formattedAddress || address}`,
+        to: districtTo(state, district),
+      }));
+      if (choices.length === 1) go(choices[0].to!);
+      else {
+        setLookup({ query: address, status: "choices", choices });
+        setActive(0);
+      }
+    } catch (error) {
+      setLookup({ query: address, status: "error", message: error instanceof Error ? error.message : "District lookup is unavailable" });
+    }
+  };
+  const choose = (result: SearchResult | undefined) => {
+    if (!result) return;
+    if (result.kind === "Address") void runLookup(term);
+    else if (result.to) go(result.to);
   };
 
   return (
@@ -158,12 +209,20 @@ export function GlobalSearch({ className }: { className?: string }) {
               </span>
             </li>
           ))}
-          {results.length === 0 && (
+          {activeLookup && activeLookup.status !== "choices" && (
+            <li className="px-2.5 py-3 text-sm text-muted-foreground" role="presentation" aria-live="polite">
+              {activeLookup.status === "loading" ? "Finding your 2026 district…" : activeLookup.message}
+            </li>
+          )}
+          {activeLookup?.status === "choices" && (
+            <li className="px-2.5 pb-1 pt-2 text-xs text-quiet" role="presentation">This area spans more than one 2026 district. Pick one, or search a full street address.</li>
+          )}
+          {!activeLookup && results.length === 0 && (
             <li className="px-2.5 py-3 text-sm text-muted-foreground" role="presentation">
               {candidates.isFetching || term !== query.trim() ? "Searching…" : candidates.isError ? "Candidate search is unavailable right now." : term.length < 3 ? "Keep typing to search candidates." : "No matches."}
             </li>
           )}
-          {results.length > 0 && candidates.isFetching && <li className="px-2.5 py-1.5 text-xs text-quiet" role="presentation">Searching candidates…</li>}
+          {!activeLookup && results.length > 0 && candidates.isFetching && <li className="px-2.5 py-1.5 text-xs text-quiet" role="presentation">Searching candidates…</li>}
         </ul>
       )}
     </div>
