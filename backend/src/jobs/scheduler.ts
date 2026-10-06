@@ -140,10 +140,18 @@ async function executeSync(leaseToken: string): Promise<void> {
       `\n📊 Candidate Sync Summary: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors\n`
     );
 
-    // Step 2: Source breakdown + committees, one candidate at a time. Only
+    // Step 2: Keep race shells and active FEC filing links in sync. This only
+    // needs the candidate list from step 1, so it runs before the hours-long
+    // step 3 and the map shows races minutes into a sync, not at the end.
+    const elections = await electionService.generateElections(SYNC_CONFIG.cycle);
+    stats.electionsCreated = elections.electionsCreated;
+    stats.candidateLinksCreated = elections.candidateLinksCreated;
+    stats.electionErrors = elections.errors;
+
+    // Step 3: Source breakdown + committees, one candidate at a time. Only
     // candidates who have raised money need it, biggest fundraisers first, so
     // the competitive races fill in early if the run is cut short.
-    console.log('📥 STEP 2: Syncing Detailed Totals + Committees\n');
+    console.log('📥 STEP 3: Syncing Detailed Totals + Committees\n');
 
     const skipThreshold = new Date(
       Date.now() - SYNC_CONFIG.skipIfSyncedWithinHours * 60 * 60 * 1000
@@ -204,7 +212,7 @@ async function executeSync(leaseToken: string): Promise<void> {
       `📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`
     );
 
-    // Step 3: Refresh a bounded, oldest-first batch of itemized finance data.
+    // Step 4: Refresh a bounded, oldest-first batch of itemized finance data.
     const itemized = await financeService.syncItemizedBatch(SYNC_CONFIG.cycle);
     stats.receiptsSynced = itemized.receiptsSynced;
     stats.disbursementsSynced = itemized.disbursementsSynced;
@@ -214,12 +222,6 @@ async function executeSync(leaseToken: string): Promise<void> {
       `${itemized.receiptsSynced} receipts, ${itemized.disbursementsSynced} disbursements, ` +
       `${itemized.errors} errors\n`
     );
-
-    // Step 4: Keep race shells and active FEC filing links in sync.
-    const elections = await electionService.generateElections(SYNC_CONFIG.cycle);
-    stats.electionsCreated = elections.electionsCreated;
-    stats.candidateLinksCreated = elections.candidateLinksCreated;
-    stats.electionErrors = elections.errors;
 
     stats.duration = Date.now() - startTime;
 
