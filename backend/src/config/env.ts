@@ -9,6 +9,11 @@ const envSchema = z.object({
   FEC_API_KEY: z.string().trim().optional(),
   GEMINI_API_KEY: z.string().trim().optional(),
   FEC_API_BASE_URL: z.string().default('https://api.open.fec.gov/v1'),
+  // Address → 2026 congressional district lookup. Without a key the lookup returns 503.
+  GEOCODIO_API_KEY: z.string().trim().optional(),
+  GEOCODIO_API_BASE_URL: z.string().default('https://api.geocod.io/v2'),
+  // Billed lookups per UTC day before lookups are refused (free tier is 2,500).
+  GEOCODIO_DAILY_LOOKUP_LIMIT: z.string().regex(/^\d+$/).default('2000'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -69,6 +74,7 @@ export const env = {
   ITEMIZED_COMMITTEES_PER_RUN: parseInt(parsed.data.ITEMIZED_COMMITTEES_PER_RUN, 10),
   ITEMIZED_MAX_PAGES: parseInt(parsed.data.ITEMIZED_MAX_PAGES, 10),
   ITEMIZED_REFRESH_HOURS: parseInt(parsed.data.ITEMIZED_REFRESH_HOURS, 10),
+  GEOCODIO_DAILY_LOOKUP_LIMIT: parseInt(parsed.data.GEOCODIO_DAILY_LOOKUP_LIMIT, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
