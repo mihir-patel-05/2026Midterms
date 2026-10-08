@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { electionService } from '../services/election.service.js';
 import { financeService } from '../services/finance.service.js';
+import { isFecFatalError } from '../config/fec-client.js';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import {
@@ -334,6 +335,7 @@ export class AdminController {
               data: { recordsProcessed, recordsErrors },
             });
           } catch (error: any) {
+            if (isFecFatalError(error)) throw error;
             console.error(`Error syncing ${state} ${office}:`, error.message);
             recordsErrors++;
           }
@@ -370,6 +372,7 @@ export class AdminController {
               recordsProcessed += financials.synced + committees.synced;
               recordsErrors += financials.errors + committees.errors;
             } catch (error: any) {
+              if (isFecFatalError(error)) throw error;
               console.error(`Error refreshing ${candidate.name}:`, error.message);
               recordsErrors++;
             }
@@ -388,6 +391,7 @@ export class AdminController {
         recordsProcessed += itemized.receiptsSynced + itemized.disbursementsSynced;
         recordsErrors += itemized.errors;
       } catch (error: any) {
+        if (isFecFatalError(error)) throw error;
         console.error('Error syncing itemized finance data:', error.message);
         recordsErrors++;
       }

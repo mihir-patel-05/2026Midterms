@@ -1,6 +1,13 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { env } from './env.js';
-import { fecRateLimiter } from '../utils/rate-limiter.js';
+import {
+  assertFecNotRateLimited,
+  fecRateLimiter,
+  FecRateLimitedError,
+  tripFecRateLimit,
+} from '../utils/rate-limiter.js';
+
+export { FecRateLimitedError };
 
 export interface FECPaginatedResponse<T> {
   api_version: string;
@@ -57,6 +64,9 @@ export class FECClient {
     this.client.interceptors.response.use(
       (response) => response, // No logging for successful responses
       (error) => {
+        if (error.response?.status === 429) {
+          return Promise.reject(tripFecRateLimit(error.response.headers?.['retry-after']));
+        }
         if (error.response) {
           console.error(
             `❌ FEC API Error: ${error.response.status} - ${error.response.statusText}`
@@ -77,13 +87,18 @@ export class FECClient {
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<FECPaginatedResponse<T>>> {
     if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured; FEC sync is unavailable');
+    assertFecNotRateLimited();
     // Create unique job ID by including query parameters
     const params = new URLSearchParams(config?.params || {});
     const jobId = `GET ${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
 
     return fecRateLimiter.schedule(
       { id: jobId },
-      () => this.client.get<FECPaginatedResponse<T>>(endpoint, config)
+      () => {
+        // Requests queued before a 429 must not go out once the circuit opens.
+        assertFecNotRateLimited();
+        return this.client.get<FECPaginatedResponse<T>>(endpoint, config);
+      }
     );
   }
 
@@ -206,6 +221,14 @@ export class FECClient {
 export function isFecAuthError(error: unknown): boolean {
   const status = (error as { response?: { status?: number } })?.response?.status;
   return status === 401 || status === 403;
+}
+
+/**
+ * True when no further FEC request can succeed for now (bad key or exhausted
+ * rate limit), so sync loops should abort rather than move on to the next item.
+ */
+export function isFecFatalError(error: unknown): boolean {
+  return isFecAuthError(error) || error instanceof FecRateLimitedError;
 }
 
 // Export singleton instance

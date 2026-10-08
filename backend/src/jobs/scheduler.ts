@@ -9,7 +9,7 @@
 import cron from 'node-cron';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
-import { isFecAuthError } from '../config/fec-client.js';
+import { FecRateLimitedError, isFecAuthError, isFecFatalError } from '../config/fec-client.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
@@ -193,7 +193,7 @@ async function executeSync(leaseToken: string): Promise<void> {
             stats.committeesSynced += commResult.synced;
             stats.committeesErrors += commResult.errors;
           } catch (error: any) {
-            if (isFecAuthError(error)) throw error;
+            if (isFecFatalError(error)) throw error;
             console.error(`  ❌ ${candidate.name}:`, error.message);
             stats.financesErrors++;
           }
@@ -279,7 +279,9 @@ async function executeSync(leaseToken: string): Promise<void> {
         status: 'failed',
         errorMessage: isFecAuthError(error)
           ? 'OpenFEC rejected the API key (check FEC_API_KEY)'
-          : error.message,
+          : error instanceof FecRateLimitedError
+            ? `OpenFEC rate limit reached; retry after ${error.retryAt.toISOString()}`
+            : error.message,
         completedAt: new Date(),
         duration: Date.now() - startTime,
       },

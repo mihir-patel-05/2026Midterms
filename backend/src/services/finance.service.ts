@@ -8,6 +8,7 @@ import {
   FECCandidateTotals,
   FECCandidateTotalsSummary,
 } from './fec-api.service.js';
+import { isFecFatalError } from '../config/fec-client.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
 import { createHash } from 'crypto';
 import { env } from '../config/env.js';
@@ -217,6 +218,7 @@ export class FinanceService {
           },
         });
       } catch (error) {
+        if (isFecFatalError(error)) throw error;
         stats.errors++;
         await prisma.committee.update({
           where: { id: committee.id },
