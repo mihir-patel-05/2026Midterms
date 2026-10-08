@@ -317,6 +317,59 @@ export class CandidateService {
   }
 
   /**
+   * Sync every House and Senate campaign committee for a cycle in bulk (~70
+   * requests) instead of one /candidate/{id}/committees/ request per candidate.
+   * Returns the fetched committees so detailed totals can be mapped to their
+   * candidates without fetching them again.
+   */
+  async syncHouseSenateCommittees(
+    cycle: number,
+  ): Promise<{ synced: number; errors: number; committees: FECCommittee[] }> {
+    const committees = await fecApiService.getHouseSenateCommittees(cycle);
+    const linkedIds = [...new Set(committees.flatMap((committee) => committee.candidate_ids?.[0] ?? []))];
+    const known = new Set(
+      (await prisma.candidate.findMany({
+        where: { candidateId: { in: linkedIds } },
+        select: { candidateId: true },
+      })).map((candidate) => candidate.candidateId),
+    );
+
+    let synced = 0;
+    let errors = 0;
+    const batchSize = 100;
+    for (let i = 0; i < committees.length; i += batchSize) {
+      const batch = committees.slice(i, i + batchSize);
+      try {
+        await prisma.$transaction(
+          batch.map((committee) => {
+            const candidateId = committee.candidate_ids?.[0];
+            const data = {
+              name: committee.name,
+              committeeType: committee.committee_type,
+              designation: committee.designation,
+              candidateId: candidateId && known.has(candidateId) ? candidateId : null,
+              party: committee.party,
+              state: committee.state,
+            };
+            return prisma.committee.upsert({
+              where: { committeeId: committee.committee_id },
+              update: data,
+              create: { committeeId: committee.committee_id, ...data },
+            });
+          }),
+        );
+        synced += batch.length;
+      } catch (error) {
+        console.error(`❌ Committees ${i + 1}-${i + batch.length} failed to save:`, error);
+        errors += batch.length;
+      }
+    }
+
+    console.log(`✅ Committees: ${synced} synced, ${errors} errors`);
+    return { synced, errors, committees };
+  }
+
+  /**
    * Sync committees for a candidate
    */
   async syncCandidateCommittees(candidateId: string): Promise<{ synced: number; errors: number }> {

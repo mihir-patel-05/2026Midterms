@@ -7,6 +7,8 @@ import {
   FECDisbursement,
   FECCandidateTotals,
   FECCandidateTotalsSummary,
+  FECCommitteeTotals,
+  FECCommittee,
 } from './fec-api.service.js';
 import { isFecFatalError } from '../config/fec-client.js';
 import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
@@ -89,6 +91,98 @@ export function bulkTotalsData(row: FECCandidateTotalsSummary, syncedAt: Date) {
     coverageEndDate: row.coverage_end_date ? new Date(row.coverage_end_date) : null,
     lastUpdated: syncedAt,
   };
+}
+
+/**
+ * Full source breakdown for one candidate and cycle, from /candidate/{id}/totals/
+ * or from combineCommitteeTotals over the bulk committee totals.
+ */
+export function detailedTotalsData(fecTotal: Omit<FECCandidateTotals, 'candidate_id'>, syncedAt: Date) {
+  return {
+    candidateElectionYear: fecTotal.candidate_election_year,
+
+    // Receipt totals
+    receipts: fecTotal.receipts || 0,
+    contributions: fecTotal.contributions || 0,
+    individualContributions: fecTotal.individual_contributions || 0,
+    individualItemizedContributions: fecTotal.individual_itemized_contributions || 0,
+    individualUnitemizedContributions: fecTotal.individual_unitemized_contributions || 0,
+    pacContributions: fecTotal.other_political_committee_contributions || 0,
+    partyContributions: fecTotal.political_party_committee_contributions || 0,
+    candidateContribution: fecTotal.candidate_contribution || 0,
+    otherReceipts: fecTotal.other_receipts || 0,
+    transfersFromAffiliatedCommittee: fecTotal.transfers_from_affiliated_committee || 0,
+    loansReceived: fecTotal.loans_received || 0,
+    loansReceivedFromCandidate: fecTotal.loans_received_from_candidate || 0,
+    otherLoansReceived: fecTotal.other_loans_received || 0,
+    federalFunds: fecTotal.federal_funds || 0,
+
+    // Disbursement totals
+    disbursements: fecTotal.disbursements || 0,
+    operatingExpenditures: fecTotal.operating_expenditures || 0,
+    transfersToOtherAuthorizedCommittee: fecTotal.transfers_to_other_authorized_committee || 0,
+    fundraisingDisbursements: fecTotal.fundraising_disbursements || 0,
+    exemptLegalAccountingDisbursement: fecTotal.exempt_legal_accounting_disbursement || 0,
+    loanRepaymentsMade: fecTotal.loan_repayments_made || 0,
+    repaymentsLoansMadeByCandidate: fecTotal.repayments_loans_made_by_candidate || 0,
+    repaymentsOtherLoans: fecTotal.repayments_other_loans || 0,
+    otherDisbursements: fecTotal.other_disbursements || 0,
+
+    // Refunds
+    contributionRefunds: fecTotal.contribution_refunds || 0,
+    refundedIndividualContributions: fecTotal.refunded_individual_contributions || 0,
+    refundedOtherPoliticalCommitteeContributions: fecTotal.refunded_other_political_committee_contributions || 0,
+    refundedPoliticalPartyCommitteeContributions: fecTotal.refunded_political_party_committee_contributions || 0,
+
+    // Offsets
+    offsetsToOperatingExpenditures: fecTotal.offsets_to_operating_expenditures || 0,
+    totalOffsetsToOperatingExpenditures: fecTotal.total_offsets_to_operating_expenditures || 0,
+    offsetsToFundraisingExpenditures: fecTotal.offsets_to_fundraising_expenditures || 0,
+    offsetsToLegalAccounting: fecTotal.offsets_to_legal_accounting || 0,
+
+    // Net calculations
+    netContributions: fecTotal.net_contributions || 0,
+    netOperatingExpenditures: fecTotal.net_operating_expenditures || 0,
+
+    // End of period data (use last_* fields if available, otherwise fall back to legacy fields)
+    cashOnHand: fecTotal.last_cash_on_hand_end_period || fecTotal.cash_on_hand_end_period || 0,
+    debtsOwed: fecTotal.last_debts_owed_by_committee || fecTotal.debts_owed_by_committee || 0,
+    debtsOwedToCommittee: fecTotal.last_debts_owed_to_committee || 0,
+
+    // Coverage dates and metadata
+    coverageStartDate: fecTotal.coverage_start_date ? new Date(fecTotal.coverage_start_date) : null,
+    coverageEndDate: fecTotal.coverage_end_date ? new Date(fecTotal.coverage_end_date) : null,
+    transactionCoverageDate: fecTotal.transaction_coverage_date ? new Date(fecTotal.transaction_coverage_date) : null,
+    lastReportYear: fecTotal.last_report_year,
+    lastReportTypeFull: fecTotal.last_report_type_full,
+    lastBeginningImageNumber: fecTotal.last_beginning_image_number,
+    electionFull: fecTotal.election_full,
+    lastUpdated: syncedAt,
+    detailedSyncedAt: syncedAt,
+  };
+}
+
+/** Fields that describe a filing rather than an amount, so are never summed. */
+const UNSUMMED_TOTALS_FIELDS = new Set(['cycle', 'candidate_election_year', 'last_report_year']);
+
+/**
+ * Combine one candidate's committee totals the way /candidate/{id}/totals/
+ * does: amounts (including cash on hand and debts) are summed across the
+ * principal and authorized committees, coverage spans all of them, and the
+ * last-report details come from the committee that filed most recently.
+ */
+export function combineCommitteeTotals(rows: FECCommitteeTotals[]): Omit<FECCandidateTotals, 'candidate_id'> {
+  const latest = rows.reduce((a, b) =>
+    (b.coverage_end_date ?? '') > (a.coverage_end_date ?? '') ? b : a,
+  );
+  const combined: Record<string, unknown> = { ...latest, election_full: false };
+  for (const [key, value] of Object.entries(latest)) {
+    if (typeof value !== 'number' || UNSUMMED_TOTALS_FIELDS.has(key)) continue;
+    combined[key] = rows.reduce((sum, row) => sum + Number(row[key as keyof FECCommitteeTotals] ?? 0), 0);
+  }
+  const starts = rows.map((row) => row.coverage_start_date).filter((date): date is string => !!date);
+  combined.coverage_start_date = starts.length ? starts.sort()[0] : undefined;
+  return combined as Omit<FECCandidateTotals, 'candidate_id'>;
 }
 
 function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
@@ -249,6 +343,63 @@ export class FinanceService {
   }
 
   /**
+   * Refresh the full source breakdown for every funded candidate in a cycle
+   * from OpenFEC's bulk committee totals (~45 requests in all) instead of one
+   * /candidate/{id}/totals/ request each. Only candidates already synced for
+   * the cycle are updated; committees map totals to their candidate.
+   */
+  async syncDetailedTotalsBulk(
+    cycle: number,
+    committees: FECCommittee[],
+  ): Promise<{ synced: number; errors: number }> {
+    const candidateByCommittee = new Map<string, string>();
+    for (const committee of committees) {
+      const candidateId = committee.candidate_ids?.[0];
+      if (candidateId && (committee.designation === 'P' || committee.designation === 'A')) {
+        candidateByCommittee.set(committee.committee_id, candidateId);
+      }
+    }
+
+    const totalsByCandidate = new Map<string, FECCommitteeTotals[]>();
+    for (const row of await fecApiService.getHouseSenateCommitteeTotals(cycle)) {
+      const candidateId = candidateByCommittee.get(row.committee_id);
+      if (!candidateId) continue;
+      totalsByCandidate.set(candidateId, [...(totalsByCandidate.get(candidateId) ?? []), row]);
+    }
+
+    const existing = await prisma.candidateFinancial.findMany({
+      where: { cycle, candidateId: { in: [...totalsByCandidate.keys()] } },
+      select: { candidateId: true },
+    });
+    const candidateIds = existing.map((row) => row.candidateId);
+    const syncedAt = new Date();
+    let synced = 0;
+    let errors = 0;
+
+    const batchSize = 100;
+    for (let i = 0; i < candidateIds.length; i += batchSize) {
+      const batch = candidateIds.slice(i, i + batchSize);
+      try {
+        await prisma.$transaction(
+          batch.map((candidateId) =>
+            prisma.candidateFinancial.update({
+              where: { candidateId_cycle: { candidateId, cycle } },
+              data: detailedTotalsData(combineCommitteeTotals(totalsByCandidate.get(candidateId)!), syncedAt),
+            }),
+          ),
+        );
+        synced += batch.length;
+      } catch (error) {
+        console.error(`❌ Detailed totals ${i + 1}-${i + batch.length} failed to save:`, error);
+        errors += batch.length;
+      }
+    }
+
+    console.log(`✅ Detailed totals: ${synced} candidates from ${candidateByCommittee.size} committees, ${errors} errors`);
+    return { synced, errors };
+  }
+
+  /**
    * Sync financial data directly for a candidate from FEC API
    * Uses the /candidate/{candidate_id}/totals/ endpoint
    */
@@ -265,68 +416,7 @@ export class FinanceService {
 
       for (const fecTotal of fecTotals) {
         try {
-          const financialData = {
-            candidateElectionYear: fecTotal.candidate_election_year,
-
-            // Receipt totals
-            receipts: fecTotal.receipts || 0,
-            contributions: fecTotal.contributions || 0,
-            individualContributions: fecTotal.individual_contributions || 0,
-            individualItemizedContributions: fecTotal.individual_itemized_contributions || 0,
-            individualUnitemizedContributions: fecTotal.individual_unitemized_contributions || 0,
-            pacContributions: fecTotal.other_political_committee_contributions || 0,
-            partyContributions: fecTotal.political_party_committee_contributions || 0,
-            candidateContribution: fecTotal.candidate_contribution || 0,
-            otherReceipts: fecTotal.other_receipts || 0,
-            transfersFromAffiliatedCommittee: fecTotal.transfers_from_affiliated_committee || 0,
-            loansReceived: fecTotal.loans_received || 0,
-            loansReceivedFromCandidate: fecTotal.loans_received_from_candidate || 0,
-            otherLoansReceived: fecTotal.other_loans_received || 0,
-            federalFunds: fecTotal.federal_funds || 0,
-
-            // Disbursement totals
-            disbursements: fecTotal.disbursements || 0,
-            operatingExpenditures: fecTotal.operating_expenditures || 0,
-            transfersToOtherAuthorizedCommittee: fecTotal.transfers_to_other_authorized_committee || 0,
-            fundraisingDisbursements: fecTotal.fundraising_disbursements || 0,
-            exemptLegalAccountingDisbursement: fecTotal.exempt_legal_accounting_disbursement || 0,
-            loanRepaymentsMade: fecTotal.loan_repayments_made || 0,
-            repaymentsLoansMadeByCandidate: fecTotal.repayments_loans_made_by_candidate || 0,
-            repaymentsOtherLoans: fecTotal.repayments_other_loans || 0,
-            otherDisbursements: fecTotal.other_disbursements || 0,
-
-            // Refunds
-            contributionRefunds: fecTotal.contribution_refunds || 0,
-            refundedIndividualContributions: fecTotal.refunded_individual_contributions || 0,
-            refundedOtherPoliticalCommitteeContributions: fecTotal.refunded_other_political_committee_contributions || 0,
-            refundedPoliticalPartyCommitteeContributions: fecTotal.refunded_political_party_committee_contributions || 0,
-
-            // Offsets
-            offsetsToOperatingExpenditures: fecTotal.offsets_to_operating_expenditures || 0,
-            totalOffsetsToOperatingExpenditures: fecTotal.total_offsets_to_operating_expenditures || 0,
-            offsetsToFundraisingExpenditures: fecTotal.offsets_to_fundraising_expenditures || 0,
-            offsetsToLegalAccounting: fecTotal.offsets_to_legal_accounting || 0,
-
-            // Net calculations
-            netContributions: fecTotal.net_contributions || 0,
-            netOperatingExpenditures: fecTotal.net_operating_expenditures || 0,
-
-            // End of period data (use last_* fields if available, otherwise fall back to legacy fields)
-            cashOnHand: fecTotal.last_cash_on_hand_end_period || fecTotal.cash_on_hand_end_period || 0,
-            debtsOwed: fecTotal.last_debts_owed_by_committee || fecTotal.debts_owed_by_committee || 0,
-            debtsOwedToCommittee: fecTotal.last_debts_owed_to_committee || 0,
-
-            // Coverage dates and metadata
-            coverageStartDate: fecTotal.coverage_start_date ? new Date(fecTotal.coverage_start_date) : null,
-            coverageEndDate: fecTotal.coverage_end_date ? new Date(fecTotal.coverage_end_date) : null,
-            transactionCoverageDate: fecTotal.transaction_coverage_date ? new Date(fecTotal.transaction_coverage_date) : null,
-            lastReportYear: fecTotal.last_report_year,
-            lastReportTypeFull: fecTotal.last_report_type_full,
-            lastBeginningImageNumber: fecTotal.last_beginning_image_number,
-            electionFull: fecTotal.election_full,
-            lastUpdated: new Date(),
-            detailedSyncedAt: new Date(),
-          };
+          const financialData = detailedTotalsData(fecTotal, new Date());
 
           await prisma.candidateFinancial.upsert({
             where: {

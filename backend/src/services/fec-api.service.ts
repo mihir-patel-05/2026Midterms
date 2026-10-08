@@ -111,9 +111,19 @@ export interface FECCandidateTotals {
 }
 
 /**
+ * One campaign committee's totals for a two-year cycle, from /totals/house-senate/.
+ * Same fields as /candidate/{id}/totals/, which sums a candidate's authorized
+ * committees.
+ */
+export interface FECCommitteeTotals extends Omit<FECCandidateTotals, 'candidate_id'> {
+  committee_id: string;
+  committee_designation?: string;
+}
+
+/**
  * One row of /candidates/totals/: a candidate's identity plus headline totals
  * for one cycle. The source breakdown (party, self-funding, unitemized
- * individuals) only comes from the per-candidate /candidate/{id}/totals/.
+ * individuals) comes from the committee totals instead (FECCommitteeTotals).
  */
 export interface FECCandidateTotalsSummary extends FECCandidate {
   cycle: number;
@@ -277,6 +287,32 @@ export class FECApiService {
         is_active_candidate: true,
         sort: 'name',
       },
+      Infinity,
+    );
+  }
+
+  /**
+   * Every House and Senate campaign committee active in a two-year cycle, with
+   * the candidate it belongs to (~70 requests), in place of one
+   * /candidate/{id}/committees/ request per candidate.
+   */
+  async getHouseSenateCommittees(cycle: number): Promise<FECCommittee[]> {
+    return fecClient.getAll<FECCommittee>(
+      '/committees/',
+      { cycle, committee_type: ['H', 'S'] },
+      Infinity,
+    );
+  }
+
+  /**
+   * Full totals for every principal and authorized House/Senate committee in a
+   * two-year cycle (~45 requests), in place of one /candidate/{id}/totals/
+   * request per candidate.
+   */
+  async getHouseSenateCommitteeTotals(cycle: number): Promise<FECCommitteeTotals[]> {
+    return fecClient.getAll<FECCommitteeTotals>(
+      '/totals/house-senate/',
+      { cycle, committee_designation: ['P', 'A'] },
       Infinity,
     );
   }

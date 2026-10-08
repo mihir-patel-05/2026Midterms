@@ -64,3 +64,42 @@ test('House districts are validated against apportionment', async () => {
   assert.equal(houseDistrict('MP', '01'), '00');
   assert.equal(houseDistrict('XX', '01'), null);
 });
+
+test('a single committee passes its totals through unchanged', async () => {
+  const { combineCommitteeTotals, detailedTotalsData } = await import('./finance.service.js');
+  const principal = {
+    committee_id: 'C00718866', committee_designation: 'P', cycle: 2026,
+    receipts: 77279766.48, individual_contributions: 67764725.1, candidate_contribution: 0,
+    last_cash_on_hand_end_period: 42587451, coverage_start_date: '2025-01-01T00:00:00',
+    coverage_end_date: '2026-06-30T00:00:00', last_report_type_full: 'JULY QUARTERLY',
+  };
+  const data = detailedTotalsData(combineCommitteeTotals([principal]), syncedAt);
+  assert.equal(data.receipts, 77279766.48);
+  assert.equal(data.individualContributions, 67764725.1);
+  assert.equal(data.cashOnHand, 42587451);
+  assert.equal(data.electionFull, false);
+  assert.equal(data.detailedSyncedAt, syncedAt);
+});
+
+test("a candidate's committees are summed, with last-report details from the latest filer", async () => {
+  const { combineCommitteeTotals } = await import('./finance.service.js');
+  const combined = combineCommitteeTotals([
+    {
+      committee_id: 'C1', committee_designation: 'P', cycle: 2026, last_report_year: 2026,
+      receipts: 1000, last_cash_on_hand_end_period: 400, coverage_start_date: '2025-01-01T00:00:00',
+      coverage_end_date: '2026-06-30T00:00:00', last_report_type_full: 'JULY QUARTERLY',
+    },
+    {
+      committee_id: 'C2', committee_designation: 'A', cycle: 2026, last_report_year: 2026,
+      receipts: 250.5, last_cash_on_hand_end_period: 100, coverage_start_date: '2025-04-01T00:00:00',
+      coverage_end_date: '2026-09-30T00:00:00', last_report_type_full: 'OCTOBER QUARTERLY',
+    },
+  ]);
+  assert.equal(combined.receipts, 1250.5);
+  assert.equal(combined.last_cash_on_hand_end_period, 500);
+  assert.equal(combined.cycle, 2026);
+  assert.equal(combined.last_report_year, 2026);
+  assert.equal(combined.coverage_start_date, '2025-01-01T00:00:00');
+  assert.equal(combined.coverage_end_date, '2026-09-30T00:00:00');
+  assert.equal(combined.last_report_type_full, 'OCTOBER QUARTERLY');
+});

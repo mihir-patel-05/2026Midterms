@@ -41,6 +41,8 @@ export class FECClient {
         api_key: env.FEC_API_KEY,
       },
       timeout: 30000,
+      // OpenFEC takes repeated keys for multi-value filters (designation=P&designation=A).
+      paramsSerializer: { indexes: null },
     });
 
     // OPTIMIZED: Reduced logging - only log every 20 requests or errors

@@ -342,48 +342,15 @@ export class AdminController {
         }
       }
 
-      const staleBefore = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      const candidates = await prisma.candidate.findMany({
-        where: { cycles: { has: 2026 } },
-        select: {
-          candidateId: true,
-          name: true,
-          financials: {
-            where: { cycle: 2026 },
-            select: { lastUpdated: true },
-            take: 1,
-          },
-        },
+      // Committees and detailed totals for every funded candidate, in bulk.
+      const committees = await candidateService.syncHouseSenateCommittees(2026);
+      const finances = await financeService.syncDetailedTotalsBulk(2026, committees.committees);
+      recordsProcessed += committees.synced + finances.synced;
+      recordsErrors += committees.errors + finances.errors;
+      await prisma.syncLog.update({
+        where: { id: syncLogId },
+        data: { recordsProcessed, recordsErrors },
       });
-      const candidatesToRefresh = candidates.filter((candidate) => {
-        const lastUpdated = candidate.financials[0]?.lastUpdated;
-        return !lastUpdated || lastUpdated < staleBefore;
-      });
-
-      for (let index = 0; index < candidatesToRefresh.length; index += 5) {
-        const batch = candidatesToRefresh.slice(index, index + 5);
-        await Promise.all(
-          batch.map(async (candidate) => {
-            try {
-              const [financials, committees] = await Promise.all([
-                financeService.syncCandidateFinancials(candidate.candidateId, 2026),
-                candidateService.syncCandidateCommittees(candidate.candidateId),
-              ]);
-              recordsProcessed += financials.synced + committees.synced;
-              recordsErrors += financials.errors + committees.errors;
-            } catch (error: any) {
-              if (isFecFatalError(error)) throw error;
-              console.error(`Error refreshing ${candidate.name}:`, error.message);
-              recordsErrors++;
-            }
-          }),
-        );
-
-        await prisma.syncLog.update({
-          where: { id: syncLogId },
-          data: { recordsProcessed, recordsErrors },
-        });
-      }
 
       // Refresh a bounded batch of itemized finance data.
       try {
