@@ -1,7 +1,7 @@
 import { prisma } from '../config/database.js';
 import { Candidate, Committee } from '@prisma/client';
 import { fecApiService, FECCandidate, FECCommittee } from './fec-api.service.js';
-import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { getPaginationParams, createPaginationResult, normalizePagination, PaginationResult } from '../utils/pagination.js';
 import { bulkTotalsData } from './finance.service.js';
 
 const publicCommitteeSelect = {
@@ -51,7 +51,8 @@ export class CandidateService {
     includeFunds?: boolean;
     hasFinancialData?: boolean;
   }): Promise<PaginationResult<any>> {
-    const { search, state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false, hasFinancialData = false } = params;
+    const { search, state, office, party, cycle = 2026, includeFunds = false, hasFinancialData = false } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
     const { skip, take } = getPaginationParams(page, perPage);
 
     // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'

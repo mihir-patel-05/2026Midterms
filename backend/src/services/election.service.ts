@@ -1,6 +1,7 @@
 import { prisma } from '../config/database.js';
 import { parseCalendarDate } from '../utils/calendar-date.js';
 import { HOUSE_SEATS } from '../utils/house-seats.js';
+import { normalizePagination } from '../utils/pagination.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -46,9 +47,8 @@ export class ElectionService {
       officeType,
       electionType,
       cycle = 2026,
-      page = 1,
-      perPage = 50,
     } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
 
     // Build where clause
     const where: any = {

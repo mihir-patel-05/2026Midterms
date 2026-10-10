@@ -11,7 +11,7 @@ import {
   FECCommittee,
 } from './fec-api.service.js';
 import { isFecFatalError } from '../config/fec-client.js';
-import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { getPaginationParams, createPaginationResult, normalizePagination, PaginationResult } from '../utils/pagination.js';
 import { createHash } from 'crypto';
 import { env } from '../config/env.js';
 
@@ -513,7 +513,8 @@ export class FinanceService {
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Receipt>> {
-    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
     const { skip, take } = getPaginationParams(page, perPage);
     const where = {
       committeeId: { in: committeeIds },
@@ -543,7 +544,8 @@ export class FinanceService {
     page?: number;
     perPage?: number;
   }): Promise<PaginationResult<Disbursement>> {
-    const { committeeIds, cycle, page = 1, perPage = 50 } = params;
+    const { committeeIds, cycle } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
     const { skip, take } = getPaginationParams(page, perPage);
     const where = {
       committeeId: { in: committeeIds },
