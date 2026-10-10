@@ -206,11 +206,11 @@ export class CensusClient {
           try {
             body = JSON.parse(text);
           } catch {
-            // An invalid or missing key, or an exhausted keyless allowance, gets an HTML page
+            // A missing, invalid, or not-yet-activated key gets an HTML page
             // with a 200 status rather than an error code. Show what Census said.
             throw new CensusRequestError(
               `Census API returned a non-JSON page for ${query.geoType} (HTTP ${response.status}, ${response.headers.get('content-type') ?? 'no content type'}): "${pageText(text)}". `
-              + (this.options.apiKey ? 'Check that CENSUS_API_KEY is activated.' : 'Set CENSUS_API_KEY; keyless requests share a daily limit per IP address.'),
+              + (this.options.apiKey ? 'Check that CENSUS_API_KEY is activated.' : 'Set CENSUS_API_KEY; Census rejects requests without a key.'),
             );
           }
           return parseAcsTable(body);

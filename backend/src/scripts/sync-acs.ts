@@ -3,8 +3,8 @@
  * Load ACS 5-year demographics for the nation, states, counties, congressional
  * districts, and county pieces within districts. See src/services/census/.
  *
- * Needs egress to api.census.gov and a reachable DATABASE_URL. CENSUS_API_KEY is
- * optional; a full run makes about 300 requests.
+ * Needs egress to api.census.gov, a reachable DATABASE_URL, and an activated
+ * CENSUS_API_KEY. A full run makes about 300 requests.
  *
  * Usage:
  *   npm run sync:acs                 # CENSUS_ACS_YEAR, 2024 by default
@@ -28,7 +28,12 @@ function parseYearArg(): number {
 
 async function main(): Promise<void> {
   const year = parseYearArg();
-  if (!env.CENSUS_API_KEY) console.warn('⚠️  CENSUS_API_KEY is not set; using the keyless limit of 500 requests per day.');
+  if (!env.CENSUS_API_KEY) {
+    // Census answers keyless requests with a "Missing Key" page, so fail before touching the database.
+    console.error('❌ CENSUS_API_KEY is not set. Get a free key at https://api.census.gov/data/key_signup.html, activate it from the email, and set it on the Backend service.');
+    await prisma.$disconnect();
+    process.exit(1);
+  }
   const client = new CensusClient({ apiKey: env.CENSUS_API_KEY, baseUrl: env.CENSUS_API_BASE_URL, year });
   console.log(`📊 Syncing ACS ${year} 5-year estimates`);
   try {

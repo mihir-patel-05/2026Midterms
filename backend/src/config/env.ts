@@ -14,8 +14,8 @@ const envSchema = z.object({
   GEOCODIO_API_BASE_URL: z.string().default('https://api.geocod.io/v2'),
   // Billed lookups per UTC day before lookups are refused (free tier is 2,500).
   GEOCODIO_DAILY_LOOKUP_LIMIT: z.string().regex(/^\d+$/).default('2000'),
-  // Census Data API for ACS demographics (`npm run sync:acs`). A key is optional; without one
-  // the Census Bureau allows 500 requests per IP per day, and a full sync makes about 300.
+  // Census Data API for ACS demographics (`npm run sync:acs`). The sync needs an activated key:
+  // Census answers keyless requests with a "Missing Key" page. The API server boots without it.
   CENSUS_API_KEY: z.string().trim().optional(),
   CENSUS_API_BASE_URL: z.string().url().default('https://api.census.gov/data'),
   // ACS 5-year vintage to sync and serve. 2024 covers 2020-2024 and uses 119th Congress districts.

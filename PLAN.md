@@ -213,7 +213,7 @@ Shared requirements for all of these:
 | Kalshi REST and WebSocket | Live market prices | `KALSHI_LIVE_ENABLED`, `KALSHI_API_KEY_ID`, `KALSHI_PRIVATE_KEY` |
 | Geocodio | Address to 2026 district | `GEOCODIO_API_KEY`, `GEOCODIO_DAILY_LOOKUP_LIMIT` |
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
-| Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (optional; 500 requests/day without one, a full sync makes about 300). See `CODE/public/geo/SOURCES.md` |
+| Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
 | FRED | Economic indicators | to add |
 | RSS and news APIs | Agent 1 input | to add |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; see section 6 |
