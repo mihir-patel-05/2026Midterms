@@ -25,7 +25,6 @@ export const demographicsQuery = z
     districts: list(/^\d{2}$/, MAX_SELECTED_DISTRICTS),
     year: z.coerce.number().int().min(2020).max(2100).optional(),
   })
-  .refine((query) => query.counties.length > 0 || query.districts.length > 0, { message: 'Select at least one county or district' })
   .refine((query) => stateFipsFor(query.state) !== null, { message: 'Unknown state' })
   .refine((query) => query.counties.every((fips) => fips.startsWith(stateFipsFor(query.state) ?? '--')), {
     message: 'Counties must be in the selected state',
@@ -33,8 +32,9 @@ export const demographicsQuery = z
 
 /**
  * GET /api/demographics?state=TX&counties=48201,48157&districts=07,09
- * ACS 5-year demographics for the selection. With both counties and districts,
- * the figures cover only the parts of those counties inside those districts.
+ * ACS 5-year demographics for the selection. With neither counties nor districts,
+ * the figures cover the whole state. With both, they cover only the parts of
+ * those counties inside those districts.
  */
 router.get('/', async (req, res) => {
   const parsed = demographicsQuery.safeParse(req.query);
