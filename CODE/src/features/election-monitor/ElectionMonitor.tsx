@@ -83,7 +83,7 @@ export function ElectionMonitor() {
   const describe = useCallback((target: MapTarget) => {
     const state = states.find((item) => item.code === target.state);
     if (target.kind === "county") {
-      return { title: `${target.name} County`, lines: [state?.name ?? target.state, "No county results source connected"] };
+      return { title: target.name, lines: [state?.name ?? target.state, "No county results source connected"] };
     }
     if (target.kind === "district") {
       const label = districtLabel(target.state, target.district);
