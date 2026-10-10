@@ -4,8 +4,12 @@ import { kalshiLiveFeed, type FeedStatus, type PriceDelta } from '../services/ka
 
 const router = Router();
 const MAX_STREAM_CLIENTS = 2000;
+// The page shares one stream per tab; this leaves room for several tabs or a shared
+// office IP, but stops one client from taking every slot.
+const MAX_STREAM_CLIENTS_PER_IP = 10;
 const STREAM_PING_MS = 20_000;
 let streamClients = 0;
+const streamClientsByIp = new Map<string, number>();
 
 /** Every Kalshi market we track, with its latest price. */
 router.get('/kalshi/board', (_req, res) => {
@@ -18,7 +22,11 @@ router.get('/kalshi/board', (_req, res) => {
  */
 router.get('/kalshi/stream', (req, res) => {
   if (streamClients >= MAX_STREAM_CLIENTS) return res.status(503).json({ error: 'Too many live connections' });
+  const ip = req.ip ?? 'unknown';
+  const fromIp = streamClientsByIp.get(ip) ?? 0;
+  if (fromIp >= MAX_STREAM_CLIENTS_PER_IP) return res.status(429).json({ error: 'Too many live connections from this address' });
   streamClients++;
+  streamClientsByIp.set(ip, fromIp + 1);
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
@@ -41,6 +49,9 @@ router.get('/kalshi/stream', (req, res) => {
     kalshiLiveFeed.off('quotes', onQuotes);
     kalshiLiveFeed.off('status', onStatus);
     streamClients--;
+    const remaining = (streamClientsByIp.get(ip) ?? 1) - 1;
+    if (remaining > 0) streamClientsByIp.set(ip, remaining);
+    else streamClientsByIp.delete(ip);
   });
 });
 
