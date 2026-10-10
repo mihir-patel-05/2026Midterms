@@ -74,7 +74,13 @@ async function collect(state: string | null, district: string | null): Promise<P
       () => kalshiQuotes(`SENATE${state}S-26`, 'STATE_SENATE', fetchedAt),
     );
   }
-  if (state && district) jobs.push(() => kalshiQuotes(`KXHOUSERACE-${state}${district}-26`, 'HOUSE_DISTRICT', fetchedAt));
+  if (state && district) {
+    jobs.push(
+      () => kalshiQuotes(`KXHOUSERACE-${state}${district}-26`, 'HOUSE_DISTRICT', fetchedAt),
+      // Some competitive seats are their own series instead, unpadded (HOUSECA22-26, HOUSEPA7-26).
+      () => kalshiQuotes(`HOUSE${state}${Number(district)}-26`, 'HOUSE_DISTRICT', fetchedAt),
+    );
+  }
   const settled = await Promise.allSettled(jobs.map((run) => run()));
   const quotes = settled.flatMap((item) => item.status === 'fulfilled' ? item.value : []);
   const providerStatus: PredictionMarketResponse['providerStatus'] = {

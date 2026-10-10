@@ -198,8 +198,10 @@ export function ElectionMonitor() {
           </MapCard>
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
             <PredictionMarketsPanel
+              key={selectedState?.code ?? "US"}
               stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
               district={selectedState && !selectedState.isFictional && params.district ? params.district : null}
+              office={params.office}
             />
           </ActivityRail>
         </section>

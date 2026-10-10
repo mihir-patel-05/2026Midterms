@@ -7,6 +7,7 @@ import {
   isOpen, isStateCode, marketUrl, partyFromTicker, partyNames, stateNames,
   type KalshiEvent, type KalshiMarket, type MarketScope,
 } from './shared.js';
+import { HOUSE_SEATS } from '../../utils/house-seats.js';
 
 export interface CatalogMarket {
   ticker: string;
@@ -33,11 +34,14 @@ const CONTROL_EVENTS: Array<[string, MarketScope, string]> = [
 const HOUSE_SERIES = 'KXHOUSERACE';
 const MAX_HOUSE_PAGES = 10;
 
-/** `KXHOUSERACE-PA07-26` → PA/07; `KXHOUSERACE-DEAL-26` (at-large) → DE/00. */
+/**
+ * `KXHOUSERACE-PA07-26` → PA/07; `KXHOUSERACE-DEAL-26` (at-large) → DE/00.
+ * Many competitive seats are instead their own series, unpadded: `HOUSECA22-26`, `HOUSEPA7-26`.
+ */
 export function parseHouseEventTicker(eventTicker: string): { stateCode: string; district: string } | null {
-  const match = /^KXHOUSERACE-([A-Z]{2})(\d{2}|AL)-26$/.exec(eventTicker);
+  const match = /^KXHOUSERACE-([A-Z]{2})(\d{2}|AL)-26$/.exec(eventTicker) ?? /^HOUSE([A-Z]{2})([1-9]\d?|AL)-26$/.exec(eventTicker);
   if (!match || !isStateCode(match[1])) return null;
-  return { stateCode: match[1], district: match[2] === 'AL' ? '00' : match[2] };
+  return { stateCode: match[1], district: match[2] === 'AL' ? '00' : match[2].padStart(2, '0') };
 }
 
 export function raceKey(scope: MarketScope, stateCode: string | null, district: string | null): string {
@@ -120,6 +124,22 @@ export async function buildCatalog(restUrl: string, getJson: JsonFetcher): Promi
     cursor = body?.cursor || '';
     if (!cursor) break;
   }
+
+  // Seats missing from KXHOUSERACE may have a per-district event (`HOUSECA22-26`); most of
+  // these lookups return 404. Probe every state's remaining seats, not only competitive ones.
+  const covered = new Set(markets.filter((market) => market.scope === 'HOUSE_DISTRICT').map((market) => market.race));
+  const seatTickers = Object.keys(stateNames).flatMap((state) => {
+    const seats = HOUSE_SEATS[state] ?? 0;
+    return Array.from({ length: seats }, (_, index) => (seats === 1 ? 'AL' : String(index + 1)))
+      .filter((seat) => !covered.has(`${state}-${seat === 'AL' ? '00' : seat.padStart(2, '0')}`))
+      .map((seat) => `HOUSE${state}${seat}-26`);
+  });
+  const seats = await mapLimit(seatTickers, 3, async (ticker) => {
+    const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
+    const seat = parseHouseEventTicker(ticker);
+    return body?.event?.event_ticker === ticker && seat ? eventMarkets(body.event, 'HOUSE_DISTRICT', seat.stateCode, seat.district) : [];
+  });
+  markets.push(...seats.flat());
 
   return markets;
 }

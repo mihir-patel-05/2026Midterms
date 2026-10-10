@@ -33,6 +33,13 @@ const alabama1 = {
   event_ticker: 'KXHOUSERACE-AL01-26', title: 'AL-01 House winner?',
   markets: [{ ticker: 'KXHOUSERACE-AL01-26-D', yes_sub_title: 'Clyde Jones', status: 'active', yes_bid_dollars: '0.0370', yes_ask_dollars: '0.0640' }],
 };
+const california22 = {
+  event_ticker: 'HOUSECA22-26', title: 'CA-22 House winner?',
+  markets: [
+    { ticker: 'HOUSECA22-26-D', yes_sub_title: 'Randy Villegas', status: 'active', yes_bid_dollars: '0.8900', yes_ask_dollars: '0.9160' },
+    { ticker: 'HOUSECA22-26-R', yes_sub_title: 'David Valadao', status: 'active', yes_bid_dollars: '0.0910', yes_ask_dollars: '0.1000' },
+  ],
+};
 
 test('signatures are RSA-PSS SHA-256 over timestamp + method + path', () => {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -63,6 +70,10 @@ test('private keys load from a PEM, an escaped one-line PEM, or the bare base64 
 test('House event tickers map to our state and two-digit district', () => {
   assert.deepEqual(parseHouseEventTicker('KXHOUSERACE-PA07-26'), { stateCode: 'PA', district: '07' });
   assert.deepEqual(parseHouseEventTicker('KXHOUSERACE-DEAL-26'), { stateCode: 'DE', district: '00' });
+  assert.deepEqual(parseHouseEventTicker('HOUSECA22-26'), { stateCode: 'CA', district: '22' });
+  assert.deepEqual(parseHouseEventTicker('HOUSEPA7-26'), { stateCode: 'PA', district: '07' });
+  assert.deepEqual(parseHouseEventTicker('HOUSEAKAL-26'), { stateCode: 'AK', district: '00' });
+  assert.equal(parseHouseEventTicker('HOUSEPA07-26'), null);
   assert.equal(parseHouseEventTicker('KXHOUSERACE-PA07-28'), null);
   assert.equal(parseHouseEventTicker('KXHOUSERACE-XX01-26'), null);
 });
@@ -87,13 +98,17 @@ test('the catalog covers control, regular and special Senate, and every House pa
     const path = new URL(url).pathname;
     if (path.endsWith('/events/CONTROLH-2026')) return { event: control } as T;
     if (path.endsWith('/events/SENATEOHS-26')) return { event: ohioSpecial } as T;
+    if (path.endsWith('/events/HOUSECA22-26')) return { event: california22 } as T;
     if (path.endsWith('/events') && !new URL(url).searchParams.get('cursor')) return { events: [alabama1], cursor: 'page2' } as T;
     if (path.endsWith('/events')) return { events: [delawareAtLarge], cursor: '' } as T;
     return null;
   };
   const markets = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher);
-  assert.deepEqual([...new Set(markets.map((market) => market.race))], ['US-HOUSE', 'OH-SEN', 'AL-01', 'DE-00']);
+  assert.deepEqual([...new Set(markets.map((market) => market.race))], ['US-HOUSE', 'OH-SEN', 'AL-01', 'DE-00', 'CA-22']);
   assert.ok(requested.some((url) => url.includes('/events/SENATEGA-26?')));
+  // Seats already covered by KXHOUSERACE are not probed again.
+  assert.ok(!requested.some((url) => url.includes('/events/HOUSEAL1-26?') || url.includes('/events/HOUSEDEAL-26?')));
+  assert.ok(requested.some((url) => url.includes('/events/HOUSEAL2-26?')));
   assert.equal(requested.filter((url) => url.includes('series_ticker=KXHOUSERACE')).length, 2);
 });
 

@@ -35,6 +35,9 @@ const envSchema = z.object({
   RESEARCHER_JWT_SECRET: z.string().default('dev-researcher-secret-change-me'),
   FRONTEND_URL: z.string().url().optional(),
   ADMIN_URL: z.string().url().optional(),
+  // Injected by Railway as bare hosts; used as CORS fallbacks when FRONTEND_URL/ADMIN_URL are unset.
+  RAILWAY_SERVICE_FRONTEND_URL: z.string().trim().optional(),
+  RAILWAY_SERVICE_ADMIN_DASHBOARD_URL: z.string().trim().optional(),
   FEATURE_ELECTION_DASHBOARD: z.enum(['true', 'false']).default('false'),
   RESULTS_PROVIDER_MOCK_ENABLED: z.enum(['true', 'false']).default('false'),
   RESULTS_PROVIDER_ENABLED_IDS: z.string().default(''),

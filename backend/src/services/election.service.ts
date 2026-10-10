@@ -1,5 +1,6 @@
 import { prisma } from '../config/database.js';
 import { parseCalendarDate } from '../utils/calendar-date.js';
+import { HOUSE_SEATS } from '../utils/house-seats.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -19,19 +20,6 @@ interface CreateElectionData {
   electionType: string;
   cycle: number;
 }
-
-/**
- * House seats per state after the 2020 apportionment (435 total), plus DC and
- * the territories, which each elect one non-voting delegate.
- */
-const HOUSE_SEATS: Record<string, number> = {
-  AL: 7, AK: 1, AZ: 9, AR: 4, CA: 52, CO: 8, CT: 5, DE: 1, FL: 28, GA: 14,
-  HI: 2, ID: 2, IL: 17, IN: 9, IA: 4, KS: 4, KY: 6, LA: 6, ME: 2, MD: 8,
-  MA: 9, MI: 13, MN: 8, MS: 4, MO: 8, MT: 2, NE: 3, NV: 4, NH: 2, NJ: 12,
-  NM: 3, NY: 26, NC: 14, ND: 1, OH: 15, OK: 5, OR: 6, PA: 17, RI: 2, SC: 7,
-  SD: 1, TN: 9, TX: 38, UT: 4, VT: 1, VA: 11, WA: 10, WV: 2, WI: 8, WY: 1,
-  DC: 1, AS: 1, GU: 1, MP: 1, PR: 1, VI: 1,
-};
 
 /**
  * Two-digit district for a House filing ("00" for at-large seats), or null

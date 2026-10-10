@@ -1,12 +1,13 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, TrendingUp } from 'lucide-react';
-import { useKalshiMarkets } from '@/features/election-monitor/useKalshiLive';
+import { useKalshiMarkets, type KalshiMarket, type KalshiScope } from '@/features/election-monitor/useKalshiLive';
+import type { OfficeFilter } from '@/features/election-monitor/types';
 import { API_BASE_URL } from '@/lib/apiBase';
 
-type Scope = 'NATIONAL_HOUSE' | 'NATIONAL_SENATE' | 'STATE_SENATE' | 'HOUSE_DISTRICT';
 interface Quote {
   provider: 'KALSHI';
-  scope: Scope;
+  scope: KalshiScope;
   eventTitle: string;
   outcome: string;
   pricePercent: number;
@@ -20,71 +21,187 @@ interface MarketResponse {
   providerStatus: Record<'KALSHI', 'available' | 'unavailable'>;
 }
 
-const scopeTitles: Record<Scope, string> = {
-  NATIONAL_HOUSE: 'National · House control',
-  NATIONAL_SENATE: 'National · Senate control',
-  STATE_SENATE: 'State · U.S. Senate winner',
-  HOUSE_DISTRICT: 'District · U.S. House winner',
-};
+/** One contract, from the live feed or the REST fallback. */
+type Row = Pick<KalshiMarket, 'ticker' | 'race' | 'scope' | 'stateCode' | 'district' | 'eventTitle' | 'outcome' | 'party' | 'url' | 'pricePercent' | 'priceType' | 'updatedAt' | 'moved'>;
+interface Race { race: string; rows: Row[] }
 
-export function PredictionMarketsPanel({ stateCode, district }: { stateCode: string | null; district: string | null }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['prediction-markets', stateCode, district],
+/** House races shown before "Show all" when a whole state is selected. */
+const HOUSE_PREVIEW = 6;
+
+function groupRaces(rows: Row[]): Race[] {
+  const byRace = new Map<string, Row[]>();
+  for (const row of rows) byRace.set(row.race, [...(byRace.get(row.race) ?? []), row]);
+  return [...byRace.entries()].map(([race, list]) => ({
+    race,
+    rows: list.filter((row) => row.pricePercent !== null).sort((a, b) => b.pricePercent! - a.pricePercent!),
+  }));
+}
+
+/** Closest races first: smallest gap between the top two prices. */
+function competitiveness(race: Race) {
+  const [first, second] = race.rows;
+  return first && second ? first.pricePercent! - second.pricePercent! : 100;
+}
+
+function raceLabel(race: string) {
+  if (race === 'US-HOUSE') return 'House control';
+  if (race === 'US-SENATE') return 'Senate control';
+  if (race.endsWith('-SEN')) return `${race.slice(0, 2)} Senate`;
+  return race.endsWith('-00') ? `${race.slice(0, 2)} at-large` : race;
+}
+
+/** REST quotes carry no race key; rebuild it from the scope and the request. */
+function fromQuote(quote: Quote, stateCode: string | null, district: string | null): Row {
+  const race = quote.scope === 'NATIONAL_HOUSE' ? 'US-HOUSE'
+    : quote.scope === 'NATIONAL_SENATE' ? 'US-SENATE'
+      : quote.scope === 'STATE_SENATE' ? `${stateCode}-SEN` : `${stateCode}-${district}`;
+  return {
+    ticker: `${quote.url}:${quote.outcome}`,
+    race,
+    scope: quote.scope,
+    stateCode: quote.scope.startsWith('NATIONAL') ? null : stateCode,
+    district: quote.scope === 'HOUSE_DISTRICT' ? district : null,
+    eventTitle: quote.eventTitle,
+    outcome: quote.outcome,
+    party: null,
+    url: quote.url,
+    pricePercent: quote.pricePercent,
+    priceType: quote.priceType,
+    updatedAt: quote.fetchedAt,
+  };
+}
+
+function QuoteCards({ race }: { race: Race }) {
+  return (
+    <div className="ed-predictions-quotes">
+      {race.rows.map((row) => (
+        <a key={row.ticker} href={row.url} target="_blank" rel="noopener noreferrer" aria-label={`Kalshi ${row.eventTitle}, ${row.outcome}, ${row.pricePercent!.toFixed(1)}%`}>
+          <span className="ed-predictions-source">Kalshi</span>
+          <span className="ed-predictions-outcome">{row.outcome}{row.party ? ` (${row.party})` : ''}</span>
+          <strong key={row.updatedAt} data-moved={row.moved}>{row.pricePercent!.toFixed(1)}%</strong>
+          <small>{row.priceType === 'MIDPOINT' ? 'Bid/ask midpoint' : 'Last trade'}</small>
+          <ExternalLink aria-hidden="true" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/** One line per race, for a state's full House slate. */
+function RaceList({ races }: { races: Race[] }) {
+  return (
+    <ul className="ed-predictions-races">
+      {races.map((race) => {
+        const [lead, next] = race.rows;
+        return (
+          <li key={race.race}>
+            <a href={lead.url} target="_blank" rel="noopener noreferrer"
+              aria-label={`${raceLabel(race.race)}: ${race.rows.map((row) => `${row.outcome} ${row.pricePercent!.toFixed(1)}%`).join(', ')}`}>
+              <span className="ed-predictions-race">{raceLabel(race.race)}</span>
+              <span className="ed-predictions-outcome">{lead.outcome}{lead.party ? ` (${lead.party})` : ''}</span>
+              <strong key={lead.updatedAt} data-moved={lead.moved}>{lead.pricePercent!.toFixed(1)}%</strong>
+              {next && <small>{next.outcome} {next.pricePercent!.toFixed(1)}%</small>}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function PredictionMarketsPanel({ stateCode, district, office = 'ALL' }: {
+  stateCode: string | null;
+  district: string | null;
+  /** Hides Senate or House markets to match the office filter. */
+  office?: OfficeFilter;
+}) {
+  const live = useKalshiMarkets();
+  const [showAllHouse, setShowAllHouse] = useState(false);
+  // The live feed carries every race Kalshi lists; REST is only the fallback when it is down.
+  const useLive = live.markets.size > 0;
+  // REST takes districts 01–53 only; at-large races come from the live feed.
+  const restDistrict = district && district !== '00' ? district : null;
+  const rest = useQuery({
+    queryKey: ['prediction-markets', stateCode, restDistrict],
     queryFn: async ({ signal }): Promise<MarketResponse> => {
       const url = new URL(`${API_BASE_URL}/api/prediction-markets`);
       if (stateCode) url.searchParams.set('state', stateCode);
-      if (district) url.searchParams.set('district', district);
+      if (restDistrict) url.searchParams.set('district', restDistrict);
       const response = await fetch(url, { signal });
       if (!response.ok) throw new Error(`Prediction markets API returned ${response.status}`);
       return response.json() as Promise<MarketResponse>;
     },
-    // While the live feed is up, Kalshi rows update below; this refresh is the fallback.
+    enabled: !useLive && live.status !== 'connecting',
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });
-  const live = useKalshiMarkets();
-  const isLive = live.status === 'live';
-  const liveByUrl = new Map([...live.markets.values()].map((market) => [market.url, market]));
-  const withLive = (quote: Quote): Quote => {
-    const market = quote.provider === 'KALSHI' && isLive ? liveByUrl.get(quote.url) : undefined;
-    return market?.pricePercent != null && market.priceType
-      ? { ...quote, pricePercent: market.pricePercent, priceType: market.priceType, fetchedAt: market.updatedAt }
-      : quote;
-  };
-  const scopes: Scope[] = ['NATIONAL_HOUSE', 'NATIONAL_SENATE'];
-  if (stateCode) scopes.push('STATE_SENATE');
-  if (stateCode && district) scopes.push('HOUSE_DISTRICT');
+
+  const rows: Row[] = useLive
+    ? [...live.markets.values()]
+    : (rest.data?.quotes ?? []).map((quote) => fromQuote(quote, stateCode, restDistrict));
+  const races = groupRaces(rows).filter((race) => race.rows.length > 0);
+  const showSenate = office !== 'US_HOUSE';
+  const showHouse = office !== 'US_SENATE';
+
+  const national = races.filter((race) => (showHouse && race.race === 'US-HOUSE') || (showSenate && race.race === 'US-SENATE'));
+  const senate = stateCode && showSenate ? races.filter((race) => race.rows[0].scope === 'STATE_SENATE' && race.rows[0].stateCode === stateCode) : [];
+  const house = stateCode && showHouse
+    ? races
+      .filter((race) => race.rows[0].scope === 'HOUSE_DISTRICT' && race.rows[0].stateCode === stateCode && (!district || race.rows[0].district === district))
+      .sort((a, b) => competitiveness(a) - competitiveness(b) || a.race.localeCompare(b.race))
+    : [];
+  const visibleHouse = district || showAllHouse ? house : house.slice(0, HOUSE_PREVIEW);
+
+  const loading = !useLive && (live.status === 'connecting' || rest.isLoading);
+  const unavailable = !useLive && !loading && (rest.isError || !rest.data);
+  const updatedAt = rows.reduce((latest, row) => (row.updatedAt > latest ? row.updatedAt : latest), '');
+  const emptyNote = !useLive && rest.data?.providerStatus.KALSHI === 'unavailable'
+    ? 'No quote available while Kalshi is unreachable.'
+    : 'No open Kalshi market for this race.';
 
   return (
     <section className="ed-panel ed-predictions" aria-labelledby="prediction-markets-heading">
       <div className="ed-panel-heading">
         <div><span className="ed-eyebrow">Live market prices</span><h2 id="prediction-markets-heading"><TrendingUp aria-hidden="true" /> Prediction markets</h2></div>
-        {data && (isLive
+        {live.status === 'live' && useLive
           ? <span className="ed-predictions-live">Kalshi live</span>
-          : <time dateTime={data.fetchedAt}>Checked {new Date(data.fetchedAt).toLocaleTimeString()}</time>)}
+          : updatedAt && <time dateTime={updatedAt}>Updated {new Date(updatedAt).toLocaleTimeString()}</time>}
       </div>
       <p className="ed-predictions-note">Traded prices reflect market views, not election results or polling. Open each market to read its settlement rules.</p>
-      {isLoading && <p className="ed-empty" role="status">Loading Kalshi prices…</p>}
-      {isError && <p className="ed-empty" role="status">Prediction market prices are temporarily unavailable.</p>}
-      {data && <>
-        {data.providerStatus.KALSHI === 'unavailable' &&
+      {loading && <p className="ed-empty" role="status">Loading Kalshi prices…</p>}
+      {unavailable && <p className="ed-empty" role="status">Prediction market prices are temporarily unavailable.</p>}
+      {!loading && !unavailable && <>
+        {!useLive && rest.data?.providerStatus.KALSHI === 'unavailable' &&
           <p className="ed-predictions-warning" role="status">Kalshi could not be reached. Some prices may be missing.</p>}
         <div className="ed-predictions-groups">
-          {scopes.map((scope) => {
-            const quotes = data.quotes.filter((quote) => quote.scope === scope).map(withLive);
-            return <div className="ed-predictions-group" key={scope}>
-              <h3>{scopeTitles[scope]}{scope === 'STATE_SENATE' ? ` · ${stateCode}` : scope === 'HOUSE_DISTRICT' ? ` · ${stateCode}-${district}` : ''}</h3>
-              {quotes.length === 0 ? <p>{data.providerStatus.KALSHI === 'unavailable' ? 'No quote available while Kalshi is unreachable.' : 'No matching open Kalshi market found.'}</p> : <div className="ed-predictions-quotes">
-                {quotes.map((quote) => <a key={`${quote.provider}:${scope}:${quote.outcome}`} href={quote.url} target="_blank" rel="noopener noreferrer" aria-label={`${quote.provider} ${quote.eventTitle}, ${quote.outcome}, ${quote.pricePercent}%`}>
-                  <span className="ed-predictions-source">Kalshi</span>
-                  <span className="ed-predictions-outcome">{quote.outcome}</span>
-                  <strong>{quote.pricePercent.toFixed(1)}%</strong>
-                  <small>{quote.priceType === 'MIDPOINT' ? 'Bid/ask midpoint' : 'Last trade'}</small>
-                  <ExternalLink aria-hidden="true" />
-                </a>)}
-              </div>}
-            </div>;
-          })}
+          {national.map((race) => (
+            <div className="ed-predictions-group" key={race.race}>
+              <h3>National · {raceLabel(race.race)}</h3>
+              <QuoteCards race={race} />
+            </div>
+          ))}
+          {stateCode && showSenate && (
+            <div className="ed-predictions-group">
+              <h3>{stateCode} · U.S. Senate winner</h3>
+              {senate.length === 0 ? <p>{useLive ? `No Kalshi Senate market for ${stateCode}.` : emptyNote}</p> : senate.map((race) => <QuoteCards key={race.race} race={race} />)}
+            </div>
+          )}
+          {stateCode && showHouse && (district || useLive) && (
+            <div className="ed-predictions-group">
+              <h3>
+                {district ? `${raceLabel(`${stateCode}-${district}`)} · U.S. House winner` : `${stateCode} · U.S. House races`}
+                {!district && house.length > 0 && <span className="ed-predictions-count"> · {house.length} with markets, closest first</span>}
+              </h3>
+              {house.length === 0
+                ? <p>{district ? emptyNote : `No Kalshi House markets for ${stateCode}.`}</p>
+                : district ? <QuoteCards race={house[0]} /> : <RaceList races={visibleHouse} />}
+              {!district && house.length > HOUSE_PREVIEW && (
+                <button type="button" className="ed-predictions-more" onClick={() => setShowAllHouse((value) => !value)}>
+                  {showAllHouse ? 'Show fewer' : `Show all ${house.length}`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </>}
     </section>

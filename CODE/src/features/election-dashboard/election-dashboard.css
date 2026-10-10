@@ -55,6 +55,16 @@
 .ed-predictions-quotes strong { font-size: 1.05rem; color: #aaf5e3; }
 .ed-predictions-quotes small { color: #90a5bd; font-size: .68rem; }
 .ed-predictions-quotes svg { width: 13px; height: 13px; justify-self: end; color: #90a5bd; }
+.ed-predictions-count { color: #8ea2bd; font-weight: 400; font-size: .72rem; }
+.ed-predictions-races { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.ed-predictions-races a { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) auto; align-items: baseline; gap: 2px 8px; padding: 8px 10px; border: 1px solid #344960; border-radius: 8px; background: #112033; color: #eff5fc; text-decoration: none; }
+.ed-predictions-races a:hover { border-color: #73e4cb; }
+.ed-predictions-race { color: #a7bad0; font-size: .72rem; font-weight: 600; }
+.ed-predictions-races .ed-predictions-outcome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-predictions-races strong { color: #aaf5e3; font-size: .9rem; }
+.ed-predictions-races small { grid-column: 2 / -1; color: #90a5bd; font-size: .68rem; }
+.ed-predictions-more { margin-top: 8px; padding: 0; border: 0; background: none; color: #73e4cb; font: inherit; font-size: .76rem; cursor: pointer; }
+.ed-predictions-more:hover { text-decoration: underline; }
 .ed-live-content { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .ed-live-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
 .ed-live-filters label { color: #b7c5d8; font-size: .8rem; font-weight: 700; }

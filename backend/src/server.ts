@@ -9,24 +9,39 @@ import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
 
 const app: Application = express();
 
+// Railway service URLs are bare hosts; CORS compares against full origins.
+const toOrigin = (host?: string) =>
+  host ? (/^https?:\/\//.test(host) ? host : `https://${host}`).replace(/\/+$/, '') : undefined;
+
+const allowedOrigins = [
+  env.FRONTEND_URL ?? toOrigin(env.RAILWAY_SERVICE_FRONTEND_URL),
+  env.ADMIN_URL ?? toOrigin(env.RAILWAY_SERVICE_ADMIN_DASHBOARD_URL),
+  ...(env.NODE_ENV !== 'production'
+    ? [
+        'http://localhost:8080',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:8080',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+      ]
+    : []),
+]
+  .filter((origin): origin is string => Boolean(origin))
+  .map((origin) => origin.replace(/\/+$/, ''));
+
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      env.FRONTEND_URL,
-      env.ADMIN_URL,
-      ...(env.NODE_ENV !== 'production'
-        ? ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
-        : []),
-    ].filter(Boolean);
-
     // Allow requests with no origin (server-to-server, curl, etc.)
     if (!origin) {
       callback(null, true);
     } else if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Omit CORS headers so the browser blocks it, instead of a 500 from the error handler.
+      console.warn(`[CORS] Rejected origin ${origin}; allowed: ${allowedOrigins.join(', ')}`);
+      callback(null, false);
     }
   },
   credentials: true,
