@@ -1050,7 +1050,7 @@ model CertificationEvent {
 
 enum MarketProvider {
   KALSHI
-  POLYMARKET
+  POLYMARKET // Unused since Oct 10 (Kalshi only); kept so migrations stay additive.
 }
 
 enum MarketScope {
@@ -1093,8 +1093,8 @@ model MarketSnapshot {
   sourceId       String          @map("source_id")
   provider       MarketProvider
   scope          MarketScope
-  sourceEventId  String          @map("source_event_id") // Kalshi event ticker or Polymarket slug
-  sourceMarketId String          @map("source_market_id") // Kalshi market ticker or Polymarket market ID
+  sourceEventId  String          @map("source_event_id") // Kalshi event ticker
+  sourceMarketId String          @map("source_market_id") // Kalshi market ticker
   outcome        String
   contestId      String?         @map("contest_id") // Null for national control markets
   stateCode      String?         @map("state_code")

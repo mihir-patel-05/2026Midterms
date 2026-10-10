@@ -4,19 +4,19 @@ import { useKalshiMarkets } from '@/features/election-monitor/useKalshiLive';
 
 type Scope = 'NATIONAL_HOUSE' | 'NATIONAL_SENATE' | 'STATE_SENATE' | 'HOUSE_DISTRICT';
 interface Quote {
-  provider: 'KALSHI' | 'POLYMARKET';
+  provider: 'KALSHI';
   scope: Scope;
   eventTitle: string;
   outcome: string;
   pricePercent: number;
-  priceType: 'MIDPOINT' | 'LAST_TRADE' | 'OUTCOME_PRICE';
+  priceType: 'MIDPOINT' | 'LAST_TRADE';
   url: string;
   fetchedAt: string;
 }
 interface MarketResponse {
   fetchedAt: string;
   quotes: Quote[];
-  providerStatus: Record<'KALSHI' | 'POLYMARKET', 'available' | 'unavailable'>;
+  providerStatus: Record<'KALSHI', 'available' | 'unavailable'>;
 }
 
 const scopeTitles: Record<Scope, string> = {
@@ -37,7 +37,7 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
       if (!response.ok) throw new Error(`Prediction markets API returned ${response.status}`);
       return response.json() as Promise<MarketResponse>;
     },
-    // Kalshi rows update live below; this refresh mostly serves Polymarket.
+    // While the live feed is up, Kalshi rows update below; this refresh is the fallback.
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });
@@ -59,27 +59,26 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
       <div className="ed-panel-heading">
         <div><span className="ed-eyebrow">Live market prices</span><h2 id="prediction-markets-heading"><TrendingUp aria-hidden="true" /> Prediction markets</h2></div>
         {data && (isLive
-          ? <span className="ed-predictions-live">Kalshi live · Polymarket checked {new Date(data.fetchedAt).toLocaleTimeString()}</span>
+          ? <span className="ed-predictions-live">Kalshi live</span>
           : <time dateTime={data.fetchedAt}>Checked {new Date(data.fetchedAt).toLocaleTimeString()}</time>)}
       </div>
-      <p className="ed-predictions-note">Traded prices reflect market views, not election results or polling. Providers use different settlement rules; open each market to read them.</p>
-      {isLoading && <p className="ed-empty" role="status">Loading Kalshi and Polymarket prices…</p>}
+      <p className="ed-predictions-note">Traded prices reflect market views, not election results or polling. Open each market to read its settlement rules.</p>
+      {isLoading && <p className="ed-empty" role="status">Loading Kalshi prices…</p>}
       {isError && <p className="ed-empty" role="status">Prediction market prices are temporarily unavailable.</p>}
       {data && <>
-        {Object.entries(data.providerStatus).filter(([, status]) => status === 'unavailable').map(([provider]) =>
-          <p key={provider} className="ed-predictions-warning" role="status">{provider === 'KALSHI' ? 'Kalshi' : 'Polymarket'} could not be reached. Its prices may be missing.</p>
-        )}
+        {data.providerStatus.KALSHI === 'unavailable' &&
+          <p className="ed-predictions-warning" role="status">Kalshi could not be reached. Some prices may be missing.</p>}
         <div className="ed-predictions-groups">
           {scopes.map((scope) => {
             const quotes = data.quotes.filter((quote) => quote.scope === scope).map(withLive);
             return <div className="ed-predictions-group" key={scope}>
               <h3>{scopeTitles[scope]}{scope === 'STATE_SENATE' ? ` · ${stateCode}` : scope === 'HOUSE_DISTRICT' ? ` · ${stateCode}-${district}` : ''}</h3>
-              {quotes.length === 0 ? <p>{Object.values(data.providerStatus).includes('unavailable') ? 'No quote available from reachable providers.' : 'No matching open market found.'}</p> : <div className="ed-predictions-quotes">
+              {quotes.length === 0 ? <p>{data.providerStatus.KALSHI === 'unavailable' ? 'No quote available while Kalshi is unreachable.' : 'No matching open Kalshi market found.'}</p> : <div className="ed-predictions-quotes">
                 {quotes.map((quote) => <a key={`${quote.provider}:${scope}:${quote.outcome}`} href={quote.url} target="_blank" rel="noopener noreferrer" aria-label={`${quote.provider} ${quote.eventTitle}, ${quote.outcome}, ${quote.pricePercent}%`}>
-                  <span className="ed-predictions-source">{quote.provider === 'KALSHI' ? 'Kalshi' : 'Polymarket'}</span>
+                  <span className="ed-predictions-source">Kalshi</span>
                   <span className="ed-predictions-outcome">{quote.outcome}</span>
                   <strong>{quote.pricePercent.toFixed(1)}%</strong>
-                  <small>{quote.priceType === 'MIDPOINT' ? 'Bid/ask midpoint' : quote.priceType === 'LAST_TRADE' ? 'Last trade' : 'Outcome price'}</small>
+                  <small>{quote.priceType === 'MIDPOINT' ? 'Bid/ask midpoint' : 'Last trade'}</small>
                   <ExternalLink aria-hidden="true" />
                 </a>)}
               </div>}

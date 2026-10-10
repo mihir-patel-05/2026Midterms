@@ -40,7 +40,7 @@ Differentiators:
 - New "election monitor" frontend as the home page: a MapLibre map with state, House district, and county layers, plus Overview, Counties, and Finance tabs and global search.
 - FEC candidates, committees, and detailed totals loaded through bulk sync, rate-limited to 1,000 calls per hour.
 - Address-to-2026-district lookup through Geocodio, with redistricting flags on the map.
-- Live Kalshi prices: one authenticated WebSocket covering about 781 markets, fanned out to browsers over SSE (`/api/prediction-markets/kalshi/stream`). Polymarket and Kalshi REST quotes come from `/api/prediction-markets` with a one-minute cache.
+- Live Kalshi prices: one authenticated WebSocket covering about 781 markets, fanned out to browsers over SSE (`/api/prediction-markets/kalshi/stream`). Kalshi REST quotes come from `/api/prediction-markets` with a one-minute cache as the fallback. **Kalshi is our only market provider for now**; Polymarket was removed on Oct 10.
 - Incumbent ideology scores, Gemini chat, the admin dashboard, and the researcher simulator.
 - A provider-neutral election-results foundation. `/api/v1` results are served from the database read model (`RESULTS_READ_SOURCE=database`) and are currently backed only by fictional fixtures.
 - Intel v2 database batch 1: `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, and `agent_runs`.
@@ -49,7 +49,7 @@ Differentiators:
 
 **Not done yet (carried over from Oct 1–7)**
 
-- A market history API and sparklines over `market_snapshots`. Polymarket prices are not snapshotted yet.
+- A market history API and sparklines over `market_snapshots`.
 - FRED economic indicator ingestion.
 - District race pages with ACS demographics and partisan lean.
 - Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.
@@ -84,7 +84,7 @@ Differentiators:
 | Feature | What it is |
 |---|---|
 | **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," and top local issues. |
-| **Market history** | Hourly Kalshi and Polymarket snapshots with sparklines, volume, and liquidity. |
+| **Market history** | Hourly Kalshi snapshots with sparklines, volume, and liquidity. |
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. |
@@ -202,7 +202,6 @@ Shared requirements for all of these:
 |---|---|---|
 | FEC OpenFEC API and bulk files | Candidates, committees, finance | `FEC_API_KEY` (1,000 calls/hour) |
 | Kalshi REST and WebSocket | Live market prices | `KALSHI_LIVE_ENABLED`, `KALSHI_API_KEY_ID`, `KALSHI_PRIVATE_KEY` |
-| Polymarket Gamma | Market prices | public |
 | Geocodio | Address to 2026 district | `GEOCODIO_API_KEY`, `GEOCODIO_DAILY_LOOKUP_LIMIT` |
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics | public. See `CODE/public/geo/SOURCES.md` |
