@@ -132,7 +132,7 @@ export class AdminController {
       });
     } catch (error: any) {
       console.error('Error during login:', error);
-      res.status(500).json({ error: 'Authentication failed', message: error.message });
+      res.status(500).json({ error: 'Authentication failed' });
     }
   }
 

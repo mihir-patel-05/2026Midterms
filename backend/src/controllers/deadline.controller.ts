@@ -34,7 +34,7 @@ export class DeadlineController {
       });
     } catch (error: any) {
       console.error('Error fetching public deadlines:', error);
-      res.status(500).json({ error: 'Failed to fetch deadlines', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch deadlines' });
     }
   }
 
@@ -66,7 +66,7 @@ export class DeadlineController {
       });
     } catch (error: any) {
       console.error('Error fetching all deadlines:', error);
-      res.status(500).json({ error: 'Failed to fetch deadlines', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch deadlines' });
     }
   }
 
@@ -126,7 +126,7 @@ export class DeadlineController {
       });
     } catch (error: any) {
       console.error('Error creating deadline:', error);
-      res.status(500).json({ error: 'Failed to create deadline', message: error.message });
+      res.status(500).json({ error: 'Failed to create deadline' });
     }
   }
 
@@ -194,7 +194,7 @@ export class DeadlineController {
       });
     } catch (error: any) {
       console.error('Error updating deadline:', error);
-      res.status(500).json({ error: 'Failed to update deadline', message: error.message });
+      res.status(500).json({ error: 'Failed to update deadline' });
     }
   }
 
@@ -223,7 +223,7 @@ export class DeadlineController {
       res.json({ message: 'Deadline deleted successfully' });
     } catch (error: any) {
       console.error('Error deleting deadline:', error);
-      res.status(500).json({ error: 'Failed to delete deadline', message: error.message });
+      res.status(500).json({ error: 'Failed to delete deadline' });
     }
   }
 }

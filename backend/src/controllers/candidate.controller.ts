@@ -37,7 +37,7 @@ export class CandidateController {
       res.json(result);
     } catch (error: any) {
       console.error('Error getting candidates:', error);
-      res.status(500).json({ error: 'Failed to fetch candidates', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidates' });
     }
   }
 
@@ -59,7 +59,7 @@ export class CandidateController {
       res.json(candidate);
     } catch (error: any) {
       console.error('Error getting candidate:', error);
-      res.status(500).json({ error: 'Failed to fetch candidate', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidate' });
     }
   }
 
@@ -81,7 +81,7 @@ export class CandidateController {
       res.json(candidate);
     } catch (error: any) {
       console.error('Error getting candidate:', error);
-      res.status(500).json({ error: 'Failed to fetch candidate', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidate' });
     }
   }
 
@@ -126,7 +126,7 @@ export class CandidateController {
       });
     } catch (error: any) {
       console.error('Error getting candidate finances:', error);
-      res.status(500).json({ error: 'Failed to fetch candidate finances', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidate finances' });
     }
   }
 
@@ -153,7 +153,7 @@ export class CandidateController {
         return;
       }
       
-      res.status(500).json({ error: 'Failed to fetch detailed finances', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch detailed finances' });
     }
   }
 
@@ -178,7 +178,7 @@ export class CandidateController {
         return;
       }
 
-      res.status(500).json({ error: 'Failed to compute lobby breakdown', message: error.message });
+      res.status(500).json({ error: 'Failed to compute lobby breakdown' });
     }
   }
 
@@ -190,7 +190,7 @@ export class CandidateController {
     try {
       res.json({ lobbies: lobbyService.getLobbyCatalog() });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch lobby catalog', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch lobby catalog' });
     }
   }
 
@@ -221,7 +221,7 @@ export class CandidateController {
       res.json(receipts);
     } catch (error: any) {
       console.error('Error getting candidate receipts:', error);
-      res.status(500).json({ error: 'Failed to fetch candidate receipts', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidate receipts' });
     }
   }
 
@@ -252,7 +252,7 @@ export class CandidateController {
       res.json(disbursements);
     } catch (error: any) {
       console.error('Error getting candidate disbursements:', error);
-      res.status(500).json({ error: 'Failed to fetch candidate disbursements', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch candidate disbursements' });
     }
   }
 
@@ -277,7 +277,7 @@ export class CandidateController {
       });
     } catch (error: any) {
       console.error('Error syncing candidates:', error);
-      res.status(500).json({ error: 'Failed to sync candidates', message: error.message });
+      res.status(500).json({ error: 'Failed to sync candidates' });
     }
   }
 
@@ -312,7 +312,7 @@ export class CandidateController {
       });
     } catch (error: any) {
       console.error('Error syncing candidate data:', error);
-      res.status(500).json({ error: 'Failed to sync candidate data', message: error.message });
+      res.status(500).json({ error: 'Failed to sync candidate data' });
     }
   }
 }

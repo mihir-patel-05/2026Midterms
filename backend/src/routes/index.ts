@@ -56,12 +56,13 @@ const readinessHandler = async (_req: Request, res: Response) => {
       database: 'connected',
     });
   } catch (error) {
+    // The driver error can name hosts and credentials; keep it in the logs, not the response.
+    console.error('Readiness check failed:', error instanceof Error ? error.message : error);
     res.status(503).json({
       status: 'error',
       timestamp: new Date().toISOString(),
       service: '2026 Midterms API',
       database: 'disconnected',
-      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };

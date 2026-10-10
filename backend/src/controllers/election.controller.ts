@@ -32,7 +32,7 @@ export class ElectionController {
       res.json(result);
     } catch (error: any) {
       console.error('Error getting elections:', error);
-      res.status(500).json({ error: 'Failed to fetch elections', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch elections' });
     }
   }
 
@@ -63,7 +63,7 @@ export class ElectionController {
       });
     } catch (error: any) {
       console.error('Error getting elections by state:', error);
-      res.status(500).json({ error: 'Failed to fetch elections for state', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch elections for state' });
     }
   }
 
@@ -85,7 +85,7 @@ export class ElectionController {
       });
     } catch (error: any) {
       console.error('Error getting state election counts:', error);
-      res.status(500).json({ error: 'Failed to fetch state election counts', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch state election counts' });
     }
   }
 
@@ -107,7 +107,7 @@ export class ElectionController {
       res.json(election);
     } catch (error: any) {
       console.error('Error getting election:', error);
-      res.status(500).json({ error: 'Failed to fetch election', message: error.message });
+      res.status(500).json({ error: 'Failed to fetch election' });
     }
   }
 
@@ -140,7 +140,7 @@ export class ElectionController {
       res.status(201).json(election);
     } catch (error: any) {
       console.error('Error creating election:', error);
-      res.status(500).json({ error: 'Failed to create election', message: error.message });
+      res.status(500).json({ error: 'Failed to create election' });
     }
   }
 
@@ -166,7 +166,7 @@ export class ElectionController {
         res.status(404).json({ error: 'Election not found' });
         return;
       }
-      res.status(500).json({ error: 'Failed to update election', message: error.message });
+      res.status(500).json({ error: 'Failed to update election' });
     }
   }
 
@@ -187,7 +187,7 @@ export class ElectionController {
         res.status(404).json({ error: 'Election not found' });
         return;
       }
-      res.status(500).json({ error: 'Failed to delete election', message: error.message });
+      res.status(500).json({ error: 'Failed to delete election' });
     }
   }
 
@@ -212,7 +212,7 @@ export class ElectionController {
       });
     } catch (error: any) {
       console.error('Error generating elections:', error);
-      res.status(500).json({ error: 'Failed to generate elections', message: error.message });
+      res.status(500).json({ error: 'Failed to generate elections' });
     }
   }
 }

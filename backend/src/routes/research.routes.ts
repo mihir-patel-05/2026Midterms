@@ -43,7 +43,7 @@ router.get('/races', async (req, res) => {
     });
   } catch (err: any) {
     console.error('[research] /races error', err);
-    res.status(500).json({ error: 'Failed to list races', message: err.message });
+    res.status(500).json({ error: 'Failed to list races' });
   }
 });
 
@@ -88,7 +88,7 @@ router.get('/races/:state/:officeType/:district/:cycle', async (req, res) => {
     });
   } catch (err: any) {
     console.error('[research] /races/:key error', err);
-    res.status(500).json({ error: 'Failed to fetch race detail', message: err.message });
+    res.status(500).json({ error: 'Failed to fetch race detail' });
   }
 });
 
@@ -102,7 +102,7 @@ router.get('/counties/:fips/history', async (req, res) => {
     const rows = await countyService.getCountyHistory(req.params.fips, officeType, cycle);
     res.json({ fips: req.params.fips, results: rows });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch county history', message: err.message });
+    res.status(500).json({ error: 'Failed to fetch county history' });
   }
 });
 
@@ -131,7 +131,7 @@ router.post('/simulate', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('[research] /simulate error', err);
-    res.status(500).json({ error: 'Simulation failed', message: err.message });
+    res.status(500).json({ error: 'Simulation failed' });
   }
 });
 
