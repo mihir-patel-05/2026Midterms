@@ -643,6 +643,7 @@ model DataSource {
   marketSnapshots     MarketSnapshot[]
   indicatorSeries     IndicatorSeries[]
   districtProfiles    DistrictProfile[]
+  areaDemographics    AreaDemographics[]
 
   @@index([type])
   @@index([healthStatus])
@@ -882,6 +883,7 @@ model IngestionRun {
   errors              IngestionError[]
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
+  areaDemographics    AreaDemographics[]
 
   @@index([sourceId, startedAt])
   @@index([status, createdAt])
@@ -1203,4 +1205,47 @@ model AgentRun {
   @@index([agent, createdAt])
   @@index([status, createdAt])
   @@map("agent_runs")
+}
+
+enum DemographicGeoType {
+  NATION
+  STATE
+  COUNTY
+  CONGRESSIONAL_DISTRICT
+  COUNTY_DISTRICT_PART
+}
+
+// ACS 5-year estimates per Census geography and vintage, keyed by Census GEOID.
+// COUNTY_DISTRICT_PART is the piece of a county inside one congressional district.
+// Estimates and margins of error are stored as published, keyed by variable
+// (e.g. "B03002_003"); null means Census published no value. Percentages,
+// combined medians, and combined margins are derived in code.
+model AreaDemographics {
+  id             String             @id @default(uuid())
+  geoType        DemographicGeoType @map("geo_type")
+  geoid          String
+  name           String
+  stateCode      String?            @map("state_code")
+  countyFips     String?            @map("county_fips")
+  districtCode   String?            @map("district_code")
+  // Congress whose district lines the ACS vintage tabulates (119 for ACS 2024).
+  congress       Int?
+  acsYear        Int                @map("acs_year")
+  catalogVersion String             @map("catalog_version")
+  estimates      Json
+  moes           Json
+  sourceUrl      String             @map("source_url")
+  sourceId       String             @map("source_id")
+  ingestionRunId String             @map("ingestion_run_id")
+  fetchedAt      DateTime           @map("fetched_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  source       DataSource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Restrict)
+
+  @@unique([geoType, geoid, acsYear])
+  @@index([acsYear, stateCode, geoType])
+  @@index([ingestionRunId])
+  @@map("area_demographics")
 }

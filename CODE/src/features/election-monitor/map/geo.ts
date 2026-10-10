@@ -13,6 +13,8 @@ type Shapes<P> = FeatureCollection<Polygon | MultiPolygon, P>;
 
 /** Built by `npm run build:geo` from Census 119th Congress cartographic boundaries; see public/geo/SOURCES.md. */
 export const DISTRICTS_URL = `${import.meta.env.BASE_URL}geo/cd119.topo.json`;
+/** Built by `npm run build:geo:counties` from the Census 2024 counties, matching the ACS demographics vintage. */
+export const COUNTIES_URL = `${import.meta.env.BASE_URL}geo/county2024.topo.json`;
 
 export class GeometryMissingError extends Error {}
 
@@ -60,18 +62,39 @@ export function loadStates() {
   return statesPromise;
 }
 
-/** us-atlas counties (1:10m), keyed by 5-digit FIPS. Only fetched when the counties layer is opened. */
+/**
+ * us-atlas counties are 2017 boundaries with bare names ("Harris"). Connecticut
+ * still has its old counties there, so it will not match Census data from 2022 on.
+ */
+function atlasCountyName(name: string, state: string) {
+  if (state === "LA") return `${name} Parish`;
+  if (state === "AK" || state === "DC" || /city$/i.test(name)) return name;
+  return `${name} County`;
+}
+
+async function loadAtlasCounties(): Promise<Shapes<CountyFeature["properties"]>> {
+  const topology = await fetchTopology<Topology<{ counties: GeometryCollection<{ name: string }> }>>(countiesTopoUrl);
+  const collection = feature(topology, topology.objects.counties) as FeatureCollection<Polygon | MultiPolygon, { name: string }>;
+  const features: CountyFeature[] = [];
+  for (const item of collection.features) {
+    const fips = String(item.id).padStart(5, "0");
+    const state = stateFipsToPostal[fips.slice(0, 2)];
+    if (state) features.push({ type: "Feature", geometry: item.geometry, properties: { fips, name: atlasCountyName(item.properties.name, state), state } });
+  }
+  return { type: "FeatureCollection" as const, features };
+}
+
+/**
+ * Counties keyed by 5-digit FIPS, with full names ("Orleans Parish"). Uses the
+ * Census 2024 build when it has been generated, otherwise the bundled us-atlas
+ * file. Only fetched when the counties layer is opened.
+ */
 export function loadCounties() {
-  countiesPromise ??= fetchTopology<Topology<{ counties: GeometryCollection<{ name: string }> }>>(countiesTopoUrl)
-    .then((topology) => {
-      const collection = feature(topology, topology.objects.counties) as FeatureCollection<Polygon | MultiPolygon, { name: string }>;
-      const features: CountyFeature[] = [];
-      for (const item of collection.features) {
-        const fips = String(item.id).padStart(5, "0");
-        const state = stateFipsToPostal[fips.slice(0, 2)];
-        if (state) features.push({ type: "Feature", geometry: item.geometry, properties: { fips, name: item.properties.name, state } });
-      }
-      return { type: "FeatureCollection" as const, features };
+  countiesPromise ??= fetchTopology<Topology<{ counties: GeometryCollection<CountyFeature["properties"]> }>>(COUNTIES_URL)
+    .then((topology) => feature(topology, topology.objects.counties) as Shapes<CountyFeature["properties"]>)
+    .catch((error) => {
+      if (error instanceof GeometryMissingError) return loadAtlasCounties();
+      throw error;
     })
     .catch((error) => {
       countiesPromise = null;

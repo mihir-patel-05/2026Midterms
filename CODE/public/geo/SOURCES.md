@@ -4,11 +4,17 @@
 | --- | --- | --- | --- |
 | `us-atlas/states-10m.json` (npm) | U.S. Census Bureau cartographic boundaries via [us-atlas](https://github.com/topojson/us-atlas) | 2017 1:10m | Bundled by Vite from `node_modules` |
 | `us-atlas/counties-10m.json` (npm) | Same as above | 2017 1:10m | Bundled by Vite and fetched only when the counties layer opens |
+| `county2024.topo.json` (this folder) | U.S. Census Bureau `cb_2024_us_county_5m` | 2024 | `npm run build:geo:counties`; commit the output. Until it exists, the map falls back to `us-atlas/counties-10m.json` |
 | `cd119.topo.json` (this folder) | U.S. Census Bureau `cb_2024_us_cd119_500k` (119th Congress) | 2024 | `npm run build:geo`; commit the output |
 
 `cd119.topo.json` was built on 2026-10-05 (436 shapes: 435 seats plus DC). If it is ever
 missing, the House-districts layer shows a "District boundaries unavailable" notice and the
 rest of the map keeps working.
+
+`county2024.topo.json` matches the ACS 2020–2024 demographics, so every county on the map has a
+Census row. The 2017 us-atlas fallback still draws Connecticut's 8 old counties, which no longer
+exist in Census data (Connecticut has reported by 9 planning regions since 2022), and Alaska's
+Valdez-Cordova Census Area, which was split in 2019. Selecting those shows "no Census data".
 
 Several states adopted new congressional maps for the 2026 elections after the 119th
 Congress vintage, and the Census Bureau has not published 120th Congress boundaries yet.

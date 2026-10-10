@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "build:geo": "node scripts/build-geo.mjs",
+    "build:geo:counties": "node scripts/build-counties.mjs",
     "build:redistricting": "node scripts/build-redistricting.mjs"
   },
   "dependencies": {
