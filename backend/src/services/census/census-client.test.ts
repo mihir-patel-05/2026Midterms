@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { acsEstimate, acsMoe, CensusClient, CensusRequestError, normalizeDistrict, parseAcsTable, toAreaRows } from './census-client.js';
+import { acsEstimate, acsMoe, CensusClient, CensusRequestError, normalizeDistrict, pageText, parseAcsTable, toAreaRows } from './census-client.js';
 
 test('Census sentinels become null, and controlled margins become zero', () => {
   assert.equal(acsEstimate('4731145'), 4731145);
@@ -116,6 +116,19 @@ test('server errors are retried; bad requests and invalid keys are not', async (
 
   const html = fakeCensus(() => ({ status: 200, body: '<html><title>Invalid Key</title></html>' }));
   const htmlClient = new CensusClient({ apiKey: 'nope', baseUrl: 'https://api.census.gov/data', year: 2024, fetchImpl: html.fetchImpl, retryDelayMs: 1 });
-  await assert.rejects(htmlClient.fetchAreas({ geoType: 'NATION', for: 'us:1' }, ['B01003_001']), /check CENSUS_API_KEY/);
+  await assert.rejects(htmlClient.fetchAreas({ geoType: 'NATION', for: 'us:1' }, ['B01003_001']), /"Invalid Key".*CENSUS_API_KEY is activated/);
   assert.equal(html.urls.length, 1);
+});
+
+test('rejection pages are reduced to their readable text', () => {
+  const page = '<html><head><style>p{}</style><script>x()</script></head><body><h1>Request Rejected</h1>\n<p>Your&nbsp;support ID is 123.</p></body></html>';
+  assert.equal(pageText(page), 'Request Rejected Your support ID is 123.');
+  assert.equal(pageText(''), '(empty body)');
+  assert.equal(pageText('a'.repeat(400)).length, 301);
+});
+
+test('a keyless rejection says to set a key', async () => {
+  const html = fakeCensus(() => ({ status: 200, body: '<html><body>You have exceeded the limit</body></html>' }));
+  const client = new CensusClient({ baseUrl: 'https://api.census.gov/data', year: 2024, fetchImpl: html.fetchImpl, retryDelayMs: 1 });
+  await assert.rejects(client.fetchAreas({ geoType: 'NATION', for: 'us:1' }, ['B01003_001']), /"You have exceeded the limit".*Set CENSUS_API_KEY/);
 });
