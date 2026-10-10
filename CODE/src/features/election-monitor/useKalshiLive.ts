@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { API_BASE_URL } from "@/lib/apiBase";
 
 /**
  * Live Kalshi prices pushed by the backend over Server-Sent Events. One EventSource
@@ -29,7 +30,7 @@ export interface KalshiMarket {
 interface PriceDelta { ticker: string; pricePercent: number | null; priceType: KalshiMarket["priceType"]; updatedAt: string }
 interface Store { status: KalshiFeedStatus; markets: Map<string, KalshiMarket>; byRace: Map<string, KalshiMarket[]> }
 
-const STREAM_URL = `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/prediction-markets/kalshi/stream`;
+const STREAM_URL = `${API_BASE_URL}/api/prediction-markets/kalshi/stream`;
 const CLOSE_DELAY_MS = 5_000;
 
 let store: Store = { status: "connecting", markets: new Map(), byRace: new Map() };

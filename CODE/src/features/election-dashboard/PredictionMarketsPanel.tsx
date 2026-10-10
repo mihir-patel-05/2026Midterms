@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 import { useKalshiMarkets } from '@/features/election-monitor/useKalshiLive';
+import { API_BASE_URL } from '@/lib/apiBase';
 
 type Scope = 'NATIONAL_HOUSE' | 'NATIONAL_SENATE' | 'STATE_SENATE' | 'HOUSE_DISTRICT';
 interface Quote {
@@ -30,7 +31,7 @@ export function PredictionMarketsPanel({ stateCode, district }: { stateCode: str
   const { data, isLoading, isError } = useQuery({
     queryKey: ['prediction-markets', stateCode, district],
     queryFn: async ({ signal }): Promise<MarketResponse> => {
-      const url = new URL(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/prediction-markets`);
+      const url = new URL(`${API_BASE_URL}/api/prediction-markets`);
       if (stateCode) url.searchParams.set('state', stateCode);
       if (district) url.searchParams.set('district', district);
       const response = await fetch(url, { signal });

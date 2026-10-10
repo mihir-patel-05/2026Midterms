@@ -18,22 +18,8 @@ import type {
   StateElectionsResponse,
 } from '../types/candidate';
 
-// API Base URL - defaults to localhost:3001 if not set in environment
-// Handles both Vite (import.meta.env) and Node.js (process.env) environments
-const getApiUrl = (): string => {
-  // Check if running in Vite environment (browser)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  }
-  // Fallback to Node.js environment (for testing)
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.VITE_API_URL || 'http://localhost:3001';
-  }
-  // Default fallback
-  return 'http://localhost:3001';
-};
+import { API_BASE_URL } from './apiBase';
 
-const API_BASE_URL = getApiUrl();
 const API_PREFIX = '/api';
 
 /**

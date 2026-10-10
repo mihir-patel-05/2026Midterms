@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@/lib/apiBase";
 import type {
   CandidateContract,
   ContestResultViewModel,
@@ -16,7 +17,7 @@ export interface MockDashboardData {
 }
 
 export async function loadMockDashboard(signal?: AbortSignal): Promise<MockDashboardData> {
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const baseUrl = API_BASE_URL;
   const response = await fetch(`${baseUrl}/api/v1/bootstrap`, { signal });
   if (!response.ok) throw new Error(`Mock results API returned ${response.status}`);
   const payload = (await response.json()) as DashboardBootstrapResponse;
