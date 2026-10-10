@@ -14,6 +14,12 @@ const envSchema = z.object({
   GEOCODIO_API_BASE_URL: z.string().default('https://api.geocod.io/v2'),
   // Billed lookups per UTC day before lookups are refused (free tier is 2,500).
   GEOCODIO_DAILY_LOOKUP_LIMIT: z.string().regex(/^\d+$/).default('2000'),
+  // Census Data API for ACS demographics (`npm run sync:acs`). A key is optional; without one
+  // the Census Bureau allows 500 requests per IP per day, and a full sync makes about 300.
+  CENSUS_API_KEY: z.string().trim().optional(),
+  CENSUS_API_BASE_URL: z.string().url().default('https://api.census.gov/data'),
+  // ACS 5-year vintage to sync and serve. 2024 covers 2020-2024 and uses 119th Congress districts.
+  CENSUS_ACS_YEAR: z.string().regex(/^20\d{2}$/).default('2024'),
   // Kalshi live prices. The WebSocket needs an API key id and its RSA private key
   // (inline PEM with \n escapes, or a file path). Without them the feed stays off
   // and /api/prediction-markets falls back to public REST quotes.
@@ -89,6 +95,7 @@ export const env = {
   ITEMIZED_MAX_PAGES: parseInt(parsed.data.ITEMIZED_MAX_PAGES, 10),
   ITEMIZED_REFRESH_HOURS: parseInt(parsed.data.ITEMIZED_REFRESH_HOURS, 10),
   GEOCODIO_DAILY_LOOKUP_LIMIT: parseInt(parsed.data.GEOCODIO_DAILY_LOOKUP_LIMIT, 10),
+  CENSUS_ACS_YEAR: parseInt(parsed.data.CENSUS_ACS_YEAR, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
