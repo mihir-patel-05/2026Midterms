@@ -67,6 +67,21 @@ export function displayName(raw: string) {
     : ordered;
 }
 
+const MINOR_WORDS = new Set(["A", "AN", "AND", "AS", "AT", "BY", "FOR", "IN", "OF", "ON", "OR", "THE", "TO"]);
+const COMMITTEE_ACRONYMS = new Set(["PAC", "PACS", "USA", "US", "LLC", "GOP", "AFL", "CIO", "SEIU", "NEA", "AFT", "UAW", "AIPAC", "NRA", "DC"]);
+
+/** FEC committee names arrive in capitals: "HOUSE MAJORITY PAC" → "House Majority PAC", keeping acronyms. */
+export function committeeName(raw: string) {
+  if (raw !== raw.toUpperCase()) return raw;
+  return raw.split(/(\s+|-|\/)/).map((word, index) => {
+    const bare = word.replace(/[^A-Z]/g, "");
+    if (index > 0 && MINOR_WORDS.has(word)) return word.toLowerCase();
+    // Known acronyms, and short words with no vowels (DCCC, NRCC), stay in capitals.
+    if (COMMITTEE_ACRONYMS.has(bare) || (bare.length >= 2 && bare.length <= 5 && !/[AEIOUY]/.test(bare))) return word;
+    return word.toLowerCase().replace(/(^|['.])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+  }).join("");
+}
+
 export function initials(name: string) {
   const parts = name.split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();

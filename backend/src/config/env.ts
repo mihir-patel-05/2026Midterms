@@ -20,6 +20,10 @@ const envSchema = z.object({
   CENSUS_API_BASE_URL: z.string().url().default('https://api.census.gov/data'),
   // ACS 5-year vintage to sync and serve. 2024 covers 2020-2024 and uses 119th Congress districts.
   CENSUS_ACS_YEAR: z.string().regex(/^20\d{2}$/).default('2024'),
+  // Schedule E (outside spending) sync: days re-fetched in full each run, and the
+  // most OpenFEC pages one run may request (it shares the FEC hourly budget).
+  SCHEDULE_E_WINDOW_DAYS: z.string().regex(/^[1-9]\d*$/).default('30'),
+  SCHEDULE_E_MAX_PAGES: z.string().regex(/^[1-9]\d*$/).default('300'),
   // Kalshi live prices. The WebSocket needs an API key id and its RSA private key
   // (inline PEM with \n escapes, or a file path). Without them the feed stays off
   // and /api/prediction-markets falls back to public REST quotes.
@@ -96,6 +100,8 @@ export const env = {
   ITEMIZED_REFRESH_HOURS: parseInt(parsed.data.ITEMIZED_REFRESH_HOURS, 10),
   GEOCODIO_DAILY_LOOKUP_LIMIT: parseInt(parsed.data.GEOCODIO_DAILY_LOOKUP_LIMIT, 10),
   CENSUS_ACS_YEAR: parseInt(parsed.data.CENSUS_ACS_YEAR, 10),
+  SCHEDULE_E_WINDOW_DAYS: parseInt(parsed.data.SCHEDULE_E_WINDOW_DAYS, 10),
+  SCHEDULE_E_MAX_PAGES: parseInt(parsed.data.SCHEDULE_E_MAX_PAGES, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',

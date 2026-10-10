@@ -12,6 +12,7 @@ import { prisma } from '../config/database.js';
 import { FecRateLimitedError, isFecAuthError } from '../config/fec-client.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
+import { runScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
 import {
@@ -276,6 +277,22 @@ export function initializeScheduler(): void {
 
     console.log('⏰ FEC Data Sync Scheduler initialized');
     console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
+
+    // Outside spending changes daily close to an election (24/48-hour notices),
+    // so it runs every day, apart from the main sync and under its own lease.
+    cron.schedule(
+      '0 5 * * *',
+      async () => {
+        console.log('\n⏰ Scheduled outside spending sync triggered');
+        try {
+          await runScheduleESync(SYNC_CONFIG.cycle);
+        } catch (error) {
+          console.error('❌ Scheduled outside spending sync failed:', error instanceof Error ? error.message : error);
+        }
+      },
+      { timezone: 'America/New_York' },
+    );
+    console.log('💸 Outside spending sync: daily at 5:00 AM ET\n');
   } else {
     console.log('FEC sync scheduler disabled: FEC_API_KEY is not configured');
   }

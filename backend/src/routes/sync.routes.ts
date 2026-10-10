@@ -4,6 +4,7 @@ import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
 import { triggerManualSync } from '../jobs/scheduler.js';
+import { startScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { verifySyncAuth } from '../middleware/sync-auth.js';
 import { SyncAlreadyRunningError } from '../services/sync-lock.service.js';
 
@@ -48,6 +49,25 @@ router.post('/full', runFullSync);
  * Legacy endpoint - redirects to /api/sync/full
  */
 router.post('/all', runFullSync);
+
+/**
+ * POST /api/sync/outside-spending
+ * Start one Schedule E (independent expenditures) run in the background.
+ * Track it with GET /api/sync/status (sync type "outside-spending").
+ */
+router.post('/outside-spending', async (_req, res) => {
+  try {
+    const { done } = await startScheduleESync(2026);
+    done.catch((error) => console.error('❌ Outside spending sync failed:', error instanceof Error ? error.message : error));
+    res.status(202).json({ message: 'Outside spending sync started', note: 'Track it with GET /api/sync/status.' });
+  } catch (error) {
+    if (error instanceof SyncAlreadyRunningError) {
+      res.status(409).json({ error: 'An outside spending sync is already running' });
+      return;
+    }
+    res.status(503).json({ error: error instanceof Error ? error.message : 'Outside spending sync is unavailable' });
+  }
+});
 
 // Sync candidates from FEC API
 router.post('/candidates', (req, res) => candidateController.syncCandidates(req, res));

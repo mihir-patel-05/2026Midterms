@@ -406,3 +406,24 @@
 .em-demo-pieces thead th { border-top: 0; color: hsl(var(--quiet)); font-weight: 600; }
 .em-demo-pieces th[scope="row"], .em-demo-pieces thead th:first-child { color: hsl(var(--foreground)); font-weight: 600; text-align: left; }
 .em-demo-source { margin: 12px 0 0; color: hsl(var(--quiet)); font-size: 0.64rem; line-height: 1.5; }
+
+/* Outside spending (Finance tab) */
+.em-spend-legend { display: flex; gap: 14px; margin-bottom: 8px; color: hsl(var(--muted-foreground)); font-size: 0.66rem; }
+.em-spend-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.em-spend-legend i { display: inline-block; width: 14px; height: 7px; border-radius: 99px; }
+.em-spend-legend i[data-side="for"], .em-spend-bar span[data-side="for"] { background: hsl(var(--spend-for)); }
+.em-spend-legend i[data-side="against"], .em-spend-bar span[data-side="against"] { background: hsl(var(--spend-against)); }
+.em-spend-list { display: grid; gap: 12px; }
+.em-spend-candidate { display: grid; gap: 5px; }
+.em-spend-name { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 0.74rem; }
+.em-spend-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-spend-name .em-link { flex: none; font-size: 0.66rem; }
+.em-spend-row { display: grid; grid-template-columns: 54px 1fr 54px; align-items: center; gap: 8px; color: hsl(var(--muted-foreground)); font-size: 0.68rem; }
+.em-spend-row strong { color: hsl(var(--foreground)); font: 0.66rem ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+.em-spend-bar { height: 7px; border-radius: 99px; background: hsl(var(--surface-3)); }
+.em-spend-bar span { display: block; height: 100%; min-width: 2px; border-radius: inherit; }
+.em-spend-spenders { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.em-spend-spenders caption { margin-bottom: 6px; color: hsl(var(--quiet)); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-align: left; text-transform: uppercase; }
+.em-spend-spenders th, .em-spend-spenders td { padding: 5px 4px; border-top: 1px solid hsl(var(--line-soft)); text-align: right; }
+.em-spend-spenders thead th { border-top: 0; color: hsl(var(--quiet)); font-weight: 600; }
+.em-spend-spenders th[scope="row"], .em-spend-spenders thead th:first-child { max-width: 0; overflow: hidden; color: hsl(var(--foreground)); font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; width: 55%; }
