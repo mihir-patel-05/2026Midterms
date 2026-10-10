@@ -63,7 +63,7 @@ export function OutsideSpendingCard({ contest }: { contest: MonitorContest | und
                 {(["support", "oppose"] as const).map((side) => (
                   <div className="em-spend-row" key={side}>
                     <span>{side === "support" ? "For" : "Against"}</span>
-                    <div className="em-spend-bar" aria-hidden="true"><span data-side={side === "support" ? "for" : "against"} style={{ width: `${(item[side] / max) * 100}%` }} /></div>
+                    <div className="em-spend-bar" aria-hidden="true">{item[side] > 0 && <span data-side={side === "support" ? "for" : "against"} style={{ width: `${(item[side] / max) * 100}%` }} />}</div>
                     <strong>{money(item[side])}</strong>
                   </div>
                 ))}
