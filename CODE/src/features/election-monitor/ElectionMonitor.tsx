@@ -1,12 +1,13 @@
 import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
+import { DemographicsTab } from "./DemographicsTab";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
 import { FinanceTab } from "./FinanceTab";
@@ -117,11 +118,12 @@ export function ElectionMonitor() {
   }, [params, update]);
   const selectCounty = useCallback((state: string, fips: string, additive: boolean) => {
     if (state !== params.state) {
-      update({ state, district: null, districts: [], counties: [fips], contest: null });
+      update({ state, district: null, districts: [], counties: [fips], contest: null, ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
       return;
     }
     const alone = params.counties.length === 1 && params.counties[0] === fips;
-    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips] });
+    // Counties have no race view yet, so a county click opens their demographics.
+    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips], ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
   }, [params, update]);
 
   const activity = useMemo(() => {
@@ -232,7 +234,7 @@ export function ElectionMonitor() {
           title={selectedState?.name ?? "United States"}
           meta={!selectedState ? "Select a state to begin" : contestsLoading ? "Loading contests…" : contestsError ? "Contests unavailable" : `${officeCounts.US_HOUSE} House · ${officeCounts.US_SENATE} Senate ${officeCounts.US_SENATE === 1 ? "contest" : "contests"}`}
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
-          tab={params.tab}
+          tab={params.tab === "demographics" && !demographicsEnabled ? "overview" : params.tab}
           onTabChange={(tab) => update({ tab })}
           overview={
             <>
@@ -253,6 +255,17 @@ export function ElectionMonitor() {
             </>
           }
           finance={<FinanceTab key={contest?.id ?? "none"} contest={contest} />}
+          demographics={demographicsEnabled ? (
+            <DemographicsTab
+              stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
+              stateName={selectedState?.name ?? null}
+              counties={params.counties}
+              districts={chosenDistricts}
+              districtOptions={districts}
+              onCountiesChange={(counties) => update({ counties })}
+              onDistrictsChange={(next) => update({ ...districtSelectionPatch(next, params.district), contest: null })}
+            />
+          ) : undefined}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}
         />
       </div>

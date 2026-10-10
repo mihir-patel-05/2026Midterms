@@ -4,7 +4,7 @@ import type { DetailTab, MapLayer, OfficeFilter } from "./types";
 
 const offices: OfficeFilter[] = ["ALL", "US_SENATE", "US_HOUSE"];
 const layers: MapLayer[] = ["states", "districts", "counties"];
-const tabs: DetailTab[] = ["overview", "counties", "finance"];
+const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics"];
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return value && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
