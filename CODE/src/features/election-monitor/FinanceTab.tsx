@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { BadgeDollarSign, CloudOff, Loader2 } from "lucide-react";
 import { getCandidateDetailedFinances } from "@/lib/api";
 import { formatShortDate } from "./constants";
+import { OutsideSpendingCard } from "./OutsideSpendingCard";
 import { MONITOR_CYCLE } from "./realData";
 import type { MonitorContest } from "./types";
 
@@ -104,11 +105,7 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
         {selected?.profileId && <Link className="em-link mt-3 inline-block" to={`/candidates/${selected.profileId}`}>Full finance profile, donors and industry breakdown →</Link>}
       </section>
 
-      <section className="em-card" aria-labelledby="em-outside-heading">
-        <h3 id="em-outside-heading">Outside spending</h3>
-        <p>Independent expenditures supporting and opposing candidates are reported separately and never netted.</p>
-        <Empty icon={BadgeDollarSign} title="Not yet available" copy="Independent-expenditure data is not loaded into VoteInformed yet." />
-      </section>
+      <OutsideSpendingCard contest={contest} />
     </>
   );
 }

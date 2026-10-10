@@ -198,6 +198,11 @@
   /* Prototype-only tokens. Defined for both frontends so v2 components render
      the same wherever they are mounted. */
   :root {
+    /* Outside spending for and against a candidate (#29a888, #8f78ee). Validated
+       for color-blind separation and contrast on the dark surface; always shown
+       with text labels too. */
+    --spend-for: 165 61% 41%;
+    --spend-against: 252 78% 70%;
     --surface: 220 45% 8%;
     --surface-2: 219 42% 11%;
     --surface-3: 218 42% 15%;

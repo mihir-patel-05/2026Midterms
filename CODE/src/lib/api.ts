@@ -437,3 +437,74 @@ export async function lookupDistrict(address: string): Promise<DistrictLookupRes
 }
 
 export { API_BASE_URL };
+
+// ============================================================================
+// Outside spending (FEC Schedule E independent expenditures)
+// ============================================================================
+
+export interface SpendingSplit {
+  support: number;
+  oppose: number;
+  total: number;
+}
+
+export interface OutsideSpendingCoverage {
+  /** "not_synced" until the first sync finishes; never read that as $0. */
+  status: 'not_synced' | 'backfilling' | 'complete';
+  lastSyncedAt: string | null;
+  latestExpenditureDate: string | null;
+}
+
+export interface CandidateOutsideSpending extends SpendingSplit {
+  cycle: number;
+  candidateId: string;
+  candidateName: string | null;
+  count: number;
+  fromNotices: number;
+  bySpender: Array<SpendingSplit & { committeeId: string; committeeName: string }>;
+  byType: Array<SpendingSplit & { type: string }>;
+  recent: Array<{
+    date: string | null;
+    committeeId: string;
+    committeeName: string;
+    amount: number;
+    supportOppose: 'S' | 'O';
+    description: string | null;
+    type: string;
+    isNotice: boolean;
+    pdfUrl: string | null;
+  }>;
+  coverage: OutsideSpendingCoverage;
+}
+
+export interface RaceOutsideSpending {
+  cycle: number;
+  state: string;
+  office: 'H' | 'S';
+  district: string | null;
+  candidates: Array<SpendingSplit & { candidateId: string | null; candidateName: string | null }>;
+  topSpenders: Array<SpendingSplit & { committeeId: string; committeeName: string }>;
+  total: number;
+  coverage: OutsideSpendingCoverage;
+}
+
+/** Independent expenditures for and against one candidate (VoteInformed or FEC ID). */
+export async function getCandidateOutsideSpending(id: string, cycle: number = 2026): Promise<CandidateOutsideSpending> {
+  const response = await fetchAPI<{ data: CandidateOutsideSpending }>(`/candidates/${encodeURIComponent(id)}/outside-spending?cycle=${cycle}`);
+  return response.data;
+}
+
+/** Independent expenditures for and against every candidate in one race. */
+export async function getRaceOutsideSpending(params: { state: string; office: 'H' | 'S'; district?: string | null; cycle?: number }): Promise<RaceOutsideSpending> {
+  const query = new URLSearchParams({ state: params.state, office: params.office, cycle: String(params.cycle ?? 2026) });
+  if (params.office === 'H' && params.district) query.set('district', params.district);
+  const response = await fetchAPI<{ data: RaceOutsideSpending }>(`/outside-spending/race?${query}`);
+  return response.data;
+}
+
+/** The FEC's own independent-expenditure listing, for a "check the filings" link. */
+export function fecIndependentExpendituresUrl(params: { cycle?: number; candidateId?: string | null }): string {
+  const query = new URLSearchParams({ data_type: 'processed', cycle: String(params.cycle ?? 2026), most_recent: 'true' });
+  if (params.candidateId) query.set('candidate_id', params.candidateId);
+  return `https://www.fec.gov/data/independent-expenditures/?${query}`;
+}
