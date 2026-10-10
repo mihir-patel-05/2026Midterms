@@ -1290,3 +1290,21 @@ model IndependentExpenditure {
   @@index([cycle, expenditureDate])
   @@map("independent_expenditures")
 }
+
+// Progress of the Schedule E sync for one cycle. The backfill walks OpenFEC's
+// keyset cursor from newest to oldest across runs; the recent window is
+// re-fetched in full on every run.
+model ScheduleESyncState {
+  cycle              Int       @id
+  // Everything dated before this is covered by the backfill; on or after it, by the recent window.
+  backfillBefore     DateTime? @map("backfill_before") @db.Date
+  backfillCursor     Json?     @map("backfill_cursor")
+  backfillStartedAt  DateTime? @map("backfill_started_at")
+  backfillComplete   Boolean   @default(false) @map("backfill_complete")
+  backfillDoneAt     DateTime? @map("backfill_done_at")
+  lastWindowSyncedAt DateTime? @map("last_window_synced_at")
+  lastError          String?   @map("last_error") @db.Text
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@map("schedule_e_sync_state")
+}
