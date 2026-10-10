@@ -9,6 +9,8 @@ import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
 
 const app: Application = express();
 
+app.disable('x-powered-by');
+
 // Railway terminates TLS at one proxy hop. Trust it so req.ip is the visitor's address,
 // otherwise every visitor shares the proxy's IP and one rate-limit bucket.
 app.set('trust proxy', 1);
@@ -50,6 +52,17 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// The API serves only JSON and event streams, so it can refuse to be framed or run as a page.
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+  });
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
