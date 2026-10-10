@@ -28,6 +28,15 @@ after(async () => {
   await db.$disconnect();
 });
 
+test('no counties or districts gives the whole state', { skip: !testDatabaseUrl }, async () => {
+  const result = await getDemographics(db, { state: 'TX', counties: [], districts: [], year: YEAR });
+  assert.equal(result.selection.mode, 'state');
+  assert.equal(population(result.combined), 30_000_000);
+  assert.deepEqual(result.areas.map((area) => [area.geoType, area.label]), [['STATE', 'Texas']]);
+  assert.deepEqual(result.missing, { counties: [], districts: [] });
+  assert.equal(population(result.benchmarks.nation?.metrics ?? null), 330_000_000);
+});
+
 test('counties only combines the whole counties', { skip: !testDatabaseUrl }, async () => {
   const result = await getDemographics(db, { state: 'TX', counties: ['48201', '48157'], districts: [], year: YEAR });
   assert.equal(result.selection.mode, 'counties');

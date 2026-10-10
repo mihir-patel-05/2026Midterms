@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "@/lib/apiBase";
 import { loadCounties } from "./map/geo";
 
@@ -21,7 +21,7 @@ export interface DemographicMetric {
 }
 
 export interface DemographicArea {
-  geoType: "COUNTY" | "CONGRESSIONAL_DISTRICT" | "COUNTY_DISTRICT_PART";
+  geoType: "STATE" | "COUNTY" | "CONGRESSIONAL_DISTRICT" | "COUNTY_DISTRICT_PART";
   geoid: string;
   name: string;
   label: string;
@@ -31,7 +31,7 @@ export interface DemographicArea {
 }
 
 export interface DemographicsData {
-  selection: { state: string; counties: string[]; districts: string[]; mode: "counties" | "districts" | "overlap" };
+  selection: { state: string; counties: string[]; districts: string[]; mode: "state" | "counties" | "districts" | "overlap" };
   acsYear: number;
   congress: number | null;
   combined: DemographicMetric[] | null;
@@ -50,14 +50,16 @@ export class DemographicsError extends Error {
 }
 
 export function useDemographics(state: string | null, counties: string[], districts: string[]) {
-  const enabled = Boolean(state) && (counties.length > 0 || districts.length > 0);
-  return useQuery({
+  // With no counties or districts, the API answers for the whole state.
+  const enabled = Boolean(state);
+  return useQuery<DemographicsData, Error>({
     queryKey: ["election-monitor", "demographics", state, counties.join(","), districts.join(",")],
     enabled,
     // ACS figures change once a year.
     staleTime: 60 * 60_000,
-    // Keep the last answer on screen while a Shift-click adds an area.
-    placeholderData: keepPreviousData,
+    // Keep the last answer on screen while a Shift-click adds an area, but never
+    // show one state's figures under another state's name.
+    placeholderData: (previous) => (previous?.selection.state === state ? previous : undefined),
     retry: (count, error) => !(error instanceof DemographicsError && error.notLoaded) && count < 1,
     queryFn: async ({ signal }) => {
       const query = new URLSearchParams({ state: state! });

@@ -264,6 +264,7 @@ export function ElectionMonitor() {
               districtOptions={districts}
               onCountiesChange={(counties) => update({ counties })}
               onDistrictsChange={(next) => update({ ...districtSelectionPatch(next, params.district), contest: null })}
+              onClear={() => update({ counties: [], district: null, districts: [], contest: null })}
             />
           ) : undefined}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}

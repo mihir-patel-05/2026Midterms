@@ -14,7 +14,8 @@ test('demographics requests are validated before touching the database', async (
     assert.equal(parsed.success, false);
     assert.match(parsed.error!.issues[0].message, message);
   };
-  rejects({ state: 'TX' }, /at least one/);
+  // No counties or districts means the whole state.
+  assert.deepEqual(demographicsQuery.parse({ state: 'TX' }), { state: 'TX', counties: [], districts: [] });
   rejects({ state: 'TX', counties: '06037' }, /in the selected state/);
   rejects({ state: 'ZZ', districts: '01' }, /Unknown state/);
   assert.equal(demographicsQuery.safeParse({ state: 'TX', districts: '7' }).success, false);

@@ -1,6 +1,7 @@
 /**
  * Demographics for a user's selection of counties and House districts in one state.
  *
+ * - Nothing selected: the whole state.
  * - Counties only: the selected counties combined.
  * - Districts only: the selected districts combined.
  * - Both: the overlap, meaning only the pieces of the selected counties that lie
@@ -16,7 +17,7 @@ export const MAX_SELECTED_DISTRICTS = 60;
 
 const POSTAL_TO_STATE_FIPS = Object.fromEntries(Object.entries(STATE_FIPS_TO_POSTAL).map(([fips, postal]) => [postal, fips]));
 
-export type SelectionMode = 'counties' | 'districts' | 'overlap';
+export type SelectionMode = 'state' | 'counties' | 'districts' | 'overlap';
 
 export interface DemographicsQuery {
   state: string;
@@ -97,7 +98,9 @@ export async function getDemographics(db: Db, query: DemographicsQuery): Promise
   ]);
   if (!stateRow) throw new DemographicsNotLoadedError(state, year);
 
-  const mode: SelectionMode = counties.length && districts.length ? 'overlap' : counties.length ? 'counties' : 'districts';
+  const mode: SelectionMode = counties.length && districts.length
+    ? 'overlap'
+    : counties.length ? 'counties' : districts.length ? 'districts' : 'state';
   const missing = {
     counties: counties.filter((fips) => !countyRows.some((row) => row.geoid === fips)),
     districts: districts.filter((code) => !districtRows.some((row) => row.districtCode === code)),
@@ -114,10 +117,11 @@ export async function getDemographics(db: Db, query: DemographicsQuery): Promise
     noOverlap.counties = countyRows.map((row) => row.geoid).filter((fips) => !areaRows.some((row) => row.countyFips === fips));
     noOverlap.districts = districtRows.map((row) => row.districtCode!).filter((code) => !areaRows.some((row) => row.districtCode === code));
   } else {
-    areaRows = mode === 'counties' ? countyRows : districtRows;
+    areaRows = mode === 'state' ? [stateRow] : mode === 'counties' ? countyRows : districtRows;
   }
 
   const label = (row: AreaDemographics) => {
+    if (row.geoType === 'STATE') return row.name;
     if (row.geoType === 'CONGRESSIONAL_DISTRICT') return districtLabel(state, row.districtCode!);
     if (row.geoType === 'COUNTY') return countyName(row);
     return `${countyNames.get(row.countyFips!) ?? row.countyFips} · ${districtLabel(state, row.districtCode!)}`;

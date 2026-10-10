@@ -32,6 +32,7 @@ function Tiles({ data, stateCode }: { data: DemographicsData; stateCode: string 
   const combined = byKey(data.combined);
   const state = byKey(data.benchmarks.state?.metrics);
   const nation = byKey(data.benchmarks.nation?.metrics);
+  const statewide = data.selection.mode === "state";
   return (
     <dl className="em-metrics em-demo-tiles">
       {TILES.map((key) => {
@@ -52,7 +53,7 @@ function Tiles({ data, stateCode }: { data: DemographicsData; stateCode: string 
             {metric.estimated && metric.value !== null && <span className="em-demo-moe" title="Interpolated from household income brackets, because medians cannot be added across areas">Estimated from brackets</span>}
             {showBenchmarks && (
               <span className="em-demo-bench">
-                {stateCode} {formatValue(state.get(key) ?? metric)} · US {formatValue(nation.get(key) ?? metric)}
+                {statewide ? "" : `${stateCode} ${formatValue(state.get(key) ?? metric)} · `}US {formatValue(nation.get(key) ?? metric)}
               </span>
             )}
           </div>
@@ -60,6 +61,12 @@ function Tiles({ data, stateCode }: { data: DemographicsData; stateCode: string 
       })}
     </dl>
   );
+}
+
+interface Comparison {
+  label: string;
+  short: string;
+  metrics: DemographicMetric[] | undefined;
 }
 
 const GROUPS: Array<{ title: string; topic: DemographicMetric["topic"]; prefix: string }> = [
@@ -71,24 +78,24 @@ const GROUPS: Array<{ title: string; topic: DemographicMetric["topic"]; prefix: 
 /**
  * One single-hue bar per category, scaled to the largest value in the group so
  * small groups stay visible; each row is labeled with its value, and a tick marks
- * the state's share for comparison.
+ * the comparison area's share: the state, or the US for a statewide view.
  */
-function ShareBars({ data, stateCode, title, prefix }: { data: DemographicsData; stateCode: string; title: string; prefix: string }) {
+function ShareBars({ data, comparison, title, prefix }: { data: DemographicsData; comparison: Comparison; title: string; prefix: string }) {
   const rows = (data.combined ?? []).filter((metric) => metric.kind === "share" && metric.key.startsWith(prefix));
-  const state = byKey(data.benchmarks.state?.metrics);
-  const max = Math.max(0.0001, ...rows.flatMap((metric) => [metric.value ?? 0, state.get(metric.key)?.value ?? 0]));
+  const reference = byKey(comparison.metrics);
+  const max = Math.max(0.0001, ...rows.flatMap((metric) => [metric.value ?? 0, reference.get(metric.key)?.value ?? 0]));
   const id = `em-demo-${prefix.replace(/_$/, "")}`;
   return (
     <figure className="em-demo-group" aria-labelledby={id}>
       <figcaption id={id}>{title}</figcaption>
       {rows.map((metric) => {
-        const stateValue = state.get(metric.key)?.value ?? null;
+        const stateValue = reference.get(metric.key)?.value ?? null;
         const moe = formatMoe(metric);
         return (
           <div
             className="em-demo-row"
             key={metric.key}
-            title={`${metric.label}: ${formatValue(metric)}${moe ? ` (${moe})` : ""}${metric.count != null ? `, ${numberFormat.format(metric.count)} people or households` : ""}. ${stateCode}: ${stateValue === null ? "—" : percent(stateValue)}.`}
+            title={`${metric.label}: ${formatValue(metric)}${moe ? ` (${moe})` : ""}${metric.count != null ? `, ${numberFormat.format(metric.count)} people or households` : ""}. ${comparison.short}: ${stateValue === null ? "—" : percent(stateValue)}.`}
           >
             <span>{metric.label}</span>
             <div className="em-demo-bar" aria-hidden="true">
@@ -133,6 +140,7 @@ export function DemographicsTab({
   districtOptions,
   onCountiesChange,
   onDistrictsChange,
+  onClear,
 }: {
   stateCode: string | null;
   stateName: string | null;
@@ -142,14 +150,17 @@ export function DemographicsTab({
   districtOptions: string[];
   onCountiesChange: (counties: string[]) => void;
   onDistrictsChange: (districts: string[]) => void;
+  /** Clears counties and districts in one URL update, back to the statewide view. */
+  onClear: () => void;
 }) {
   const demographics = useDemographics(stateCode, counties, districts);
   const countyNames = useCountyNames(stateCode);
   const countyLabel = (fips: string) => countyNames.get(fips) ?? `County ${fips}`;
   const data = demographics.data;
   const hasSelection = counties.length > 0 || districts.length > 0;
-  const mode = counties.length && districts.length ? "overlap" : counties.length ? "counties" : "districts";
+  const mode = counties.length && districts.length ? "overlap" : counties.length ? "counties" : districts.length ? "districts" : "state";
   const describe = {
+    state: `Statewide figures for ${stateName ?? stateCode}. Select counties or House districts on the map to narrow down, or both to see where they overlap.`,
     counties: counties.length === 1 ? "The selected county." : "The selected counties combined.",
     districts: districts.length === 1 ? "The selected House district." : "The selected House districts combined.",
     overlap: "Only the parts of the selected counties that lie inside the selected districts.",
@@ -157,7 +168,6 @@ export function DemographicsTab({
 
   let body;
   if (!stateCode) body = <Empty icon={MousePointerClick} title="Select a state" copy="Pick a state, then select counties or House districts on the map." />;
-  else if (!hasSelection) body = <Empty icon={MousePointerClick} title="Select counties or districts" copy="Click counties or House districts on the map, or add them below. Select both to see where they overlap." />;
   else if (demographics.isError && !data) {
     const notLoaded = demographics.error instanceof DemographicsError && demographics.error.notLoaded;
     body = notLoaded
@@ -172,14 +182,17 @@ export function DemographicsTab({
   } else {
     const unmatchedCounties = [...data.noOverlap.counties, ...data.missing.counties];
     const unmatchedDistricts = [...data.noOverlap.districts, ...data.missing.districts];
+    const comparison: Comparison = data.selection.mode === "state"
+      ? { label: "United States", short: "US", metrics: data.benchmarks.nation?.metrics }
+      : { label: stateName ?? stateCode, short: stateCode, metrics: data.benchmarks.state?.metrics };
     body = (
       <>
         <Tiles data={data} stateCode={stateCode} />
         <div className="em-demo-legend" aria-hidden="true">
-          <span><i data-swatch="bar" />Selection</span>
-          <span><i data-swatch="tick" />{stateName ?? stateCode}</span>
+          <span><i data-swatch="bar" />{data.selection.mode === "state" ? stateName ?? stateCode : "Selection"}</span>
+          <span><i data-swatch="tick" />{comparison.label}</span>
         </div>
-        {GROUPS.map((group) => <ShareBars key={group.prefix} data={data} stateCode={stateCode} title={group.title} prefix={group.prefix} />)}
+        {GROUPS.map((group) => <ShareBars key={group.prefix} data={data} comparison={comparison} title={group.title} prefix={group.prefix} />)}
         {(data.areas.length > 1 || data.selection.mode === "overlap") && <Pieces data={data} />}
         {(unmatchedCounties.length > 0 || unmatchedDistricts.length > 0) && (
           <div className="em-note" role="note">
@@ -199,7 +212,7 @@ export function DemographicsTab({
   return (
     <section className="em-card" aria-labelledby="em-demo-heading" aria-busy={demographics.isFetching}>
       <h3 id="em-demo-heading">Demographics</h3>
-      <p>{hasSelection ? describe : "Census estimates for the counties and districts you select."} Shift-click the map to select more than one.</p>
+      <p>{stateCode ? describe : "Census estimates for a state, or for the counties and districts you select."}{hasSelection ? " Shift-click the map to select more than one." : ""}</p>
 
       {stateCode && (
         <div className="em-demo-pickers">
@@ -224,7 +237,7 @@ export function DemographicsTab({
               <button type="button" onClick={item.remove} aria-label={`Remove ${item.label}`}><X aria-hidden="true" /></button>
             </li>
           ))}
-          <li><button type="button" className="em-demo-clear" onClick={() => { onCountiesChange([]); onDistrictsChange([]); }}>Clear all</button></li>
+          <li><button type="button" className="em-demo-clear" onClick={onClear}>Whole state</button></li>
         </ul>
       )}
 
