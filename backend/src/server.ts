@@ -9,6 +9,10 @@ import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
 
 const app: Application = express();
 
+// Railway terminates TLS at one proxy hop. Trust it so req.ip is the visitor's address,
+// otherwise every visitor shares the proxy's IP and one rate-limit bucket.
+app.set('trust proxy', 1);
+
 // Railway service URLs are bare hosts; CORS compares against full origins.
 const toOrigin = (host?: string) =>
   host ? (/^https?:\/\//.test(host) ? host : `https://${host}`).replace(/\/+$/, '') : undefined;

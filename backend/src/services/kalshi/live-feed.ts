@@ -185,7 +185,8 @@ export class KalshiLiveFeed extends EventEmitter {
     });
     try {
       const written = await this.writeSnapshots(inputs, hour, now);
-      console.log(`🗂️  Kalshi snapshots: ${written} markets for ${hour.toISOString()}`);
+      // 0 after a restart mid-hour just means this hour was already stored.
+      console.log(`🗂️  Kalshi snapshots: ${written} new markets for ${hour.toISOString()}${written === 0 ? ' (hour already stored or no priced markets)' : ''}`);
       return written;
     } catch (error) {
       this.capturedHour = 0; // Retry on the next check.
