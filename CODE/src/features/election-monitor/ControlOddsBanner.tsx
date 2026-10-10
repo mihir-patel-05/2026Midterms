@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { ExternalLink } from "lucide-react";
-import { partyTone } from "./constants";
+import { formatEtTime, partyTone, priceTypeLabel } from "./constants";
 import { useControlOdds, type KalshiFeedStatus, type KalshiMarket } from "./useKalshiLive";
 
 const statusCopy: Record<KalshiFeedStatus, { label: string; tone: string }> = {
@@ -41,6 +41,9 @@ export function ControlOddsBanner() {
   const { status, house, senate } = useControlOdds();
   if (house.length === 0 && senate.length === 0) return null;
   const badge = statusCopy[status];
+  const priced = [...house, ...senate].filter((market) => market.pricePercent !== null);
+  const priceType = priceTypeLabel(priced.map((market) => market.priceType));
+  const lastChange = priced.reduce((latest, market) => (market.updatedAt > latest ? market.updatedAt : latest), "");
   return (
     <section className="em-control-banner" aria-label="Kalshi chamber control markets">
       <div className="em-control-meta">
@@ -49,7 +52,9 @@ export function ControlOddsBanner() {
       </div>
       <ControlBar chamber="House" markets={house} />
       <ControlBar chamber="Senate" markets={senate} />
-      <p className="em-control-note">Traded prices, not forecasts or results.</p>
+      <p className="em-control-note">
+        Market prices{priceType ? ` (${priceType})` : ""}{lastChange ? `, last changed ${formatEtTime(lastChange)} ET` : ""}. Not forecasts or results.
+      </p>
     </section>
   );
 }

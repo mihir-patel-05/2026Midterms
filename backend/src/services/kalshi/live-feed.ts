@@ -10,6 +10,7 @@ import { env } from '../../config/env.js';
 import { authHeaders, loadPrivateKey } from './auth.js';
 import { buildCatalog, type CatalogMarket } from './catalog.js';
 import { quotePrice, type PriceType } from './shared.js';
+import { hourStart, writeMarketSnapshots, type SnapshotWriter } from './snapshots.js';
 
 export type FeedStatus = 'disabled' | 'connecting' | 'live' | 'degraded';
 
@@ -41,6 +42,8 @@ const CATALOG_RETRY_MS = 5 * 60_000;
 const HEARTBEAT_MS = 30_000;
 const BROADCAST_MS = 1_000;
 const MAX_BACKOFF_MS = 60_000;
+// Checked often so an hour is still captured soon after a restart or reconnect.
+const SNAPSHOT_CHECK_MS = 5 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -72,8 +75,9 @@ export class KalshiLiveFeed extends EventEmitter {
   private lastSeenAt = 0;
   private stopped = true;
   private timers = new Set<NodeJS.Timeout>();
+  private capturedHour = 0;
 
-  constructor() {
+  constructor(private readonly writeSnapshots: SnapshotWriter | null = writeMarketSnapshots) {
     super();
     // Every SSE client adds listeners.
     this.setMaxListeners(0);
@@ -96,6 +100,7 @@ export class KalshiLiveFeed extends EventEmitter {
     this.setStatus('connecting');
     this.every(BROADCAST_MS, () => this.flush());
     this.every(HEARTBEAT_MS, () => this.heartbeat());
+    if (env.KALSHI_SNAPSHOTS_ENABLED) this.every(SNAPSHOT_CHECK_MS, () => void this.captureHour());
     await this.refreshCatalog();
     this.connect();
   }
@@ -164,6 +169,29 @@ export class KalshiLiveFeed extends EventEmitter {
       } });
     }
     return added;
+  }
+
+  /**
+   * Writes this hour's prices to market_snapshots once per hour, only while the
+   * socket is live so a stale board is never recorded as current. Returns rows written.
+   */
+  async captureHour(now = new Date()): Promise<number> {
+    const hour = hourStart(now);
+    if (!this.writeSnapshots || this.status !== 'live' || this.capturedHour >= hour.getTime()) return 0;
+    this.capturedHour = hour.getTime();
+    const inputs = [...this.catalog.values()].map(({ seed: _seed, ...market }) => {
+      const { bid, ask, last } = this.prices.get(market.ticker) ?? {};
+      return { market, bid, ask, last };
+    });
+    try {
+      const written = await this.writeSnapshots(inputs, hour, now);
+      console.log(`🗂️  Kalshi snapshots: ${written} markets for ${hour.toISOString()}`);
+      return written;
+    } catch (error) {
+      this.capturedHour = 0; // Retry on the next check.
+      console.error('⚠️  Kalshi snapshot write failed:', error instanceof Error ? error.message : error);
+      return 0;
+    }
   }
 
   private async refreshCatalog(): Promise<void> {

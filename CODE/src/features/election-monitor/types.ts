@@ -39,6 +39,8 @@ export interface MonitorCandidate {
   /** FEC headline totals for the cycle; null when no filing is on file. */
   receipts?: number | null;
   cashOnHand?: number | null;
+  /** End of the latest FEC report behind those totals (YYYY-MM-DD). */
+  fundingThrough?: string | null;
 }
 
 export interface MonitorContest {

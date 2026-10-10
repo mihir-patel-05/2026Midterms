@@ -32,6 +32,19 @@ export function formatEtTime(iso: string, withSeconds = false) {
   }).format(new Date(iso));
 }
 
+/** "Sep 30, 2026" for a date-only or full ISO string, without shifting the day across time zones. */
+export function formatShortDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** How a market price was derived, in words, for the label next to it. */
+export function priceTypeLabel(types: Array<"MIDPOINT" | "LAST_TRADE" | null>) {
+  const kinds = new Set(types.filter(Boolean));
+  if (kinds.size === 0) return null;
+  if (kinds.size > 1) return "bid/ask midpoint or last trade";
+  return kinds.has("MIDPOINT") ? "bid/ask midpoint" : "last trade";
+}
+
 /** Party colour tokens; follows the existing CandidateCard convention (DEM blue, REP coral). */
 export function partyTone(party: string | null, index = 0) {
   const normalized = party?.toUpperCase() ?? "";

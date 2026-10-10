@@ -23,6 +23,8 @@ const envSchema = z.object({
   KALSHI_PRIVATE_KEY_PATH: z.string().trim().optional(),
   KALSHI_WS_URL: z.string().url().default('wss://external-api-ws.kalshi.com/trade-api/ws/v2'),
   KALSHI_REST_URL: z.string().url().default('https://external-api.kalshi.com/trade-api/v2'),
+  // Hourly price history in market_snapshots, written while the live feed is connected.
+  KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -86,6 +88,7 @@ export const env = {
   GEOCODIO_DAILY_LOOKUP_LIMIT: parseInt(parsed.data.GEOCODIO_DAILY_LOOKUP_LIMIT, 10),
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
+  KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')

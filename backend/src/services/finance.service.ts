@@ -185,6 +185,34 @@ export function combineCommitteeTotals(rows: FECCommitteeTotals[]): Omit<FECCand
   return combined as Omit<FECCandidateTotals, 'candidate_id'>;
 }
 
+export interface FinanceReportSource {
+  source: 'FEC';
+  /** The candidate's FEC page, where every figure can be checked against the filings. */
+  sourceUrl: string;
+  coverageStartDate: string | null;
+  /** Totals include activity through this date (the end of the latest report). */
+  coverageEndDate: string | null;
+  lastReportType: string | null;
+  syncedAt: string;
+}
+
+const isoDate = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
+
+export function financeReportSource(
+  fecCandidateId: string,
+  cycle: number,
+  row: Pick<CandidateFinancial, 'coverageStartDate' | 'coverageEndDate' | 'lastReportTypeFull' | 'lastUpdated'>,
+): FinanceReportSource {
+  return {
+    source: 'FEC',
+    sourceUrl: `https://www.fec.gov/data/candidate/${encodeURIComponent(fecCandidateId)}/?cycle=${cycle}`,
+    coverageStartDate: isoDate(row.coverageStartDate),
+    coverageEndDate: isoDate(row.coverageEndDate),
+    lastReportType: row.lastReportTypeFull ?? null,
+    syncedAt: row.lastUpdated.toISOString(),
+  };
+}
+
 function readCursor(value: Prisma.JsonValue | null): KeysetCursor | undefined {
   if (!value || Array.isArray(value) || typeof value !== 'object') return undefined;
 
@@ -859,6 +887,8 @@ export class FinanceService {
     itemizedCoverage: ItemizedCoverage;
     /** False while only bulk headline totals are on file. */
     breakdownAvailable: boolean;
+    /** Where the summary came from and the period it covers; null when nothing is on file for the cycle. */
+    report: FinanceReportSource | null;
     lastSynced: string;
   }> {
     // Single optimized query to get all data at once
@@ -962,6 +992,7 @@ export class FinanceService {
       spendingCategories,
       itemizedCoverage,
       breakdownAvailable,
+      report: candidateFinancial ? financeReportSource(candidate.candidateId, cycle, candidateFinancial) : null,
       lastSynced: candidateFinancial?.lastUpdated?.toISOString() || 'Not synced',
     };
   }

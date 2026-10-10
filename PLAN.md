@@ -44,10 +44,12 @@ Differentiators:
 - Incumbent ideology scores, Gemini chat, the admin dashboard, and the researcher simulator.
 - A provider-neutral election-results foundation. `/api/v1` results are served from the database read model (`RESULTS_READ_SOURCE=database`) and are currently backed only by fictional fixtures.
 - Intel v2 database batch 1: `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, and `agent_runs`.
+- Hourly Kalshi snapshots: while the live feed is connected it writes one `market_snapshots` row per market per hour (`KALSHI_SNAPSHOTS_ENABLED`, on by default). Contest links are still null; rows carry state and district.
+- Every displayed number carries its source and time: FEC figures show the date the latest report runs through, the sync date, and a link to the FEC.gov filings; Kalshi prices show the price type (midpoint or last trade) and when they last changed.
 
 **Not done yet (carried over from Oct 1–7)**
 
-- Hourly market snapshot job. The table exists, but prices still live only in memory.
+- A market history API and sparklines over `market_snapshots`. Polymarket prices are not snapshotted yet.
 - FRED economic indicator ingestion.
 - District race pages with ACS demographics and partisan lean.
 - Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.

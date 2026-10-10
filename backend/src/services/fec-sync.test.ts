@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bulkTotalsData } from './finance.service.js';
+import { bulkTotalsData, financeReportSource } from './finance.service.js';
 import type { FECCandidateTotalsSummary } from './fec-api.service.js';
 
 const syncedAt = new Date('2026-10-05T12:00:00.000Z');
@@ -102,4 +102,21 @@ test("a candidate's committees are summed, with last-report details from the lat
   assert.equal(combined.coverage_start_date, '2025-01-01T00:00:00');
   assert.equal(combined.coverage_end_date, '2026-09-30T00:00:00');
   assert.equal(combined.last_report_type_full, 'OCTOBER QUARTERLY');
+});
+
+test('finance report source links the FEC filing page and the period the totals cover', () => {
+  const report = financeReportSource('S6GA00119', 2026, {
+    coverageStartDate: new Date('2025-01-01T00:00:00Z'),
+    coverageEndDate: new Date('2026-09-30T00:00:00Z'),
+    lastReportTypeFull: 'OCTOBER QUARTERLY',
+    lastUpdated: syncedAt,
+  });
+  assert.deepEqual(report, {
+    source: 'FEC',
+    sourceUrl: 'https://www.fec.gov/data/candidate/S6GA00119/?cycle=2026',
+    coverageStartDate: '2025-01-01',
+    coverageEndDate: '2026-09-30',
+    lastReportType: 'OCTOBER QUARTERLY',
+    syncedAt: syncedAt.toISOString(),
+  });
 });

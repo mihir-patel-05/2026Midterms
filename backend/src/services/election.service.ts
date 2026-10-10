@@ -155,7 +155,7 @@ export class ElectionService {
                 district: true,
                 financials: {
                   where: { cycle },
-                  select: { receipts: true, disbursements: true, cashOnHand: true, lastUpdated: true },
+                  select: { receipts: true, disbursements: true, cashOnHand: true, coverageEndDate: true, lastUpdated: true },
                   take: 1,
                 },
               },

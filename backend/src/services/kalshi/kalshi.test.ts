@@ -5,6 +5,7 @@ import { authHeaders, loadPrivateKey, signRequest } from './auth.js';
 import { buildCatalog, eventMarkets, parseHouseEventTicker, type JsonFetcher } from './catalog.js';
 import { KalshiLiveFeed } from './live-feed.js';
 import { quotePrice } from './shared.js';
+import { hourStart, snapshotRows, type SnapshotInput } from './snapshots.js';
 
 // Trimmed Kalshi /events responses recorded on 2026-10-06.
 const control = {
@@ -109,4 +110,48 @@ test('the live board seeds from REST, applies ticks, and only reports real moves
   assert.equal(feed.applyTicker({ market_ticker: 'NOT-TRACKED', price_dollars: '0.5' }), null);
   // The socket is not live, so REST callers fall back.
   assert.equal(feed.eventQuotes('CONTROLH-2026'), null);
+});
+
+test('snapshot rows keep 4-decimal prices and bid/ask, and skip unpriced markets', () => {
+  const [dem, rep] = eventMarkets(control, 'NATIONAL_HOUSE', null, null);
+  const [alDem] = eventMarkets(alabama1, 'HOUSE_DISTRICT', 'AL', '01');
+  const hour = new Date('2026-10-10T14:00:00Z');
+  const fetchedAt = new Date('2026-10-10T14:05:00Z');
+  const rows = snapshotRows([
+    { market: dem, bid: '0.9140', ask: '0.9150' },
+    { market: rep },
+    { market: alDem, bid: '0', ask: '0.0640', last: '0.0500' },
+  ], 'source-1', hour, fetchedAt);
+  assert.deepEqual(rows.map((row) => [row.sourceMarketId, row.price, row.priceType, row.yesBid, row.yesAsk]), [
+    ['CONTROLH-2026-D', 0.9145, 'MIDPOINT', 0.914, 0.915],
+    ['KXHOUSERACE-AL01-26-D', 0.05, 'LAST_TRADE', null, 0.064],
+  ]);
+  assert.equal(rows[1].stateCode, 'AL');
+  assert.equal(rows[1].districtCode, '01');
+  assert.equal(rows[0].capturedHour, hour);
+  assert.equal(rows[0].fetchedAt, fetchedAt);
+  assert.equal(hourStart(new Date('2026-10-10T14:59:59.999Z')).toISOString(), '2026-10-10T14:00:00.000Z');
+});
+
+test('hourly capture writes once per hour and only while the socket is live', async () => {
+  const writes: Array<{ inputs: SnapshotInput[]; hour: string }> = [];
+  const feed = new KalshiLiveFeed(async (inputs, hour) => { writes.push({ inputs, hour: hour.toISOString() }); return inputs.length; });
+  feed.setCatalog(eventMarkets(control, 'NATIONAL_HOUSE', null, null), 0);
+
+  assert.equal(await feed.captureHour(new Date('2026-10-10T14:05:00Z')), 0);
+  feed.status = 'live';
+  assert.equal(await feed.captureHour(new Date('2026-10-10T14:05:00Z')), 2);
+  assert.equal(await feed.captureHour(new Date('2026-10-10T14:55:00Z')), 0);
+  assert.equal(await feed.captureHour(new Date('2026-10-10T15:00:00Z')), 2);
+  assert.deepEqual(writes.map((write) => write.hour), ['2026-10-10T14:00:00.000Z', '2026-10-10T15:00:00.000Z']);
+  assert.equal(writes[0].inputs[0].bid, '0.9140');
+
+  // A failed write is retried on the next check in the same hour.
+  const flaky = new KalshiLiveFeed(async () => { throw new Error('db down'); });
+  flaky.status = 'live';
+  assert.equal(await flaky.captureHour(new Date('2026-10-10T14:05:00Z')), 0);
+  let retried = false;
+  (flaky as unknown as { writeSnapshots: () => Promise<number> }).writeSnapshots = async () => { retried = true; return 0; };
+  await flaky.captureHour(new Date('2026-10-10T14:10:00Z'));
+  assert.ok(retried);
 });

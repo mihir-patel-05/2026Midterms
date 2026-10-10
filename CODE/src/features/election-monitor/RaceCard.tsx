@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { CloudOff, Loader2, Vote } from "lucide-react";
-import { districtLabel, initials, numberFormat, officeLabels, partyTone } from "./constants";
+import { districtLabel, formatEtTime, formatShortDate, initials, numberFormat, officeLabels, partyTone, priceTypeLabel } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
 import { useRaceOdds } from "./useKalshiLive";
 
@@ -18,11 +18,13 @@ function MarketOdds({ contest }: { contest: MonitorContest }) {
   const { status, markets } = useRaceOdds(contest.isFictional ? null : contest.stateCode, contest.office, contest.district);
   const priced = markets.filter((market) => market.pricePercent !== null);
   if (priced.length === 0) return null;
+  const priceType = priceTypeLabel(priced.map((market) => market.priceType));
+  const lastChange = priced.reduce((latest, market) => (market.updatedAt > latest ? market.updatedAt : latest), "");
   return (
     <div className="em-odds" role="group" aria-label="Kalshi market prices">
       <div className="em-odds-head">
         <span className="em-eyebrow">Kalshi market</span>
-        <span>{status === "live" ? <><span className="em-live-dot" aria-hidden="true" />Live</> : "Delayed"}</span>
+        <span>{status === "live" ? <><span className="em-live-dot" aria-hidden="true" />Live</> : status === "connecting" ? "Connecting" : "Delayed"}</span>
       </div>
       {priced.map((market, index) => {
         const tone = partyTone(market.party === "D" ? "DEM" : market.party === "R" ? "REP" : null, index);
@@ -37,9 +39,22 @@ function MarketOdds({ contest }: { contest: MonitorContest }) {
           </a>
         );
       })}
-      <small>Traded price, not a forecast or result.</small>
+      <small>
+        Market price{priceType ? ` (${priceType})` : ""}{lastChange ? `, last changed ${formatEtTime(lastChange)} ET` : ""}. Not a forecast or result.
+      </small>
     </div>
   );
+}
+
+/** "through Sep 30, 2026", or a range when candidates' latest reports end on different dates. */
+function fundingPeriod(candidates: MonitorContest["candidates"]) {
+  const dates = candidates
+    .filter((candidate) => candidate.receipts !== null && candidate.receipts !== undefined && candidate.fundingThrough)
+    .map((candidate) => candidate.fundingThrough!)
+    .sort();
+  if (dates.length === 0) return null;
+  const [first, last] = [dates[0], dates[dates.length - 1]];
+  return first === last ? `through ${formatShortDate(last)}` : `through ${formatShortDate(first)} to ${formatShortDate(last)}`;
 }
 
 function contestHeading(contest: MonitorContest) {
@@ -82,6 +97,7 @@ export function RaceCard({
     );
   }
 
+  const fundingPeriodText = fundingPeriod(contest.candidates);
   const resultById = new Map(results?.candidates.map((item) => [item.candidateId, item]));
   const ordered = results
     ? [...contest.candidates].sort((a, b) => (resultById.get(b.id)?.votes ?? -1) - (resultById.get(a.id)?.votes ?? -1))
@@ -148,6 +164,8 @@ export function RaceCard({
           </div>
         );
       })}
+
+      {fundingPeriodText && <p className="em-note">Funding from FEC filings {fundingPeriodText}.</p>}
 
       {results ? (
         <div className="em-reporting-line">

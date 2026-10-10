@@ -82,6 +82,8 @@ export interface Candidate {
     receipts: string | number;
     disbursements: string | number;
     cashOnHand: string | number;
+    /** End of the latest report the totals include. */
+    coverageEndDate?: string | null;
     lastUpdated: string;
   }>;
 
@@ -223,6 +225,16 @@ export interface DetailedFinanceSummary {
   lastUpdated: string | null;
 }
 
+export interface FinanceReportSource {
+  source: 'FEC';
+  sourceUrl: string;
+  coverageStartDate: string | null;
+  /** Totals include activity through this date. */
+  coverageEndDate: string | null;
+  lastReportType: string | null;
+  syncedAt: string;
+}
+
 /**
  * Full detailed finance response for a candidate
  * Includes funding sources, top donors, and spending breakdown
@@ -235,6 +247,8 @@ export interface DetailedFinanceResponse {
   itemizedCoverage: ItemizedCoverage;
   /** False while only headline totals are on file; the source mix is not yet reliable. */
   breakdownAvailable?: boolean;
+  /** Source link and reporting period for the summary; null when nothing is on file. */
+  report?: FinanceReportSource | null;
   lastSynced: string;
 }
 

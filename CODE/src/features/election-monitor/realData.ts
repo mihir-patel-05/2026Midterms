@@ -48,6 +48,7 @@ export function toMonitorContest(election: Election): MonitorContest {
           ballotStatus: entry.ballotStatus,
           receipts: totals ? Number(totals.receipts) : null,
           cashOnHand: totals ? Number(totals.cashOnHand) : null,
+          fundingThrough: totals?.coverageEndDate?.slice(0, 10) ?? null,
         };
       })
       // FEC lists every active filer, including primary losers it has not

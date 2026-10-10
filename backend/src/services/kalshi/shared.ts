@@ -31,14 +31,20 @@ export function validPrice(value: unknown): number | null {
   return Number.isFinite(price) && price > 0 && price < 1 ? price : null;
 }
 
-/** Bid/ask midpoint when the book is two-sided, otherwise the last trade. */
-export function quotePrice(bid: unknown, ask: unknown, last: unknown): { pricePercent: number; priceType: PriceType } | null {
+/** Bid/ask midpoint when the book is two-sided, otherwise the last trade, as a fraction rounded to 4 places. */
+export function quoteFraction(bid: unknown, ask: unknown, last: unknown): { price: number; priceType: PriceType } | null {
   const yesBid = validPrice(bid);
   const yesAsk = validPrice(ask);
   const midpoint = yesBid !== null && yesAsk !== null && yesBid <= yesAsk ? (yesBid + yesAsk) / 2 : null;
   const price = midpoint ?? validPrice(last);
   if (price === null) return null;
-  return { pricePercent: Math.round(price * 1000) / 10, priceType: midpoint === null ? 'LAST_TRADE' : 'MIDPOINT' };
+  return { price: Math.round(price * 10_000) / 10_000, priceType: midpoint === null ? 'LAST_TRADE' : 'MIDPOINT' };
+}
+
+/** The same quote as a percentage rounded to one decimal, for display. */
+export function quotePrice(bid: unknown, ask: unknown, last: unknown): { pricePercent: number; priceType: PriceType } | null {
+  const quote = quoteFraction(bid, ask, last);
+  return quote && { pricePercent: Math.round(quote.price * 1000) / 10, priceType: quote.priceType };
 }
 
 export function partyFromTicker(ticker: string): 'D' | 'R' | null {
