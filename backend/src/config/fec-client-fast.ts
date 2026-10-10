@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { env } from './env.js';
 import { fecRateLimiterOptimized } from '../utils/rate-limiter-optimized.js';
+import { redactFecApiKey } from './fec-client.js';
 
 export interface FECPaginatedResponse<T> {
   api_version: string;
@@ -51,6 +52,7 @@ export class FECClientFast {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        redactFecApiKey(error);
         if (error.response) {
           console.error(
             `❌ FEC API Error: ${error.response.status} - ${error.response.statusText}`

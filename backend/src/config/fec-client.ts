@@ -29,6 +29,22 @@ export interface FECKeysetBatch<T> {
   exhausted: boolean;
 }
 
+/**
+ * Strip the FEC API key from an axios error before it is rethrown. Callers log whole
+ * error objects, and axios keeps the key in `config.params` and the full query string
+ * on the raw request, so without this the key lands in the server logs.
+ */
+export function redactFecApiKey<T>(error: T): T {
+  if (!error || typeof error !== 'object') return error;
+  const target = error as { config?: { params?: Record<string, unknown> }; request?: unknown; response?: { config?: { params?: Record<string, unknown> }; request?: unknown } };
+  for (const config of [target.config, target.response?.config]) {
+    if (config?.params && 'api_key' in config.params) config.params = { ...config.params, api_key: '[redacted]' };
+  }
+  delete target.request;
+  if (target.response) delete target.response.request;
+  return error;
+}
+
 export class FECClient {
   private client: AxiosInstance;
   private requestCount = 0;
@@ -66,6 +82,7 @@ export class FECClient {
     this.client.interceptors.response.use(
       (response) => response, // No logging for successful responses
       (error) => {
+        redactFecApiKey(error);
         if (error.response?.status === 429) {
           return Promise.reject(tripFecRateLimit(error.response.headers?.['retry-after']));
         }
