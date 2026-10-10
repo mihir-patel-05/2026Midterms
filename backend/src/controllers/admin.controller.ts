@@ -69,11 +69,12 @@ export class AdminController {
    * Verify admin credentials and create session
    */
   async verifyPassword(req: Request, res: Response): Promise<void> {
-    const { username, password } = req.body;
+    const { username, password } = req.body ?? {};
     
     console.log('🔐 Login attempt for username:', username);
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password ||
+        username.includes('\0') || username.length > 200 || password.length > 1024) {
       console.log('🔍 Login failed: Missing username or password');
       res.status(400).json({ error: 'Username and password required' });
       return;
@@ -141,12 +142,17 @@ export class AdminController {
    */
   async logout(req: Request, res: Response): Promise<void> {
     const authToken = req.headers['x-admin-key'] as string;
-    if (authToken) {
-      await prisma.adminSession.deleteMany({
-        where: { tokenHash: hashSessionToken(authToken) },
-      });
+    try {
+      if (authToken) {
+        await prisma.adminSession.deleteMany({
+          where: { tokenHash: hashSessionToken(authToken) },
+        });
+      }
+      res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+      console.error('Error during admin logout:', error);
+      res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ message: 'Logged out successfully' });
   }
 
   /**

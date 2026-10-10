@@ -149,6 +149,12 @@ const startServer = async () => {
   }
 };
 
+// Express 4 does not catch rejected async handlers, and Node exits on an unhandled
+// rejection by default. Log it instead, so one bad request cannot take the API down.
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled promise rejection:', reason);
+});
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
