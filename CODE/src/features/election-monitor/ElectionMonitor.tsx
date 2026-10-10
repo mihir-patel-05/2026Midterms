@@ -13,6 +13,7 @@ import { FinanceTab } from "./FinanceTab";
 import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
+import { districtSelectionPatch, selectedDistricts, toggleItem } from "./selection";
 import { useStateContests, useStateCounts } from "./realData";
 import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
@@ -77,7 +78,7 @@ export function ElectionMonitor() {
     ?? visibleContests[0];
   const results = contest ? mockFeed.data?.resultsByContest[contest.id] : undefined;
 
-  const selectState = useCallback((code: string | null) => update({ state: code, district: null, contest: null }), [update]);
+  const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
   const describe = useCallback((target: MapTarget) => {
@@ -104,7 +105,24 @@ export function ElectionMonitor() {
       ].filter(Boolean),
     };
   }, [states, selectedState?.code, stateContests]);
-  const selectDistrict = useCallback((state: string, district: string) => update({ state, district, contest: null }), [update]);
+  const chosenDistricts = selectedDistricts(params);
+  // Plain click selects one district; Shift-click adds or removes it. Another state starts over.
+  const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
+    if (state !== params.state) {
+      update({ state, district, districts: [], counties: [], contest: null });
+      return;
+    }
+    const next = additive ? toggleItem(selectedDistricts(params), district) : [district];
+    update({ ...districtSelectionPatch(next, params.district), contest: null });
+  }, [params, update]);
+  const selectCounty = useCallback((state: string, fips: string, additive: boolean) => {
+    if (state !== params.state) {
+      update({ state, district: null, districts: [], counties: [fips], contest: null });
+      return;
+    }
+    const alone = params.counties.length === 1 && params.counties[0] === fips;
+    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips] });
+  }, [params, update]);
 
   const activity = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -159,7 +177,7 @@ export function ElectionMonitor() {
             ],
           }}
           onStateChange={selectState}
-          onDistrictChange={(district) => update({ district, contest: null })}
+          onDistrictChange={(district) => update({ district, districts: [], contest: null })}
           onOfficeChange={(office) => update({ office, contest: null })}
           onLayerChange={(layer) => update({ layer })}
         />
@@ -170,7 +188,7 @@ export function ElectionMonitor() {
             districtName={selectedState && params.district ? districtLabel(selectedState.code, params.district) : null}
             subtitle="State, congressional district, county, and campaign-finance drill-down"
             onReset={() => selectState(null)}
-            onStateCrumb={() => update({ district: null, contest: null })}
+            onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
           <ControlOddsBanner />
           <StatStrip
@@ -188,10 +206,13 @@ export function ElectionMonitor() {
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}
+                selectedDistricts={chosenDistricts}
+                selectedCounties={params.counties}
                 initialView={params.view}
                 describe={describe}
                 onSelectState={selectState}
                 onSelectDistrict={selectDistrict}
+                onSelectCounty={selectCounty}
                 onViewChange={onViewChange}
               />
             </Suspense>
