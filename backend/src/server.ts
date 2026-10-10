@@ -54,10 +54,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting for public API endpoints
+// Rate limiting for public API endpoints. One map page view makes ~10 calls (counts,
+// contests, finance, markets, stream), so 600 covers heavy browsing but stops scrapers.
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 600,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
