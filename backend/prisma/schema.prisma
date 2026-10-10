@@ -1249,3 +1249,44 @@ model AreaDemographics {
   @@index([ingestionRunId])
   @@map("area_demographics")
 }
+
+// FEC Schedule E independent expenditures: spending by outside groups (super
+// PACs, parties, 501(c)s) for or against a federal candidate, never coordinated
+// with the campaign. One row per OpenFEC Schedule E line, keyed by its sub_id.
+// 24- and 48-hour notices are kept alongside regular reports; totals decide
+// which to count (see services/outside-spending), so storage stays faithful.
+model IndependentExpenditure {
+  id                String    @id @default(uuid())
+  subId             String    @unique @map("sub_id")
+  cycle             Int
+  committeeId       String    @map("committee_id")
+  committeeName     String    @map("committee_name")
+  // FEC candidate ID, not a foreign key: groups can target candidates we do not track.
+  candidateId       String?   @map("candidate_id")
+  candidateName     String?   @map("candidate_name")
+  candidateOffice   String?   @map("candidate_office") // H, S, P
+  candidateState    String?   @map("candidate_state")
+  candidateDistrict String?   @map("candidate_district") // two digits for House
+  supportOppose     String    @map("support_oppose") // S or O
+  amount            Decimal   @db.Decimal(15, 2)
+  expenditureDate   DateTime? @map("expenditure_date") @db.Date
+  disseminationDate DateTime? @map("dissemination_date") @db.Date
+  description       String?   @db.Text
+  communicationType String    @map("communication_type")
+  payeeName         String?   @map("payee_name")
+  isNotice          Boolean   @default(false) @map("is_notice") // 24- or 48-hour notice
+  isMemo            Boolean   @default(false) @map("is_memo")
+  filingForm        String?   @map("filing_form")
+  transactionId     String?   @map("transaction_id")
+  fileNumber        Int?      @map("file_number")
+  pdfUrl            String?   @map("pdf_url")
+  fetchedAt         DateTime  @map("fetched_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([cycle, candidateId])
+  @@index([cycle, candidateState, candidateOffice, candidateDistrict])
+  @@index([cycle, committeeId])
+  @@index([cycle, expenditureDate])
+  @@map("independent_expenditures")
+}
