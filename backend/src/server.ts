@@ -62,6 +62,8 @@ const publicLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Admin routes have their own limiter below; counting them here too capped them at this limit.
+  skip: (req) => req.path === '/admin' || req.path.startsWith('/admin/'),
 });
 
 // Higher limit for admin endpoints (dashboard polls frequently)
