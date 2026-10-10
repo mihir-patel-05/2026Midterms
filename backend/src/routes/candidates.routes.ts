@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { verifySyncAuth } from '../middleware/sync-auth.js';
+import { candidateOutsideSpendingHandler } from './outside-spending.routes.js';
 
 const router = Router();
 
@@ -18,6 +19,9 @@ router.get('/:id/finances/detailed', (req, res) => candidateController.getCandid
 
 // Get lobby/industry breakdown of donations for this candidate
 router.get('/:id/lobby-breakdown', (req, res) => candidateController.getCandidateLobbyBreakdown(req, res));
+
+// Independent expenditures (FEC Schedule E) for and against this candidate
+router.get('/:id/outside-spending', candidateOutsideSpendingHandler);
 
 // Get candidate finances (basic summary)
 router.get('/:id/finances', (req, res) => candidateController.getCandidateFinances(req, res));
