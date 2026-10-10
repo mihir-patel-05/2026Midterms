@@ -60,7 +60,7 @@ Differentiators:
 **Known gaps**
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
-- No news source is connected. The NYT and AP integrations (section 4.5) have no code or keys in the repo or in Railway yet.
+- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - No outside-spending data (FEC Schedule E, issue #31).
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
@@ -72,11 +72,11 @@ Differentiators:
 
 | When | Work |
 |---|---|
-| **Oct 8–14** | **Set up production on Railway first** (section 5.3). Market history API and sparklines. Biggest movers feed. NYT and AP news ingestion into `articles` (section 4.5). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
+| **Oct 8–14** | **Set up production on Railway first** (section 5.3). Market history API and sparklines. Biggest movers feed. NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
 | **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
-| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). **Feature freeze Oct 24.** |
+| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
-| **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. |
+| **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
 | **Nov 3** | Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
 | **After Nov 3** | Agent 6 (candidate positions), polarization and democratic-institutions indexes, post-election product ideas (section 4.3), and Phase 2 (section 4.4). |
 
@@ -88,21 +88,17 @@ Differentiators:
 
 | Feature | What it is |
 |---|---|
-<<<<<<< Updated upstream
 | **Demographics for selected areas** | Users select counties, House districts, or both on the map, and a Demographics tab shows population, citizens of voting age, age, race and ethnicity, income, poverty, education, unemployment, and housing from the ACS 5-year estimates. See section 4.5. |
-| **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," and top local issues. |
-| **Market history** | Hourly Kalshi snapshots with sparklines, volume, and liquidity. |
-=======
-| **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," top local issues, and recent NYT and AP coverage of the race (section 4.5). |
+| **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," top local issues, and recent NYT and AP coverage of the race (section 4.6). |
 | **Market history** | Sparklines of Kalshi prices over time on each race card and in the markets panel. Hourly rows have been collected in `market_snapshots` since Oct 10, so this needs only a history API (for example `/api/prediction-markets/history?race=PA-07&days=14`) and the chart. Volume and liquidity come later. |
 | **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
->>>>>>> Stashed changes
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. Ship the Kalshi-only version first: it runs on `market_snapshots` alone and is the trigger Agent 3 needs. Show the related NYT and AP headlines until Agent 3's explanations exist. |
 | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
 | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
+| **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
 
 ### 4.2 AI agents
 
@@ -110,7 +106,7 @@ Agents are the analyst layer, not the data layer. Each agent is a job made of a 
 
 | # | Agent | Output | Cadence |
 |---|---|---|---|
-| 1 | News triage | Tags each NYT and AP article (section 4.5) with races, candidates, issue, event type, and relevance | Every 15–30 min |
+| 1 | News triage | Tags each NYT and AP article (section 4.6) with races, candidates, issue, event type, and relevance | Every 15–30 min |
 | 2 | District issues | Top issues per district, with sources | Daily |
 | 3 | Why it moved | A cited explanation of a signal event, using tagged articles published before the move, or "no clear cause found" | Event-driven |
 | 4 | Signal divergence | Races where odds, polls, and money disagree | Daily |
@@ -166,7 +162,6 @@ Shared requirements for all of these:
 - **Phase 2: Elections Monitor.** 2027 governor races, the 2028 primaries, and a global calendar of major foreign elections. We are not expanding into general geopolitics.
 - **Business model:** core voter information stays free. Institutional embeds and research exports come only after we validate partner demand. We will never monetize vote intentions or reading profiles.
 
-<<<<<<< Updated upstream
 ### 4.5 Demographics (ACS 5-year)
 
 - **Source.** Census Data API, ACS 5-year detailed tables (2020–2024 vintage, `CENSUS_ACS_YEAR`). `npm run sync:acs` loads the nation, states, counties, 119th Congress districts, and the county pieces inside each district into `area_demographics`, and fills `district_profiles`. ACS publishes once a year, so the sync is run by hand after each December release.
@@ -174,8 +169,8 @@ Shared requirements for all of these:
 - **Math in code.** Only counts are stored. Sums use root-sum-of-squares margins of error, shares use the Census proportion formula, and a combined median household income is interpolated from income brackets and labeled "estimated." Values with a coefficient of variation over 30% are flagged. Census "not available" codes become null, never 0.
 - **Known gaps.** States with new 2026 maps show figures for their 2024 lines, like the map outlines. Connecticut's ACS geography is its 9 planning regions, so the county layer needs 2024 Census county boundaries (`npm run build:geo:counties`).
 - **Nonpartisan.** Demographics are shown as facts about an area, never as a prediction of how it votes.
-=======
-### 4.5 News: New York Times and AP
+
+### 4.6 News: New York Times and AP
 
 NYT and AP articles are the source material for news on race pages and for Agents 1, 3, and 5. **Neither is built yet.** There is no client code, and no `NYT_*` or `AP_*` keys exist in the repo or in Railway.
 
@@ -203,7 +198,41 @@ NYT and AP articles are the source material for news on race pages and for Agent
 
 - Does our AP account cover only news content, or also the **AP Elections API**? If it covers elections, AP becomes the election-night results provider in section 6, and the "not licensed yet" gap closes.
 - Which NYT APIs our key is enabled for, and the NYT and AP terms on caching headlines and abstracts.
->>>>>>> Stashed changes
+
+### 4.7 Live coverage: network election-night streams
+
+Embed election-night YouTube live streams from major news outlets in the dashboard, so users can watch the broadcast next to the map, results, and odds.
+
+**Outlets.** Start with a balanced set across the spectrum, shown in alphabetical order with no "recommended" pick:
+
+| Outlet | Where its stream lives | To confirm |
+|---|---|---|
+| ABC News | ABC News Live on YouTube | Whether election coverage is embeddable |
+| CBS News | CBS News 24/7 on YouTube | Same |
+| CNN | CNN does not usually stream its TV feed free on YouTube | Whether a YouTube stream exists; otherwise a "Watch on CNN" link-out tile |
+| Fox News / LiveNOW from FOX | LiveNOW from FOX on YouTube; Fox News itself is mostly behind a TV login | Which channel carries election night |
+| NBC News | NBC News NOW on YouTube | Whether election coverage is embeddable |
+| PBS NewsHour | PBS NewsHour on YouTube | Same |
+| Reuters, Bloomberg, C-SPAN, NewsNation, Decision Desk HQ | Their YouTube channels | Optional extras if they stream |
+
+**How it works**
+
+1. **Day-of configuration, not code.** Networks create election-night streams shortly before they air, so video IDs are not known in advance. The API serves the stream list (`GET /api/live-streams`) from the database, and admins set each outlet's video ID, or its channel's live URL as a fallback, in the admin dashboard. Changing a `VITE_*` value would need a rebuild of `web`, which is too slow on election night.
+2. **Official YouTube player only.** Embed with the YouTube IFrame player from `youtube-nocookie.com`. Never re-stream, record, proxy, or clip the video. Add `frame-src https://www.youtube-nocookie.com` to the `web` Content Security Policy.
+3. **Click to load.** Each tile shows the outlet name and a "Watch live" button. The iframe loads only after the click, so YouTube sets no cookies and loads no video for users who don't watch. That keeps the privacy rule (section 1) and the page-speed budget.
+4. **One with sound.** Allow up to four players in a grid, but only one unmuted at a time.
+5. **Graceful fallback.** If a stream is offline, ended, or has embedding disabled, the tile shows "Not streaming right now" and a "Watch on YouTube" (or outlet site) link, never a broken player.
+
+**Rules**
+
+- **Network calls are the network's.** Label the panel "Third-party broadcasts. Race calls and numbers in the video are the network's, not VoteInformed's." Never copy a call from a stream into `race_calls` or the results read model.
+- **Treat every outlet the same.** Same tile size, alphabetical order, and no ranking or labeling by ideology.
+- **Placement.** A "Live coverage" card on the dashboard during election-night mode, collapsed by default on mobile. Gate it with `VITE_FEATURE_LIVE_STREAMS`, plus a backend switch so admins can hide the panel without a deploy.
+
+**To confirm before building**
+
+- Each outlet's election-night YouTube plans, and that its streams allow embedding.
+- YouTube's embedding terms for live content, and whether any outlet requires attribution beyond the player's own branding.
 
 ---
 
@@ -257,9 +286,10 @@ NYT and AP articles are the source material for news on race pages and for Agent
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
 | FRED | Economic indicators | to add |
-| New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.5) |
-| AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.5) |
-| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.5) |
+| New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
+| AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
+| YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
+| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
 | Gemini | Chat and agents | `GEMINI_API_KEY` (chat returns 503 when blank) |
 
 ---
