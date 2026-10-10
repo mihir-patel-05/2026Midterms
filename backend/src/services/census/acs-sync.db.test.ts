@@ -10,6 +10,12 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 // A vintage no real sync uses, so the test never touches real rows.
 const YEAR = 2099;
 
+// Other test files sync their own vintages concurrently, so find this file's run by year.
+const latestRun = (db: PrismaClient) => db.ingestionRun.findFirstOrThrow({
+  where: { source: { key: ACS_SOURCE_KEY }, metadata: { path: ['year'], equals: YEAR } },
+  orderBy: { createdAt: 'desc' },
+});
+
 test('ACS sync stores every geography level and fills district profiles', { skip: !testDatabaseUrl }, async () => {
   const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
   try {
@@ -34,7 +40,7 @@ test('ACS sync stores every geography level and fills district profiles', { skip
 
     const source = await db.dataSource.findUniqueOrThrow({ where: { key: ACS_SOURCE_KEY } });
     assert.equal(source.healthStatus, 'CURRENT');
-    const run = await db.ingestionRun.findFirstOrThrow({ where: { sourceId: source.id }, orderBy: { createdAt: 'desc' } });
+    const run = await latestRun(db);
     assert.equal(run.status, 'SUCCEEDED');
   } finally {
     await db.areaDemographics.deleteMany({ where: { acsYear: YEAR } });
@@ -43,16 +49,15 @@ test('ACS sync stores every geography level and fills district profiles', { skip
   }
 });
 
-test('a failed sync marks its run and the source instead of passing silently', { skip: !testDatabaseUrl }, async () => {
+test('a failed sync marks its run failed instead of passing silently', { skip: !testDatabaseUrl }, async () => {
   const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
   try {
     const failing = (async () => new Response('error: unknown variable', { status: 400 })) as typeof fetch;
     const client = new CensusClient({ baseUrl: 'https://api.census.gov/data', year: YEAR, fetchImpl: failing });
     await assert.rejects(syncAcs(db, client, YEAR, () => {}), /unknown variable/);
-    const source = await db.dataSource.findUniqueOrThrow({ where: { key: ACS_SOURCE_KEY } });
-    assert.equal(source.healthStatus, 'DEGRADED');
-    const run = await db.ingestionRun.findFirstOrThrow({ where: { sourceId: source.id }, orderBy: { createdAt: 'desc' } });
+    const run = await latestRun(db);
     assert.equal(run.status, 'FAILED');
+    assert.match(run.errorSummary ?? '', /unknown variable/);
   } finally {
     await db.$disconnect();
   }

@@ -46,10 +46,10 @@ export async function syncAcs(
   log: (message: string) => void = console.log,
 ): Promise<AcsSyncStats> {
   const startedAt = new Date();
-  const source = await db.dataSource.upsert({
-    where: { key: ACS_SOURCE_KEY },
-    update: { lastCheckedAt: startedAt },
-    create: {
+  // Insert-if-absent rather than upsert, so two syncs starting together cannot race on the key.
+  await db.dataSource.createMany({
+    skipDuplicates: true,
+    data: {
       key: ACS_SOURCE_KEY,
       name: 'U.S. Census Bureau, American Community Survey 5-year estimates',
       type: 'OFFICIAL_FEDERAL',
@@ -59,9 +59,9 @@ export async function syncAcs(
       licenseName: 'Public domain (U.S. government work)',
       coverageDescription: 'Population, age, race and ethnicity, income, education, employment, and housing for the nation, states, counties, congressional districts, and county pieces within districts.',
       isEnabled: true,
-      lastCheckedAt: startedAt,
     },
   });
+  const source = await db.dataSource.update({ where: { key: ACS_SOURCE_KEY }, data: { lastCheckedAt: startedAt } });
   const run = await db.ingestionRun.create({
     data: {
       sourceId: source.id,
