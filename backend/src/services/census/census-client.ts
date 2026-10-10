@@ -194,7 +194,10 @@ export class CensusClient {
       if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs * 2 ** (attempt - 1)));
       this.requestCount++;
       try {
-        const response = await this.fetchImpl(url, { signal: AbortSignal.timeout(60_000) });
+        const response = await this.fetchImpl(url, {
+          signal: AbortSignal.timeout(60_000),
+          headers: { Accept: 'application/json', 'User-Agent': 'VoteInformed-ACS-sync/1.0 (+https://github.com/mihir-patel-05/2026Midterms)' },
+        });
         // 204: the geography exists but has no rows (for example, no counties in a query).
         if (response.status === 204) return [];
         const text = await response.text();
@@ -203,8 +206,12 @@ export class CensusClient {
           try {
             body = JSON.parse(text);
           } catch {
-            // An invalid key gets an HTML page with a 200 status rather than an error code.
-            throw new CensusRequestError(`Census API returned a non-JSON page for ${query.geoType}; check CENSUS_API_KEY`);
+            // An invalid or missing key, or an exhausted keyless allowance, gets an HTML page
+            // with a 200 status rather than an error code. Show what Census said.
+            throw new CensusRequestError(
+              `Census API returned a non-JSON page for ${query.geoType} (HTTP ${response.status}, ${response.headers.get('content-type') ?? 'no content type'}): "${pageText(text)}". `
+              + (this.options.apiKey ? 'Check that CENSUS_API_KEY is activated.' : 'Set CENSUS_API_KEY; keyless requests share a daily limit per IP address.'),
+            );
           }
           return parseAcsTable(body);
         }
@@ -219,6 +226,17 @@ export class CensusClient {
     }
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
+}
+
+/** The readable text of an HTML page, shortened for an error message. */
+export function pageText(body: string, max = 300): string {
+  const text = body
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text || '(empty body)';
 }
 
 export class CensusRequestError extends Error {
