@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 10, 2026
+Last updated: October 11, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -94,6 +94,7 @@ Differentiators:
 | **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
+| **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. Ship the Kalshi-only version first: it runs on `market_snapshots` alone and is the trigger Agent 3 needs. Show the related NYT and AP headlines until Agent 3's explanations exist. |
 | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
@@ -234,6 +235,104 @@ Embed election-night YouTube live streams from major news outlets in the dashboa
 - Each outlet's election-night YouTube plans, and that its streams allow embedding.
 - YouTube's embedding terms for live content, and whether any outlet requires attribution beyond the player's own branding.
 
+### 4.8 Cost of living: gas prices and tariff exposure by state
+
+A **Cost of Living** tab on the map, next to Demographics, with two panels: gas prices and tariff exposure. Selecting a state shows that state compared with the U.S. average. No state selected shows a 50-state map and a ranked table. Like demographics (section 4.5), these are facts about a place. They are never presented as a prediction or explanation of how it votes.
+
+**Gas prices**
+
+| Source | What it gives | Coverage | Cadence and access |
+|---|---|---|---|
+| **EIA weekly retail prices** (primary) | Regular, midgrade, premium, and diesel, in dollars per gallon | U.S.; 9 states (CA, CO, FL, MA, MN, NY, OH, TX, WA); PADD regions 1–5 with subregions 1A, 1B, and 1C; 10 cities | Every Monday, released Tuesday. Free EIA API v2, route `petroleum/pri/gnd` (U.S. regular is series `EMM_EPMR_PTE_NUS_DPG`). Public domain. History goes back to the 1990s. |
+| **AAA daily state averages** | Regular, midgrade, premium, and diesel for all 50 states, DC, and metros | Every state | Daily. There is no public API, and the data comes from OPIS. **Needs a license; we do not scrape it.** |
+| **GasBuddy business API** or **OPIS** | Daily state, metro, and county prices | Every state and many counties | Paid. Use one only if we license it. |
+| **EIA SEDS** | Annual average motor gasoline price for every state | All 50 states and DC | Annual, about two years behind. Good for long-run context only. |
+| **BLS CPI gasoline index** (`CUUR0000SETB01` and regional and metro versions) | Gasoline price change as an index | U.S., 4 census regions, and about 20 metro areas | Monthly, from the BLS API. |
+| **American Petroleum Institute state gas tax report** | State excise and other taxes in cents per gallon | All states | Quarterly. It explains part of why states differ, for example California's taxes and fuel blend. |
+
+Example from EIA, regular gasoline, week of Oct 5, 2026 compared with the week of Sep 29, 2025 (pulled Oct 11):
+
+| Area | Price now | Year ago | Change |
+|---|---|---|---|
+| U.S. | $4.354 | $3.118 | +$1.24 (+39.6%) |
+| California | $6.227 | $4.446 | +$1.78 (+40.1%) |
+| Texas | $3.874 | $2.647 | +$1.23 (+46.4%) |
+| Ohio | $3.829 | $2.856 | +$0.97 (+34.1%) |
+| Washington | $5.424 | $4.449 | +$0.98 (+21.9%) |
+
+What to show:
+
+- **Price now** compared with the U.S. average, as dollars above or below it and as a rank.
+- **Change over fixed windows:** 1 week, 1 month, 1 year, and an optional date the user picks. We do not pick a baseline tied to a person or party (an inauguration day, for example). The windows are the same for every state.
+- **A 2-year line chart** of the state against the U.S., plus an inflation-adjusted toggle that deflates the price by CPI excluding energy.
+- **Coverage label.** Ship the EIA version first. For the 41 states EIA does not publish, show the state's PADD region price, labeled "Regional average (East Coast, PADD 1), not a state figure." It is never shown as the state's own price. If we license AAA or GasBuddy, that becomes the state source and EIA stays as the national reference.
+- **"Country" means the U.S. average.** No free source gives county prices. County gas prices are possible only through a paid GasBuddy or OPIS license.
+
+**Tariff exposure**
+
+No single neutral "tariff index" covers every state, so we show several measures, each with its own source and method. We never combine them into a score.
+
+| Measure | Source | What it says | Geography and timing | Access |
+|---|---|---|---|---|
+| **Imported share of consumer spending** | Federal Reserve FEDS Note, "Which states are most exposed to tariff increases?" (Heyman, Hottman, and Monarch, Sep 3, 2026) | The share of a state's household spending that goes to directly imported consumer goods. Highest: CA 13.8% and NJ 12.7%. Lowest: NE and MO, both 2.6%. The population-weighted average is 7.1%. A 10-point tariff passed through fully raises living costs by about 1.4% in CA, 0.8% in PA, and 0.3% in NE. | **31 states only** (the Consumer Expenditure Survey sample). 2023 data. Counts only direct imports, so it understates exposure. | Published figure and accessible data table. Load it once as a static dataset. |
+| **Extra tariffs paid on imports** | NTUF State Tariffs Tracker (tariffs.org), estimates by Trade Partnership Worldwide | Cumulative executive-action tariffs since January 2025. Top totals: CA $63B, TX $37B, MI $23B, GA $20B, IL $17B. Top per household: MI $5,619, GA $4,771, CA $4,552, SC $4,203, NJ $4,031. Also gives monthly series and the hardest-hit import categories. | All 50 states, DC, and PR. Quarterly, through 2026 Q2 (updated Aug 4, 2026). | Free JSON (`tariffs.org/data/current.json`, `/data/states/<slug>.json`), free to use with attribution. Read the `/terms/` page before shipping. NTUF is a taxpayer advocacy group, so label the publisher and link its methodology. |
+| **Imports by state and country** (build our own) | Census International Trade API, `timeseries/intltrade/imports/statehs` and `exports/statehs` | Monthly import and export value by state, HS code (2, 4, or 6 digit), and partner country (`CTY_CODE`). From this we compute imports from China, Canada, Mexico, and the EU as a share of state GDP (BEA), and exports to countries that placed retaliatory tariffs on U.S. goods. | All states, monthly, about a 5-week lag. Note: `STATE` is the state of destination on customs filings, not where goods are consumed, and `XX` means unidentified. | Free; uses our existing `CENSUS_API_KEY`. |
+| **Manufacturing and trade-exposed jobs** | BLS QCEW (county and state, quarterly, about a 5-month lag), BLS CES state employment (monthly), BLS LAUS unemployment (monthly) | Year-over-year change in manufacturing (NAICS 31–33) and other trade-exposed industries (agriculture, transportation equipment, primary metals), as a count and percent. QCEW also has **county** detail, which fits the map's county layer. | All states and counties | Free BLS API (`BLS_API_KEY` for higher limits). |
+| **Announced layoffs** | State WARN Act notices (each state's labor department); aggregators such as WarnFirehose | Mass layoff and plant-closure notices with employer, location, headcount, and date | All states, but each state publishes differently | Prefer the state sources. Aggregators are a cross-check only. WARN notices do not give a reason, so we never label one "tariff-related." |
+| **National context** | Yale Budget Lab "Tracking the Economic Effects of Tariffs"; CBO tariff projections (Jul 31, 2026); CRS R49481 (tariff actions in effect, Sep 30, 2026); Tax Foundation tariff tracker | Effective tariff rate (Yale: 9.1% after the Supreme Court ruling), average household cost, revenue, and which tariffs are in force | National only | Cite and link. Use these for the methodology page and the U.S. comparison row, not as state values. |
+
+What to show:
+
+- **Exposure, not blame.** Each panel says what it measures, for example "Estimated extra tariffs paid on goods imported into Michigan, Q1 2025 to Q2 2026." Job losses and tariff exposure appear side by side but are **never presented as cause and effect**. Show this note: "Job changes have many causes; this does not isolate the effect of tariffs."
+- **Per household and per capita** next to totals, so large states do not top every ranking simply because they are large.
+- **Missing is not zero.** The 19 states without a Fed figure show "Not in the Fed study (31-state sample)." A suppressed QCEW cell shows "Suppressed by BLS," not 0.
+- **Source line on every number:** publisher, data period, and fetch date, as on FEC and Kalshi figures.
+- **Avoid advocacy and campaign sources** (party committee fact sheets, sites such as wepaythetariffs.com, and unsourced "tariff calculators"). If a partisan or advocacy group is the only source for a figure, we do not show that figure.
+
+**Build**
+
+1. **Data model (additive).** Reuse `indicator_series` and `indicator_observations` (batch 1). Add nullable `geo_level` (`nation`, `padd`, `state`, `county`, `metro`) and `geo_code` to `indicator_series` with a unique key on (`key`, `geo_code`). Series keys look like `eia.gas.regular`, `bls.qcew.mfg.employment`, and `ntuf.tariffs.exec_total`. The tariff-category breakdown and the Fed's one-off table go in `area_metrics` (state code, metric, period, value, source), or into `indicator_observations` if that fits.
+2. **Jobs.** `cron-econ`, a Railway cron job that runs EIA weekly (Tuesday after release), BLS monthly, Census trade monthly, and NTUF quarterly. Each raw response is saved as a `RawArtifact`, and `SyncLease` prevents overlaps. This is the same job as the FRED ingestion in section 2, extended.
+3. **API.** `GET /api/cost-of-living?state=MI` returns the gas price and change windows, tariff measures, job changes, and sources. `GET /api/cost-of-living/rankings?metric=gas.change_1y` returns the 50-state table.
+4. **Frontend.** The Cost of Living tab with a state choropleth, a comparison table, and a chart. Gate it with `VITE_FEATURE_COST_OF_LIVING` and `COST_OF_LIVING_INGEST_ENABLED`.
+5. **Timing.** EIA gas prices and the NTUF tariff data are small and free, so they can ship before the Oct 24 feature freeze if there is time. The Census trade, QCEW, and WARN builds come after Nov 3.
+
+**To confirm before building**
+
+- The EIA API key (free) and BLS API key (free) are added to Railway.
+- The tariffs.org Terms of Use allow display on our site, not only journalist citation.
+- The Fed note's accessible table lists all 31 state values. If not, contact the authors before using it.
+- Whether we want to pay for AAA, GasBuddy, or OPIS data to get daily prices for all 50 states (and counties). Without it, 41 states show a regional figure.
+
+**Sources and research links** (checked Oct 11, 2026)
+
+Gas prices:
+
+- [EIA gasoline and diesel fuel update](https://www.eia.gov/petroleum/gasdiesel/): weekly prices, geography list, and full-history XLS files
+- [EIA FAQ: historical gasoline prices by state](https://www.eia.gov/tools/faqs/faq.php?id=26&t=10)
+- [EIA Open Data (API v2)](https://www.eia.gov/opendata/)
+- [AAA state gas price averages](https://gasprices.aaa.com/?state=US): reference only; needs a license to use
+
+Tariff exposure:
+
+- [Federal Reserve FEDS Note: "Which states are most exposed to tariff increases?"](https://www.federalreserve.gov/econres/notes/feds-notes/which-states-are-most-exposed-to-tariff-increases-a-new-measure-based-on-the-consumption-channel-20260903.html) (Sep 3, 2026)
+- [NTUF State Tariffs Tracker: rankings](https://tariffs.org/rankings/), [methodology](https://tariffs.org/methodology/), and [data](https://tariffs.org/data/)
+- [Trade Partnership Worldwide: State Tariff Tracker](https://tradepartnership.com/data/the-state-tariff-tracker/): commercial; the source behind the NTUF estimates
+- [Census API: imports by state and HS code](https://api.census.gov/data/timeseries/intltrade/imports/statehs) and [catalog entry](https://catalog.data.gov/dataset/time-series-international-trade-monthly-u-s-imports-by-state-and-harmonized-system-hs-code)
+- [Census API: exports by state and HS code](https://api.census.gov/data/timeseries/intltrade/exports/statehs)
+
+Jobs and layoffs:
+
+- [BLS QCEW state and county map](https://data.bls.gov/maps/cew/US)
+- [WarnFirehose US Layoff Tracker](https://www.warnfirehose.com/layoffs): WARN aggregator, used only to cross-check the states' own lists
+
+National context:
+
+- [Yale Budget Lab: Tracking the Economic Effects of Tariffs](https://budgetlab.yale.edu/research/tracking-economic-effects-tariffs)
+- [CBO: Updated Budgetary Projections of Tariffs as of July 31, 2026](https://www.cbo.gov/publication/62704)
+- [CRS R49481: Active Presidential Tariff Actions in 2026](https://www.everycrsreport.com/reports/R49481.html)
+- [Tax Foundation: Trump Tariffs Tracker](https://taxfoundation.org/research/all/federal/trump-tariffs-trade-war/)
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -286,6 +385,11 @@ Embed election-night YouTube live streams from major news outlets in the dashboa
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
 | FRED | Economic indicators | to add |
+| EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
+| BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |
+| Census International Trade API (`intltrade/imports/statehs`, `exports/statehs`) | Imports and exports by state, product, and country (section 4.8) | `CENSUS_API_KEY` (existing) |
+| NTUF State Tariffs Tracker (tariffs.org JSON) | Extra tariffs paid by state, quarterly (section 4.8) | No key; attribution required; check the terms |
+| Federal Reserve FEDS Note (Sep 3, 2026) | Imported share of consumer spending, 31 states (section 4.8) | Static dataset, loaded once |
 | New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
 | AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
