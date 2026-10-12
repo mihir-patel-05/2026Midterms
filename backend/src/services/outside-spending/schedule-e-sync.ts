@@ -141,7 +141,7 @@ export async function syncScheduleE(db: Db, client: ScheduleEClient, options: Sc
       async (nextCursor) => {
         await db.scheduleESyncState.update({
           where: { cycle },
-          data: nextCursor ? { backfillCursor: nextCursor } : { backfillCursor: {}, backfillComplete: true, backfillDoneAt: new Date() },
+          data: nextCursor ? { backfillCursor: nextCursor } : { backfillCursor: {}, backfillComplete: true, backfillDoneAt: now },
         });
       },
     );
