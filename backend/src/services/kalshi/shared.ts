@@ -22,7 +22,12 @@ export const stateNames: Record<string, string> = {
   RI:'Rhode Island', SC:'South Carolina', SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah', VT:'Vermont',
   VA:'Virginia', WA:'Washington', WV:'West Virginia', WI:'Wisconsin', WY:'Wyoming',
 };
-export function isStateCode(code: string): boolean { return code in stateNames; }
+export function isStateCode(code: string): boolean { return Object.hasOwn(stateNames, code); }
+
+/** Our own copy of a state code, never the caller's string, or null when it is not a state. */
+export function knownStateCode(code: string): string | null {
+  return Object.keys(stateNames).find((known) => known === code) ?? null;
+}
 
 /** A dollar price strictly inside (0, 1); 0 and 1 mean no quote or a settled market. */
 export function validPrice(value: unknown): number | null {

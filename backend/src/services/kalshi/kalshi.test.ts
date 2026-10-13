@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { authHeaders, loadPrivateKey, signRequest } from './auth.js';
 import { buildCatalog, eventMarkets, parseHouseEventTicker, type JsonFetcher } from './catalog.js';
 import { KalshiLiveFeed } from './live-feed.js';
-import { quotePrice } from './shared.js';
+import { isStateCode, knownStateCode, quotePrice } from './shared.js';
 import { hourStart, snapshotRows, type SnapshotInput } from './snapshots.js';
 
 // Trimmed Kalshi /events responses recorded on 2026-10-06.
@@ -169,4 +169,12 @@ test('hourly capture writes once per hour and only while the socket is live', as
   (flaky as unknown as { writeSnapshots: () => Promise<number> }).writeSnapshots = async () => { retried = true; return 0; };
   await flaky.captureHour(new Date('2026-10-10T14:10:00Z'));
   assert.ok(retried);
+});
+
+test('state codes match only real states, never inherited object keys', () => {
+  assert.equal(isStateCode('TX'), true);
+  assert.equal(isStateCode('constructor'), false);
+  assert.equal(knownStateCode('PA'), 'PA');
+  assert.equal(knownStateCode('ZZ'), null);
+  assert.equal(knownStateCode('toString'), null);
 });
