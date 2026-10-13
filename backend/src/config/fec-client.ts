@@ -1,6 +1,13 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { env } from './env.js';
-import { fecRateLimiter } from '../utils/rate-limiter.js';
+import {
+  assertFecNotRateLimited,
+  fecRateLimiter,
+  FecRateLimitedError,
+  tripFecRateLimit,
+} from '../utils/rate-limiter.js';
+
+export { FecRateLimitedError };
 
 export interface FECPaginatedResponse<T> {
   api_version: string;
@@ -22,6 +29,22 @@ export interface FECKeysetBatch<T> {
   exhausted: boolean;
 }
 
+/**
+ * Strip the FEC API key from an axios error before it is rethrown. Callers log whole
+ * error objects, and axios keeps the key in `config.params` and the full query string
+ * on the raw request, so without this the key lands in the server logs.
+ */
+export function redactFecApiKey<T>(error: T): T {
+  if (!error || typeof error !== 'object') return error;
+  const target = error as { config?: { params?: Record<string, unknown> }; request?: unknown; response?: { config?: { params?: Record<string, unknown> }; request?: unknown } };
+  for (const config of [target.config, target.response?.config]) {
+    if (config?.params && 'api_key' in config.params) config.params = { ...config.params, api_key: '[redacted]' };
+  }
+  delete target.request;
+  if (target.response) delete target.response.request;
+  return error;
+}
+
 export class FECClient {
   private client: AxiosInstance;
   private requestCount = 0;
@@ -34,6 +57,8 @@ export class FECClient {
         api_key: env.FEC_API_KEY,
       },
       timeout: 30000,
+      // OpenFEC takes repeated keys for multi-value filters (designation=P&designation=A).
+      paramsSerializer: { indexes: null },
     });
 
     // OPTIMIZED: Reduced logging - only log every 20 requests or errors
@@ -57,6 +82,10 @@ export class FECClient {
     this.client.interceptors.response.use(
       (response) => response, // No logging for successful responses
       (error) => {
+        redactFecApiKey(error);
+        if (error.response?.status === 429) {
+          return Promise.reject(tripFecRateLimit(error.response.headers?.['retry-after']));
+        }
         if (error.response) {
           console.error(
             `❌ FEC API Error: ${error.response.status} - ${error.response.statusText}`
@@ -77,13 +106,18 @@ export class FECClient {
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<FECPaginatedResponse<T>>> {
     if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured; FEC sync is unavailable');
+    assertFecNotRateLimited();
     // Create unique job ID by including query parameters
     const params = new URLSearchParams(config?.params || {});
     const jobId = `GET ${endpoint}${params.toString() ? '?' + params.toString() : ''}`;
 
     return fecRateLimiter.schedule(
       { id: jobId },
-      () => this.client.get<FECPaginatedResponse<T>>(endpoint, config)
+      () => {
+        // Requests queued before a 429 must not go out once the circuit opens.
+        assertFecNotRateLimited();
+        return this.client.get<FECPaginatedResponse<T>>(endpoint, config);
+      }
     );
   }
 
@@ -112,7 +146,12 @@ export class FECClient {
       hasMore = page < pagination.pages;
       page++;
 
-      if (hasMore) {
+      if (hasMore && page > maxPages) {
+        console.warn(
+          `⚠️  ${endpoint}: stopped at ${maxPages} of ${pagination.pages} pages; ` +
+          `${pagination.count - maxPages * 100} result(s) not fetched`
+        );
+      } else if (hasMore) {
         console.log(
           `📄 Fetching page ${page}/${pagination.pages} for ${endpoint}...`
         );
@@ -192,6 +231,23 @@ export class FECClient {
 
     return { results: allResults, nextCursor: cursor, exhausted: false };
   }
+}
+
+/**
+ * True when OpenFEC rejected the API key itself. Every later request would fail
+ * the same way, so syncs should stop instead of counting thousands of errors.
+ */
+export function isFecAuthError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return status === 401 || status === 403;
+}
+
+/**
+ * True when no further FEC request can succeed for now (bad key or exhausted
+ * rate limit), so sync loops should abort rather than move on to the next item.
+ */
+export function isFecFatalError(error: unknown): boolean {
+  return isFecAuthError(error) || error instanceof FecRateLimitedError;
 }
 
 // Export singleton instance

@@ -9,6 +9,9 @@ import researcherAuthRoutes from './researcher-auth.routes.js';
 import researchRoutes from './research.routes.js';
 import resultsV1Routes from './results-v1.routes.js';
 import predictionMarketsRoutes from './prediction-markets.routes.js';
+import districtsRoutes from './districts.routes.js';
+import demographicsRoutes from './demographics.routes.js';
+import outsideSpendingRoutes from './outside-spending.routes.js';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { prisma } from '../config/database.js';
 
@@ -25,6 +28,9 @@ router.use('/auth/researcher', researcherAuthRoutes);
 router.use('/research', researchRoutes);
 router.use('/v1', resultsV1Routes);
 router.use('/prediction-markets', predictionMarketsRoutes);
+router.use('/districts', districtsRoutes);
+router.use('/demographics', demographicsRoutes);
+router.use('/outside-spending', outsideSpendingRoutes);
 
 // Static catalog of supported lobbies (for UI legends/filters)
 router.get('/lobbies', (req, res) => candidateController.getLobbyCatalog(req, res));
@@ -50,12 +56,13 @@ const readinessHandler = async (_req: Request, res: Response) => {
       database: 'connected',
     });
   } catch (error) {
+    // The driver error can name hosts and credentials; keep it in the logs, not the response.
+    console.error('Readiness check failed:', error instanceof Error ? error.message : error);
     res.status(503).json({
       status: 'error',
       timestamp: new Date().toISOString(),
       service: '2026 Midterms API',
       database: 'disconnected',
-      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };

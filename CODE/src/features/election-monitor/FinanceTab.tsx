@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { BadgeDollarSign, CloudOff, Loader2 } from "lucide-react";
 import { getCandidateDetailedFinances } from "@/lib/api";
+import { formatShortDate } from "./constants";
+import { OutsideSpendingCard } from "./OutsideSpendingCard";
 import { MONITOR_CYCLE } from "./realData";
 import type { MonitorContest } from "./types";
 
@@ -11,6 +13,12 @@ const money = (value: number) => compact.format(value);
 
 function Empty({ icon: Icon, title, copy, spin }: { icon: typeof CloudOff; title: string; copy: string; spin?: boolean }) {
   return <div className="em-empty"><Icon aria-hidden="true" className={spin ? "animate-spin" : undefined} /><strong>{title}</strong><span>{copy}</span></div>;
+}
+
+/** "OCTOBER QUARTERLY" → "October quarterly". */
+function reportTypeLabel(type: string) {
+  const lower = type.trim().toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 export function FinanceTab({ contest }: { contest: MonitorContest | undefined }) {
@@ -27,8 +35,10 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
   });
 
   const summary = finance.data?.summary;
+  const report = finance.data?.report;
   const hasFilings = Boolean(summary && (summary.totalReceipts > 0 || summary.totalDisbursements > 0 || summary.cashOnHand > 0));
-  const mix = summary
+  const breakdownAvailable = finance.data?.breakdownAvailable !== false;
+  const mix = summary && breakdownAvailable
     ? [
         { label: "Individuals", value: summary.individualContributions },
         { label: "PACs", value: summary.pacContributions },
@@ -53,18 +63,25 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
           <div className="em-metric"><dt>Disbursements</dt><dd>{money(summary.totalDisbursements)}</dd></div>
           <div className="em-metric"><dt>Debts</dt><dd>{money(summary.debtOwed)}</dd></div>
         </dl>
-        <div className="em-finance-chart" aria-label="Receipts by source">
-          {mix.map((item) => (
-            <div className="em-finance-row" key={item.label}>
-              <span>{item.label}</span>
-              <div className="em-bar" aria-hidden="true"><span style={{ width: `${(item.value / mixMax) * 100}%` }} /></div>
-              <strong>{money(item.value)}</strong>
-            </div>
-          ))}
-        </div>
+        {mix.length > 0 && (
+          <div className="em-finance-chart" aria-label="Receipts by source">
+            {mix.map((item) => (
+              <div className="em-finance-row" key={item.label}>
+                <span>{item.label}</span>
+                <div className="em-bar" aria-hidden="true"><span style={{ width: `${(item.value / mixMax) * 100}%` }} /></div>
+                <strong>{money(item.value)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="em-note">
-          FEC filings, {MONITOR_CYCLE} cycle{summary.lastUpdated ? `, updated ${new Date(summary.lastUpdated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}.
+          {report?.coverageEndDate
+            ? `Reported to the FEC through ${formatShortDate(report.coverageEndDate)}${report.lastReportType ? ` (${reportTypeLabel(report.lastReportType)})` : ""}, ${MONITOR_CYCLE} cycle.`
+            : `FEC filings, ${MONITOR_CYCLE} cycle.`}
+          {summary.lastUpdated ? ` Synced ${formatShortDate(summary.lastUpdated)}.` : ""}
+          {breakdownAvailable ? "" : " Breakdown by source is still syncing."}
           {finance.data?.itemizedCoverage.status === "partial" ? " Itemized detail is still syncing for some committees." : ""}
+          {report && <> <a className="em-link" href={report.sourceUrl} target="_blank" rel="noopener noreferrer">Check the filings on FEC.gov ↗</a></>}
         </div>
       </>
     );
@@ -88,11 +105,7 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
         {selected?.profileId && <Link className="em-link mt-3 inline-block" to={`/candidates/${selected.profileId}`}>Full finance profile, donors and industry breakdown →</Link>}
       </section>
 
-      <section className="em-card" aria-labelledby="em-outside-heading">
-        <h3 id="em-outside-heading">Outside spending</h3>
-        <p>Independent expenditures supporting and opposing candidates are reported separately and never netted.</p>
-        <Empty icon={BadgeDollarSign} title="Not yet available" copy="Independent-expenditure data is not loaded into VoteInformed yet." />
-      </section>
+      <OutsideSpendingCard contest={contest} />
     </>
   );
 }

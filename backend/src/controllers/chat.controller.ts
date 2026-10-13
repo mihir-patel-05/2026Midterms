@@ -13,12 +13,10 @@ import { env } from '../config/env.js';
  * LIMITATIONS:
  * - Lost on server restart/deployment
  * - Not shared across multiple server instances
- * - No cleanup for old sessions (potential memory leak)
  *
- * RECOMMENDATIONS:
- * - Move to Redis for distributed caching with TTL
- * - Or move to database (Prisma) for persistence
- * - Add session cleanup for sessions older than 24 hours
+ * Bounded so anonymous clients cannot grow it without limit: at most
+ * MAX_SESSIONS sessions (oldest evicted first), each idle for at most
+ * SESSION_TTL_MS, keeping the last MAX_HISTORY messages.
  */
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -26,11 +24,33 @@ interface ChatMessage {
   timestamp: string;
 }
 
-interface ConversationHistory {
-  [sessionId: string]: ChatMessage[];
-}
+const MAX_SESSIONS = 5000;
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_HISTORY = 20;
+const MAX_MESSAGE_LENGTH = 4000;
+// Client-generated, unguessable IDs (the web app uses crypto.randomUUID()).
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{16,100}$/;
 
-const conversations: ConversationHistory = {};
+const conversations = new Map<string, { messages: ChatMessage[]; lastUsed: number }>();
+
+function getConversation(sessionId: string): ChatMessage[] {
+  const now = Date.now();
+  const existing = conversations.get(sessionId);
+  if (existing && now - existing.lastUsed < SESSION_TTL_MS) {
+    // Re-insert so Map order tracks recency and eviction drops the least recently used.
+    conversations.delete(sessionId);
+    existing.lastUsed = now;
+    conversations.set(sessionId, existing);
+    return existing.messages;
+  }
+  conversations.delete(sessionId);
+  while (conversations.size >= MAX_SESSIONS) {
+    conversations.delete(conversations.keys().next().value!);
+  }
+  const created = { messages: [] as ChatMessage[], lastUsed: now };
+  conversations.set(sessionId, created);
+  return created.messages;
+}
 
 // Initialize Gemini AI client (singleton pattern)
 // Using gemini-1.5-flash for faster responses and lower costs
@@ -67,18 +87,23 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    if (!sessionId || typeof sessionId !== 'string') {
+    if (message.length > MAX_MESSAGE_LENGTH) {
       res.status(400).json({
         error: 'Bad Request',
-        message: 'Session ID is required',
+        message: `Message must be at most ${MAX_MESSAGE_LENGTH} characters`,
       });
       return;
     }
 
-    // Initialize conversation history for new sessions
-    if (!conversations[sessionId]) {
-      conversations[sessionId] = [];
+    if (typeof sessionId !== 'string' || !SESSION_ID_PATTERN.test(sessionId)) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'A valid session ID is required',
+      });
+      return;
     }
+
+    const history = getConversation(sessionId);
 
     // Add user message to conversation history
     const userMessage: ChatMessage = {
@@ -86,10 +111,10 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
       content: message.trim(),
       timestamp: new Date().toISOString(),
     };
-    conversations[sessionId].push(userMessage);
+    history.push(userMessage);
 
     // Get conversation context (last 10 messages for context window, excluding current message)
-    const conversationContext = conversations[sessionId].slice(-11, -1); // Get previous 10 messages
+    const conversationContext = history.slice(-11, -1); // Get previous 10 messages
 
     // Build chat history for Gemini (excluding the current user message)
     const chatHistory = conversationContext.map(msg => ({
@@ -111,7 +136,8 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
       content: aiResponse,
       timestamp: new Date().toISOString(),
     };
-    conversations[sessionId].push(assistantMessage);
+    history.push(assistantMessage);
+    if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
 
     // Return response
     res.json({
@@ -180,16 +206,16 @@ export const clearConversation = async (req: Request, res: Response): Promise<vo
   try {
     const { sessionId } = req.params;
 
-    if (!sessionId) {
+    if (!SESSION_ID_PATTERN.test(sessionId)) {
       res.status(400).json({
         error: 'Bad Request',
-        message: 'Session ID is required',
+        message: 'A valid session ID is required',
       });
       return;
     }
 
     // Clear conversation history
-    delete conversations[sessionId];
+    conversations.delete(sessionId);
 
     res.json({
       message: 'Conversation history cleared successfully',

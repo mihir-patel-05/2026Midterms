@@ -5,42 +5,78 @@ import { env } from './config/env.js';
 import { prisma } from './config/database.js';
 import routes from './routes/index.js';
 import { initializeScheduler } from './jobs/scheduler.js';
+import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
 
 const app: Application = express();
+
+app.disable('x-powered-by');
+
+// Railway terminates TLS at one proxy hop. Trust it so req.ip is the visitor's address,
+// otherwise every visitor shares the proxy's IP and one rate-limit bucket.
+app.set('trust proxy', 1);
+
+// Railway service URLs are bare hosts; CORS compares against full origins.
+const toOrigin = (host?: string) =>
+  host ? (/^https?:\/\//.test(host) ? host : `https://${host}`).replace(/\/+$/, '') : undefined;
+
+const allowedOrigins = [
+  env.FRONTEND_URL ?? toOrigin(env.RAILWAY_SERVICE_FRONTEND_URL),
+  env.ADMIN_URL ?? toOrigin(env.RAILWAY_SERVICE_ADMIN_DASHBOARD_URL),
+  ...(env.NODE_ENV !== 'production'
+    ? [
+        'http://localhost:8080',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:8080',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+      ]
+    : []),
+]
+  .filter((origin): origin is string => Boolean(origin))
+  .map((origin) => origin.replace(/\/+$/, ''));
 
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      env.FRONTEND_URL,
-      env.ADMIN_URL,
-      ...(env.NODE_ENV !== 'production'
-        ? ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174']
-        : []),
-    ].filter(Boolean);
-
     // Allow requests with no origin (server-to-server, curl, etc.)
     if (!origin) {
       callback(null, true);
     } else if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Omit CORS headers so the browser blocks it, instead of a 500 from the error handler.
+      console.warn(`[CORS] Rejected origin ${origin}; allowed: ${allowedOrigins.join(', ')}`);
+      callback(null, false);
     }
   },
   credentials: true,
 }));
 
+// The API serves only JSON and event streams, so it can refuse to be framed or run as a page.
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+  });
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting for public API endpoints
+// Rate limiting for public API endpoints. One map page view makes ~10 calls (counts,
+// contests, finance, markets, stream), so 600 covers heavy browsing but stops scrapers.
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 600,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Admin routes have their own limiter below; counting them here too capped them at this limit.
+  skip: (req) => req.path === '/admin' || req.path.startsWith('/admin/'),
 });
 
 // Higher limit for admin endpoints (dashboard polls frequently)
@@ -118,6 +154,7 @@ const startServer = async () => {
   });
 
   initializeScheduler();
+  void kalshiLiveFeed.start().catch((error) => console.error('❌ Kalshi live feed failed to start:', error));
 
   try {
     await prisma.$connect();
@@ -127,15 +164,23 @@ const startServer = async () => {
   }
 };
 
+// Express 4 does not catch rejected async handlers, and Node exits on an unhandled
+// rejection by default. Log it instead, so one bad request cannot take the API down.
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled promise rejection:', reason);
+});
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  kalshiLiveFeed.stop();
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down gracefully...');
+  kalshiLiveFeed.stop();
   await prisma.$disconnect();
   process.exit(0);
 });

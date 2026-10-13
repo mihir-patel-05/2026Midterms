@@ -30,6 +30,7 @@ import {
 import { getCandidateById, getCandidateDetailedFinances } from "@/lib/api";
 import type { Candidate, DetailedFinanceResponse } from "@/types/candidate";
 import { LobbyBreakdown } from "@/components/candidates/LobbyBreakdown";
+import { OutsideSpendingPanel } from "@/components/candidates/OutsideSpendingPanel";
 
 /**
  * Format currency amount to readable string
@@ -324,6 +325,7 @@ export default function Candidates() {
             <TabsList className="mb-8">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="funding">Campaign Finance</TabsTrigger>
+              <TabsTrigger value="outside">Outside Spending</TabsTrigger>
               {ideologyScore !== undefined && (
                 <TabsTrigger value="ideology">Ideology</TabsTrigger>
               )}
@@ -650,6 +652,11 @@ export default function Candidates() {
                   </p>
                 </div>
               )}
+            </TabsContent>
+
+            {/* Outside Spending Tab: FEC Schedule E independent expenditures */}
+            <TabsContent value="outside" className="space-y-6">
+              <OutsideSpendingPanel candidateId={candidate.id} fecCandidateId={candidate.candidateId} />
             </TabsContent>
 
             {/* Ideology Tab */}

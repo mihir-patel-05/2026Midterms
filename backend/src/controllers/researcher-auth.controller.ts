@@ -31,51 +31,70 @@ export async function researcherAuth(req: ResearcherRequest, res: Response, next
     return;
   }
 
-  const user = await prisma.researcherUser.findUnique({ where: { id: payload.sub } });
-  if (!user || !user.isActive) {
-    res.status(401).json({ error: 'Unauthorized', message: 'Account inactive' });
+  if (typeof payload?.sub !== 'string') {
+    res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired token' });
     return;
   }
 
-  req.researcher = { id: user.id, email: user.email, name: user.name };
-  next();
+  try {
+    const user = await prisma.researcherUser.findUnique({ where: { id: payload.sub } });
+    if (!user || !user.isActive) {
+      res.status(401).json({ error: 'Unauthorized', message: 'Account inactive' });
+      return;
+    }
+
+    req.researcher = { id: user.id, email: user.email, name: user.name };
+    next();
+  } catch (error) {
+    console.error('Error verifying researcher session:', error);
+    res.status(500).json({ error: 'Authentication service unavailable' });
+  }
 }
 
 export const researcherAuthController = {
   async login(req: Request, res: Response): Promise<void> {
     const { email, password } = req.body ?? {};
-    if (!email || !password) {
+    // Postgres rejects NUL bytes, and bcrypt throws on non-strings; refuse both up front.
+    if (
+      typeof email !== 'string' || typeof password !== 'string' || !email || !password ||
+      email.includes('\0') || email.length > 320 || password.length > 1024
+    ) {
       res.status(400).json({ error: 'Email and password required' });
       return;
     }
 
-    const user = await prisma.researcherUser.findUnique({ where: { email: String(email).toLowerCase() } });
-    if (!user || !user.isActive) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
+    try {
+      const user = await prisma.researcherUser.findUnique({ where: { email: email.toLowerCase() } });
+      if (!user || !user.isActive) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      const ok = await bcrypt.compare(password, user.passwordHash);
+      if (!ok) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      const token = jwt.sign(
+        { sub: user.id, email: user.email } satisfies ResearcherJwtPayload,
+        env.RESEARCHER_JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN },
+      );
+
+      await prisma.researcherUser.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+
+      res.json({
+        token,
+        user: { id: user.id, email: user.email, name: user.name },
+      });
+    } catch (error) {
+      console.error('Error during researcher login:', error);
+      res.status(500).json({ error: 'Authentication failed' });
     }
-
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    const token = jwt.sign(
-      { sub: user.id, email: user.email } satisfies ResearcherJwtPayload,
-      env.RESEARCHER_JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN },
-    );
-
-    await prisma.researcherUser.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    res.json({
-      token,
-      user: { id: user.id, email: user.email, name: user.name },
-    });
   },
 
   async me(req: ResearcherRequest, res: Response): Promise<void> {

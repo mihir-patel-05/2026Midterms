@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { loadMockDashboard } from "@/features/election-dashboard/mockApi";
 import type { SourceStatusContract } from "@/features/election-dashboard/types";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { API_BASE_URL } from "@/lib/apiBase";
 import { FICTIONAL_STATE_CODE } from "./constants";
 import type { MonitorContest, MonitorResults } from "./types";
 
@@ -83,7 +84,7 @@ export function useResultsSourceStatus() {
     staleTime: 30_000,
     refetchInterval: 60_000,
     queryFn: async ({ signal }) => {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const baseUrl = API_BASE_URL;
       const response = await fetch(`${baseUrl}/api/v1/sources/status`, { signal });
       if (!response.ok) throw new Error(`Source status returned ${response.status}`);
       const payload = (await response.json()) as { data: { sources: SourceStatusContract[] } };

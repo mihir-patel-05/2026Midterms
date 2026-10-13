@@ -77,6 +77,15 @@ export interface Candidate {
   // Relations (optional, only included in detail view)
   committees?: Committee[];
   ideologyScores?: IdeologyScore[];
+  /** Headline FEC totals for the requested cycle (elections-by-state responses). Decimals arrive as strings. */
+  financials?: Array<{
+    receipts: string | number;
+    disbursements: string | number;
+    cashOnHand: string | number;
+    /** End of the latest report the totals include. */
+    coverageEndDate?: string | null;
+    lastUpdated: string;
+  }>;
 
   // Computed fields (when includeFunds=true)
   totalFundsRaised?: number;
@@ -216,6 +225,16 @@ export interface DetailedFinanceSummary {
   lastUpdated: string | null;
 }
 
+export interface FinanceReportSource {
+  source: 'FEC';
+  sourceUrl: string;
+  coverageStartDate: string | null;
+  /** Totals include activity through this date. */
+  coverageEndDate: string | null;
+  lastReportType: string | null;
+  syncedAt: string;
+}
+
 /**
  * Full detailed finance response for a candidate
  * Includes funding sources, top donors, and spending breakdown
@@ -226,6 +245,10 @@ export interface DetailedFinanceResponse {
   topDonors: TopDonor[];
   spendingCategories: SpendingCategory[];
   itemizedCoverage: ItemizedCoverage;
+  /** False while only headline totals are on file; the source mix is not yet reliable. */
+  breakdownAvailable?: boolean;
+  /** Source link and reporting period for the summary; null when nothing is on file. */
+  report?: FinanceReportSource | null;
   lastSynced: string;
 }
 

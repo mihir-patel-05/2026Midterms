@@ -9,8 +9,10 @@
 import cron from 'node-cron';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
+import { FecRateLimitedError, isFecAuthError } from '../config/fec-client.js';
 import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
+import { runScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
 import {
@@ -22,34 +24,16 @@ import {
 
 // Configuration for scheduled syncs
 const SYNC_CONFIG = {
-  states: [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-  ],
-  
   // Offices to sync
-  offices: ['S', 'H'], // S = Senate, H = House
-  
+  offices: ['S', 'H'] as const, // S = Senate, H = House
+
   // Current election cycle
-  cycles: [2026],
-  
-  // Batch processing size
-  batchSize: 5,
-  
-  // Skip candidates synced within this timeframe
-  skipIfSyncedWithinHours: 12,
-  
-  // Max pages per API request
-  maxPagesPerRequest: 3,
+  cycle: 2026,
 };
 
 interface SyncStats {
   candidatesSynced: number;
   candidatesErrors: number;
-  candidatesSkipped: number;
   financesSynced: number;
   financesErrors: number;
   committeesSynced: number;
@@ -63,12 +47,8 @@ interface SyncStats {
   duration: number;
 }
 
-/**
- * Main sync function with SyncLog tracking
- */
-async function runScheduledSync(): Promise<void> {
-  const startTime = Date.now();
-
+/** Claim the cross-process sync lease, or throw if another sync holds it. */
+async function claimSyncLease(): Promise<string> {
   const recovered = await recoverStaleSyncLogs();
   if (recovered > 0) {
     console.warn(`⚠️  Marked ${recovered} abandoned sync log(s) as failed`);
@@ -76,7 +56,16 @@ async function runScheduledSync(): Promise<void> {
 
   const leaseToken = await acquireSyncLease('fec-full');
   if (!leaseToken) throw new SyncAlreadyRunningError();
-  
+  return leaseToken;
+}
+
+/**
+ * Full sync with SyncLog tracking. Owns the lease from here on and always
+ * releases it.
+ */
+async function executeSync(leaseToken: string): Promise<void> {
+  const startTime = Date.now();
+
   // Create initial sync log entry
   let syncLog;
   try {
@@ -85,9 +74,8 @@ async function runScheduledSync(): Promise<void> {
         syncType: 'full',
         status: 'started',
         metadata: {
-          states: SYNC_CONFIG.states,
-          offices: SYNC_CONFIG.offices,
-          cycles: SYNC_CONFIG.cycles,
+          offices: [...SYNC_CONFIG.offices],
+          cycles: [SYNC_CONFIG.cycle],
           scheduledSync: true,
         },
       },
@@ -102,14 +90,12 @@ async function runScheduledSync(): Promise<void> {
   console.log('='.repeat(70));
   console.log(`📅 Date: ${new Date().toISOString()}`);
   console.log(`🆔 Sync Log ID: ${syncLog.id}`);
-  console.log(`🗺️  States: ${SYNC_CONFIG.states.join(', ')}`);
   console.log(`🏛️  Offices: Senate & House`);
   console.log('='.repeat(70) + '\n');
 
   const stats: SyncStats = {
     candidatesSynced: 0,
     candidatesErrors: 0,
-    candidatesSkipped: 0,
     financesSynced: 0,
     financesErrors: 0,
     committeesSynced: 0,
@@ -130,111 +116,43 @@ async function runScheduledSync(): Promise<void> {
       data: { status: 'running' },
     });
 
-    // Step 1: Sync Candidates
-    console.log('📥 STEP 1: Syncing Candidates\n');
+    // Step 1: Every active candidate with headline totals, in bulk. A failed
+    // fetch aborts the run rather than publishing a partial candidate list.
+    console.log('📥 STEP 1: Syncing Candidates + Headline Totals\n');
 
-    for (const state of SYNC_CONFIG.states) {
-      for (const office of SYNC_CONFIG.offices) {
-        try {
-          const result = await candidateService.syncCandidates({
-            state,
-            office,
-            cycle: SYNC_CONFIG.cycles[0],
-            maxPages: SYNC_CONFIG.maxPagesPerRequest,
-          });
-          
-          stats.candidatesSynced += result.synced;
-          stats.candidatesErrors += result.errors;
-          
-          console.log(
-            `  ✅ ${state} ${office === 'S' ? 'Senate' : 'House'}: ${result.synced} candidates`
-          );
-        } catch (error: any) {
-          console.error(`  ❌ ${state} ${office}:`, error.message);
-          stats.candidatesErrors++;
-        }
-
-        // Small delay between requests
-        await sleep(150);
-      }
+    for (const office of SYNC_CONFIG.offices) {
+      const result = await candidateService.syncCandidatesWithTotals({
+        office,
+        cycle: SYNC_CONFIG.cycle,
+      });
+      stats.candidatesSynced += result.synced;
+      stats.candidatesErrors += result.errors;
     }
 
     console.log(
       `\n📊 Candidate Sync Summary: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors\n`
     );
 
-    // Step 2: Sync Financials + Committees
-    console.log('📥 STEP 2: Syncing Financial Data + Committees\n');
+    // Step 2: Keep race shells and active FEC filing links in sync. This only
+    // needs the candidate list from step 1, so it runs before the hours-long
+    // step 3 and the map shows races minutes into a sync, not at the end.
+    const elections = await electionService.generateElections(SYNC_CONFIG.cycle);
+    stats.electionsCreated = elections.electionsCreated;
+    stats.candidateLinksCreated = elections.candidateLinksCreated;
+    stats.electionErrors = elections.errors;
 
-    const skipThreshold = new Date(
-      Date.now() - SYNC_CONFIG.skipIfSyncedWithinHours * 60 * 60 * 1000
-    );
+    // Step 3: Committees and the full source breakdown for every funded
+    // candidate, from OpenFEC's bulk committee endpoints (~115 requests in all
+    // rather than two per candidate).
+    console.log('📥 STEP 3: Syncing Committees + Detailed Totals\n');
 
-    // Get candidates that need syncing
-    const allCandidates = await prisma.candidate.findMany({
-      where: {
-        cycles: { hasSome: SYNC_CONFIG.cycles },
-      },
-      select: {
-        candidateId: true,
-        name: true,
-        financials: {
-          where: { cycle: SYNC_CONFIG.cycles[0] },
-          select: { lastUpdated: true },
-          take: 1,
-        },
-      },
-    });
+    const committees = await candidateService.syncHouseSenateCommittees(SYNC_CONFIG.cycle);
+    stats.committeesSynced = committees.synced;
+    stats.committeesErrors = committees.errors;
 
-    // Filter candidates needing sync
-    const candidatesToSync = allCandidates.filter((c) => {
-      const lastSync = c.financials?.[0]?.lastUpdated;
-      return !lastSync || new Date(lastSync) < skipThreshold;
-    });
-
-    stats.candidatesSkipped = allCandidates.length - candidatesToSync.length;
-    
-    console.log(`  📋 Total candidates: ${allCandidates.length}`);
-    console.log(`  ⏭️  Skipped (recently synced): ${stats.candidatesSkipped}`);
-    console.log(`  🔄 Need syncing: ${candidatesToSync.length}\n`);
-
-    // Process in batches
-    for (let i = 0; i < candidatesToSync.length; i += SYNC_CONFIG.batchSize) {
-      const batch = candidatesToSync.slice(i, i + SYNC_CONFIG.batchSize);
-
-      await Promise.all(
-        batch.map(async (candidate) => {
-          try {
-            const [finResult, commResult] = await Promise.all([
-              financeService.syncCandidateFinancials(
-                candidate.candidateId,
-                SYNC_CONFIG.cycles[0]
-              ),
-              candidateService.syncCandidateCommittees(candidate.candidateId),
-            ]);
-
-            stats.financesSynced += finResult.synced;
-            stats.financesErrors += finResult.errors;
-            stats.committeesSynced += commResult.synced;
-            stats.committeesErrors += commResult.errors;
-
-            if (finResult.synced > 0 || commResult.synced > 0) {
-              console.log(
-                `  ✅ ${candidate.name}: finances=${finResult.synced}, committees=${commResult.synced}`
-              );
-            }
-          } catch (error: any) {
-            console.error(`  ❌ ${candidate.name}:`, error.message);
-            stats.financesErrors++;
-          }
-        })
-      );
-
-      // Delay between batches
-      if (i + SYNC_CONFIG.batchSize < candidatesToSync.length) {
-        await sleep(200);
-      }
-    }
+    const finances = await financeService.syncDetailedTotalsBulk(SYNC_CONFIG.cycle, committees.committees);
+    stats.financesSynced = finances.synced;
+    stats.financesErrors = finances.errors;
 
     console.log(
       `\n📊 Finance Sync Summary: ${stats.financesSynced} synced, ${stats.financesErrors} errors`
@@ -243,8 +161,8 @@ async function runScheduledSync(): Promise<void> {
       `📊 Committee Sync Summary: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors\n`
     );
 
-    // Step 3: Refresh a bounded, oldest-first batch of itemized finance data.
-    const itemized = await financeService.syncItemizedBatch(SYNC_CONFIG.cycles[0]);
+    // Step 4: Refresh a bounded, oldest-first batch of itemized finance data.
+    const itemized = await financeService.syncItemizedBatch(SYNC_CONFIG.cycle);
     stats.receiptsSynced = itemized.receiptsSynced;
     stats.disbursementsSynced = itemized.disbursementsSynced;
     stats.itemizedErrors = itemized.errors;
@@ -253,12 +171,6 @@ async function runScheduledSync(): Promise<void> {
       `${itemized.receiptsSynced} receipts, ${itemized.disbursementsSynced} disbursements, ` +
       `${itemized.errors} errors\n`
     );
-
-    // Step 4: Keep race shells and active FEC filing links in sync.
-    const elections = await electionService.generateElections(SYNC_CONFIG.cycles[0]);
-    stats.electionsCreated = elections.electionsCreated;
-    stats.candidateLinksCreated = elections.candidateLinksCreated;
-    stats.electionErrors = elections.errors;
 
     stats.duration = Date.now() - startTime;
 
@@ -281,7 +193,6 @@ async function runScheduledSync(): Promise<void> {
           stats.committeesErrors +
           stats.itemizedErrors +
           stats.electionErrors,
-        recordsSkipped: stats.candidatesSkipped,
         completedAt: new Date(),
         duration: stats.duration,
         metadata: {
@@ -296,11 +207,14 @@ async function runScheduledSync(): Promise<void> {
     console.log('='.repeat(70));
     console.log(`⏱️  Duration: ${(stats.duration / 1000 / 60).toFixed(2)} minutes`);
     console.log(
-      `👥 Candidates: ${stats.candidatesSynced} synced, ${stats.candidatesSkipped} skipped`
+      `👥 Candidates: ${stats.candidatesSynced} synced, ${stats.candidatesErrors} errors`
     );
     console.log(`💰 Finances: ${stats.financesSynced} synced, ${stats.financesErrors} errors`);
     console.log(
       `🏢 Committees: ${stats.committeesSynced} synced, ${stats.committeesErrors} errors`
+    );
+    console.log(
+      `🗳️  Elections: ${stats.electionsCreated} created, ${stats.candidateLinksCreated} candidate links`
     );
     console.log('='.repeat(70) + '\n');
   } catch (error: any) {
@@ -311,7 +225,11 @@ async function runScheduledSync(): Promise<void> {
       where: { id: syncLog.id },
       data: {
         status: 'failed',
-        errorMessage: error.message,
+        errorMessage: isFecAuthError(error)
+          ? 'OpenFEC rejected the API key (check FEC_API_KEY)'
+          : error instanceof FecRateLimitedError
+            ? `OpenFEC rate limit reached; retry after ${error.retryAt.toISOString()}`
+            : error.message,
         completedAt: new Date(),
         duration: Date.now() - startTime,
       },
@@ -323,11 +241,9 @@ async function runScheduledSync(): Promise<void> {
   }
 }
 
-/**
- * Helper function to sleep
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/** Run a full sync to completion (cron and CLI). */
+export async function runScheduledSync(): Promise<void> {
+  await executeSync(await claimSyncLease());
 }
 
 /**
@@ -361,6 +277,22 @@ export function initializeScheduler(): void {
 
     console.log('⏰ FEC Data Sync Scheduler initialized');
     console.log(`📅 Schedule: Every Sunday, Tuesday, Thursday at 2:00 AM EST\n`);
+
+    // Outside spending changes daily close to an election (24/48-hour notices),
+    // so it runs every day, apart from the main sync and under its own lease.
+    cron.schedule(
+      '0 5 * * *',
+      async () => {
+        console.log('\n⏰ Scheduled outside spending sync triggered');
+        try {
+          await runScheduleESync(SYNC_CONFIG.cycle);
+        } catch (error) {
+          console.error('❌ Scheduled outside spending sync failed:', error instanceof Error ? error.message : error);
+        }
+      },
+      { timezone: 'America/New_York' },
+    );
+    console.log('💸 Outside spending sync: daily at 5:00 AM ET\n');
   } else {
     console.log('FEC sync scheduler disabled: FEC_API_KEY is not configured');
   }
@@ -388,10 +320,15 @@ export function initializeScheduler(): void {
 }
 
 /**
- * Manual trigger for testing (callable from API)
+ * Manual trigger (callable from API). Resolves once the lease is held and the
+ * sync has started; the run itself continues in the background because a full
+ * sync takes far longer than any HTTP request may stay open.
  */
 export async function triggerManualSync(): Promise<void> {
   if (!env.FEC_API_KEY) throw new Error('FEC_API_KEY is not configured; FEC sync is unavailable');
   console.log('\n🔧 Manual sync triggered via API');
-  await runScheduledSync();
+  const leaseToken = await claimSyncLease();
+  void executeSync(leaseToken).catch((error) => {
+    console.error('❌ Manual sync failed:', error);
+  });
 }

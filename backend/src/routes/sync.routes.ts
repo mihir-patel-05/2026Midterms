@@ -4,10 +4,15 @@ import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { prisma } from '../config/database.js';
 import { triggerManualSync } from '../jobs/scheduler.js';
+import { startScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { verifySyncAuth } from '../middleware/sync-auth.js';
 import { SyncAlreadyRunningError } from '../services/sync-lock.service.js';
 
 const router = Router();
+
+// These IDs become part of OpenFEC request paths, so accept only their real formats.
+const FEC_CANDIDATE_ID = /^[HSP][0-9A-Z]{8}$/;
+const FEC_COMMITTEE_ID = /^C\d{8}$/;
 
 // All sync operations and their logs are operational endpoints. They must
 // never become public merely because an environment variable is missing.
@@ -24,9 +29,9 @@ const runFullSync = async (_req: Request, res: Response) => {
   try {
     await triggerManualSync();
 
-    res.json({
-      message: 'Full sync completed successfully',
-      note: 'Check console logs for detailed progress',
+    res.status(202).json({
+      message: 'Full sync started',
+      note: 'A full sync runs for hours. Track it with GET /api/sync/status.',
     });
   } catch (error: any) {
     console.error('Error in full sync:', error);
@@ -35,7 +40,7 @@ const runFullSync = async (_req: Request, res: Response) => {
       return;
     }
     res.status(500).json({ 
-      error: 'Failed to complete sync', 
+      error: 'Failed to start sync', 
       message: error.message 
     });
   }
@@ -49,6 +54,25 @@ router.post('/full', runFullSync);
  */
 router.post('/all', runFullSync);
 
+/**
+ * POST /api/sync/outside-spending
+ * Start one Schedule E (independent expenditures) run in the background.
+ * Track it with GET /api/sync/status (sync type "outside-spending").
+ */
+router.post('/outside-spending', async (_req, res) => {
+  try {
+    const { done } = await startScheduleESync(2026);
+    done.catch((error) => console.error('❌ Outside spending sync failed:', error instanceof Error ? error.message : error));
+    res.status(202).json({ message: 'Outside spending sync started', note: 'Track it with GET /api/sync/status.' });
+  } catch (error) {
+    if (error instanceof SyncAlreadyRunningError) {
+      res.status(409).json({ error: 'An outside spending sync is already running' });
+      return;
+    }
+    res.status(503).json({ error: error instanceof Error ? error.message : 'Outside spending sync is unavailable' });
+  }
+});
+
 // Sync candidates from FEC API
 router.post('/candidates', (req, res) => candidateController.syncCandidates(req, res));
 
@@ -56,6 +80,10 @@ router.post('/candidates', (req, res) => candidateController.syncCandidates(req,
 router.post('/committees/:candidateId', async (req, res) => {
   try {
     const { candidateId } = req.params;
+    if (!FEC_CANDIDATE_ID.test(candidateId)) {
+      res.status(400).json({ error: 'Invalid FEC candidate ID' });
+      return;
+    }
     const result = await candidateService.syncCandidateCommittees(candidateId);
     res.json({
       message: 'Committee sync completed',
@@ -71,6 +99,10 @@ router.post('/committees/:candidateId', async (req, res) => {
 router.post('/finances/:committeeId', async (req, res) => {
   try {
     const { committeeId } = req.params;
+    if (!FEC_COMMITTEE_ID.test(committeeId)) {
+      res.status(400).json({ error: 'Invalid FEC committee ID' });
+      return;
+    }
     const { cycle } = req.body;
     const result = await financeService.syncFinancialSummary(
       committeeId,
@@ -90,6 +122,10 @@ router.post('/finances/:committeeId', async (req, res) => {
 router.post('/receipts/:committeeId', async (req, res) => {
   try {
     const { committeeId } = req.params;
+    if (!FEC_COMMITTEE_ID.test(committeeId)) {
+      res.status(400).json({ error: 'Invalid FEC committee ID' });
+      return;
+    }
     const { twoYearTransactionPeriod, minDate, maxDate, maxPages } = req.body;
 
     const result = await financeService.syncReceipts({
@@ -114,6 +150,10 @@ router.post('/receipts/:committeeId', async (req, res) => {
 router.post('/disbursements/:committeeId', async (req, res) => {
   try {
     const { committeeId } = req.params;
+    if (!FEC_COMMITTEE_ID.test(committeeId)) {
+      res.status(400).json({ error: 'Invalid FEC committee ID' });
+      return;
+    }
     const { twoYearTransactionPeriod, minDate, maxDate, maxPages } = req.body;
 
     const result = await financeService.syncDisbursements({

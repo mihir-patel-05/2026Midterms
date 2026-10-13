@@ -16,7 +16,8 @@ interface ChatInterfaceProps {
 const getSessionId = (): string => {
   let sessionId = sessionStorage.getItem("chatSessionId");
   if (!sessionId) {
-    sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Unguessable, so nobody else can read into or clear this conversation.
+    sessionId = crypto.randomUUID();
     sessionStorage.setItem("chatSessionId", sessionId);
   }
   return sessionId;

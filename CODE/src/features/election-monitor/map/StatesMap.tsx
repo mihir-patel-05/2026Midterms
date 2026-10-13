@@ -25,10 +25,13 @@ export function StatesMap({ racesByState, onSelectState }: { racesByState: Recor
         readiness={readiness}
         selectedState={null}
         selectedDistrict={null}
+        selectedDistricts={[]}
+        selectedCounties={[]}
         initialView={null}
         describe={describe}
         onSelectState={onSelectState}
         onSelectDistrict={(state) => onSelectState(state)}
+        onSelectCounty={(state) => onSelectState(state)}
         onViewChange={() => undefined}
       />
     </Suspense>

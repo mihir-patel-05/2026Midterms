@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_RESULTS_PROVIDER_MOCK_ENABLED?: string;
   readonly VITE_FEATURE_NEW_FRONTEND?: string;
   readonly VITE_MAP_STYLE_URL?: string;
+  readonly VITE_FEATURE_DEMOGRAPHICS?: string;
   readonly VITE_API_URL?: string;
 }
 

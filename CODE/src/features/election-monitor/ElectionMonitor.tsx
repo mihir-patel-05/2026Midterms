@@ -1,23 +1,27 @@
 import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { CanvasHeader } from "./CanvasHeader";
+import { ControlOddsBanner } from "./ControlOddsBanner";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
+import { DemographicsTab } from "./DemographicsTab";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
 import { FinanceTab } from "./FinanceTab";
 import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
+import { districtSelectionPatch, selectedDistricts, toggleItem } from "./selection";
 import { useStateContests, useStateCounts } from "./realData";
 import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
 import type { MapTarget, MapView } from "./map/ElectionMap";
+import { isRedistricted } from "./map/redistricting";
 import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
@@ -64,7 +68,8 @@ export function ElectionMonitor() {
     US_HOUSE: haveContests ? stateContests.filter((contest) => contest.office === "US_HOUSE").length : null,
   };
   const nationalRaces = counts.data ? Object.values(counts.data).reduce((sum, value) => sum + value, 0) : null;
-  const statesWithRaces = counts.data ? Object.values(counts.data).filter((value) => value > 0).length : null;
+  // DC and the territories elect House delegates but are not on the state map.
+  const statesWithRaces = counts.data ? stateMapItems.filter((item) => (counts.data[item.code] ?? 0) > 0).length : null;
   const districts = [...new Set(stateContests.flatMap((contest) => (contest.office === "US_HOUSE" && contest.district ? [contest.district] : [])))].sort();
   const visibleContests = stateContests.filter(
     (contest) => contestMatchesOffice(contest, params.office) && (!params.district || contest.office !== "US_HOUSE" || contest.district === params.district),
@@ -74,20 +79,23 @@ export function ElectionMonitor() {
     ?? visibleContests[0];
   const results = contest ? mockFeed.data?.resultsByContest[contest.id] : undefined;
 
-  const selectState = useCallback((code: string | null) => update({ state: code, district: null, contest: null }), [update]);
+  const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
   const describe = useCallback((target: MapTarget) => {
     const state = states.find((item) => item.code === target.state);
     if (target.kind === "county") {
-      return { title: `${target.name} County`, lines: [state?.name ?? target.state, "No county results source connected"] };
+      return { title: target.name, lines: [state?.name ?? target.state, "No county results source connected"] };
     }
     if (target.kind === "district") {
       const label = districtLabel(target.state, target.district);
       const onFile = target.state === selectedState?.code ? stateContests.find((item) => item.office === "US_HOUSE" && item.district === target.district) : undefined;
       return {
         title: label,
-        lines: [onFile ? `${onFile.candidates.length} ${onFile.candidates.length === 1 ? "candidate" : "candidates"} on file` : target.state === selectedState?.code ? "No contest on file" : "Click to load this state's contests"],
+        lines: [
+          onFile ? `${onFile.candidates.length} ${onFile.candidates.length === 1 ? "candidate" : "candidates"} on file` : target.state === selectedState?.code ? "No contest on file" : "Click to load this state's contests",
+          isRedistricted(target.state) ? "Outline shows 2024 lines; this state redrew for 2026" : "",
+        ].filter(Boolean),
       };
     }
     return {
@@ -98,7 +106,25 @@ export function ElectionMonitor() {
       ].filter(Boolean),
     };
   }, [states, selectedState?.code, stateContests]);
-  const selectDistrict = useCallback((state: string, district: string) => update({ state, district, contest: null }), [update]);
+  const chosenDistricts = selectedDistricts(params);
+  // Plain click selects one district; Shift-click adds or removes it. Another state starts over.
+  const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
+    if (state !== params.state) {
+      update({ state, district, districts: [], counties: [], contest: null });
+      return;
+    }
+    const next = additive ? toggleItem(selectedDistricts(params), district) : [district];
+    update({ ...districtSelectionPatch(next, params.district), contest: null });
+  }, [params, update]);
+  const selectCounty = useCallback((state: string, fips: string, additive: boolean) => {
+    if (state !== params.state) {
+      update({ state, district: null, districts: [], counties: [fips], contest: null, ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
+      return;
+    }
+    const alone = params.counties.length === 1 && params.counties[0] === fips;
+    // Counties have no race view yet, so a county click opens their demographics.
+    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips], ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
+  }, [params, update]);
 
   const activity = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -153,7 +179,7 @@ export function ElectionMonitor() {
             ],
           }}
           onStateChange={selectState}
-          onDistrictChange={(district) => update({ district, contest: null })}
+          onDistrictChange={(district) => update({ district, districts: [], contest: null })}
           onOfficeChange={(office) => update({ office, contest: null })}
           onLayerChange={(layer) => update({ layer })}
         />
@@ -164,8 +190,9 @@ export function ElectionMonitor() {
             districtName={selectedState && params.district ? districtLabel(selectedState.code, params.district) : null}
             subtitle="State, congressional district, county, and campaign-finance drill-down"
             onReset={() => selectState(null)}
-            onStateCrumb={() => update({ district: null, contest: null })}
+            onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
+          <ControlOddsBanner />
           <StatStrip
             stats={[
               { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
@@ -181,18 +208,23 @@ export function ElectionMonitor() {
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}
+                selectedDistricts={chosenDistricts}
+                selectedCounties={params.counties}
                 initialView={params.view}
                 describe={describe}
                 onSelectState={selectState}
                 onSelectDistrict={selectDistrict}
+                onSelectCounty={selectCounty}
                 onViewChange={onViewChange}
               />
             </Suspense>
           </MapCard>
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
             <PredictionMarketsPanel
+              key={selectedState?.code ?? "US"}
               stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
               district={selectedState && !selectedState.isFictional && params.district ? params.district : null}
+              office={params.office}
             />
           </ActivityRail>
         </section>
@@ -202,10 +234,15 @@ export function ElectionMonitor() {
           title={selectedState?.name ?? "United States"}
           meta={!selectedState ? "Select a state to begin" : contestsLoading ? "Loading contests…" : contestsError ? "Contests unavailable" : `${officeCounts.US_HOUSE} House · ${officeCounts.US_SENATE} Senate ${officeCounts.US_SENATE === 1 ? "contest" : "contests"}`}
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
-          tab={params.tab}
+          tab={params.tab === "demographics" && !demographicsEnabled ? "overview" : params.tab}
           onTabChange={(tab) => update({ tab })}
           overview={
             <>
+              {isRedistricted(selectedState?.code) && (
+                <p className="em-note" role="note">
+                  {selectedState!.name} adopted a new congressional map for 2026. District outlines on the map show the 2024 lines, so search your address to find your 2026 district.
+                </p>
+              )}
               <RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />
               {selectedState && haveContests && stateContests.length > 0 && <SnapshotCard stateName={selectedState.name} contests={stateContests} />}
               {results && <HistoryCard results={results} sources={sourceStatus.data} />}
@@ -218,6 +255,18 @@ export function ElectionMonitor() {
             </>
           }
           finance={<FinanceTab key={contest?.id ?? "none"} contest={contest} />}
+          demographics={demographicsEnabled ? (
+            <DemographicsTab
+              stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
+              stateName={selectedState?.name ?? null}
+              counties={params.counties}
+              districts={chosenDistricts}
+              districtOptions={districts}
+              onCountiesChange={(counties) => update({ counties })}
+              onDistrictsChange={(next) => update({ ...districtSelectionPatch(next, params.district), contest: null })}
+              onClear={() => update({ counties: [], district: null, districts: [], contest: null })}
+            />
+          ) : undefined}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}
         />
       </div>

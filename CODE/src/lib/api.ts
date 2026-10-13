@@ -18,22 +18,8 @@ import type {
   StateElectionsResponse,
 } from '../types/candidate';
 
-// API Base URL - defaults to localhost:3001 if not set in environment
-// Handles both Vite (import.meta.env) and Node.js (process.env) environments
-const getApiUrl = (): string => {
-  // Check if running in Vite environment (browser)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  }
-  // Fallback to Node.js environment (for testing)
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.VITE_API_URL || 'http://localhost:3001';
-  }
-  // Default fallback
-  return 'http://localhost:3001';
-};
+import { API_BASE_URL } from './apiBase';
 
-const API_BASE_URL = getApiUrl();
 const API_PREFIX = '/api';
 
 /**
@@ -433,4 +419,92 @@ export async function clearChatHistory(sessionId: string): Promise<{
 }
 
 // Export API base URL for reference
+export interface DistrictLookupResponse {
+  formattedAddress: string;
+  accuracyType: string | null;
+  location: { lat: number; lng: number };
+  congress: 120;
+  /** Largest share first; a ZIP or partial address can span districts. District "00" is at-large. */
+  districts: Array<{ state: string; district: string; proportion: number }>;
+}
+
+/**
+ * The 2026 congressional district(s) for an address or ZIP (Geocodio cd120).
+ * Each call is billed, so only call it when the user asks for a lookup.
+ */
+export async function lookupDistrict(address: string): Promise<DistrictLookupResponse> {
+  return fetchAPI(`/districts/lookup?${new URLSearchParams({ address: address.trim() })}`);
+}
+
 export { API_BASE_URL };
+
+// ============================================================================
+// Outside spending (FEC Schedule E independent expenditures)
+// ============================================================================
+
+export interface SpendingSplit {
+  support: number;
+  oppose: number;
+  total: number;
+}
+
+export interface OutsideSpendingCoverage {
+  /** "not_synced" until the first sync finishes; never read that as $0. */
+  status: 'not_synced' | 'backfilling' | 'complete';
+  lastSyncedAt: string | null;
+  latestExpenditureDate: string | null;
+}
+
+export interface CandidateOutsideSpending extends SpendingSplit {
+  cycle: number;
+  candidateId: string;
+  candidateName: string | null;
+  count: number;
+  fromNotices: number;
+  bySpender: Array<SpendingSplit & { committeeId: string; committeeName: string }>;
+  byType: Array<SpendingSplit & { type: string }>;
+  recent: Array<{
+    date: string | null;
+    committeeId: string;
+    committeeName: string;
+    amount: number;
+    supportOppose: 'S' | 'O';
+    description: string | null;
+    type: string;
+    isNotice: boolean;
+    pdfUrl: string | null;
+  }>;
+  coverage: OutsideSpendingCoverage;
+}
+
+export interface RaceOutsideSpending {
+  cycle: number;
+  state: string;
+  office: 'H' | 'S';
+  district: string | null;
+  candidates: Array<SpendingSplit & { candidateId: string | null; candidateName: string | null }>;
+  topSpenders: Array<SpendingSplit & { committeeId: string; committeeName: string }>;
+  total: number;
+  coverage: OutsideSpendingCoverage;
+}
+
+/** Independent expenditures for and against one candidate (VoteInformed or FEC ID). */
+export async function getCandidateOutsideSpending(id: string, cycle: number = 2026): Promise<CandidateOutsideSpending> {
+  const response = await fetchAPI<{ data: CandidateOutsideSpending }>(`/candidates/${encodeURIComponent(id)}/outside-spending?cycle=${cycle}`);
+  return response.data;
+}
+
+/** Independent expenditures for and against every candidate in one race. */
+export async function getRaceOutsideSpending(params: { state: string; office: 'H' | 'S'; district?: string | null; cycle?: number }): Promise<RaceOutsideSpending> {
+  const query = new URLSearchParams({ state: params.state, office: params.office, cycle: String(params.cycle ?? 2026) });
+  if (params.office === 'H' && params.district) query.set('district', params.district);
+  const response = await fetchAPI<{ data: RaceOutsideSpending }>(`/outside-spending/race?${query}`);
+  return response.data;
+}
+
+/** The FEC's own independent-expenditure listing, for a "check the filings" link. */
+export function fecIndependentExpendituresUrl(params: { cycle?: number; candidateId?: string | null }): string {
+  const query = new URLSearchParams({ data_type: 'processed', cycle: String(params.cycle ?? 2026), most_recent: 'true' });
+  if (params.candidateId) query.set('candidate_id', params.candidateId);
+  return `https://www.fec.gov/data/independent-expenditures/?${query}`;
+}

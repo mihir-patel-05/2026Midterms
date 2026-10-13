@@ -3,6 +3,7 @@ import { prisma } from '../config/database.js';
 import { candidateService } from '../services/candidate.service.js';
 import { electionService } from '../services/election.service.js';
 import { financeService } from '../services/finance.service.js';
+import { isFecFatalError } from '../config/fec-client.js';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import {
@@ -68,11 +69,12 @@ export class AdminController {
    * Verify admin credentials and create session
    */
   async verifyPassword(req: Request, res: Response): Promise<void> {
-    const { username, password } = req.body;
+    const { username, password } = req.body ?? {};
     
     console.log('🔐 Login attempt for username:', username);
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password ||
+        username.includes('\0') || username.length > 200 || password.length > 1024) {
       console.log('🔍 Login failed: Missing username or password');
       res.status(400).json({ error: 'Username and password required' });
       return;
@@ -130,7 +132,7 @@ export class AdminController {
       });
     } catch (error: any) {
       console.error('Error during login:', error);
-      res.status(500).json({ error: 'Authentication failed', message: error.message });
+      res.status(500).json({ error: 'Authentication failed' });
     }
   }
 
@@ -140,12 +142,17 @@ export class AdminController {
    */
   async logout(req: Request, res: Response): Promise<void> {
     const authToken = req.headers['x-admin-key'] as string;
-    if (authToken) {
-      await prisma.adminSession.deleteMany({
-        where: { tokenHash: hashSessionToken(authToken) },
-      });
+    try {
+      if (authToken) {
+        await prisma.adminSession.deleteMany({
+          where: { tokenHash: hashSessionToken(authToken) },
+        });
+      }
+      res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+      console.error('Error during admin logout:', error);
+      res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ message: 'Logged out successfully' });
   }
 
   /**
@@ -334,53 +341,22 @@ export class AdminController {
               data: { recordsProcessed, recordsErrors },
             });
           } catch (error: any) {
+            if (isFecFatalError(error)) throw error;
             console.error(`Error syncing ${state} ${office}:`, error.message);
             recordsErrors++;
           }
         }
       }
 
-      const staleBefore = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      const candidates = await prisma.candidate.findMany({
-        where: { cycles: { has: 2026 } },
-        select: {
-          candidateId: true,
-          name: true,
-          financials: {
-            where: { cycle: 2026 },
-            select: { lastUpdated: true },
-            take: 1,
-          },
-        },
+      // Committees and detailed totals for every funded candidate, in bulk.
+      const committees = await candidateService.syncHouseSenateCommittees(2026);
+      const finances = await financeService.syncDetailedTotalsBulk(2026, committees.committees);
+      recordsProcessed += committees.synced + finances.synced;
+      recordsErrors += committees.errors + finances.errors;
+      await prisma.syncLog.update({
+        where: { id: syncLogId },
+        data: { recordsProcessed, recordsErrors },
       });
-      const candidatesToRefresh = candidates.filter((candidate) => {
-        const lastUpdated = candidate.financials[0]?.lastUpdated;
-        return !lastUpdated || lastUpdated < staleBefore;
-      });
-
-      for (let index = 0; index < candidatesToRefresh.length; index += 5) {
-        const batch = candidatesToRefresh.slice(index, index + 5);
-        await Promise.all(
-          batch.map(async (candidate) => {
-            try {
-              const [financials, committees] = await Promise.all([
-                financeService.syncCandidateFinancials(candidate.candidateId, 2026),
-                candidateService.syncCandidateCommittees(candidate.candidateId),
-              ]);
-              recordsProcessed += financials.synced + committees.synced;
-              recordsErrors += financials.errors + committees.errors;
-            } catch (error: any) {
-              console.error(`Error refreshing ${candidate.name}:`, error.message);
-              recordsErrors++;
-            }
-          }),
-        );
-
-        await prisma.syncLog.update({
-          where: { id: syncLogId },
-          data: { recordsProcessed, recordsErrors },
-        });
-      }
 
       // Refresh a bounded batch of itemized finance data.
       try {
@@ -388,6 +364,7 @@ export class AdminController {
         recordsProcessed += itemized.receiptsSynced + itemized.disbursementsSynced;
         recordsErrors += itemized.errors;
       } catch (error: any) {
+        if (isFecFatalError(error)) throw error;
         console.error('Error syncing itemized finance data:', error.message);
         recordsErrors++;
       }

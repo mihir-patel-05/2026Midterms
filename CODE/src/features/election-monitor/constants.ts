@@ -32,6 +32,19 @@ export function formatEtTime(iso: string, withSeconds = false) {
   }).format(new Date(iso));
 }
 
+/** "Sep 30, 2026" for a date-only or full ISO string, without shifting the day across time zones. */
+export function formatShortDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** How a market price was derived, in words, for the label next to it. */
+export function priceTypeLabel(types: Array<"MIDPOINT" | "LAST_TRADE" | null>) {
+  const kinds = new Set(types.filter(Boolean));
+  if (kinds.size === 0) return null;
+  if (kinds.size > 1) return "bid/ask midpoint or last trade";
+  return kinds.has("MIDPOINT") ? "bid/ask midpoint" : "last trade";
+}
+
 /** Party colour tokens; follows the existing CandidateCard convention (DEM blue, REP coral). */
 export function partyTone(party: string | null, index = 0) {
   const normalized = party?.toUpperCase() ?? "";
@@ -52,6 +65,21 @@ export function displayName(raw: string) {
   return ordered === ordered.toUpperCase()
     ? ordered.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase())
     : ordered;
+}
+
+const MINOR_WORDS = new Set(["A", "AN", "AND", "AS", "AT", "BY", "FOR", "IN", "OF", "ON", "OR", "THE", "TO"]);
+const COMMITTEE_ACRONYMS = new Set(["PAC", "PACS", "USA", "US", "LLC", "GOP", "AFL", "CIO", "SEIU", "NEA", "AFT", "UAW", "AIPAC", "NRA", "DC"]);
+
+/** FEC committee names arrive in capitals: "HOUSE MAJORITY PAC" → "House Majority PAC", keeping acronyms. */
+export function committeeName(raw: string) {
+  if (raw !== raw.toUpperCase()) return raw;
+  return raw.split(/(\s+|-|\/)/).map((word, index) => {
+    const bare = word.replace(/[^A-Z]/g, "");
+    if (index > 0 && MINOR_WORDS.has(word)) return word.toLowerCase();
+    // Known acronyms, and short words with no vowels (DCCC, NRCC), stay in capitals.
+    if (COMMITTEE_ACRONYMS.has(bare) || (bare.length >= 2 && bare.length <= 5 && !/[AEIOUY]/.test(bare))) return word;
+    return word.toLowerCase().replace(/(^|['.])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+  }).join("");
 }
 
 export function initials(name: string) {

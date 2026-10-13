@@ -13,7 +13,7 @@ import type {
  */
 export type OfficeFilter = "ALL" | "US_SENATE" | "US_HOUSE";
 export type MapLayer = "states" | "districts" | "counties";
-export type DetailTab = "overview" | "counties" | "finance";
+export type DetailTab = "overview" | "counties" | "finance" | "demographics";
 /** Map readiness: ready = contests and finance; partial = contests only; pending = nothing loaded. */
 export type Readiness = "ready" | "partial" | "pending";
 
@@ -36,6 +36,11 @@ export interface MonitorCandidate {
   party: string | null;
   isIncumbent: boolean;
   ballotStatus?: "CONFIRMED" | "UNCONFIRMED";
+  /** FEC headline totals for the cycle; null when no filing is on file. */
+  receipts?: number | null;
+  cashOnHand?: number | null;
+  /** End of the latest FEC report behind those totals (YYYY-MM-DD). */
+  fundingThrough?: string | null;
 }
 
 export interface MonitorContest {

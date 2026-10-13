@@ -110,6 +110,37 @@ export interface FECCandidateTotals {
   election_full?: boolean;
 }
 
+/**
+ * One campaign committee's totals for a two-year cycle, from /totals/house-senate/.
+ * Same fields as /candidate/{id}/totals/, which sums a candidate's authorized
+ * committees.
+ */
+export interface FECCommitteeTotals extends Omit<FECCandidateTotals, 'candidate_id'> {
+  committee_id: string;
+  committee_designation?: string;
+}
+
+/**
+ * One row of /candidates/totals/: a candidate's identity plus headline totals
+ * for one cycle. The source breakdown (party, self-funding, unitemized
+ * individuals) comes from the committee totals instead (FECCommitteeTotals).
+ */
+export interface FECCandidateTotalsSummary extends FECCandidate {
+  cycle: number;
+  candidate_election_year?: number;
+  candidate_inactive?: boolean;
+  receipts?: number;
+  disbursements?: number;
+  // OpenFEC returns these two as decimal strings on this endpoint.
+  cash_on_hand_end_period?: number | string;
+  debts_owed_by_committee?: number | string;
+  individual_itemized_contributions?: number;
+  other_political_committee_contributions?: number;
+  transfers_from_other_authorized_committee?: number;
+  coverage_start_date?: string;
+  coverage_end_date?: string;
+}
+
 export interface FECReceipt {
   sub_id?: string | number;
   transaction_id?: string;
@@ -237,6 +268,53 @@ export class FECApiService {
       params: cycle ? { cycle } : {},
     });
     return response.data.results;
+  }
+
+  /**
+   * Every active candidate for one office and election year, with headline
+   * totals, 100 per request. A whole chamber is ~40 requests, so there is no
+   * page cap here: a partial candidate list would silently drop races.
+   */
+  async getCandidateTotalsSummaries(params: {
+    office: 'H' | 'S';
+    electionYear: number;
+  }): Promise<FECCandidateTotalsSummary[]> {
+    return fecClient.getAll<FECCandidateTotalsSummary>(
+      '/candidates/totals/',
+      {
+        office: params.office,
+        election_year: params.electionYear,
+        is_active_candidate: true,
+        sort: 'name',
+      },
+      Infinity,
+    );
+  }
+
+  /**
+   * Every House and Senate campaign committee active in a two-year cycle, with
+   * the candidate it belongs to (~70 requests), in place of one
+   * /candidate/{id}/committees/ request per candidate.
+   */
+  async getHouseSenateCommittees(cycle: number): Promise<FECCommittee[]> {
+    return fecClient.getAll<FECCommittee>(
+      '/committees/',
+      { cycle, committee_type: ['H', 'S'] },
+      Infinity,
+    );
+  }
+
+  /**
+   * Full totals for every principal and authorized House/Senate committee in a
+   * two-year cycle (~45 requests), in place of one /candidate/{id}/totals/
+   * request per candidate.
+   */
+  async getHouseSenateCommitteeTotals(cycle: number): Promise<FECCommitteeTotals[]> {
+    return fecClient.getAll<FECCommitteeTotals>(
+      '/totals/house-senate/',
+      { cycle, committee_designation: ['P', 'A'] },
+      Infinity,
+    );
   }
 
   /**

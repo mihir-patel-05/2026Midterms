@@ -1,5 +1,7 @@
 import { prisma } from '../config/database.js';
 import { parseCalendarDate } from '../utils/calendar-date.js';
+import { HOUSE_SEATS } from '../utils/house-seats.js';
+import { normalizePagination } from '../utils/pagination.js';
 
 interface GetElectionsParams {
   state?: string;
@@ -20,6 +22,20 @@ interface CreateElectionData {
   cycle: number;
 }
 
+/**
+ * Two-digit district for a House filing ("00" for at-large seats), or null
+ * when the filing names a district that does not exist. FEC filings include
+ * typos (e.g. GA-23, NM-66) and blanks that would otherwise become fake races.
+ */
+export function houseDistrict(state: string, district: string | null | undefined): string | null {
+  const seats = HOUSE_SEATS[state];
+  if (!seats) return null;
+  if (seats === 1) return '00';
+  if (!district || !/^\d{1,2}$/.test(district.trim())) return null;
+  const number = parseInt(district, 10);
+  return number >= 1 && number <= seats ? String(number).padStart(2, '0') : null;
+}
+
 export class ElectionService {
   /**
    * Get elections with filters and pagination
@@ -31,9 +47,8 @@ export class ElectionService {
       officeType,
       electionType,
       cycle = 2026,
-      page = 1,
-      perPage = 50,
     } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
 
     // Build where clause
     const where: any = {
@@ -126,6 +141,11 @@ export class ElectionService {
                 state: true,
                 office: true,
                 district: true,
+                financials: {
+                  where: { cycle },
+                  select: { receipts: true, disbursements: true, cashOnHand: true, coverageEndDate: true, lastUpdated: true },
+                  take: 1,
+                },
               },
             },
           },
@@ -287,10 +307,15 @@ export class ElectionService {
         candidates: typeof candidates;
       }> = {};
 
+      let invalidDistricts = 0;
       for (const candidate of candidates) {
         // Normalize office to SENATE/HOUSE
         const officeType = candidate.office?.toUpperCase() === 'S' ? 'SENATE' : 'HOUSE';
-        const district = officeType === 'HOUSE' ? candidate.district : null;
+        const district = officeType === 'HOUSE' ? houseDistrict(candidate.state, candidate.district) : null;
+        if (officeType === 'HOUSE' && !district) {
+          invalidDistricts++;
+          continue;
+        }
         const key = `${candidate.state}-${officeType}-${district || 'statewide'}`;
 
         if (!races[key]) {
@@ -304,6 +329,9 @@ export class ElectionService {
         races[key].candidates.push(candidate);
       }
 
+      if (invalidDistricts > 0) {
+        console.warn(`  ⚠️  Skipped ${invalidDistricts} House candidate(s) filed under a district that does not exist`);
+      }
       console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
 
       // General election date: First Tuesday after first Monday in November

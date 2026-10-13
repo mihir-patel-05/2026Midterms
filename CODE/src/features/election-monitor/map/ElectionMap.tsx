@@ -16,6 +16,7 @@ import {
   type StateFeature,
 } from "./geo";
 import { resolveMapStyle } from "./mapStyle";
+import { REDISTRICTED_STATES } from "./redistricting";
 
 export interface MapView {
   lat: number;
@@ -32,12 +33,19 @@ export interface ElectionMapProps {
   layer: MapLayer;
   readiness: Record<string, Readiness>;
   selectedState: string | null;
+  /** The district in focus, which the camera frames. */
   selectedDistrict: string | null;
+  /** Every selected district (two-digit codes) in the selected state. */
+  selectedDistricts: string[];
+  /** Selected counties (5-digit FIPS). */
+  selectedCounties: string[];
   /** Initial camera from the URL; when absent the map frames the selection or the lower 48. */
   initialView: MapView | null;
   describe: (target: MapTarget) => { title: string; lines: string[] };
   onSelectState: (code: string) => void;
-  onSelectDistrict: (state: string, district: string) => void;
+  /** `additive` is true for Shift-, Ctrl-, or Cmd-click, which adds to or removes from the selection. */
+  onSelectDistrict: (state: string, district: string, additive: boolean) => void;
+  onSelectCounty: (state: string, fips: string, additive: boolean) => void;
   onViewChange: (view: MapView) => void;
 }
 
@@ -46,15 +54,18 @@ const COLORS = { teal: "#5ce1c0", blue: "#6eb6ff", amber: "#f4c769", quiet: "#60
 const readinessColor = ["match", ["coalesce", ["feature-state", "readiness"], "pending"], "ready", COLORS.teal, "partial", COLORS.amber, COLORS.quiet];
 const hovered = ["boolean", ["feature-state", "hover"], false];
 const INTERACTIVE = ["districts-fill", "counties-fill", "states-fill"] as const;
+/** Districts in states that adopted a new map for 2026; their outlines are the 119th Congress lines. */
+const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED_STATES]]];
 
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
 export default function ElectionMap(props: ElectionMapProps) {
-  const { layer, readiness, selectedState, selectedDistrict, initialView } = props;
+  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const statesRef = useRef<Map<string, StateFeature>>(new Map());
   const districtsRef = useRef<Map<string, DistrictFeature>>(new Map());
+  const highlightedCounties = useRef<string[]>([]);
   const callbacks = useRef(props);
   callbacks.current = props;
   const initialViewRef = useRef(initialView);
@@ -88,6 +99,8 @@ export default function ElectionMap(props: ElectionMapProps) {
           maxZoom: 11,
           attributionControl: { compact: true },
           dragRotate: false,
+          // Shift-click adds to the selection; box zoom would swallow Shift+mousedown.
+          boxZoom: false,
           pitchWithRotate: false,
           touchPitch: false,
         });
@@ -113,10 +126,12 @@ export default function ElectionMap(props: ElectionMapProps) {
           "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.34, hovered, 0.28, 0.16] as never,
         } }, beforeId);
         map.addLayer({ id: "counties-fill", type: "fill", source: "counties", layout: { visibility: "none" }, paint: {
-          "fill-color": COLORS.blue, "fill-opacity": ["case", hovered, 0.3, 0.02] as never,
+          "fill-color": COLORS.blue, "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.02] as never,
         } }, beforeId);
         map.addLayer({ id: "counties-line", type: "line", source: "counties", layout: { visibility: "none" }, paint: {
-          "line-color": COLORS.soft, "line-opacity": 0.45, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.2, 8, 0.9] as never,
+          "line-color": ["case", ["boolean", ["feature-state", "selected"], false], COLORS.blue, COLORS.soft] as never,
+          "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.95, 0.45] as never,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.2, 8, 0.9] as never,
         } }, beforeId);
         map.addLayer({ id: "districts-fill", type: "fill", source: "districts", layout: { visibility: "none" }, paint: {
           "fill-color": COLORS.teal,
@@ -124,6 +139,10 @@ export default function ElectionMap(props: ElectionMapProps) {
         } }, beforeId);
         map.addLayer({ id: "districts-line", type: "line", source: "districts", layout: { visibility: "none" }, paint: {
           "line-color": COLORS.teal, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.4, 8, 1.4] as never,
+        } }, beforeId);
+        map.addLayer({ id: "districts-outdated-line", type: "line", source: "districts", layout: { visibility: "none" }, filter: redistrictedFilter as never, paint: {
+          "line-color": COLORS.amber, "line-opacity": 0.85, "line-dasharray": [2, 2],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.6, 8, 1.6] as never,
         } }, beforeId);
         map.addLayer({ id: "states-line", type: "line", source: "states", paint: {
           "line-color": COLORS.line, "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 7, 1.4] as never,
@@ -179,7 +198,10 @@ export default function ElectionMap(props: ElectionMapProps) {
         const item = topFeature(event);
         if (!item) return;
         const target = toTarget(item);
-        if (target.kind === "district") callbacks.current.onSelectDistrict(target.state, target.district);
+        const { shiftKey, ctrlKey, metaKey } = event.originalEvent;
+        const additive = shiftKey || ctrlKey || metaKey;
+        if (target.kind === "district") callbacks.current.onSelectDistrict(target.state, target.district, additive);
+        else if (target.kind === "county") callbacks.current.onSelectCounty(target.state, target.fips, additive);
         else callbacks.current.onSelectState(target.state);
       });
       map.on("moveend", () => {
@@ -235,13 +257,17 @@ export default function ElectionMap(props: ElectionMapProps) {
     const map = mapRef.current;
     if (!map || !ready) return;
     const show = (ids: string[], visible: boolean) => ids.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
-    show(["districts-fill", "districts-line"], layer === "districts");
+    show(["districts-fill", "districts-line", "districts-outdated-line"], layer === "districts");
     show(["counties-fill", "counties-line"], layer === "counties");
     map.setPaintProperty("states-fill", "fill-opacity", layer === "states"
       ? ["case", ["boolean", ["feature-state", "selected"], false], 0.34, hovered, 0.28, 0.16]
       : ["case", hovered, 0.12, 0.05]);
     const stateFilter = selectedState ? ["==", ["get", "state"], selectedState] : null;
-    for (const id of ["districts-fill", "districts-line", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
+    for (const id of ["districts-fill", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
+    // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
+    const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
+    map.setFilter("districts-line", both(["!", redistrictedFilter]));
+    map.setFilter("districts-outdated-line", both(redistrictedFilter));
   }, [layer, ready, selectedState]);
 
   // Readiness colouring.
@@ -262,7 +288,8 @@ export default function ElectionMap(props: ElectionMapProps) {
     map.setFilter("states-selected", ["==", ["get", "code"], state ? selectedState : ""]);
 
     const districtCode = selectedState && selectedDistrict ? `${selectedState}-${selectedDistrict}` : null;
-    for (const code of districtsRef.current.keys()) map.setFeatureState({ source: "districts", id: code }, { selected: code === districtCode });
+    const chosen = new Set(selectedState ? selectedDistricts.map((item) => `${selectedState}-${item}`) : []);
+    for (const code of districtsRef.current.keys()) map.setFeatureState({ source: "districts", id: code }, { selected: chosen.has(code) });
 
     const district = districtCode && layer === "districts" ? districtsRef.current.get(districtCode) : undefined;
     const frameKey = district ? `d:${districtCode}` : state ? `s:${selectedState}` : "us";
@@ -275,7 +302,16 @@ export default function ElectionMap(props: ElectionMapProps) {
     lastFramed.current = frameKey;
     const bounds = district ? featureBounds(district) : state ? featureBounds(state) : LOWER_48_BOUNDS;
     map.fitBounds(bounds, { padding: 36, maxZoom: district ? 9 : 7, duration: 900 });
-  }, [selectedState, selectedDistrict, layer, ready, districtStatus]);
+  }, [selectedState, selectedDistrict, selectedDistricts, layer, ready, districtStatus]);
+
+  // County selection highlight. Only the changed counties are touched; there are over 3,000.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || countyStatus !== "ready") return;
+    for (const fips of highlightedCounties.current) map.setFeatureState({ source: "counties", id: fips }, { selected: false });
+    for (const fips of selectedCounties) map.setFeatureState({ source: "counties", id: fips }, { selected: true });
+    highlightedCounties.current = selectedCounties;
+  }, [selectedCounties, ready, countyStatus]);
 
   const jump = (bounds: Bounds) => mapRef.current?.fitBounds(bounds, { padding: 24, duration: 900 });
 

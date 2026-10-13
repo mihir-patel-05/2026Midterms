@@ -1,7 +1,8 @@
 import { prisma } from '../config/database.js';
 import { Candidate, Committee } from '@prisma/client';
 import { fecApiService, FECCandidate, FECCommittee } from './fec-api.service.js';
-import { getPaginationParams, createPaginationResult, PaginationResult } from '../utils/pagination.js';
+import { getPaginationParams, createPaginationResult, normalizePagination, PaginationResult } from '../utils/pagination.js';
+import { bulkTotalsData } from './finance.service.js';
 
 const publicCommitteeSelect = {
   id: true,
@@ -50,7 +51,8 @@ export class CandidateService {
     includeFunds?: boolean;
     hasFinancialData?: boolean;
   }): Promise<PaginationResult<any>> {
-    const { search, state, office, party, cycle = 2026, page = 1, perPage = 50, includeFunds = false, hasFinancialData = false } = params;
+    const { search, state, office, party, cycle = 2026, includeFunds = false, hasFinancialData = false } = params;
+    const { page, perPage } = normalizePagination(params.page, params.perPage);
     const { skip, take } = getPaginationParams(page, perPage);
 
     // Normalize office filter to handle both 'HOUSE'/'SENATE' and 'H'/'S'
@@ -146,12 +148,61 @@ export class CandidateService {
   }
 
   /**
+   * Sync every active candidate for one chamber, with headline finance totals,
+   * from OpenFEC's bulk /candidates/totals/ endpoint (~40 requests per chamber).
+   * Fetch failures throw so a partial candidate list is never mistaken for a
+   * complete one.
+   */
+  async syncCandidatesWithTotals(params: {
+    office: 'H' | 'S';
+    cycle: number;
+  }): Promise<{ synced: number; errors: number }> {
+    const { office, cycle } = params;
+    const fetched = await fecApiService.getCandidateTotalsSummaries({ office, electionYear: cycle });
+    const syncedAt = new Date();
+
+    // OpenFEC occasionally returns a stub row with no name. It cannot be shown,
+    // and inside a batch transaction it would roll back every valid row with it.
+    const rows = fetched.filter((row) => row.candidate_id && row.name);
+    let synced = 0;
+    let errors = fetched.length - rows.length;
+    if (errors > 0) console.warn(`⚠️  Skipped ${errors} ${office} row(s) with no candidate id or name`);
+    const batchSize = 100;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      try {
+        await prisma.$transaction(
+          batch.flatMap((row) => {
+            const financial = bulkTotalsData(row, syncedAt);
+            const rowCycle = row.cycle ?? cycle;
+            return [
+              this.upsertCandidate(row),
+              prisma.candidateFinancial.upsert({
+                where: { candidateId_cycle: { candidateId: row.candidate_id, cycle: rowCycle } },
+                update: financial,
+                create: { candidateId: row.candidate_id, cycle: rowCycle, ...financial },
+              }),
+            ];
+          }),
+        );
+        synced += batch.length;
+      } catch (error) {
+        console.error(`❌ ${office} candidates ${i + 1}-${i + batch.length} failed to save:`, error);
+        errors += batch.length;
+      }
+    }
+
+    console.log(`✅ ${office === 'S' ? 'Senate' : 'House'}: ${synced} candidates with totals, ${errors} errors`);
+    return { synced, errors };
+  }
+
+  /**
    * Create or update a candidate from FEC data
    */
-  async upsertCandidate(fecCandidate: FECCandidate): Promise<Candidate> {
+  upsertCandidate(fecCandidate: FECCandidate) {
     // Normalize office value to 'H' or 'S' for consistency
     const normalizedOffice = this.normalizeOffice(fecCandidate.office) || 'UNKNOWN';
-    
+
     return prisma.candidate.upsert({
       where: { candidateId: fecCandidate.candidate_id },
       update: {
@@ -264,6 +315,59 @@ export class CandidateService {
         state: fecCommittee.state,
       },
     });
+  }
+
+  /**
+   * Sync every House and Senate campaign committee for a cycle in bulk (~70
+   * requests) instead of one /candidate/{id}/committees/ request per candidate.
+   * Returns the fetched committees so detailed totals can be mapped to their
+   * candidates without fetching them again.
+   */
+  async syncHouseSenateCommittees(
+    cycle: number,
+  ): Promise<{ synced: number; errors: number; committees: FECCommittee[] }> {
+    const committees = await fecApiService.getHouseSenateCommittees(cycle);
+    const linkedIds = [...new Set(committees.flatMap((committee) => committee.candidate_ids?.[0] ?? []))];
+    const known = new Set(
+      (await prisma.candidate.findMany({
+        where: { candidateId: { in: linkedIds } },
+        select: { candidateId: true },
+      })).map((candidate) => candidate.candidateId),
+    );
+
+    let synced = 0;
+    let errors = 0;
+    const batchSize = 100;
+    for (let i = 0; i < committees.length; i += batchSize) {
+      const batch = committees.slice(i, i + batchSize);
+      try {
+        await prisma.$transaction(
+          batch.map((committee) => {
+            const candidateId = committee.candidate_ids?.[0];
+            const data = {
+              name: committee.name,
+              committeeType: committee.committee_type,
+              designation: committee.designation,
+              candidateId: candidateId && known.has(candidateId) ? candidateId : null,
+              party: committee.party,
+              state: committee.state,
+            };
+            return prisma.committee.upsert({
+              where: { committeeId: committee.committee_id },
+              update: data,
+              create: { committeeId: committee.committee_id, ...data },
+            });
+          }),
+        );
+        synced += batch.length;
+      } catch (error) {
+        console.error(`❌ Committees ${i + 1}-${i + batch.length} failed to save:`, error);
+        errors += batch.length;
+      }
+    }
+
+    console.log(`✅ Committees: ${synced} synced, ${errors} errors`);
+    return { synced, errors, committees };
   }
 
   /**

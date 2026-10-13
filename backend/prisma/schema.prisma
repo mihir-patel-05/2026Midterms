@@ -111,6 +111,9 @@ model CandidateFinancial {
   lastReportTypeFull       String?   @map("last_report_type_full")
   lastBeginningImageNumber String?   @map("last_beginning_image_number")
   electionFull             Boolean?  @map("election_full")
+  // Set only by the per-candidate totals sync. Rows written by the bulk sync have
+  // headline totals but no source breakdown (party, self-funded, unitemized).
+  detailedSyncedAt         DateTime? @map("detailed_synced_at")
 
   lastUpdated DateTime @default(now()) @map("last_updated")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -640,6 +643,7 @@ model DataSource {
   marketSnapshots     MarketSnapshot[]
   indicatorSeries     IndicatorSeries[]
   districtProfiles    DistrictProfile[]
+  areaDemographics    AreaDemographics[]
 
   @@index([type])
   @@index([healthStatus])
@@ -879,6 +883,7 @@ model IngestionRun {
   errors              IngestionError[]
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
+  areaDemographics    AreaDemographics[]
 
   @@index([sourceId, startedAt])
   @@index([status, createdAt])
@@ -1047,7 +1052,7 @@ model CertificationEvent {
 
 enum MarketProvider {
   KALSHI
-  POLYMARKET
+  POLYMARKET // Unused since Oct 10 (Kalshi only); kept so migrations stay additive.
 }
 
 enum MarketScope {
@@ -1090,8 +1095,8 @@ model MarketSnapshot {
   sourceId       String          @map("source_id")
   provider       MarketProvider
   scope          MarketScope
-  sourceEventId  String          @map("source_event_id") // Kalshi event ticker or Polymarket slug
-  sourceMarketId String          @map("source_market_id") // Kalshi market ticker or Polymarket market ID
+  sourceEventId  String          @map("source_event_id") // Kalshi event ticker
+  sourceMarketId String          @map("source_market_id") // Kalshi market ticker
   outcome        String
   contestId      String?         @map("contest_id") // Null for national control markets
   stateCode      String?         @map("state_code")
@@ -1200,4 +1205,106 @@ model AgentRun {
   @@index([agent, createdAt])
   @@index([status, createdAt])
   @@map("agent_runs")
+}
+
+enum DemographicGeoType {
+  NATION
+  STATE
+  COUNTY
+  CONGRESSIONAL_DISTRICT
+  COUNTY_DISTRICT_PART
+}
+
+// ACS 5-year estimates per Census geography and vintage, keyed by Census GEOID.
+// COUNTY_DISTRICT_PART is the piece of a county inside one congressional district.
+// Estimates and margins of error are stored as published, keyed by variable
+// (e.g. "B03002_003"); null means Census published no value. Percentages,
+// combined medians, and combined margins are derived in code.
+model AreaDemographics {
+  id             String             @id @default(uuid())
+  geoType        DemographicGeoType @map("geo_type")
+  geoid          String
+  name           String
+  stateCode      String?            @map("state_code")
+  countyFips     String?            @map("county_fips")
+  districtCode   String?            @map("district_code")
+  // Congress whose district lines the ACS vintage tabulates (119 for ACS 2024).
+  congress       Int?
+  acsYear        Int                @map("acs_year")
+  catalogVersion String             @map("catalog_version")
+  estimates      Json
+  moes           Json
+  sourceUrl      String             @map("source_url")
+  sourceId       String             @map("source_id")
+  ingestionRunId String             @map("ingestion_run_id")
+  fetchedAt      DateTime           @map("fetched_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  source       DataSource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Restrict)
+
+  @@unique([geoType, geoid, acsYear])
+  @@index([acsYear, stateCode, geoType])
+  @@index([ingestionRunId])
+  @@map("area_demographics")
+}
+
+// FEC Schedule E independent expenditures: spending by outside groups (super
+// PACs, parties, 501(c)s) for or against a federal candidate, never coordinated
+// with the campaign. One row per OpenFEC Schedule E line, keyed by its sub_id.
+// 24- and 48-hour notices are kept alongside regular reports; totals decide
+// which to count (see services/outside-spending), so storage stays faithful.
+model IndependentExpenditure {
+  id                String    @id @default(uuid())
+  subId             String    @unique @map("sub_id")
+  cycle             Int
+  committeeId       String    @map("committee_id")
+  committeeName     String    @map("committee_name")
+  // FEC candidate ID, not a foreign key: groups can target candidates we do not track.
+  candidateId       String?   @map("candidate_id")
+  candidateName     String?   @map("candidate_name")
+  candidateOffice   String?   @map("candidate_office") // H, S, P
+  candidateState    String?   @map("candidate_state")
+  candidateDistrict String?   @map("candidate_district") // two digits for House
+  supportOppose     String    @map("support_oppose") // S or O
+  amount            Decimal   @db.Decimal(15, 2)
+  expenditureDate   DateTime? @map("expenditure_date") @db.Date
+  disseminationDate DateTime? @map("dissemination_date") @db.Date
+  description       String?   @db.Text
+  communicationType String    @map("communication_type")
+  payeeName         String?   @map("payee_name")
+  isNotice          Boolean   @default(false) @map("is_notice") // 24- or 48-hour notice
+  isMemo            Boolean   @default(false) @map("is_memo")
+  filingForm        String?   @map("filing_form")
+  transactionId     String?   @map("transaction_id")
+  fileNumber        Int?      @map("file_number")
+  pdfUrl            String?   @map("pdf_url")
+  fetchedAt         DateTime  @map("fetched_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([cycle, candidateId])
+  @@index([cycle, candidateState, candidateOffice, candidateDistrict])
+  @@index([cycle, committeeId])
+  @@index([cycle, expenditureDate])
+  @@map("independent_expenditures")
+}
+
+// Progress of the Schedule E sync for one cycle. The backfill walks OpenFEC's
+// keyset cursor from newest to oldest across runs; the recent window is
+// re-fetched in full on every run.
+model ScheduleESyncState {
+  cycle              Int       @id
+  // Everything dated before this is covered by the backfill; on or after it, by the recent window.
+  backfillBefore     DateTime? @map("backfill_before") @db.Date
+  backfillCursor     Json?     @map("backfill_cursor")
+  backfillStartedAt  DateTime? @map("backfill_started_at")
+  backfillComplete   Boolean   @default(false) @map("backfill_complete")
+  backfillDoneAt     DateTime? @map("backfill_done_at")
+  lastWindowSyncedAt DateTime? @map("last_window_synced_at")
+  lastError          String?   @map("last_error") @db.Text
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@map("schedule_e_sync_state")
 }

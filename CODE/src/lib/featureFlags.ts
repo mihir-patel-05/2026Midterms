@@ -5,3 +5,5 @@ const flag = (value: string | undefined) => value === "true";
 export const newFrontendEnabled = import.meta.env.VITE_FEATURE_NEW_FRONTEND !== "false";
 export const electionDashboardEnabled = flag(import.meta.env.VITE_FEATURE_ELECTION_DASHBOARD);
 export const mockResultsProviderEnabled = flag(import.meta.env.VITE_RESULTS_PROVIDER_MOCK_ENABLED);
+/** Demographics tab on the monitor. On unless set to "false"; it shows a notice until the ACS sync has run. */
+export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !== "false";
