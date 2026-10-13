@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 11, 2026
+Last updated: October 13, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -73,8 +73,8 @@ Differentiators:
 | When | Work |
 |---|---|
 | **Oct 8–14** | **Set up production on Railway first** (section 5.3). Market history API and sparklines. Biggest movers feed. NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
-| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). **Feature freeze Oct 24.** |
+| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
+| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
 | **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
 | **Nov 3** | Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
@@ -95,6 +95,7 @@ Differentiators:
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
 | **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
+| **Past results** | A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. See section 4.9. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. Ship the Kalshi-only version first: it runs on `market_snapshots` alone and is the trigger Agent 3 needs. Show the related NYT and AP headlines until Agent 3's explanations exist. |
 | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
@@ -333,6 +334,104 @@ National context:
 - [CRS R49481: Active Presidential Tariff Actions in 2026](https://www.everycrsreport.com/reports/R49481.html)
 - [Tax Foundation: Trump Tariffs Tracker](https://taxfoundation.org/research/all/federal/trump-tariffs-trade-war/)
 
+### 4.9 Past results: MIT Election Lab presidential, Senate, and House returns
+
+A **Past results** mode for the map that shows how places voted before, using the MIT Election Data + Science Lab (MEDSL) CSV files we load. It covers three offices:
+
+| Office | MEDSL file (Harvard Dataverse) | Geography | Map layer it colors |
+|---|---|---|---|
+| **President** | County Presidential Election Returns 2000–2024 (`countypres_2000-2024.csv`) | County, rolled up to state | Counties and states |
+| **U.S. Senate** | U.S. Senate Statewide 1976–2024 (`1976-2024-senate.csv`) | State | States |
+| **U.S. House** | U.S. House 1976–2024 (`1976-2024-house.csv`) | Congressional district | Districts |
+
+The Senate and House files are statewide and district-wide totals, **not county results**. County-level Senate and House results exist only in MEDSL's precinct files and are out of scope for this section.
+
+**What the map shows**
+
+The map's top bar gets a toggle: **2026 races | Past results**. In Past results, the user picks an office (President, Senate, House), a year, and a view:
+
+1. **Winner.** Each state, district, or county is colored by the party that won it. The shade shows the margin, in the same bins for both parties: under 1, 1–5, 5–10, 10–20, and 20+ points. Democrats are blue, Republicans red, and independents and third parties a neutral third color. Independents are never colored or labeled as a party they caucus with, for example King or Sanders.
+2. **Shift (president only).** Each county and state is colored by how far the margin moved between two presidential years the user picks, for example 2020 → 2024. The default is the two most recent elections. A diverging scale shows the direction and size of the move toward either party. Selecting a county shows the shift for each party separately: Democratic share, Republican share, and other share in each year, the change in points, and the change in total votes.
+3. **Details on select.** Selecting a state, district, or county opens a Past results tab in the detail panel. It shows every candidate's votes and share for the chosen year, plus a table and small line chart of the presidential margin for every year from 2000 to 2024. For Senate it shows both seats' most recent races, and for the House the district's races.
+
+We recommend **a mode inside the existing map**, not a second map. The map already loads the state, district, and county shapes and handles hover and selection. A second MapLibre instance would double memory use on phones. A side-by-side view comparing two years can come after Nov 3 if people want it.
+
+**Rules**
+
+- **History is not a forecast.** Label the mode "Past results (MIT Election Lab), not 2026 results or predictions." Past results are never written into the `/api/v1` results read model or shown in election-night mode, so they can never pass for live counts.
+- **Same treatment for both parties.** Use the same bins, legend, and wording either way: "shifted 4.2 points toward Republicans" and "shifted 4.2 points toward Democrats." Do not use words like "surge" or "collapse."
+- **Define the math.** Shares are a share of **all** votes cast for the office in that place, including third parties and write-ins. Margin is Democratic share minus Republican share. Shift is margin in the later year minus margin in the earlier year, in points. Say this in the legend's "How this is calculated" link. A two-party-share toggle can come later.
+- **Missing is not zero.** "No Senate race in 2022" (most states hold one in only two of every three cycles), "Unopposed: no vote count reported" (several states, Florida among them, do not report unopposed House races), "Not reported by county" (Alaska reports by state house district), and "Boundaries changed; not comparable" each get their own grey and legend entry.
+- **House districts only for matching lines.** District lines change after each census and, in several states, mid-decade. The map colors House districts only for the year whose lines match the shapes we draw (`cd119`, used in 2024). Other years and redistricted states (section 2, `redistricting-2026.json`) show a list, not a colored map.
+- **Source line** on every panel: "MIT Election Data + Science Lab, [dataset name], Harvard Dataverse, version [file version], loaded [date]." Link the dataset's DOI page.
+- **Accessible.** Color is never the only cue. The tooltip and panel always state the winner and margin in words, and the legend works with a keyboard and a screen reader.
+
+**Data problems the import must handle**
+
+| File | Problem | Handling |
+|---|---|---|
+| County president | Some states report each county's votes split by vote method (`mode` = ABSENTEE, ELECTION DAY, EARLY, PROVISIONAL), with or without a `TOTAL` row | Use the `TOTAL` row when present; otherwise add up the mode rows per county and candidate |
+| County president | Rows with no county FIPS (overseas, federal precinct, statewide write-ins) | Exclude them from county results but **include** them in the state total |
+| County president | Alaska's units are state house districts; some cities report separately from their counties, for example Kansas City, Missouri | Keep them in state totals. Show the Alaska and city note on the county layer. The import lists every FIPS code that has no matching shape on the map |
+| County president | Boundary changes: Connecticut's switch to 9 planning regions (2022), Alaska's Valdez-Cordova split (2019) | A shift is computed only when the same FIPS code exists in both years; otherwise "Boundaries changed; not comparable" |
+| House | At-large districts are `0`; fusion tickets (New York, Connecticut) list one candidate several times under different parties | Store at-large as `00`, matching the rest of the app. Add up each candidate's votes across fusion lines and credit them to their main party, keeping the party lines in the details |
+| House and Senate | Specials, runoffs (`stage`, `special`, `runoff`), write-ins, and `unofficial` flags | Keep each race separate. The map uses the regular general election and offers specials and runoffs in the panel. Georgia's runoffs are shown as runoffs |
+| Senate | Ranked-choice states (Maine, Alaska) | MEDSL reports the first round; label it "First-round votes" |
+| All | Party names vary by year and state | Store MEDSL's simplified party for colors and its detailed party for display |
+
+**Code changes**
+
+What exists: `backend/src/scripts/import-mit-results.ts` (`npm run import:county-results`), `seed-counties.ts`, and the `County` and `CountyResult` models, which feed the researcher simulator. The simulator's routes (`/api/research/*`) require a researcher login, so the public map cannot use them. The importer has problems that matter here:
+
+- It handles only `HOUSE` and `SENATE`, and it expects a `county_fips` column. MEDSL's standard House and Senate files have no county column, so the importer cannot load them. Its header also mislabels `countypres_*` (the presidential file) as House data.
+- It upserts one row per candidate, so a county reported in several vote-method rows **keeps only the last one** instead of adding them up. Totals for those states come out wrong.
+- At-large district `0` is stripped to an empty string and then defaults to `1`.
+- Rows with no FIPS are dropped, so state totals rolled up from counties come out short.
+- It upserts one row at a time and then recomputes percentages one county at a time. The 2000–2024 presidential file has over 70,000 rows, so this means tens of thousands of database round trips.
+- It does not record a `DataSource`, `IngestionRun`, or `RawArtifact`.
+
+Planned changes:
+
+1. **Data model (additive migration, batch 3).**
+   - `CountyResult`: allow `officeType = 'PRESIDENT'`, and add nullable `party_detailed`, `total_votes` (`BIGINT`, the county's total for the office, from MEDSL's `totalvotes`), and `ingestion_run_id`. Existing House and Senate rows and the simulator keep working.
+   - New `historical_results` table for statewide and district-wide returns: `office` (`PRESIDENT`, `SENATE`, `HOUSE`), `cycle`, `state`, `district` (`00` at-large, empty string statewide), `stage` (`GEN`, `RUNOFF`), `special`, `candidate`, `party_simplified`, `party_detailed`, `writein`, `votes` and `total_votes` (`BIGINT`), `unofficial`, `source_version`, and `ingestion_run_id`. Unique on (office, cycle, state, district, stage, special, candidate). The state presidential totals go here too, rolled up during import from the county file **including** the no-FIPS rows.
+   - One `DataSource` row per MEDSL dataset, with the DOI, version, and attribution text.
+2. **Importer.** Replace `import-mit-results.ts` with `import-medsl.ts` (`npm run import:medsl -- --dataset=president-county|senate|house --file=<csv> [--from=2000]`):
+   - Read the whole CSV, check the headers it expects, add up mode rows and fusion lines in memory, then write each cycle in one transaction (delete that cycle's rows for the dataset, then `createMany`). Re-running the same file gives the same result.
+   - Hash the file and save it as a `RawArtifact` (a Railway Bucket once that exists), and record an `IngestionRun` with row counts.
+   - Print a check report: rows read, rows skipped by reason, FIPS codes with no map shape, and for each state and year whether the county sum matches MEDSL's state total. Large mismatches stop the import.
+   - Keep `--office=HOUSE|SENATE` county mode working for the simulator's precinct-derived files, or move the simulator to the new tables.
+3. **Service and API** (`backend/src/services/history.service.ts`, `backend/src/routes/history.routes.ts`, public, Zod-validated, read-only):
+   - `GET /api/history/results?office=PRESIDENT&cycle=2024&level=state|county|district[&state=PA]` returns compact rows: `{ code, winnerParty, demPct, repPct, otherPct, margin, totalVotes, status }`, where `status` is `ok`, `no_race`, `unopposed`, or `not_reported`.
+   - `GET /api/history/shift?from=2020&to=2024&level=county|state[&state=PA]` returns `{ code, marginShift, demShift, repShift, otherShift, turnoutChangePct, comparable }`.
+   - `GET /api/history/area/:level/:code` returns the panel details: candidates per year and the presidential margin series.
+   - The data changes only when we import, so send long `Cache-Control` headers with an `ETag` built from the latest `IngestionRun` ID. The full county payload is about 3,100 rows (around 150 KB gzipped), small enough to fetch once per office and year.
+   - Add `GET /api/history/meta` (the years available for each office, plus the source and version) so the year pickers never offer a year we don't have.
+4. **Frontend** (`CODE/src/features/election-monitor/`):
+   - `types.ts` and `useMonitorParams.ts`: add `view=history`, `hoffice`, `cycle`, `from`, and `metric=winner|shift` URL params, so a view can be linked to.
+   - `map/ElectionMap.tsx`: in history mode, set feature-state values (`margin`, `shift`, `status`) on the existing `states`, `counties`, and `districts` sources, and swap the fill-color expressions for diverging margin and shift scales. Readiness colors come back when the user returns to 2026 races. No new geometry is needed: the county layer already uses the Census 2024 shapes (`county2024.topo.json`), with the 2017 us-atlas shapes as a fallback.
+   - New `HistoryControls.tsx` (office, year, and from-year pickers plus the view switch), `HistoryLegend.tsx` (bins, grey states, how it is calculated, source line), and `PastResultsTab.tsx` in `DetailPanel` (add `"history"` to `DetailTab`).
+   - New `history.ts` with TanStack Query hooks; `staleTime: Infinity`, since the data only changes when we import.
+   - Gate it with `VITE_FEATURE_PAST_RESULTS`, plus `HISTORY_API_ENABLED` on the backend.
+5. **Tests.** Import fixtures for each problem in the table above: mode rows with and without a total, no-FIPS rows, at-large districts, fusion tickets, specials and runoffs, and an unopposed race. Also unit tests for margin and shift math, and an API contract test. Add them to `npm run test:results` or a new `test:history`.
+6. **Loading the files.** The CSVs are not committed. Put them in `backend/data/medsl/` (gitignored), run the import against Testing with `railway run`, check the report, then run it against production. Write the steps into `backend/data/medsl/README.md`.
+
+**Timing.** The data is static and free, and the map work reuses existing layers. President (county and state winner, plus shift) can ship by Oct 21. Senate and House winner layers can ship by the Oct 24 feature freeze. Arrow-style shift markers (an arrow on each county sized by its shift) and the side-by-side comparison come after Nov 3.
+
+**To confirm before building**
+
+- Which CSV files and versions you are providing. The column names above follow MEDSL's current releases. If a file differs, the importer's header check will say so.
+- The license on each Dataverse dataset. MEDSL data is generally CC0, but check each one, keep the attribution line, and follow MEDSL's citation request.
+- Whether the 2024 county file uses Connecticut's planning regions or its old counties. This decides whether Connecticut can show a 2020 → 2024 shift.
+- Whether the simulator should move to the new tables or keep its own House and Senate county rows.
+
+**Sources**
+
+- [MEDSL data portal](https://electionlab.mit.edu/data)
+- [County Presidential Election Returns 2000–2024](https://doi.org/10.7910/DVN/VOQCHQ) (Harvard Dataverse)
+- [U.S. Senate Statewide 1976–2024](https://doi.org/10.7910/DVN/PEJ5QU) (Harvard Dataverse)
+- [U.S. House 1976–2024](https://doi.org/10.7910/DVN/IG0UN2) (Harvard Dataverse)
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -384,6 +483,7 @@ National context:
 | Geocodio | Address to 2026 district | `GEOCODIO_API_KEY`, `GEOCODIO_DAILY_LOOKUP_LIMIT` |
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
+| MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; files we load with `npm run import:medsl`; attribution required |
 | FRED | Economic indicators | to add |
 | EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
 | BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |
@@ -413,7 +513,7 @@ Conventions:
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
 | 2 | Oct 8–14 | `articles` (NYT and AP, unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
-| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations` |
+| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
 Schema cleanup to do after the election:
