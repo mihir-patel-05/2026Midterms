@@ -551,7 +551,10 @@
 /* Legend and live data floating over the expanded map. */
 .em-map-hud {
   position: absolute; bottom: 10px; left: 10px; z-index: 3;
-  display: grid; justify-items: start; gap: 7px; width: min(480px, calc(100% - 20px)); max-height: calc(100% - 56px); overflow-y: auto;
+  display: grid; justify-items: start; gap: 7px; max-height: calc(100% - 56px); overflow-y: auto;
+  /* Leave the bottom-right corner to the map attribution. */
+  width: min(480px, max(240px, calc(100% - 290px)));
+  container-type: inline-size;
 }
 .em-hud-toggle { background: hsl(var(--surface) / 0.88); backdrop-filter: blur(8px); }
 .em-hud-body { display: grid; gap: 7px; width: 100%; }
@@ -569,6 +572,11 @@
 .em-map-hud .em-stat { padding: 0; border: 0; background: none; }
 .em-map-hud .em-stat span { overflow: hidden; font-size: 0.6rem; letter-spacing: 0.05em; text-overflow: ellipsis; white-space: nowrap; }
 .em-map-hud .em-stat strong { font-size: 0.86rem; }
+@container (max-width: 420px) {
+  .em-map-hud .em-stats { grid-template-columns: repeat(2, minmax(0, max-content)); gap: 8px 18px; }
+  .em-map-hud .em-control-banner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .em-map-hud .em-control-meta { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
+}
 .em-shell[data-map="expanded"] .em-detail { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 /* Detail panel collapse (expanded map only): the panel becomes a narrow rail. */
