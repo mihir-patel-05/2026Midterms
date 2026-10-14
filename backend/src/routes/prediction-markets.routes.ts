@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
-import { getPredictionMarkets, isStateCode } from '../services/prediction-markets.service.js';
+import { getPredictionMarkets, isStateCode, knownStateCode } from '../services/prediction-markets.service.js';
 import { kalshiLiveFeed, type FeedStatus, type PriceDelta } from '../services/kalshi/live-feed.js';
 import { getMarketHistory, getMovers, parseRaceKey, type RaceRef } from '../services/kalshi/history.js';
 
