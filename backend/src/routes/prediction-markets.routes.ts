@@ -1,6 +1,10 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { z } from 'zod';
+import { env } from '../config/env.js';
+import { prisma } from '../config/database.js';
 import { getPredictionMarkets, isStateCode } from '../services/prediction-markets.service.js';
 import { kalshiLiveFeed, type FeedStatus, type PriceDelta } from '../services/kalshi/live-feed.js';
+import { getMarketHistory, getMovers, parseRaceKey, type RaceRef } from '../services/kalshi/history.js';
 
 const router = Router();
 const MAX_STREAM_CLIENTS = 2000;
@@ -53,6 +57,70 @@ router.get('/kalshi/stream', (req, res) => {
     if (remaining > 0) streamClientsByIp.set(ip, remaining);
     else streamClientsByIp.delete(ip);
   });
+});
+
+const MAX_HISTORY_RACES = 60;
+
+/** `race=PA-07,PA-SEN,US-HOUSE&days=14` */
+export const historyQuery = z.object({
+  race: z.string().transform((value, ctx) => {
+    const keys = [...new Set(value.split(',').map((key) => key.trim().toUpperCase()).filter(Boolean))];
+    if (keys.length === 0 || keys.length > MAX_HISTORY_RACES) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Give 1 to ${MAX_HISTORY_RACES} races` });
+      return z.NEVER;
+    }
+    const refs: RaceRef[] = [];
+    for (const key of keys) {
+      const ref = parseRaceKey(key);
+      if (!ref) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Unknown race ${key}` });
+        return z.NEVER;
+      }
+      refs.push(ref);
+    }
+    return refs;
+  }),
+  days: z.coerce.number().int().min(1).max(30).default(14),
+});
+
+/** `window=24h|7d&state=PA&limit=10` */
+export const moversQuery = z.object({
+  window: z.enum(['24h', '7d']).default('24h'),
+  state: z.string().transform((value) => value.toUpperCase()).refine(isStateCode, 'Invalid state').optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+const SOURCE = { name: 'Kalshi', note: 'Hourly market prices from Kalshi. Traded prices, not forecasts or results. Hours with no stored price are gaps.' };
+
+// Snapshots are written once an hour, so a five-minute cache loses nothing.
+const cached = (res: Response) => res.set('Cache-Control', 'public, max-age=300');
+const historyEnabled = (_req: Request, res: Response, next: NextFunction) => {
+  if (!env.MARKET_HISTORY_ENABLED) return res.status(404).json({ error: 'Market history is turned off' });
+  next();
+};
+
+/** GET /api/prediction-markets/history?race=PA-07,PA-SEN&days=14 */
+router.get('/history', historyEnabled, async (req, res) => {
+  const parsed = historyQuery.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
+  try {
+    cached(res).json({ data: await getMarketHistory(prisma, parsed.data.race, parsed.data.days), source: SOURCE });
+  } catch (error) {
+    console.error('Market history failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'Market history is unavailable' });
+  }
+});
+
+/** GET /api/prediction-markets/movers?window=24h&state=PA&limit=10 */
+router.get('/movers', historyEnabled, async (req, res) => {
+  const parsed = moversQuery.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
+  try {
+    cached(res).json({ data: await getMovers(prisma, parsed.data), source: SOURCE });
+  } catch (error) {
+    console.error('Market movers failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'Market movers are unavailable' });
+  }
 });
 
 router.get('/', async (req, res) => {
