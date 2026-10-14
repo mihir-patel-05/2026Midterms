@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Layers, Maximize2, Minimize2 } from "lucide-react";
+import { Expand, Layers, Maximize2, Minimize2, Shrink } from "lucide-react";
 import type { MapMode } from "./types";
 
 const layerDescriptions = {
@@ -8,7 +8,7 @@ const layerDescriptions = {
   counties: "County reporting units where a results source provides them",
 } as const;
 
-export function MapCard({ layer, readout, children, mode = "races", onModeChange, pastControls, pastLegend, expanded = false, onExpandedChange, quickControls, hud }: {
+export function MapCard({ layer, readout, children, mode = "races", onModeChange, pastControls, pastLegend, expanded = false, onExpandedChange, fullscreen = false, onFullscreenToggle, quickControls, hud }: {
   layer: keyof typeof layerDescriptions;
   readout: string;
   children: ReactNode;
@@ -20,6 +20,9 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
   /** The map fills the window; the toolbar button switches it. */
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  /** Browser fullscreen, offered once expanded; omitted where the browser can't do it. */
+  fullscreen?: boolean;
+  onFullscreenToggle?: () => void;
   /** Location and layer pickers, shown in the toolbar while expanded (the sidebar is hidden then). */
   quickControls?: ReactNode;
   /** Data that floats over the expanded map, under the legend. */
@@ -52,6 +55,18 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
         {!past && !expanded && readinessLegend}
         {onExpandedChange && (
           <div className="em-map-actions">
+            {expanded && onFullscreenToggle && (
+              <button
+                type="button"
+                className="em-map-action"
+                aria-pressed={fullscreen}
+                title={fullscreen ? "Leave full screen (Esc)" : "Hide the browser's toolbars too"}
+                onClick={onFullscreenToggle}
+              >
+                {fullscreen ? <Shrink aria-hidden="true" /> : <Expand aria-hidden="true" />}
+                <span>{fullscreen ? "Leave full screen" : "Full screen"}</span>
+              </button>
+            )}
             <button
               type="button"
               className="em-map-action"

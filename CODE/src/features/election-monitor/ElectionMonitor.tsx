@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
@@ -36,6 +36,8 @@ import "@/features/election-dashboard/election-dashboard.css";
 import "./monitor.css";
 
 const ElectionMap = lazy(() => import("./map/ElectionMap"));
+/** False on iPhone Safari and in iframes without permission; the button is hidden there. */
+const fullscreenSupported = typeof document !== "undefined" && document.fullscreenEnabled;
 
 export function ElectionMonitor() {
   const [params, update] = useMonitorParams();
@@ -99,7 +101,24 @@ export function ElectionMonitor() {
   }, [update, params.tab]);
 
   const expanded = params.expanded;
-  const setExpanded = useCallback((next: boolean) => update({ expanded: next }), [update]);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const setExpanded = useCallback((next: boolean) => {
+    // Leaving the expanded map also leaves browser fullscreen, which only exists inside it.
+    if (!next && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    update({ expanded: next });
+  }, [update]);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void shellRef.current?.requestFullscreen().catch(() => {});
+  }, []);
+  // The browser can end fullscreen on its own (Esc, F11), so follow its events rather than our clicks.
+  useEffect(() => {
+    if (!fullscreenSupported) return;
+    const sync = () => setFullscreen(document.fullscreenElement !== null && document.fullscreenElement === shellRef.current);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
   // Only the expanded map can tuck the detail panel away; the dashboard always shows it.
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const detailCollapsed = expanded && panelCollapsed;
@@ -110,7 +129,8 @@ export function ElectionMonitor() {
     const previousOverflow = root.style.overflow;
     root.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // In browser fullscreen, Esc belongs to the browser and only leaves fullscreen.
+      if (event.key !== "Escape" || event.defaultPrevented || document.fullscreenElement) return;
       // Native selects and open menus use Esc themselves.
       if ((event.target as Element | null)?.closest?.("input, select, textarea, [role='listbox'], [role='menu'], [role='dialog']")) return;
       setExpanded(false);
@@ -220,7 +240,7 @@ export function ElectionMonitor() {
 
   return (
     <AppShell variant="app">
-      <div className="em-shell" data-map={expanded ? "expanded" : undefined} data-panel={detailCollapsed ? "collapsed" : undefined}>
+      <div className="em-shell" ref={shellRef} data-map={expanded ? "expanded" : undefined} data-panel={detailCollapsed ? "collapsed" : undefined}>
         <Sidebar
           states={states}
           stateCode={selectedState?.code ?? null}
@@ -260,6 +280,8 @@ export function ElectionMonitor() {
             mode={pastActive ? "past" : "races"}
             expanded={expanded}
             onExpandedChange={setExpanded}
+            fullscreen={fullscreen}
+            onFullscreenToggle={fullscreenSupported ? toggleFullscreen : undefined}
             quickControls={
               <MapQuickControls
                 states={states}
