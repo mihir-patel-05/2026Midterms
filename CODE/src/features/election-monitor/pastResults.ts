@@ -220,6 +220,8 @@ export const BIN_COLORS: Record<string, string> = {
   ...Object.fromEntries((["D", "R", "O"] as Party[]).flatMap((party) => RAMPS[party].map((color, i) => [`${party}${i}`, color]))),
   ...Object.fromEntries((["D", "R"] as const).flatMap((party) => [0, 1, 3, 4].map((step, i) => [`S${party}${i}`, RAMPS[party][step]]))),
   ...STATUS_COLORS,
+  // The simulator's undecided states: a muted gold that reads as neither party nor "no data".
+  tossup: "#9c8550",
 };
 
 // ---------------------------------------------------------------------------
