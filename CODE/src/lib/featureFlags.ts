@@ -9,3 +9,5 @@ export const mockResultsProviderEnabled = flag(import.meta.env.VITE_RESULTS_PROV
 export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !== "false";
 /** Hourly Kalshi price sparklines on race cards and the markets panel. On unless set to "false". */
 export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY !== "false";
+/** Biggest movers card (Kalshi price changes over 24 hours or 7 days). On unless set to "false". */
+export const moversEnabled = import.meta.env.VITE_FEATURE_MOVERS !== "false";

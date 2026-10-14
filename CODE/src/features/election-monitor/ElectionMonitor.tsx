@@ -1,9 +1,10 @@
 import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
+import { MoversCard } from "./MoversCard";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
@@ -220,6 +221,12 @@ export function ElectionMonitor() {
             </Suspense>
           </MapCard>
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
+            {moversEnabled && (
+              <MoversCard
+                stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
+                onSelect={(state, district) => update({ state, district, districts: [], counties: [], contest: null })}
+              />
+            )}
             <PredictionMarketsPanel
               key={selectedState?.code ?? "US"}
               stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}

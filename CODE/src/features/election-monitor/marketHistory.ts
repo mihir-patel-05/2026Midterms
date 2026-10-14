@@ -61,3 +61,48 @@ export function historyStart(data: MarketHistoryData | undefined, tickers?: stri
   }
   return Number.isFinite(first) ? first : null;
 }
+
+export type MoversWindow = "24h" | "7d";
+
+export interface Mover {
+  race: string;
+  scope: "NATIONAL_HOUSE" | "NATIONAL_SENATE" | "STATE_SENATE" | "HOUSE_DISTRICT";
+  stateCode: string | null;
+  district: string | null;
+  ticker: string;
+  outcome: string;
+  party: "D" | "R" | null;
+  fromPct: number;
+  toPct: number;
+  changePts: number;
+  fromHour: string;
+  toHour: string;
+  url: string | null;
+}
+
+export interface MoversData {
+  window: MoversWindow;
+  /** The newest stored hour the changes run to; null when nothing is stored yet. */
+  asOf: string | null;
+  /** The first hour Kalshi prices were stored, so a window that reaches before it can say so. */
+  historyStart: string | null;
+  movers: Mover[];
+  excluded: { noBaseline: number; thinQuote: number };
+}
+
+/** The races whose Kalshi price moved most over the window, nationally or within one state. */
+export function useMarketMovers(window: MoversWindow, state: string | null) {
+  return useQuery<MoversData, Error>({
+    queryKey: ["election-monitor", "market-movers", window, state],
+    staleTime: 10 * 60_000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const query = new URLSearchParams({ window, limit: "8" });
+      if (state) query.set("state", state);
+      const response = await fetch(`${API_BASE_URL}/api/prediction-markets/movers?${query}`, { signal });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+      return body.data as MoversData;
+    },
+  });
+}
