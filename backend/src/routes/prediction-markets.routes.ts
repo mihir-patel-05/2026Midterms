@@ -12,6 +12,7 @@ const MAX_STREAM_CLIENTS = 2000;
 // office IP, but stops one client from taking every slot.
 const MAX_STREAM_CLIENTS_PER_IP = 10;
 const STREAM_PING_MS = 20_000;
+const DISTRICT_NUMBERS = Array.from({ length: 53 }, (_, index) => String(index + 1).padStart(2, '0'));
 let streamClients = 0;
 const streamClientsByIp = new Map<string, number>();
 
@@ -124,10 +125,13 @@ router.get('/movers', historyEnabled, async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-  const state = typeof req.query.state === 'string' ? req.query.state.toUpperCase() : null;
-  const district = typeof req.query.district === 'string' ? req.query.district.padStart(2, '0') : null;
-  if (state !== null && !isStateCode(state)) return res.status(400).json({ error: 'Invalid state' });
-  if (district !== null && (!state || !/^(0[1-9]|[1-4][0-9]|5[0-3])$/.test(district))) {
+  const rawState = typeof req.query.state === 'string' ? req.query.state.toUpperCase() : null;
+  const rawDistrict = typeof req.query.district === 'string' ? req.query.district.padStart(2, '0') : null;
+  // Continue with our own copies of the checked values, so no client string reaches the Kalshi URL.
+  const state = rawState === null ? null : knownStateCode(rawState);
+  const district = rawDistrict === null ? null : DISTRICT_NUMBERS.find((known) => known === rawDistrict) ?? null;
+  if (rawState !== null && !state) return res.status(400).json({ error: 'Invalid state' });
+  if (rawDistrict !== null && (!state || !district)) {
     return res.status(400).json({ error: 'District requires a state and a number from 1 to 53' });
   }
   try {

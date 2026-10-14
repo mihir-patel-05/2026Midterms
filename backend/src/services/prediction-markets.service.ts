@@ -1,12 +1,12 @@
 /** Public, read-only 2026 general-election market quotes from Kalshi. */
 import {
-  isOpen, isStateCode, marketUrl, partyFromTicker, partyNames, quotePrice,
+  isOpen, isStateCode, knownStateCode, marketUrl, partyFromTicker, partyNames, quotePrice,
   type KalshiEvent, type MarketScope,
 } from './kalshi/shared.js';
 import { getLiveEventQuotes } from './kalshi/live-feed.js';
 import { env } from '../config/env.js';
 
-export { isStateCode };
+export { isStateCode, knownStateCode };
 export type { MarketScope };
 export type MarketProvider = 'KALSHI';
 export interface MarketQuote {
