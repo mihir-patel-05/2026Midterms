@@ -34,6 +34,8 @@ import { useMonitorParams } from "./useMonitorParams";
 // Prediction-market panel styles live with the legacy dashboard.
 import "@/features/election-dashboard/election-dashboard.css";
 import "./monitor.css";
+// Eager, so the loading placeholder is sized before the lazy map chunk arrives.
+import "./map/electionMap.css";
 
 const ElectionMap = lazy(() => import("./map/ElectionMap"));
 /** False on iPhone Safari and in iframes without permission; the button is hidden there. */
