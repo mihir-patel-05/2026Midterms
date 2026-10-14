@@ -59,6 +59,12 @@ Differentiators:
   - 7-day changes become available on Oct 17.
   - Flags: `MARKET_HISTORY_ENABLED` (backend), and `VITE_FEATURE_MARKET_HISTORY` and `VITE_FEATURE_MOVERS` (frontend). All are on by default.
   - The new migration adds a `(provider, captured_hour)` index on `market_snapshots`.
+- Past results (Oct 14, section 4.9): a "2026 races | Past results" switch on the map.
+  - **Coverage:** President 2000–2024 by state or county, winner or shift; Senate 1976–2024 by state; House 1976–2024, with districts coloured for 2024 only.
+  - **Panel:** a "Past" detail tab.
+  - **Data:** built from the MIT Election Lab CSVs as static JSON (`npm run build:past-results` in `CODE/`), not through a database table or API.
+  - **Check:** national presidential totals match the official counts to within 0.02% in every year.
+  - **Flag:** `VITE_FEATURE_PAST_RESULTS`, on by default.
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -103,7 +109,7 @@ Differentiators:
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
 | **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
-| **Past results** | A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. See section 4.9. |
+| **Past results** | **Shipped Oct 14** (section 4.9). A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. **The Kalshi-only version shipped Oct 14** (section 2); it is the trigger Agent 3 needs. Still to do: polls and money, NYT and AP headlines on each row, then Agent 3's explanations. |
 | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
@@ -387,7 +393,31 @@ We recommend **a mode inside the existing map**, not a second map. The map alrea
 | Senate | Ranked-choice states (Maine, Alaska) | MEDSL reports the first round; label it "First-round votes" |
 | All | Party names vary by year and state | Store MEDSL's simplified party for colors and its detailed party for display |
 
-**Code changes**
+**As built (Oct 14).** We shipped a simpler version than the plan below.
+
+- **Static files, not a database.** `CODE/scripts/build-past-results.mjs` converts the three CSVs into static JSON in `CODE/public/data/past-results/`, and the map reads those files directly.
+  - That skips the `historical_results` table, the importer rewrite, and the `/api/history/*` endpoints.
+  - The data changes only when MEDSL publishes a new release, so static files cached by the browser fit it.
+  - **To update:** follow `backend/data/medsl/README.md`.
+- **Clean-up rules.** The script applies the rules in the table above, plus the following, which turned up in the actual files:
+  - 2024 rows labelled `TOTAL VOTES CAST`, `OVERVOTES`, and `UNDERVOTES` are not candidates.
+  - Some 2024 states list a partial vote-method breakdown next to their `TOTAL` rows; the `TOTAL` row wins.
+  - Kansas City, MO reports separately (FIPS `2938000`, and `36000` in 2024); its votes are added to Jackson County.
+  - Oglala Lakota County, SD's old code `46113` maps to `46102`.
+  - Georgia's 1992 and 2008 Senate rows label the November round `pre` and the runoff `gen`.
+  - Georgia's January 2021 runoffs are filed under the 2020 cycle.
+  - Texas's court-ordered 1996 House elections are coded as primaries; they are treated as open specials.
+  - House unopposed races are marked with `totalvotes` of 1 or -1.
+  - House parties are simplified to D, R, or other; DFL and Democratic-NPL count as D.
+- **Map colouring.**
+  - The map colours by the race that decided the seat: the regular election, or its runoff when one was held. Specials are listed in the panel. For example, Georgia 2020 shows Ossoff.
+  - Connecticut's county shift works because both the data and the us-atlas county shapes use its old counties. That will break if `county2024.topo.json`, with planning regions, is built.
+- **Not built yet:**
+  - the database tables (needed only if Ask the race or other agents need past results)
+  - the "both seats' most recent races" Senate history
+  - the import fixtures and tests
+
+**Original plan (superseded where it conflicts with the above)**
 
 What exists: `backend/src/scripts/import-mit-results.ts` (`npm run import:county-results`), `seed-counties.ts`, and the `County` and `CountyResult` models, which feed the researcher simulator. The simulator's routes (`/api/research/*`) require a researcher login, so the public map cannot use them. The importer has problems that matter here:
 
@@ -491,7 +521,7 @@ Planned changes:
 | Geocodio | Address to 2026 district | `GEOCODIO_API_KEY`, `GEOCODIO_DAILY_LOOKUP_LIMIT` |
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
-| MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; files we load with `npm run import:medsl`; attribution required |
+| MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; raw files in `backend/data/medsl/` (not committed), converted with `npm run build:past-results` in `CODE/`; attribution required |
 | FRED | Economic indicators | to add |
 | EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
 | BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |
