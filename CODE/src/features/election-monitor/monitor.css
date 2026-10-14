@@ -98,8 +98,11 @@
   background: linear-gradient(180deg, rgb(17 27 43 / 0.76), rgb(8 13 22 / 0.96)), hsl(var(--surface));
   box-shadow: var(--shadow-xl);
 }
-.em-map-toolbar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.em-map-toolbar strong { display: block; font-size: 0.88rem; }
+/* Title, mode switch, and Expand share the first row; the legend gets a row of its own so nothing squeezes. */
+.em-map-toolbar { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.em-map-title { flex: 1 1 220px; min-width: 0; }
+.em-map-toolbar > .em-legend { order: 1; flex-basis: 100%; justify-content: flex-start; }
+.em-map-toolbar strong { display: block; font-size: 0.88rem; white-space: nowrap; }
 .em-map-toolbar span { color: hsl(var(--quiet)); font-size: 0.73rem; }
 .em-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .em-legend-item { display: inline-flex; align-items: center; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 0.7rem; }
