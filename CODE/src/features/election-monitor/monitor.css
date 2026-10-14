@@ -530,25 +530,61 @@
 }
 .em-shell[data-map="expanded"] > .em-sidebar,
 .em-shell[data-map="expanded"] .em-canvas-head,
-.em-shell[data-map="expanded"] .em-control-banner,
-.em-shell[data-map="expanded"] .em-stats,
+.em-shell[data-map="expanded"] .em-canvas > .em-control-banner,
+.em-shell[data-map="expanded"] .em-canvas > .em-stats,
 .em-shell[data-map="expanded"] .em-rail { display: none; }
 .em-shell[data-map="expanded"] .em-canvas { display: flex; flex-direction: column; min-height: 0; padding: 0; }
 .em-shell[data-map="expanded"] .em-map-card {
   display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 12px 14px;
   border: 0; border-radius: 0; box-shadow: none;
 }
-.em-shell[data-map="expanded"] .em-map-frame { flex: 1; height: auto; min-height: 0; margin-top: 10px; }
+.em-shell[data-map="expanded"] .em-map-stage { position: relative; display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 10px; }
+.em-shell[data-map="expanded"] .em-map-frame { flex: 1; height: auto; min-height: 0; margin-top: 0; }
+/* The title is still the card's accessible name; the map speaks for itself on screen. */
+.em-shell[data-map="expanded"] .em-map-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.em-shell[data-map="expanded"] .em-map-toolbar { flex-wrap: wrap; justify-content: flex-start; gap: 10px; }
+.em-shell[data-map="expanded"] .em-map-actions { margin-left: auto; }
+.em-shell[data-map="expanded"] .em-past-controls { margin: 8px 0 0; }
+.em-shell[data-map="expanded"] .em-map-chips { top: 48px; bottom: auto; }
+.em-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Legend and live data floating over the expanded map. */
+.em-map-hud {
+  position: absolute; bottom: 10px; left: 10px; z-index: 3;
+  display: grid; justify-items: start; gap: 7px; width: min(480px, calc(100% - 20px)); max-height: calc(100% - 56px); overflow-y: auto;
+}
+.em-hud-toggle { background: hsl(var(--surface) / 0.88); backdrop-filter: blur(8px); }
+.em-hud-body { display: grid; gap: 7px; width: 100%; }
+.em-hud-body > * {
+  margin: 0; padding: 9px 11px; border: 1px solid hsl(var(--line)); border-radius: 10px;
+  background: hsl(var(--surface) / 0.88); box-shadow: 0 8px 24px rgb(0 0 0 / 0.35); backdrop-filter: blur(8px);
+}
+.em-map-hud .em-legend { justify-content: flex-start; }
+.em-map-hud .em-past-legend { margin-top: 0; }
+.em-map-hud .em-past-source { display: none; }
+.em-map-hud .em-hud-card > .em-note:first-child { margin-top: 0; }
+.em-map-hud .em-control-banner { gap: 7px; }
+.em-map-hud .em-control-note { display: none; }
+.em-map-hud .em-stats { grid-template-columns: repeat(4, minmax(0, max-content)); gap: 18px; margin: 0; }
+.em-map-hud .em-stat { padding: 0; border: 0; background: none; }
+.em-map-hud .em-stat span { overflow: hidden; font-size: 0.6rem; letter-spacing: 0.05em; text-overflow: ellipsis; white-space: nowrap; }
+.em-map-hud .em-stat strong { font-size: 0.86rem; }
 .em-shell[data-map="expanded"] .em-detail { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 @media (max-width: 980px) {
   .em-shell[data-map="expanded"] { grid-template-columns: minmax(0, 1fr) 320px; }
   .em-shell[data-map="expanded"] .em-detail { grid-column: auto; border-top: 0; border-left: 1px solid hsl(var(--line)); }
   .em-shell[data-map="expanded"] .em-detail-inner { display: block; }
 }
-/* Phones: map on top, details scroll beneath it. */
+/* Phones: map on top, then its data, then the detail panel, all in one scroll. */
 @media (max-width: 720px) {
   .em-shell[data-map="expanded"] { display: flex; flex-direction: column; overflow-y: auto; }
-  .em-shell[data-map="expanded"] .em-canvas { flex: 0 0 auto; height: 62vh; height: 62dvh; }
+  .em-shell[data-map="expanded"] .em-canvas { flex: 0 0 auto; }
+  .em-shell[data-map="expanded"] .em-map-stage { display: block; }
+  .em-shell[data-map="expanded"] .em-map-frame { height: 55vh; height: 55dvh; }
+  /* Too much map would be covered on a phone; the overlay sits under the map instead. */
+  .em-shell[data-map="expanded"] .em-map-hud { position: static; width: auto; max-height: none; margin-top: 8px; }
+  .em-shell[data-map="expanded"] .em-map-hud .em-stats { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
   .em-shell[data-map="expanded"] .em-map-card { padding: 10px 9px; }
+  .em-shell[data-map="expanded"] .em-map-toolbar { flex-direction: row; align-items: center; }
   .em-shell[data-map="expanded"] .em-detail { flex: 0 0 auto; overflow: visible; border-top: 1px solid hsl(var(--line)); border-left: 0; }
 }

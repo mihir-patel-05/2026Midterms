@@ -1,17 +1,11 @@
 import type { ReactNode } from "react";
-import { districtLabel } from "./constants";
+import { districtLabel, layerOptions } from "./constants";
 import type { MapLayer, MonitorStateSummary, OfficeFilter } from "./types";
 
 const officeOptions: Array<{ value: OfficeFilter; label: string; icon: string }> = [
   { value: "ALL", label: "All federal", icon: "◎" },
   { value: "US_SENATE", label: "U.S. Senate", icon: "S" },
   { value: "US_HOUSE", label: "U.S. House", icon: "H" },
-];
-
-const layerOptions: Array<{ value: MapLayer; label: string }> = [
-  { value: "states", label: "States" },
-  { value: "districts", label: "House districts" },
-  { value: "counties", label: "Counties" },
 ];
 
 export interface SidebarHealthRow {

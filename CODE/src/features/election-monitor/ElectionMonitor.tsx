@@ -15,6 +15,7 @@ import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime
 import { DemographicsTab } from "./DemographicsTab";
 import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
+import { MapQuickControls } from "./MapQuickControls";
 import { FinanceTab } from "./FinanceTab";
 import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
@@ -193,6 +194,13 @@ export function ElectionMonitor() {
     return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 4);
   }, [counts.dataUpdatedAt, counts.errorUpdatedAt, counts.isError, nationalRaces, statesWithRaces, selectedState, isFictionalSelection, realContests.dataUpdatedAt, realContests.data, realContests.isError, realContests.errorUpdatedAt, sourceStatus.data, results]);
 
+  const stats = [
+    { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
+    { label: "Selected state", value: selectedState?.name ?? "United States" },
+    { label: "House districts", value: haveContests ? String(districts.length) : "–" },
+    { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
+  ];
+
   const coverage: CoverageItem[] = [
     { label: "States with races", ratio: statesWithRaces === null ? null : statesWithRaces / stateMapItems.length, note: "Loading" },
     ...(haveContests && stateContests.length > 0
@@ -249,6 +257,23 @@ export function ElectionMonitor() {
             mode={pastActive ? "past" : "races"}
             expanded={expanded}
             onExpandedChange={setExpanded}
+            quickControls={
+              <MapQuickControls
+                states={states}
+                stateCode={selectedState?.code ?? null}
+                layer={params.layer}
+                showLayers={!pastActive}
+                onStateChange={selectState}
+                onLayerChange={(layer) => update({ layer })}
+              />
+            }
+            // 2026 numbers; Past results has its own legend and detail tab.
+            hud={!pastActive && (
+              <>
+                <ControlOddsBanner />
+                <StatStrip stats={stats} />
+              </>
+            )}
             onModeChange={pastResultsEnabled ? setMode : undefined}
             pastControls={pastActive && (
               <PastResultsControls
@@ -288,14 +313,7 @@ export function ElectionMonitor() {
               />
             </Suspense>
           </MapCard>
-          <StatStrip
-            stats={[
-              { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
-              { label: "Selected state", value: selectedState?.name ?? "United States" },
-              { label: "House districts", value: haveContests ? String(districts.length) : "–" },
-              { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
-            ]}
-          />
+          <StatStrip stats={stats} />
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
             {moversEnabled && (
               <MoversCard
