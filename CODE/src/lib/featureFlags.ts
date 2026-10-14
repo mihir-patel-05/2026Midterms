@@ -11,3 +11,5 @@ export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !==
 export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY !== "false";
 /** Biggest movers card (Kalshi price changes over 24 hours or 7 days). On unless set to "false". */
 export const moversEnabled = import.meta.env.VITE_FEATURE_MOVERS !== "false";
+/** Past results map mode (MIT Election Lab returns). On unless set to "false". */
+export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== "false";
