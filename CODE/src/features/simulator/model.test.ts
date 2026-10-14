@@ -80,6 +80,13 @@ describe("simulate", () => {
     expect(run({ picks: { CA: { party: "T" } } }).totals).toEqual({ D: 226 - 54, R: 312, T: 54 });
   });
 
+  it("counts Alaska's districts toward the state but never as counties", () => {
+    const result = run({ counties: { "02020": 50 } });
+    expect(result.counties.has("02020")).toBe(false);
+    expect(result.states.AK).toMatchObject({ winner: "R", editedCounties: 0 });
+    expect(result.states.AK.margin).toBeCloseTo(run({}).states.AK.margin!);
+  });
+
   it("splits Maine and Nebraska by district", () => {
     const result = run({ districts: { "ME-2": "D", "NE-1": "D" } });
     expect(result.states.ME.ev).toBe(2);

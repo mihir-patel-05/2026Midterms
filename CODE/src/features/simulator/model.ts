@@ -51,12 +51,19 @@ export interface DistrictOutcome {
 export interface SimulationResult {
   states: Record<string, StateOutcome>;
   districts: Record<string, DistrictOutcome>;
-  /** County FIPS → simulated margin; empty on a blank map. */
+  /** County FIPS → simulated margin, for counties the map draws; empty on a blank map. */
   counties: Map<string, number>;
   totals: Record<Outcome, number>;
 }
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
+
+/**
+ * Alaska reports by state house district, numbered 02001–02040 in the returns. Those codes collide
+ * with real borough FIPS (02020 is Anchorage), so its rows count toward the state but are never
+ * drawn or edited as counties.
+ */
+export const hasCountyShape = (fips: string) => !fips.startsWith("02");
 
 /** Margin in points of all votes cast, positive for Democrats. */
 export function marginOf([d, r, o]: VoteTriple): number | null {
@@ -133,10 +140,10 @@ export function simulate(scenario: Scenario, data: PresidentYear | null): Simula
           const votes = data.counties[fips];
           const own = marginOf(votes);
           if (own === null) continue;
-          const set = scenario.counties[fips];
+          const set = hasCountyShape(fips) ? scenario.counties[fips] : undefined;
           if (set !== undefined) edited++;
           const [d, r, o] = withMargin(votes, set ?? own + swing);
-          counties.set(fips, ((d - r) / (d + r + o)) * 100);
+          if (hasCountyShape(fips)) counties.set(fips, ((d - r) / (d + r + o)) * 100);
           lead += d - r;
           total += d + r + o;
         }

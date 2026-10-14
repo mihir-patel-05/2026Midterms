@@ -25,6 +25,7 @@
 }
 .sim-swing { flex: 1 1 320px; max-width: 520px; }
 .sim-swing-row { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.sim-swing-row > [data-orientation] { flex: 1 1 0; min-width: 0; }
 /* A centred slider: the track runs from Republican to Democratic, with no fill from the left end. */
 .sim-swing-row [data-orientation="horizontal"] > span:first-child {
   background: linear-gradient(90deg, var(--sim-r), hsl(var(--surface-3)) 50%, var(--sim-d));
@@ -128,6 +129,20 @@
   margin-left: 6px; padding: 1px 5px; border-radius: 4px; background: hsl(var(--signal-amber) / 0.14);
   color: hsl(var(--signal-amber)); font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
 }
+.sim-hint { color: hsl(var(--quiet)); font-size: 0.68rem; }
+.sim-effect { margin: 0; padding: 8px 10px; border-radius: 8px; background: hsl(var(--surface-2)); font-size: 0.8rem; font-weight: 600; }
+.sim-link { color: hsl(var(--signal-teal)); font-size: inherit; text-align: left; }
+.sim-link:hover { text-decoration: underline; }
+.sim-card-head .sim-link { font-size: 0.72rem; }
+.sim-county-edits ul { display: grid; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; }
+.sim-county-edits li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
+  padding: 4px 0; border-bottom: 1px solid hsl(var(--line-soft)); font-size: 0.8rem;
+}
+.sim-county-edits li .sim-link { overflow: hidden; color: hsl(var(--foreground)); text-overflow: ellipsis; white-space: nowrap; }
+.sim-icon-button { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 6px; color: hsl(var(--quiet)); }
+.sim-icon-button:hover { background: hsl(var(--surface-3)); color: hsl(var(--foreground)); }
+.sim-icon-button svg { width: 13px; height: 13px; }
 .sim-source { margin: 12px 0 0; color: hsl(var(--quiet)); font-size: 0.66rem; line-height: 1.5; }
 
 @media (max-width: 980px) {
