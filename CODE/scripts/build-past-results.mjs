@@ -124,6 +124,9 @@ const skip = (office, reason) => { skipped[office] ??= {}; skipped[office][reaso
 function countyCode(row) {
   const raw = row.county_fips;
   if (!raw || raw === "NA") return null;
+  // Alaska reports by state house district, coded 2001–2040 (and 2099). Those are not boroughs, and
+  // three collide with borough FIPS (02013, 02016, 02020 is Anchorage), so they count toward the state only.
+  if (row.state_po === "AK") return null;
   if (row.state_po === "MO" && /KANSAS CITY/.test(row.county_name)) return "29095";
   const fips = raw.padStart(5, "0");
   if (fips === "46113") return "46102";
@@ -155,7 +158,7 @@ function buildPresident() {
     if (!fips) {
       const key = `${row.year}|${row.state_po}|${row.candidate}`;
       noCounty.set(key, (noCounty.get(key) ?? 0) + n);
-      skip("president", "no county code (kept in the state total only)");
+      skip("president", row.state_po === "AK" ? "Alaska house district (kept in the state total only)" : "no county code (kept in the state total only)");
       continue;
     }
     countyMeta.set(fips, { state: row.state_po, name: row.county_name });
@@ -374,7 +377,7 @@ write("meta.json", {
   },
   // County results the map cannot place on a county shape, by state.
   countyNotes: {
-    AK: "Alaska reports presidential results by state house district, not by borough.",
+    AK: "Alaska reports presidential results by state house district, not by borough, so it has no county results; its districts count toward the state total.",
     ...(unmatchedByState.CT && { CT: "Connecticut results are reported by its former counties." }),
   },
 });
