@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
@@ -100,6 +100,9 @@ export function ElectionMonitor() {
 
   const expanded = params.expanded;
   const setExpanded = useCallback((next: boolean) => update({ expanded: next }), [update]);
+  // Only the expanded map can tuck the detail panel away; the dashboard always shows it.
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const detailCollapsed = expanded && panelCollapsed;
   // While expanded the page behind the map must not scroll, and Esc goes back to the dashboard.
   useEffect(() => {
     if (!expanded) return;
@@ -217,7 +220,7 @@ export function ElectionMonitor() {
 
   return (
     <AppShell variant="app">
-      <div className="em-shell" data-map={expanded ? "expanded" : undefined}>
+      <div className="em-shell" data-map={expanded ? "expanded" : undefined} data-panel={detailCollapsed ? "collapsed" : undefined}>
         <Sidebar
           states={states}
           stateCode={selectedState?.code ?? null}
@@ -377,6 +380,8 @@ export function ElectionMonitor() {
               county={params.counties[0] ?? null}
             />
           ) : undefined}
+          collapsed={detailCollapsed}
+          onCollapsedChange={expanded ? setPanelCollapsed : undefined}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}
         />
       </div>
