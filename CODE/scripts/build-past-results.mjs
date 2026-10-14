@@ -117,6 +117,32 @@ const skip = (office, reason) => { skipped[office] ??= {}; skipped[office][reaso
 // ---------------------------------------------------------------------------
 
 /**
+ * Certified statewide canvasses that the county file does not add up to. Florida 2000: the county
+ * returns (MEDSL, and the state's own results archive) total Gore 2,911,417 to Bush 2,911,215, but
+ * the canvass certified on November 26, 2000 was Bush 2,912,790 to Gore 2,912,253 with 138,067 for
+ * others (FEC, Federal Elections 2000: Presidential General Election Results by State). The state
+ * total uses the certified canvass; the counties stay as filed. Each is checked against the file below.
+ */
+const CERTIFIED_STATE_TOTALS = {
+  "2000|FL": {
+    d: 2912253,
+    r: 2912790,
+    others: [
+      ["RALPH NADER", "GREEN", 97488],
+      ["PAT BUCHANAN", "REFORM", 17484],
+      ["HARRY BROWNE", "LIBERTARIAN", 16415],
+      ["JOHN HAGELIN", "NATURAL LAW", 2281],
+      ["MONICA MOOREHEAD", "WORKERS WORLD", 1804],
+      ["HOWARD PHILLIPS", "CONSTITUTION", 1371],
+      ["DAVID MCREYNOLDS", "SOCIALIST", 622],
+      ["JAMES HARRIS", "SOCIALIST WORKERS", 562],
+      ["WRITE-INS", "OTHER", 40],
+    ],
+    note: "Florida's total is the certified canvass, Bush 2,912,790 to Gore 2,912,253 (537 votes). Its county returns add up to Gore by 202; the 2,450 certified votes they lack are in the state total only.",
+  },
+};
+
+/**
  * Kansas City, Missouri reports apart from Jackson County (FIPS 2938000 through 2020, 36000 in 2024).
  * Its votes are Jackson County votes cast inside the city, so they are added to Jackson County.
  * Oglala Lakota County, SD was Shannon County (46113) until 2015; the map uses 46102.
@@ -214,6 +240,22 @@ function buildPresident() {
       const pk = partyKey(year, candidate);
       states[state][pk] += n;
       if (pk === "o") { stateOthers[state] ??= {}; stateOthers[state][candidate] = (stateOthers[state][candidate] ?? 0) + n; }
+    }
+    for (const [key, certified] of Object.entries(CERTIFIED_STATE_TOTALS)) {
+      const [y, state] = key.split("|");
+      if (y !== year) continue;
+      const filed = states[state];
+      const others = certified.others.reduce((sum, [, , n]) => sum + n, 0);
+      const certifiedTotal = certified.d + certified.r + others;
+      const filedTotal = filed.d + filed.r + filed.o;
+      // A guard against a mistyped override: the canvass may add or correct ballots, not replace the file.
+      check(Math.abs(certifiedTotal - filedTotal) / filedTotal < 0.001, `President ${year} ${state}: certified total ${certifiedTotal} is not within 0.1% of the file's ${filedTotal}`);
+      report.push(`President ${year} ${state}: certified canvass D ${certified.d.toLocaleString()} R ${certified.r.toLocaleString()} other ${others.toLocaleString()} replaces the file's D ${filed.d.toLocaleString()} R ${filed.r.toLocaleString()} other ${filed.o.toLocaleString()}`);
+      states[state] = { d: certified.d, r: certified.r, o: others };
+      stateOthers[state] = Object.fromEntries(certified.others.map(([candidate, party, n]) => {
+        partyOf.set(`${year}|${candidate}`, partyOf.get(`${year}|${candidate}`) ?? party);
+        return [candidate, n];
+      }));
     }
     const stateRows = Object.fromEntries(Object.entries(states).sort().map(([state, s]) => [state, {
       votes: [s.d, s.r, s.o],
@@ -376,6 +418,11 @@ write("meta.json", {
     house: { years: house.years, levels: ["district"], mapYears: [2024], ...SOURCES.house, version: house.version, attribution: attribution("house", house.version) },
   },
   // County results the map cannot place on a county shape, by state.
+  // Where a state's total is not the sum of its county returns, and why.
+  stateNotes: Object.fromEntries(Object.entries(CERTIFIED_STATE_TOTALS).map(([key, { note }]) => {
+    const [year, state] = key.split("|");
+    return [`president|${year}|${state}`, note];
+  })),
   countyNotes: {
     AK: "Alaska reports presidential results by state house district, not by borough, so it has no county results; its districts count toward the state total.",
     ...(unmatchedByState.CT && { CT: "Connecticut results are reported by its former counties." }),
