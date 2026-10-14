@@ -43,7 +43,7 @@ export function statewideVotes(state: string) {
 /** "ME-2" → "ME". */
 export const districtState = (district: string) => district.slice(0, 2);
 
-/** Where a baseline's county returns disagree with the certified outcome, shown under the baseline picker. */
+/** Notes on a baseline's returns, shown under the baseline picker. */
 export const BASELINE_NOTES: Record<number, string> = {
-  2000: "The county returns put Gore 202 votes ahead in Florida; the certified result was Bush by 537, which decided the election.",
+  2000: "Florida uses the certified canvass (Bush by 537 votes). Its county returns add up to Gore by 202, so the 2,450 certified votes they lack swing with the state but sit in no county.",
 };

@@ -80,11 +80,27 @@ describe("simulate", () => {
     expect(run({ picks: { CA: { party: "T" } } }).totals).toEqual({ D: 226 - 54, R: 312, T: 54 });
   });
 
-  it("counts Alaska's districts toward the state but never as counties", () => {
-    const result = run({ counties: { "02020": 50 } });
-    expect(result.counties.has("02020")).toBe(false);
-    expect(result.states.AK).toMatchObject({ winner: "R", editedCounties: 0 });
-    expect(result.states.AK.margin).toBeCloseTo(run({}).states.AK.margin!);
+  it("reproduces every state's total with no edits, in every year", () => {
+    for (const year of [2000, 2004, 2008, 2012, 2016, 2020, 2024]) {
+      const data = load(year);
+      const result = run({ base: year }, data);
+      for (const [code, state] of Object.entries(result.states)) {
+        expect(state.margin, `${year} ${code}`).toBeCloseTo(marginOf(data.states[code].votes)!, 9);
+      }
+    }
+  });
+
+  it("gives Florida 2000 to Bush by the certified canvass, not the county returns", () => {
+    const result = run({ base: 2000 }, load(2000));
+    expect(result.states.FL.winner).toBe("R");
+    expect(formatMargin(result.states.FL.margin)).toBe("R+0.01");
+  });
+
+  it("swings Alaska, which has no county rows, from its state total", () => {
+    const data = load(2024);
+    expect(Object.keys(data.counties).some((fips) => fips.startsWith("02"))).toBe(false);
+    expect(run({ swing: 3 }).states.AK.margin! - run({}).states.AK.margin!).toBeCloseTo(3, 5);
+    expect(run({ counties: { "02020": 50 } }).states.AK.editedCounties).toBe(0);
   });
 
   it("splits Maine and Nebraska by district", () => {

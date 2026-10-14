@@ -9,7 +9,7 @@ import { ELECTORAL_VOTES, SPLIT_DISTRICTS } from "@/features/simulator/electoral
 import { EvBar } from "@/features/simulator/EvBar";
 import { pickLabel, sourceLabels, STATE_NAMES } from "@/features/simulator/labels";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
-import { formatMargin, hasCountyShape, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
+import { formatMargin, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
@@ -88,7 +88,7 @@ export default function ElectionSimulator() {
   const describe = useCallback((target: MapTarget) => {
     if (target.kind === "county") {
       const margin = result.counties.get(target.fips);
-      const votes = hasCountyShape(target.fips) ? data?.counties[target.fips] : undefined;
+      const votes = data?.counties[target.fips];
       const set = scenario.counties[target.fips];
       return {
         title: `${target.name}, ${target.state}`,
@@ -185,7 +185,7 @@ export default function ElectionSimulator() {
               key={params.county}
               name={countyName(params.county)}
               state={selected}
-              baseMargin={hasCountyShape(params.county) && data.counties[params.county] ? marginOf(data.counties[params.county]) : null}
+              baseMargin={data.counties[params.county] ? marginOf(data.counties[params.county]) : null}
               margin={result.counties.get(params.county) ?? null}
               edited={params.county in scenario.counties}
               base={scenario.base!}

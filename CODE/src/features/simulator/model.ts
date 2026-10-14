@@ -51,19 +51,12 @@ export interface DistrictOutcome {
 export interface SimulationResult {
   states: Record<string, StateOutcome>;
   districts: Record<string, DistrictOutcome>;
-  /** County FIPS → simulated margin, for counties the map draws; empty on a blank map. */
+  /** County FIPS → simulated margin; empty on a blank map. */
   counties: Map<string, number>;
   totals: Record<Outcome, number>;
 }
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
-
-/**
- * Alaska reports by state house district, numbered 02001–02040 in the returns. Those codes collide
- * with real borough FIPS (02020 is Anchorage), so its rows count toward the state but are never
- * drawn or edited as counties.
- */
-export const hasCountyShape = (fips: string) => !fips.startsWith("02");
 
 /** Margin in points of all votes cast, positive for Democrats. */
 export function marginOf([d, r, o]: VoteTriple): number | null {
@@ -130,28 +123,32 @@ export function simulate(scenario: Scenario, data: PresidentYear | null): Simula
     let margin: number | null = null;
     let edited = 0;
 
-    if (!blank && data) {
+    if (!blank && data && stateVotes) {
       const swing = scenario.swing + (scenario.stateSwing[code] ?? 0);
-      const fipsList = index!.get(code) ?? [];
-      if (fipsList.length > 0) {
-        let lead = 0;
-        let total = 0;
-        for (const fips of fipsList) {
-          const votes = data.counties[fips];
-          const own = marginOf(votes);
-          if (own === null) continue;
-          const set = hasCountyShape(fips) ? scenario.counties[fips] : undefined;
-          if (set !== undefined) edited++;
-          const [d, r, o] = withMargin(votes, set ?? own + swing);
-          if (hasCountyShape(fips)) counties.set(fips, ((d - r) / (d + r + o)) * 100);
-          lead += d - r;
-          total += d + r + o;
-        }
-        margin = total > 0 ? (lead / total) * 100 : null;
-      } else if (stateVotes) {
-        const [d, r, o] = withMargin(stateVotes, (baseMargin ?? 0) + swing);
-        margin = marginOf([d, r, o]);
+      let lead = 0;
+      let total = 0;
+      // Votes in the state total but in no county: overseas and federal-only ballots, ballots a
+      // certified canvass added (Florida 2000), and all of Alaska. They swing like one more county.
+      const rest: VoteTriple = [...stateVotes];
+      for (const fips of index!.get(code) ?? []) {
+        const votes = data.counties[fips];
+        rest[0] -= votes[0];
+        rest[1] -= votes[1];
+        rest[2] -= votes[2];
+        const own = marginOf(votes);
+        if (own === null) continue;
+        const set = scenario.counties[fips];
+        if (set !== undefined) edited++;
+        const [d, r, o] = withMargin(votes, set ?? own + swing);
+        counties.set(fips, ((d - r) / (d + r + o)) * 100);
+        lead += d - r;
+        total += d + r + o;
       }
+      const restMargin = marginOf(rest);
+      const [d, r, o] = restMargin !== null && rest.every((n) => n >= 0) ? withMargin(rest, restMargin + swing) : rest;
+      lead += d - r;
+      total += d + r + o;
+      margin = total > 0 ? (lead / total) * 100 : null;
     }
 
     const pick = scenario.picks[code];
