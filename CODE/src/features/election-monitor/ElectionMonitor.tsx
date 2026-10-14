@@ -1,10 +1,14 @@
 import { lazy, Suspense, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
+import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
+import { PastResultsTab } from "./PastResultsTab";
+import { describeResult, describeShift } from "./pastResults";
+import { usePastResultsView } from "./usePastResultsView";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
@@ -23,7 +27,7 @@ import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
 import type { MapTarget, MapView } from "./map/ElectionMap";
 import { isRedistricted } from "./map/redistricting";
-import type { MonitorStateSummary, OfficeFilter, Readiness } from "./types";
+import type { MapLayer, MapMode, MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
 import { useMonitorParams } from "./useMonitorParams";
 // Prediction-market panel styles live with the legacy dashboard.
@@ -80,11 +84,34 @@ export function ElectionMonitor() {
     ?? visibleContests[0];
   const results = contest ? mockFeed.data?.resultsByContest[contest.id] : undefined;
 
+  const pastActive = pastResultsEnabled && params.mode === "past";
+  const past = usePastResultsView(
+    pastActive,
+    { office: params.pastOffice, year: params.pastYear, metric: params.pastMetric, from: params.pastFrom },
+    params.layer === "counties",
+  );
+  // In Past results the office decides the layer: states or counties for president, states for Senate, districts for House.
+  const mapLayer: MapLayer = pastActive ? past.layer : params.layer;
+  const pastPaint = useMemo(() => (pastActive ? { bins: past.bins } : null), [pastActive, past.bins]);
+  const setMode = useCallback((mode: MapMode) => {
+    update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
+  }, [update, params.tab]);
+
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
   const describe = useCallback((target: MapTarget) => {
     const state = states.find((item) => item.code === target.state);
+    if (pastActive) {
+      const title = target.kind === "county" ? target.name : target.kind === "district" ? districtLabel(target.state, target.district) : state?.name ?? target.state;
+      const year = past.year;
+      if (!past.lookup || year === null) return { title, lines: [past.error ? "Past results unavailable" : "Loading past results…"] };
+      if (target.kind === "district" && !past.houseLinesMatch) return { title, lines: [`District lines were different in ${year}`, "Select to read its race in the panel"] };
+      const [code, level]: [string, MapLayer] = target.kind === "county" ? [target.fips, "counties"] : target.kind === "district" ? [`${target.state}-${target.district}`, "districts"] : [target.state, "states"];
+      const shift = past.lookup.shift(code, level);
+      const lines = shift && past.from !== null ? describeShift(shift, past.from, year) : describeResult(past.lookup.result(code, level), past.data!.office, year);
+      return { title: target.kind === "county" ? `${title}, ${target.state}` : title, lines: [`${year} ${past.data!.office === "president" ? "presidential" : past.data!.office === "senate" ? "Senate" : "House"}`, ...lines] };
+    }
     if (target.kind === "county") {
       return { title: target.name, lines: [state?.name ?? target.state, "No county results source connected"] };
     }
@@ -106,7 +133,7 @@ export function ElectionMonitor() {
         state?.readiness === "partial" ? "No candidates on file yet" : "",
       ].filter(Boolean),
     };
-  }, [states, selectedState?.code, stateContests]);
+  }, [states, selectedState?.code, stateContests, pastActive, past]);
   const chosenDistricts = selectedDistricts(params);
   // Plain click selects one district; Shift-click adds or removes it. Another state starts over.
   const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
@@ -118,14 +145,15 @@ export function ElectionMonitor() {
     update({ ...districtSelectionPatch(next, params.district), contest: null });
   }, [params, update]);
   const selectCounty = useCallback((state: string, fips: string, additive: boolean) => {
+    // Counties have no 2026 race view, so a county click opens its demographics, or its past results in that mode.
+    const tab = pastActive ? { tab: "history" as const } : demographicsEnabled ? { tab: "demographics" as const } : {};
     if (state !== params.state) {
-      update({ state, district: null, districts: [], counties: [fips], contest: null, ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
+      update({ state, district: null, districts: [], counties: [fips], contest: null, ...tab });
       return;
     }
     const alone = params.counties.length === 1 && params.counties[0] === fips;
-    // Counties have no race view yet, so a county click opens their demographics.
-    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips], ...(demographicsEnabled ? { tab: "demographics" as const } : {}) });
-  }, [params, update]);
+    update({ counties: additive ? toggleItem(params.counties, fips) : alone ? [] : [fips], ...tab });
+  }, [params, update, pastActive]);
 
   const activity = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -202,10 +230,34 @@ export function ElectionMonitor() {
               { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
             ]}
           />
-          <MapCard layer={params.layer} readout={`LAYER: ${params.layer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}>
+          <MapCard
+            layer={mapLayer}
+            readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
+            mode={pastActive ? "past" : "races"}
+            onModeChange={pastResultsEnabled ? setMode : undefined}
+            pastControls={pastActive && (
+              <PastResultsControls
+                view={past}
+                office={params.pastOffice}
+                countyLevel={params.layer === "counties"}
+                onChange={(patch) => update(patch)}
+                onLevelChange={(counties) => update({ layer: counties ? "counties" : "states" })}
+              />
+            )}
+            pastLegend={pastActive && (
+              <>
+                {past.error && <p className="em-note" role="status">Past results could not be loaded.</p>}
+                {params.pastOffice === "house" && past.year !== null && !past.houseLinesMatch && (
+                  <p className="em-note" role="note">District lines in {past.year} differ from the outlines on the map, so districts are not coloured. Select a district to read its {past.year} race.</p>
+                )}
+                <PastResultsLegend view={past} office={params.pastOffice} />
+              </>
+            )}
+          >
             <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
               <ElectionMap
-                layer={params.layer}
+                layer={mapLayer}
+                past={pastPaint}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}
@@ -241,7 +293,7 @@ export function ElectionMonitor() {
           title={selectedState?.name ?? "United States"}
           meta={!selectedState ? "Select a state to begin" : contestsLoading ? "Loading contests…" : contestsError ? "Contests unavailable" : `${officeCounts.US_HOUSE} House · ${officeCounts.US_SENATE} Senate ${officeCounts.US_SENATE === 1 ? "contest" : "contests"}`}
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
-          tab={params.tab === "demographics" && !demographicsEnabled ? "overview" : params.tab}
+          tab={(params.tab === "demographics" && !demographicsEnabled) || (params.tab === "history" && !pastActive) ? "overview" : params.tab}
           onTabChange={(tab) => update({ tab })}
           overview={
             <>
@@ -272,6 +324,15 @@ export function ElectionMonitor() {
               onCountiesChange={(counties) => update({ counties })}
               onDistrictsChange={(next) => update({ ...districtSelectionPatch(next, params.district), contest: null })}
               onClear={() => update({ counties: [], district: null, districts: [], contest: null })}
+            />
+          ) : undefined}
+          history={pastActive ? (
+            <PastResultsTab
+              view={past}
+              stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
+              stateName={selectedState?.name ?? null}
+              district={params.district}
+              county={params.counties[0] ?? null}
             />
           ) : undefined}
           footer={results?.meta.isMockData ? "Results source: fictional mock fixtures. Values in result panels are illustrative and must not be interpreted as real election information." : "Candidate and finance records: Federal Election Commission. No live results provider is connected."}

@@ -142,8 +142,9 @@
 .em-pill[data-tone="teal"] { border: 1px solid hsl(var(--signal-teal) / 0.24); background: hsl(var(--signal-teal) / 0.08); color: hsl(var(--signal-teal)); }
 .em-pill[data-tone="amber"] { background: hsl(var(--signal-amber) / 0.1); color: hsl(var(--signal-amber)); }
 .em-pill[data-tone="muted"] { background: rgb(255 255 255 / 0.05); color: hsl(var(--muted-foreground)); }
-.em-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; margin-bottom: 15px; padding: 4px; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
-.em-tab { min-height: 35px; padding: 0 4px; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.76rem; font-weight: 750; }
+/* Tabs size to their labels and share any spare width; with five tabs on a narrow panel the row scrolls rather than clipping. */
+.em-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-bottom: 15px; padding: 4px; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
+.em-tab { flex: 1 0 auto; min-height: 35px; padding: 0 6px; white-space: nowrap; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.76rem; font-weight: 750; }
 .em-tab[data-state="active"] { background: hsl(var(--surface-3)); color: hsl(var(--foreground)); box-shadow: 0 5px 15px rgb(0 0 0 / 0.22); }
 .em-card { padding: 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface-2) / 0.8); }
 .em-card + .em-card { margin-top: 11px; }
@@ -457,4 +458,53 @@
   .em-movers-list li > * { grid-template-columns: minmax(0, 1fr) auto; }
   .em-movers-spark, .em-movers-external { display: none; }
   .em-movers-prices { grid-column: 1; }
+}
+
+/* Segmented buttons (map mode, Past results pickers). */
+.em-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid hsl(var(--line)); border-radius: 8px; }
+.em-seg button { padding: 4px 9px; border: 0; border-radius: 6px; background: transparent; color: hsl(var(--muted-foreground)); font-size: 0.72rem; white-space: nowrap; cursor: pointer; }
+.em-seg button:hover:not(:disabled) { color: hsl(var(--foreground)); }
+.em-seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+.em-seg button[aria-pressed="true"] { background: hsl(var(--signal-teal) / 0.12); color: hsl(var(--foreground)); }
+.em-mode { flex-shrink: 0; }
+
+/* Past results (MIT Election Lab). */
+.em-past-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 8px; }
+.em-past-select { display: inline-flex; align-items: center; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 0.72rem; }
+.em-past-select select { padding: 4px 8px; border: 1px solid hsl(var(--line)); border-radius: 7px; background: hsl(var(--surface-2)); color: hsl(var(--foreground)); font: inherit; font-size: 0.74rem; }
+.em-past-legend { display: grid; gap: 7px; margin-top: 10px; color: hsl(var(--muted-foreground)); font-size: 0.7rem; }
+.em-past-label { margin: 0; }
+.em-past-label strong { color: hsl(var(--foreground)); font-weight: 600; }
+.em-past-swatch { display: inline-block; width: 22px; height: 11px; border-radius: 2px; vertical-align: middle; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); }
+.em-past-ramp { justify-self: start; width: auto; border-collapse: separate; border-spacing: 3px 2px; margin-left: -3px; }
+.em-past-ramp th { padding: 0 2px; color: hsl(var(--muted-foreground)); font-size: 0.66rem; font-weight: 500; text-align: center; white-space: nowrap; }
+.em-past-ramp tbody th { padding-right: 6px; text-align: left; }
+.em-past-ramp td { padding: 0; }
+.em-past-scale { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.em-past-end { margin: 0 4px; white-space: nowrap; }
+.em-past-greys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; }
+.em-past-greys li { display: inline-flex; align-items: center; gap: 6px; }
+.em-past-method summary { cursor: pointer; color: hsl(var(--signal-teal)); }
+.em-past-method ul { margin: 6px 0 0; padding-left: 16px; line-height: 1.5; }
+.em-past-source { margin: 0; color: hsl(var(--quiet)); font-size: 0.66rem; line-height: 1.45; }
+.em-past-source a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.em-past-tab > * + * { margin-top: 11px; }
+.em-past-headline { margin: 6px 0 8px; font-size: 0.82rem; }
+.em-past-fine { margin: 6px 0 0; color: hsl(var(--muted-foreground)); font-size: 0.7rem; line-height: 1.45; }
+.em-past-table { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
+.em-past-table th, .em-past-table td { padding: 5px 4px; border-bottom: 1px solid hsl(var(--line-soft)); text-align: right; font-variant-numeric: tabular-nums; }
+.em-past-table th:first-child, .em-past-table td:first-child { text-align: left; }
+.em-past-table thead th { color: hsl(var(--quiet)); font-size: 0.66rem; font-weight: 500; }
+.em-past-table tbody th { font-weight: 500; }
+.em-past-won { color: hsl(var(--muted-foreground)); font-weight: 400; }
+.em-past-race + .em-past-race { margin-top: 12px; }
+.em-past-race h4, .em-past-history h4 { margin: 8px 0 4px; color: hsl(var(--muted-foreground)); font-size: 0.74rem; font-weight: 600; }
+.em-past-margins td:last-child { position: relative; width: 45%; }
+.em-past-bar { position: absolute; top: 50%; height: 6px; width: var(--w); transform: translateY(-50%); border-radius: 2px; background: var(--c); }
+.em-past-bar[data-side="d"] { left: 50%; }
+.em-past-bar[data-side="r"] { right: 50%; }
+.em-past-margins td:last-child::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: 50%; width: 1px; background: hsl(var(--line)); }
+@media (max-width: 720px) {
+  .em-mode { align-self: stretch; }
+  .em-past-controls { gap: 6px; }
 }

@@ -13,6 +13,7 @@ export function DetailPanel({
   counties,
   finance,
   demographics,
+  history,
   footer,
 }: {
   monogram: string;
@@ -26,6 +27,8 @@ export function DetailPanel({
   finance: ReactNode;
   /** Omitted when the demographics feature flag is off. */
   demographics?: ReactNode;
+  /** Past results; omitted outside Past results mode. */
+  history?: ReactNode;
   footer: ReactNode;
 }) {
   return (
@@ -47,6 +50,7 @@ export function DetailPanel({
             <TabsPrimitive.Trigger className="em-tab" value="counties">Counties</TabsPrimitive.Trigger>
             <TabsPrimitive.Trigger className="em-tab" value="finance">Finance</TabsPrimitive.Trigger>
             {demographics && <TabsPrimitive.Trigger className="em-tab" value="demographics">Demographics</TabsPrimitive.Trigger>}
+            {history && <TabsPrimitive.Trigger className="em-tab" value="history">Past</TabsPrimitive.Trigger>}
           </TabsPrimitive.List>
         </div>
         <div>
@@ -54,6 +58,7 @@ export function DetailPanel({
           <TabsPrimitive.Content value="counties">{counties}</TabsPrimitive.Content>
           <TabsPrimitive.Content value="finance">{finance}</TabsPrimitive.Content>
           {demographics && <TabsPrimitive.Content value="demographics">{demographics}</TabsPrimitive.Content>}
+          {history && <TabsPrimitive.Content value="history">{history}</TabsPrimitive.Content>}
           <div className="em-detail-footer">{footer}</div>
         </div>
       </TabsPrimitive.Root>

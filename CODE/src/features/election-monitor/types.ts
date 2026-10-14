@@ -13,7 +13,9 @@ import type {
  */
 export type OfficeFilter = "ALL" | "US_SENATE" | "US_HOUSE";
 export type MapLayer = "states" | "districts" | "counties";
-export type DetailTab = "overview" | "counties" | "finance" | "demographics";
+export type DetailTab = "overview" | "counties" | "finance" | "demographics" | "history";
+/** "races" is the 2026 view; "past" colours the map with MIT Election Lab results. */
+export type MapMode = "races" | "past";
 /** Map readiness: ready = contests and finance; partial = contests only; pending = nothing loaded. */
 export type Readiness = "ready" | "partial" | "pending";
 
