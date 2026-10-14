@@ -4,11 +4,12 @@ import { AppShell } from "@/components/shell/AppShell";
 import type { MapTarget } from "@/features/election-monitor/map/ElectionMap";
 import { stateFipsToPostal } from "@/features/election-monitor/map/fips";
 import { usePastYear, type PresidentYear } from "@/features/election-monitor/pastResults";
-import { ELECTORAL_VOTES } from "@/features/simulator/electoralVotes";
+import { DistrictPicks } from "@/features/simulator/DistrictPicks";
+import { ELECTORAL_VOTES, SPLIT_DISTRICTS } from "@/features/simulator/electoralVotes";
 import { EvBar } from "@/features/simulator/EvBar";
 import { pickLabel, sourceLabels, STATE_NAMES } from "@/features/simulator/labels";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
-import { formatMargin, hasCountyShape, marginOf, nextPick, simBins, simulate, type Pick } from "@/features/simulator/model";
+import { formatMargin, hasCountyShape, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
@@ -60,6 +61,16 @@ export default function ElectionSimulator() {
     return counties;
   }, [scenario.counties]);
 
+  const setDistrict = useCallback((code: string, winner: Outcome | null) => {
+    const districts = { ...scenario.districts };
+    if (winner) districts[code] = winner;
+    else delete districts[code];
+    update({ scenario: { districts } });
+  }, [scenario.districts, update]);
+  const districtPicks = (codes: string[]) => (
+    <DistrictPicks districts={codes.map((code) => result.districts[code])} picks={scenario.districts} base={scenario.base} onChange={setDistrict} />
+  );
+
   // On the states layer a click cycles the state's call; it also opens the state in the panel.
   const onMapState = useCallback((code: string) => {
     const state = result.states[code];
@@ -100,6 +111,7 @@ export default function ElectionSimulator() {
         state.margin === null ? "Tossup" : `Simulated ${formatMargin(state.margin)}${state.source === "counties" ? ` (${sourceLabels.counties})` : ""}`,
         scenario.base !== null ? `${scenario.base}: ${formatMargin(state.baseMargin)}` : "",
         pick ? `Your call: ${pickLabel(pick)}` : "",
+        SPLIT_DISTRICTS[target.state] ? `Statewide ${state.ev}; ${SPLIT_DISTRICTS[target.state].map((code) => `${code} ${result.districts[code].winner}`).join(", ")}` : "",
         layer === "states" ? "Click to change the call" : "",
       ].filter(Boolean),
     };
@@ -190,6 +202,13 @@ export default function ElectionSimulator() {
               onPick={(pick) => update({ scenario: { picks: withPick(selected.code, pick) } })}
               onClose={() => update({ state: null, county: null })}
             >
+              {SPLIT_DISTRICTS[selected.code] && (
+                <div className="sim-field">
+                  <span>District votes</span>
+                  {districtPicks(SPLIT_DISTRICTS[selected.code])}
+                  <small className="sim-hint">{selected.ev} votes go to the statewide winner and one to each district.</small>
+                </div>
+              )}
               {scenario.base !== null && (
                 <StateCountyEdits
                   swing={scenario.stateSwing[selected.code] ?? 0}
@@ -204,7 +223,16 @@ export default function ElectionSimulator() {
               )}
             </StateEditor>
           ) : (
-            <StateTable result={result} base={scenario.base} onSelect={(code) => update({ state: code, county: null })} />
+            <>
+              <StateTable result={result} base={scenario.base} onSelect={(code) => update({ state: code, county: null })} />
+              <section className="sim-card" aria-labelledby="sim-districts-heading">
+                <div className="sim-card-head">
+                  <h2 id="sim-districts-heading">Maine and Nebraska districts</h2>
+                  <span>1 vote each</span>
+                </div>
+                {districtPicks(Object.values(SPLIT_DISTRICTS).flat())}
+              </section>
+            </>
           )}
           <p className="sim-source">
             Votes: MIT Election Data and Science Lab, County Presidential Election Returns 2000–2024. Swings move every county's

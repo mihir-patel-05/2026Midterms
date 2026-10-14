@@ -143,6 +143,10 @@
 .sim-icon-button { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 6px; color: hsl(var(--quiet)); }
 .sim-icon-button:hover { background: hsl(var(--surface-3)); color: hsl(var(--foreground)); }
 .sim-icon-button svg { width: 13px; height: 13px; }
+.sim-districts { display: grid; gap: 6px; }
+.sim-district { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.sim-district strong { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.sim-district small { display: block; margin-left: 15px; color: hsl(var(--quiet)); font-size: 0.66rem; }
 .sim-source { margin: 12px 0 0; color: hsl(var(--quiet)); font-size: 0.66rem; line-height: 1.5; }
 
 @media (max-width: 980px) {
