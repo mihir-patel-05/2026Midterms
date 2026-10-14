@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 import { useKalshiMarkets, type KalshiMarket, type KalshiScope } from '@/features/election-monitor/useKalshiLive';
+import { historyByTicker, useMarketHistory, type MarketHistory } from '@/features/election-monitor/marketHistory';
+import { partyTone } from '@/features/election-monitor/constants';
+import { Sparkline } from '@/features/election-monitor/Sparkline';
 import type { OfficeFilter } from '@/features/election-monitor/types';
 import { API_BASE_URL } from '@/lib/apiBase';
 
@@ -27,6 +30,20 @@ interface Race { race: string; rows: Row[] }
 
 /** House races shown before "Show all" when a whole state is selected. */
 const HOUSE_PREVIEW = 6;
+const HISTORY_DAYS = 7;
+
+/** Stored hourly prices by ticker, plus the shared time axis for every sparkline in the panel. */
+interface Trend { byTicker: Map<string, MarketHistory>; domain: [number, number] }
+
+function sparkSeries(rows: Row[], trend: Trend) {
+  return rows.map((row, index) => ({
+    key: row.ticker,
+    label: row.party ?? row.outcome,
+    color: partyTone(row.party === 'D' ? 'DEM' : row.party === 'R' ? 'REP' : null, index).fg,
+    points: trend.byTicker.get(row.ticker)?.points ?? [],
+    now: row.pricePercent,
+  }));
+}
 
 function groupRaces(rows: Row[]): Race[] {
   const byRace = new Map<string, Row[]>();
@@ -71,16 +88,20 @@ function fromQuote(quote: Quote, stateCode: string | null, district: string | nu
   };
 }
 
-function QuoteCards({ race }: { race: Race }) {
+function QuoteCards({ race, trend }: { race: Race; trend: Trend }) {
+  const series = sparkSeries(race.rows, trend);
   return (
     <div className="ed-predictions-quotes">
-      {race.rows.map((row) => (
+      {race.rows.map((row, index) => (
         <a key={row.ticker} href={row.url} target="_blank" rel="noopener noreferrer" aria-label={`Kalshi ${row.eventTitle}, ${row.outcome}, ${row.pricePercent!.toFixed(1)}%`}>
           <span className="ed-predictions-source">Kalshi</span>
           <span className="ed-predictions-outcome">{row.outcome}{row.party ? ` (${row.party})` : ''}</span>
           <strong key={row.updatedAt} data-moved={row.moved}>{row.pricePercent!.toFixed(1)}%</strong>
           <small>{row.priceType === 'MIDPOINT' ? 'Bid/ask midpoint' : 'Last trade'}</small>
           <ExternalLink aria-hidden="true" />
+          <span className="ed-predictions-spark">
+            <Sparkline series={[series[index]]} domain={trend.domain} width={150} height={24} title={`${row.outcome}, hourly price, past ${HISTORY_DAYS} days`} />
+          </span>
         </a>
       ))}
     </div>
@@ -88,7 +109,7 @@ function QuoteCards({ race }: { race: Race }) {
 }
 
 /** One line per race, for a state's full House slate. */
-function RaceList({ races }: { races: Race[] }) {
+function RaceList({ races, trend }: { races: Race[]; trend: Trend }) {
   return (
     <ul className="ed-predictions-races">
       {races.map((race) => {
@@ -99,6 +120,10 @@ function RaceList({ races }: { races: Race[] }) {
               aria-label={`${raceLabel(race.race)}: ${race.rows.map((row) => `${row.outcome} ${row.pricePercent!.toFixed(1)}%`).join(', ')}`}>
               <span className="ed-predictions-race">{raceLabel(race.race)}</span>
               <span className="ed-predictions-outcome">{lead.outcome}{lead.party ? ` (${lead.party})` : ''}</span>
+              <span className="ed-predictions-spark">
+                <Sparkline series={sparkSeries(race.rows.slice(0, 2), trend)} domain={trend.domain} width={72} height={20}
+                  title={`${raceLabel(race.race)}, hourly prices, past ${HISTORY_DAYS} days`} />
+              </span>
               <strong key={lead.updatedAt} data-moved={lead.moved}>{lead.pricePercent!.toFixed(1)}%</strong>
               {next && <small>{next.outcome} {next.pricePercent!.toFixed(1)}%</small>}
             </a>
@@ -151,6 +176,10 @@ export function PredictionMarketsPanel({ stateCode, district, office = 'ALL' }: 
       .sort((a, b) => competitiveness(a) - competitiveness(b) || a.race.localeCompare(b.race))
     : [];
   const visibleHouse = district || showAllHouse ? house : house.slice(0, HOUSE_PREVIEW);
+  // REST fallback rows carry no ticker to join on, so history is only drawn next to live prices.
+  const history = useMarketHistory(useLive ? [...national, ...senate, ...visibleHouse].map((race) => race.race) : [], HISTORY_DAYS);
+  const end = Date.now();
+  const trend: Trend = { byTicker: historyByTicker(history.data), domain: [end - HISTORY_DAYS * 24 * 3_600_000, end] };
 
   const loading = !useLive && (live.status === 'connecting' || rest.isLoading);
   const unavailable = !useLive && !loading && (rest.isError || !rest.data);
@@ -167,7 +196,10 @@ export function PredictionMarketsPanel({ stateCode, district, office = 'ALL' }: 
           ? <span className="ed-predictions-live">Kalshi live</span>
           : updatedAt && <time dateTime={updatedAt}>Updated {new Date(updatedAt).toLocaleTimeString()}</time>}
       </div>
-      <p className="ed-predictions-note">Traded prices reflect market views, not election results or polling. Open each market to read its settlement rules.</p>
+      <p className="ed-predictions-note">
+        Traded prices reflect market views, not election results or polling. Open each market to read its settlement rules.
+        {history.data && ` Lines show hourly prices over the past ${HISTORY_DAYS} days; breaks are hours with no stored price.`}
+      </p>
       {loading && <p className="ed-empty" role="status">Loading Kalshi prices…</p>}
       {unavailable && <p className="ed-empty" role="status">Prediction market prices are temporarily unavailable.</p>}
       {!loading && !unavailable && <>
@@ -177,13 +209,13 @@ export function PredictionMarketsPanel({ stateCode, district, office = 'ALL' }: 
           {national.map((race) => (
             <div className="ed-predictions-group" key={race.race}>
               <h3>National · {raceLabel(race.race)}</h3>
-              <QuoteCards race={race} />
+              <QuoteCards race={race} trend={trend} />
             </div>
           ))}
           {stateCode && showSenate && (
             <div className="ed-predictions-group">
               <h3>{stateCode} · U.S. Senate winner</h3>
-              {senate.length === 0 ? <p>{useLive ? `No Kalshi Senate market for ${stateCode}.` : emptyNote}</p> : senate.map((race) => <QuoteCards key={race.race} race={race} />)}
+              {senate.length === 0 ? <p>{useLive ? `No Kalshi Senate market for ${stateCode}.` : emptyNote}</p> : senate.map((race) => <QuoteCards key={race.race} race={race} trend={trend} />)}
             </div>
           )}
           {stateCode && showHouse && (district || useLive) && (
@@ -194,7 +226,7 @@ export function PredictionMarketsPanel({ stateCode, district, office = 'ALL' }: 
               </h3>
               {house.length === 0
                 ? <p>{district ? emptyNote : `No Kalshi House markets for ${stateCode}.`}</p>
-                : district ? <QuoteCards race={house[0]} /> : <RaceList races={visibleHouse} />}
+                : district ? <QuoteCards race={house[0]} trend={trend} /> : <RaceList races={visibleHouse} trend={trend} />}
               {!district && house.length > HOUSE_PREVIEW && (
                 <button type="button" className="ed-predictions-more" onClick={() => setShowAllHouse((value) => !value)}>
                   {showAllHouse ? 'Show fewer' : `Show all ${house.length}`}

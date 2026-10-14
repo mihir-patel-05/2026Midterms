@@ -7,3 +7,5 @@ export const electionDashboardEnabled = flag(import.meta.env.VITE_FEATURE_ELECTI
 export const mockResultsProviderEnabled = flag(import.meta.env.VITE_RESULTS_PROVIDER_MOCK_ENABLED);
 /** Demographics tab on the monitor. On unless set to "false"; it shows a notice until the ACS sync has run. */
 export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !== "false";
+/** Hourly Kalshi price sparklines on race cards and the markets panel. On unless set to "false". */
+export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY !== "false";

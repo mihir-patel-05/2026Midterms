@@ -345,7 +345,8 @@
 
 .em-odds { margin-bottom: 13px; padding: 10px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; background: hsl(var(--surface) / 0.6); }
 .em-odds-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; color: hsl(var(--muted-foreground)); font-size: 0.7rem; }
-.em-odds-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; padding: 5px 0; color: inherit; font-size: 0.8rem; text-decoration: none; }
+.em-odds-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0 10px; padding: 5px 0; color: inherit; font-size: 0.8rem; text-decoration: none; }
+.em-odds-spark { display: flex; align-items: center; }
 .em-odds-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .em-odds-row strong { font-variant-numeric: tabular-nums; }
 .em-odds-row .em-result-bar { display: block; grid-column: 1 / -1; margin-top: 4px; }

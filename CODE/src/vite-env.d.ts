@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_NEW_FRONTEND?: string;
   readonly VITE_MAP_STYLE_URL?: string;
   readonly VITE_FEATURE_DEMOGRAPHICS?: string;
+  readonly VITE_FEATURE_MARKET_HISTORY?: string;
   readonly VITE_API_URL?: string;
 }
 
