@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Office lock files
 ~$*
+
+# Raw MIT Election Lab downloads (large; converted by CODE/scripts/build-past-results.mjs)
+backend/data/medsl/
