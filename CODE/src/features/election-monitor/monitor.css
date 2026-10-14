@@ -86,14 +86,14 @@
 .em-clock { min-width: 155px; padding: 9px 11px; border: 1px solid hsl(var(--line)); border-radius: 9px; background: hsl(var(--surface)); text-align: right; }
 .em-clock strong { display: block; font: 700 0.9rem ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
 .em-clock span { color: hsl(var(--quiet)); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.em-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-bottom: 16px; }
+.em-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 13px; }
 .em-stat { min-width: 0; padding: 11px 12px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; background: hsl(var(--surface) / 0.72); }
 .em-stat span { display: block; margin-bottom: 3px; color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .em-stat strong { display: block; overflow: hidden; font-size: 1.05rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Map card */
 .em-map-card {
-  position: relative; min-height: 490px; padding: 18px; overflow: hidden;
+  position: relative; padding: 18px; overflow: hidden;
   border: 1px solid hsl(var(--line)); border-radius: 13px;
   background: linear-gradient(180deg, rgb(17 27 43 / 0.76), rgb(8 13 22 / 0.96)), hsl(var(--surface));
   box-shadow: var(--shadow-xl);
@@ -242,7 +242,8 @@
 }
 
 /* Interactive map (MapLibre) */
-.em-map-frame { position: relative; z-index: 1; height: clamp(360px, 52vh, 560px); margin-top: 14px; overflow: hidden; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
+/* Tall enough that the map, not the panels around it, fills most of the screen. */
+.em-map-frame { position: relative; z-index: 1; height: clamp(440px, calc(100vh - 270px), 920px); margin-top: 14px; overflow: hidden; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
 .em-map { width: 100%; height: 100%; }
 .em-map-loading { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.04) 50%, transparent 70%) hsl(var(--background)); background-size: 200% 100%; animation: em-shimmer 1.4s linear infinite; }
 @keyframes em-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
@@ -269,7 +270,7 @@
 .em-map-frame .maplibregl-ctrl-attrib { background: hsl(var(--surface) / 0.8); color: hsl(var(--quiet)); }
 .em-map-frame .maplibregl-ctrl-attrib a { color: hsl(var(--muted-foreground)); }
 .em-map-frame .maplibregl-ctrl-attrib-button { filter: invert(1); }
-@media (max-width: 720px) { .em-map-frame { height: 340px; } .em-map-jumps button { padding: 0 8px; } }
+@media (max-width: 720px) { .em-map-frame { height: max(340px, 60vh); } .em-map-jumps button { padding: 0 8px; } }
 
 /* Snapshot history timeline */
 .em-timeline { display: grid; margin: 0; padding: 0; list-style: none; }

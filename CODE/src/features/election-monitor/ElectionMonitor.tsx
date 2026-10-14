@@ -222,14 +222,6 @@ export function ElectionMonitor() {
             onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
           <ControlOddsBanner />
-          <StatStrip
-            stats={[
-              { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
-              { label: "Selected state", value: selectedState?.name ?? "United States" },
-              { label: "House districts", value: haveContests ? String(districts.length) : "–" },
-              { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
-            ]}
-          />
           <MapCard
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
@@ -272,6 +264,14 @@ export function ElectionMonitor() {
               />
             </Suspense>
           </MapCard>
+          <StatStrip
+            stats={[
+              { label: selectedState ? "Contests in view" : "Federal contests", value: selectedState ? (haveContests ? String(visibleContests.length) : "–") : nationalRaces === null ? "–" : numberFormat.format(nationalRaces) },
+              { label: "Selected state", value: selectedState?.name ?? "United States" },
+              { label: "House districts", value: haveContests ? String(districts.length) : "–" },
+              { label: "Result status", value: results ? (results.meta.isMockData ? "Mock reporting" : "Reporting") : "No results feed" },
+            ]}
+          />
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
             {moversEnabled && (
               <MoversCard
