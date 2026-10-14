@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { PresidentYear } from "@/features/election-monitor/pastResults";
 import { ELECTORAL_VOTES, TOTAL_ELECTORAL_VOTES } from "./electoralVotes";
-import { EMPTY_SCENARIO, formatMargin, marginOf, simBins, simulate, withMargin, type Scenario } from "./model";
+import { EMPTY_SCENARIO, formatMargin, marginOf, nextPick, simBins, simulate, withMargin, type Scenario } from "./model";
 
 function load(year: number): PresidentYear {
   const file = fileURLToPath(new URL(`../../../public/data/past-results/president-${year}.json`, import.meta.url));
@@ -105,6 +105,28 @@ describe("simBins", () => {
 
   it("colours every county with a result", () => {
     expect(simBins(run({}), "counties").size).toBe(run({}).counties.size);
+  });
+});
+
+describe("nextPick", () => {
+  it("flips a decided state, then makes it a tossup, then restores it", () => {
+    const flipped = nextPick(undefined, "R");
+    expect(flipped).toEqual({ party: "D", rating: "lean" });
+    const tossup = nextPick(flipped!, "R");
+    expect(tossup).toEqual({ party: "T" });
+    expect(nextPick(tossup!, "R")).toBeNull();
+  });
+
+  it("goes D, R, then back on a blank map", () => {
+    const d = nextPick(undefined, "T");
+    expect(d).toEqual({ party: "D", rating: "safe" });
+    const r = nextPick(d!, "T");
+    expect(r).toEqual({ party: "R", rating: "safe" });
+    expect(nextPick(r!, "T")).toBeNull();
+  });
+
+  it("restores a state picked for its own winner", () => {
+    expect(nextPick({ party: "D", rating: "safe" }, "D")).toBeNull();
   });
 });
 

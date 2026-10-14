@@ -17,9 +17,10 @@ import ResearchDashboard from "./pages/research/ResearchDashboard";
 import RaceTracker from "./pages/research/RaceTracker";
 import Simulator from "./pages/research/Simulator";
 import { RequireResearcher } from "./components/research/RequireResearcher";
-import { newFrontendEnabled } from "./lib/featureFlags";
+import { newFrontendEnabled, simulatorEnabled } from "./lib/featureFlags";
 
 const ElectionDashboard = lazy(() => import("./pages/ElectionDashboard"));
+const ElectionSimulator = lazy(() => import("./pages/ElectionSimulator"));
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,16 @@ const App = () => (
               {/* Legacy landing page, kept reachable for one release. */}
               <Route path="/classic" element={<Index />} />
               <Route path="/election-dashboard" element={<DashboardRedirect />} />
+              {simulatorEnabled && (
+                <Route
+                  path="/simulator"
+                  element={
+                    <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
+                      <ElectionSimulator />
+                    </Suspense>
+                  }
+                />
+              )}
             </>
           ) : (
             <>

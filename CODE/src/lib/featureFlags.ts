@@ -13,3 +13,5 @@ export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY 
 export const moversEnabled = import.meta.env.VITE_FEATURE_MOVERS !== "false";
 /** Past results map mode (MIT Election Lab returns). On unless set to "false". */
 export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== "false";
+/** Electoral college and county simulator at /simulator. On unless set to "false"; it runs on the Past results files, so it needs that flag too. */
+export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";

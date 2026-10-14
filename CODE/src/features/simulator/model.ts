@@ -169,6 +169,22 @@ export function simulate(scenario: Scenario, data: PresidentYear | null): Simula
   return { states, districts, counties, totals };
 }
 
+/**
+ * What a click on a state does next. A state with a result flips to the other party, then becomes
+ * a tossup, then goes back to its computed result (null). On a blank map it goes D, R, then back.
+ * Flips start at "lean" since they are close calls; picks on a blank map start at "safe".
+ */
+export function nextPick(current: Pick | undefined, computed: Outcome): Pick | null {
+  if (computed === "T") {
+    if (!current) return { party: "D", rating: "safe" };
+    return current.party === "D" ? { party: "R", rating: "safe" } : null;
+  }
+  const other: Side = computed === "D" ? "R" : "D";
+  if (!current) return { party: other, rating: "lean" };
+  if (current.party === other) return { party: "T" };
+  return null;
+}
+
 /** "D+4.7", "R+0.3", "R+0.01" for margins too close for one decimal, or "Even". */
 export function formatMargin(margin: number | null) {
   if (margin === null) return "–";
