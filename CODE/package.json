@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "build:geo": "node scripts/build-geo.mjs",
     "build:geo:counties": "node scripts/build-counties.mjs",
+    "build:past-results": "node scripts/build-past-results.mjs",
     "build:redistricting": "node scripts/build-redistricting.mjs"
   },
   "dependencies": {
