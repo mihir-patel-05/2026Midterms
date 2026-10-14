@@ -13,7 +13,8 @@
     "build:geo": "node scripts/build-geo.mjs",
     "build:geo:counties": "node scripts/build-counties.mjs",
     "build:past-results": "node scripts/build-past-results.mjs",
-    "build:redistricting": "node scripts/build-redistricting.mjs"
+    "build:redistricting": "node scripts/build-redistricting.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -93,6 +94,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "us-atlas": "^3.0.1",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vitest": "^2.1.9"
   }
 }
