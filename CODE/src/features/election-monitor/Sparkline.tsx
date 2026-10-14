@@ -96,6 +96,8 @@ export function Sparkline({ series, domain, title, width = 88, height = 22 }: {
     <span className="em-spark" onPointerLeave={() => setHoverT(null)}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${describe}`}
         aria-describedby={hoverT === null ? undefined : tipId} onPointerMove={onMove}>
+        {/* The full time axis, so a line that starts partway in reads as "not stored yet", not a layout gap. */}
+        <line className="em-spark-axis" x1={0} x2={width} y1={height - 0.5} y2={height - 0.5} />
         {hoverT !== null && <line className="em-spark-guide" x1={x(hoverT)} x2={x(hoverT)} y1={0} y2={height} />}
         {lines.map((item) => segments(item.points, item.live).map((segment, index) => segment.length === 1
           ? <circle key={`${item.key}-${index}`} cx={x(segment[0][0])} cy={y(segment[0][1])} r={1.25} fill={item.color} />
