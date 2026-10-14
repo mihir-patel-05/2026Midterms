@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { MapLayer, Readiness } from "../types";
@@ -53,6 +53,8 @@ export interface ElectionMapProps {
    * readiness colours are replaced; null returns the map to the 2026 view.
    */
   past?: { bins: Map<string, string> | null } | null;
+  /** The map fills the window. Switching it keeps the same area in view, scaled to the new frame. */
+  expanded?: boolean;
 }
 
 // MapLibre paints on a canvas and cannot read CSS variables; these mirror the theme tokens.
@@ -75,7 +77,7 @@ const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
 export default function ElectionMap(props: ElectionMapProps) {
-  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, past = null } = props;
+  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, past = null, expanded = false } = props;
   const pastOn = past !== null;
   // Past mode with nothing to colour yet (loading, or House lines that don't match): outlines only.
   const pastPainted = pastOn && Boolean(past?.bins);
@@ -90,6 +92,8 @@ export default function ElectionMap(props: ElectionMapProps) {
   const initialViewRef = useRef(initialView);
   const skipNextFit = useRef(Boolean(initialView));
   const lastFramed = useRef<string | null>(null);
+  /** Container size as of the last paint, so a layout switch can compare old and new frames. */
+  const frameSize = useRef<{ width: number; height: number } | null>(null);
 
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "basemap-fallback" | "error" | "no-webgl">("loading");
@@ -102,6 +106,7 @@ export default function ElectionMap(props: ElectionMapProps) {
     const controller = new AbortController();
     let map: MapLibreMap | null = null;
     let hoverKey: { source: string; id: string } | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     (async () => {
       const [{ style, isFallback }, states] = await Promise.all([resolveMapStyle(controller.signal), loadStates()]);
@@ -130,6 +135,10 @@ export default function ElectionMap(props: ElectionMapProps) {
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       mapRef.current = map;
+      resizeObserver = new ResizeObserver(([entry]) => {
+        frameSize.current = { width: entry.contentRect.width, height: entry.contentRect.height };
+      });
+      resizeObserver.observe(containerRef.current);
 
       map.on("load", () => {
         if (!map) return;
@@ -241,10 +250,28 @@ export default function ElectionMap(props: ElectionMapProps) {
 
     return () => {
       controller.abort();
+      resizeObserver?.disconnect();
       map?.remove();
       mapRef.current = null;
     };
   }, []);
+
+  // Expanding or collapsing changes the frame's size before the next paint; scale the zoom with it
+  // so the area in view stays the same instead of shrinking into a corner of a larger frame.
+  const wasExpanded = useRef(expanded);
+  useLayoutEffect(() => {
+    if (wasExpanded.current === expanded) return;
+    wasExpanded.current = expanded;
+    const map = mapRef.current;
+    const before = frameSize.current;
+    const container = containerRef.current;
+    if (!map || !container || !before?.width || !before.height) return;
+    const after = container.getBoundingClientRect();
+    const scale = Math.min(after.width / before.width, after.height / before.height);
+    if (!(scale > 0) || !Number.isFinite(scale)) return;
+    map.resize();
+    map.jumpTo({ zoom: map.getZoom() + Math.log2(scale) });
+  }, [expanded]);
 
   // Lazily load district and county geometry the first time their layer is opened.
   useEffect(() => {

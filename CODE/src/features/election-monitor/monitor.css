@@ -509,3 +509,46 @@
   .em-mode { align-self: stretch; }
   .em-past-controls { gap: 6px; }
 }
+
+/* Map toolbar actions */
+.em-map-actions { display: flex; flex-shrink: 0; gap: 6px; }
+.em-map-action {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 29px; padding: 0 10px;
+  border: 1px solid hsl(var(--line)); border-radius: 7px; background: hsl(var(--surface-2));
+  color: hsl(var(--muted-foreground)); font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.em-map-action:hover { color: hsl(var(--foreground)); border-color: hsl(var(--signal-teal) / 0.4); }
+.em-map-action svg { width: 14px; height: 14px; }
+
+/* Expanded map: the map fills the window and the detail panel stays docked beside it.
+   Same DOM as the dashboard, so the map is never rebuilt. z-index clears the sticky top bar (50). */
+.em-shell[data-map="expanded"] {
+  position: fixed; inset: 0; z-index: 60;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  height: 100vh; height: 100dvh; min-height: 0;
+  background: hsl(var(--background));
+}
+.em-shell[data-map="expanded"] > .em-sidebar,
+.em-shell[data-map="expanded"] .em-canvas-head,
+.em-shell[data-map="expanded"] .em-control-banner,
+.em-shell[data-map="expanded"] .em-stats,
+.em-shell[data-map="expanded"] .em-rail { display: none; }
+.em-shell[data-map="expanded"] .em-canvas { display: flex; flex-direction: column; min-height: 0; padding: 0; }
+.em-shell[data-map="expanded"] .em-map-card {
+  display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 12px 14px;
+  border: 0; border-radius: 0; box-shadow: none;
+}
+.em-shell[data-map="expanded"] .em-map-frame { flex: 1; height: auto; min-height: 0; margin-top: 10px; }
+.em-shell[data-map="expanded"] .em-detail { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 980px) {
+  .em-shell[data-map="expanded"] { grid-template-columns: minmax(0, 1fr) 320px; }
+  .em-shell[data-map="expanded"] .em-detail { grid-column: auto; border-top: 0; border-left: 1px solid hsl(var(--line)); }
+  .em-shell[data-map="expanded"] .em-detail-inner { display: block; }
+}
+/* Phones: map on top, details scroll beneath it. */
+@media (max-width: 720px) {
+  .em-shell[data-map="expanded"] { display: flex; flex-direction: column; overflow-y: auto; }
+  .em-shell[data-map="expanded"] .em-canvas { flex: 0 0 auto; height: 62vh; height: 62dvh; }
+  .em-shell[data-map="expanded"] .em-map-card { padding: 10px 9px; }
+  .em-shell[data-map="expanded"] .em-detail { flex: 0 0 auto; overflow: visible; border-top: 1px solid hsl(var(--line)); border-left: 0; }
+}

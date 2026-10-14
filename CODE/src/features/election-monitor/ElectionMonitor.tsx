@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
@@ -97,6 +97,27 @@ export function ElectionMonitor() {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);
 
+  const expanded = params.expanded;
+  const setExpanded = useCallback((next: boolean) => update({ expanded: next }), [update]);
+  // While expanded the page behind the map must not scroll, and Esc goes back to the dashboard.
+  useEffect(() => {
+    if (!expanded) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Native selects and open menus use Esc themselves.
+      if ((event.target as Element | null)?.closest?.("input, select, textarea, [role='listbox'], [role='menu'], [role='dialog']")) return;
+      setExpanded(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      root.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [expanded, setExpanded]);
+
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const onViewChange = useCallback((view: MapView) => update({ view }), [update]);
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
@@ -188,7 +209,7 @@ export function ElectionMonitor() {
 
   return (
     <AppShell variant="app">
-      <div className="em-shell">
+      <div className="em-shell" data-map={expanded ? "expanded" : undefined}>
         <Sidebar
           states={states}
           stateCode={selectedState?.code ?? null}
@@ -226,6 +247,8 @@ export function ElectionMonitor() {
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
             mode={pastActive ? "past" : "races"}
+            expanded={expanded}
+            onExpandedChange={setExpanded}
             onModeChange={pastResultsEnabled ? setMode : undefined}
             pastControls={pastActive && (
               <PastResultsControls
@@ -249,6 +272,7 @@ export function ElectionMonitor() {
             <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
               <ElectionMap
                 layer={mapLayer}
+                expanded={expanded}
                 past={pastPaint}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}

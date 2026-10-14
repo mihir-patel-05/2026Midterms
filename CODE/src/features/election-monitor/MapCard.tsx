@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import type { MapMode } from "./types";
 
 const layerDescriptions = {
@@ -7,7 +8,7 @@ const layerDescriptions = {
   counties: "County reporting units where a results source provides them",
 } as const;
 
-export function MapCard({ layer, readout, children, mode = "races", onModeChange, pastControls, pastLegend }: {
+export function MapCard({ layer, readout, children, mode = "races", onModeChange, pastControls, pastLegend, expanded = false, onExpandedChange }: {
   layer: keyof typeof layerDescriptions;
   readout: string;
   children: ReactNode;
@@ -16,6 +17,9 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
   onModeChange?: (mode: MapMode) => void;
   pastControls?: ReactNode;
   pastLegend?: ReactNode;
+  /** The map fills the window; the toolbar button switches it. */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }) {
   const past = mode === "past";
   return (
@@ -37,6 +41,20 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
           <span className="em-legend-item" data-readiness="pending"><i />No data</span>
           {layer === "districts" && <span className="em-legend-item" data-readiness="outdated"><i />2026 lines differ</span>}
         </div>}
+        {onExpandedChange && (
+          <div className="em-map-actions">
+            <button
+              type="button"
+              className="em-map-action"
+              aria-pressed={expanded}
+              title={expanded ? "Back to the dashboard (Esc)" : "Fill the window with the map"}
+              onClick={() => onExpandedChange(!expanded)}
+            >
+              {expanded ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+              <span>{expanded ? "Exit" : "Expand"}<span className="sr-only"> map</span></span>
+            </button>
+          </div>
+        )}
       </div>
       {past && pastControls}
       {children}

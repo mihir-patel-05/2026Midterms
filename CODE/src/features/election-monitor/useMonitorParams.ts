@@ -40,6 +40,8 @@ export interface MonitorParams {
   pastYear: number | null;
   pastMetric: PastMetric;
   pastFrom: number | null;
+  /** The map fills the window, with the detail panel docked beside it (`?map=full`). */
+  expanded: boolean;
 }
 
 function parseYear(value: string | null) {
@@ -85,19 +87,24 @@ export function useMonitorParams() {
       pastYear: parseYear(searchParams.get("pyear")),
       pastMetric: pick(searchParams.get("pmetric"), metrics, "winner"),
       pastFrom: parseYear(searchParams.get("pfrom")),
+      expanded: searchParams.get("map") === "full",
     };
   }, [searchParams]);
 
   const update = useCallback((patch: Partial<MonitorParams>) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, ...rest } = patch;
+      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, expanded, ...rest } = patch;
       // Past results keep short URL names; defaults are left out so ordinary links stay clean.
       const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null] } as const;
       for (const [key, [value, fallback]] of Object.entries(past)) {
         if (value === undefined) continue;
         if (value === null || value === fallback) next.delete(key);
         else next.set(key, String(value));
+      }
+      if (expanded !== undefined) {
+        if (expanded) next.set("map", "full");
+        else next.delete("map");
       }
       if (view !== undefined) {
         for (const key of ["lat", "lon", "zoom"] as const) {
