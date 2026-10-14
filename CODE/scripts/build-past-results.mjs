@@ -273,8 +273,12 @@ function buildPresident() {
     check(Object.keys(states).length === 51, `President ${year} has ${Object.keys(states).length} states and DC, expected 51`);
   }
 
-  // Margin series for the detail panel: D share minus R share, in points, per year.
-  const margin = ([d, r, o]) => Math.round(((d - r) / (d + r + o)) * 1000) / 10;
+  // Margin series for the detail panel: D share minus R share, in points, per year. One decimal, or
+  // two under a tenth of a point so a race like Florida 2000 (R+0.01) keeps its winner.
+  const margin = ([d, r, o]) => {
+    const value = ((d - r) / (d + r + o)) * 100;
+    return Math.abs(value) < 0.1 ? Math.round(value * 100) / 100 : Math.round(value * 10) / 10;
+  };
   const compact = (byYear) => years.map((year) => (byYear[year] ? margin(byYear[year]) : null));
   write("president-series.json", {
     years: years.map(Number),

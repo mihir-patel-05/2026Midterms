@@ -27,6 +27,8 @@ export interface PastMeta {
   generatedAt: string;
   offices: Record<PastOffice, PastOfficeMeta>;
   countyNotes: Record<string, string>;
+  /** "president|2000|FL" → why that state's total is not the sum of its county returns. */
+  stateNotes?: Record<string, string>;
 }
 
 export interface RaceCandidate { name: string; party: Party; partyDetailed: string; votes: number | null; writein?: boolean }
@@ -246,7 +248,11 @@ export function partyLabel(candidate: { party: Party; partyDetailed?: string }) 
   return label ? personName(label) : "Ind.";
 }
 
-export const formatPts = (value: number) => `${round1(Math.abs(value)).toFixed(1)}`;
+/** One decimal, or two for margins under a tenth of a point (Florida 2000 was 0.01) so they never read as 0.0. */
+export const formatPts = (value: number) => {
+  const size = Math.abs(value);
+  return size > 0 && size < 0.1 ? Math.max(size, 0.01).toFixed(2) : round1(size).toFixed(1);
+};
 
 /** "Joseph R Biden Jr (D) won by 4.2 points", or the reason there is no winner to show. */
 export function describeResult(result: AreaResult, office: PastOffice, year: number): string[] {

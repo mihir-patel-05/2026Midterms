@@ -156,7 +156,10 @@ export function ElectionMonitor() {
       if (target.kind === "district" && !past.houseLinesMatch) return { title, lines: [`District lines were different in ${year}`, "Select to read its race in the panel"] };
       const [code, level]: [string, MapLayer] = target.kind === "county" ? [target.fips, "counties"] : target.kind === "district" ? [`${target.state}-${target.district}`, "districts"] : [target.state, "states"];
       const shift = past.lookup.shift(code, level);
-      const lines = shift && past.from !== null ? describeShift(shift, past.from, year) : describeResult(past.lookup.result(code, level), past.data!.office, year);
+      const result = past.lookup.result(code, level);
+      // Alaska has no county results at all; say why rather than "not reported".
+      const countyNote = target.kind === "county" && result.status === "not_reported" ? past.meta?.countyNotes[target.state] : undefined;
+      const lines = countyNote ? [countyNote] : shift && past.from !== null ? describeShift(shift, past.from, year) : describeResult(result, past.data!.office, year);
       return { title: target.kind === "county" ? `${title}, ${target.state}` : title, lines: [`${year} ${past.data!.office === "president" ? "presidential" : past.data!.office === "senate" ? "Senate" : "House"}`, ...lines] };
     }
     if (target.kind === "county") {

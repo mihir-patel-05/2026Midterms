@@ -10,7 +10,7 @@ import type { PastResultsView } from "./usePastResultsView";
 const share = (votes: number, total: number) => (total > 0 ? `${((votes / total) * 100).toFixed(1)}%` : "–");
 const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${formatPts(value)}`;
 /** "D+4.2" / "R+1.7": the leading party and its lead over the other, in points. */
-const leanLabel = (margin: number) => (Math.abs(margin) < 0.05 ? "Even" : `${margin > 0 ? "D" : "R"}+${formatPts(margin)}`);
+const leanLabel = (margin: number) => (margin === 0 ? "Even" : `${margin > 0 ? "D" : "R"}+${formatPts(margin)}`);
 
 function raceTitle(race: Race) {
   const parts = [race.special ? "Special election" : "General election"];
@@ -105,7 +105,7 @@ function PresidentPanel({ view, stateCode, stateName, county }: { view: PastResu
   }
   const result = presidentResult(votes, names);
   const others = !county && stateCode ? data.states[stateCode]?.others ?? [] : [];
-  const note = county && stateCode ? view.meta?.countyNotes[stateCode] : undefined;
+  const note = !stateCode ? undefined : county ? view.meta?.countyNotes[stateCode] : view.meta?.stateNotes?.[`president|${year}|${stateCode}`];
 
   return (
     <>
@@ -137,6 +137,7 @@ function PresidentPanel({ view, stateCode, stateName, county }: { view: PastResu
           series={!series.data ? undefined : county ? series.data.counties[county] : stateCode ? series.data.states[stateCode] : undefined}
         />
         {!stateCode && <p className="em-past-fine">Select a state or county for its margin history.</p>}
+        {county && series.data && !series.data.counties[county] && <p className="em-past-fine">No margin history for this county.</p>}
         {series.isLoading && <p className="em-past-fine">Loading margin history…</p>}
       </section>
     </>
