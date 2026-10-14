@@ -1119,6 +1119,7 @@ model MarketSnapshot {
   @@unique([provider, sourceMarketId, capturedHour])
   @@index([contestId, capturedHour])
   @@index([scope, stateCode, districtCode, capturedHour])
+  @@index([provider, capturedHour])
   @@map("market_snapshots")
 }
 
