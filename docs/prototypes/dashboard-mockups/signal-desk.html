@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Design mockup B: a race-centric researcher workbench where every data stream is linked on one timeline. All values are illustrative mock data." />
+<title>Signal Desk Mockup</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #f8f9fb;
+    --line: #e1e4ea;
+    --line-soft: #eef0f3;
+    --text: #0f1726;
+    --muted: #556070;
+    --quiet: #7d8796;
+    --accent: #0f8f7a;
+    --accent-soft: rgba(15,143,122,.1);
+    --dem: #2a78d6;
+    --rep: #e34948;
+    --mid: #c9ced6;
+    --s-kalshi: #6250d6;
+    --s-poly: #1baf7a;
+    --other: #8a93a1;
+    --ai: #6250d6;
+    --good: #16794a;
+    --warn: #a86800;
+    --bad: #c42b2b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(15,23,38,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0a0e15; --surface: #111722; --surface-2: #161d2a; --line: #263042; --line-soft: #1c2433;
+      --text: #eef2f7; --muted: #a2adbd; --quiet: #748095; --accent: #5ce1c0; --accent-soft: rgba(92,225,192,.12);
+      --dem: #3987e5; --rep: #e66767; --mid: #3a4456; --s-kalshi: #9085e9; --s-poly: #199e70; --other: #7d8796; --ai: #a99ff0;
+      --good: #74d89a; --warn: #f4c769; --bad: #ff6f79; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0a0e15; --surface: #111722; --surface-2: #161d2a; --line: #263042; --line-soft: #1c2433;
+    --text: #eef2f7; --muted: #a2adbd; --quiet: #748095; --accent: #5ce1c0; --accent-soft: rgba(92,225,192,.12);
+    --dem: #3987e5; --rep: #e66767; --mid: #3a4456; --s-kalshi: #9085e9; --s-poly: #199e70; --other: #7d8796; --ai: #a99ff0;
+    --good: #74d89a; --warn: #f4c769; --bad: #ff6f79; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; min-width: 320px; overflow-x: hidden; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mono { font-family: var(--mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+  .mock { padding: 5px 16px; text-align: center; background: #fff4d6; color: #7a5300; font: 700 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid #f0dca4; }
+  :root[data-theme="dark"] .mock { background: #2f2610; color: #f4c769; border-color: #4a3c18; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mock { background: #2f2610; color: #f4c769; border-color: #4a3c18; } }
+
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .brand { font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+  .brand span { color: var(--quiet); font-weight: 600; }
+  .cmd { flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); color: var(--quiet); }
+  .cmd kbd { margin-left: auto; font: 11px var(--mono); padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
+  .hdr-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--surface-2); }
+
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 9px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .fl { color: var(--quiet); font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+  .seg button { padding: 4px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface); }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+  .chip .ct { font: 11px var(--mono); color: var(--quiet); }
+
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr) 340px; gap: 12px; padding: 12px; align-items: start; }
+  @media (max-width: 1240px) { .layout { grid-template-columns: 220px minmax(0, 1fr); } .stream-col { grid-column: 1 / -1; } }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 8px; } .hdr-r { margin-left: 0; }
+    /* Watchlist becomes a horizontal strip on phones. */
+    .wl { display: flex; overflow-x: auto; gap: 4px; } .wl li { flex: 0 0 132px; } .views-card { display: none; }
+  }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); min-width: 0; }
+  .card + .card { margin-top: 12px; }
+  .ch { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); }
+  .ch h2, .ch h3 { margin: 0; font-size: 13px; font-weight: 700; }
+  .ch .meta { margin-left: auto; color: var(--quiet); font: 11px var(--mono); }
+  .cb { padding: 12px 14px; }
+
+  /* Watchlist */
+  .wl { list-style: none; margin: 0; padding: 4px; }
+  .wl button { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 10px; border-radius: 8px; text-align: left; }
+  .wl button:hover { background: var(--surface-2); }
+  .wl button[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .wl .n { font-weight: 650; font-size: 13px; }
+  .wl .p { font: 600 13px var(--mono); text-align: right; }
+  .wl .s { color: var(--quiet); font-size: 11.5px; }
+  .wl .d { font: 11.5px var(--mono); text-align: right; }
+  .up { color: var(--good); } .down { color: var(--bad); }
+  .views { list-style: none; margin: 0; padding: 6px 14px 12px; font-size: 13px; }
+  .views li { padding: 5px 0; color: var(--muted); display: flex; justify-content: space-between; }
+  .views li span { font: 11px var(--mono); color: var(--quiet); }
+
+  /* Race header */
+  .race-h { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; padding: 14px; }
+  .race-h h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+  .race-h .sub { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font: 700 11px var(--mono); border: 1px solid var(--line); color: var(--muted); }
+  .badge.ai { color: var(--ai); border-color: color-mix(in srgb, var(--ai) 40%, transparent); }
+  .race-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line-soft); }
+  .kpi { padding: 12px 14px; border-right: 1px solid var(--line-soft); min-width: 0; }
+  .kpi:last-child { border-right: 0; }
+  .kpi .k { color: var(--muted); font-size: 12px; }
+  .kpi .v { font-size: 22px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
+  .kpi .s { color: var(--quiet); font: 11px var(--mono); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi { border-bottom: 1px solid var(--line-soft); } }
+
+  /* Linked timeline */
+  .tl { padding: 6px 14px 12px; }
+  .row { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .row:last-child { border-bottom: 0; }
+  .row .lab { font-size: 12.5px; font-weight: 650; }
+  .row .lab small { display: block; color: var(--quiet); font-weight: 500; font: 10.5px/1.4 var(--mono); margin-top: 2px; }
+  .row .lab .lg { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; color: var(--muted); font-weight: 500; font-size: 11.5px; }
+  .row .lab .val { font: 600 12px var(--mono); margin-top: 4px; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; gap: 4px; } }
+  svg { display: block; overflow: visible; }
+  .grid line { stroke: var(--line-soft); }
+  .axis text { fill: var(--quiet); font: 10px var(--mono); }
+  .ev-flag { cursor: pointer; }
+  .ev-flag circle { fill: var(--surface); stroke: var(--text); stroke-width: 1.5; }
+  .ev-flag text { fill: var(--text); font: 700 9px var(--mono); }
+  .ev-flag.on circle { fill: var(--accent); stroke: var(--accent); }
+  .ev-flag.on text { fill: var(--surface); }
+
+  .prov { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--line-soft); color: var(--quiet); font: 11px var(--mono); }
+
+  /* Comparison table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: var(--quiet); font: 700 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--surface-2); }
+  th button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr[aria-selected="true"] { background: var(--accent-soft); }
+  .r { text-align: right; }
+  .rating { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+  .rating i { width: 10px; height: 10px; border-radius: 3px; }
+  .flag { font: 700 11px var(--mono); padding: 1px 6px; border-radius: 4px; }
+  .flag.hi { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .flag.lo { color: var(--quiet); }
+  .missing { color: var(--quiet); font-style: italic; font-size: 12px; }
+
+  /* Event stream */
+  .stream-col .card { position: sticky; top: 12px; }
+  .stream { max-height: calc(100vh - 220px); min-height: 420px; overflow: auto; }
+  .ev { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+  .ev:hover { background: var(--surface-2); }
+  .ev.on { background: var(--accent-soft); }
+  .ev .ix { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--text); display: grid; place-items: center; font: 700 9px var(--mono); }
+  .ev.on .ix { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .ev .ix.none { border-style: dashed; border-color: var(--quiet); }
+  .ev .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .ev .src { font: 700 10px var(--mono); letter-spacing: .05em; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+  .ev .src.ai { color: var(--ai); }
+  .ev time { margin-left: auto; color: var(--quiet); font: 11px var(--mono); }
+  .ev .h { font-weight: 650; font-size: 13px; margin-top: 4px; }
+  .ev .d { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .ev .cite { color: var(--quiet); font: 11px var(--mono); margin-top: 4px; }
+  .ask { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .ask input { flex: 1; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; }
+
+  .tip { position: fixed; z-index: 50; pointer-events: none; padding: 7px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.14); font-size: 12px; opacity: 0; transition: opacity .1s; min-width: 150px; }
+  .tip.on { opacity: 1; }
+  .tip .t { color: var(--quiet); font: 10.5px var(--mono); margin-bottom: 3px; }
+  .tip .ln { display: flex; justify-content: space-between; gap: 12px; }
+  footer { padding: 6px 16px 22px; color: var(--quiet); font-size: 11.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="mock">Design mockup B · Signal Desk · All figures are illustrative mock data, not real election information</div>
+
+<header>
+  <div class="brand">VoteInformed <span>/ Signal Desk</span></div>
+  <div class="cmd" role="search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    Jump to a race, candidate, committee, or market ticker…
+    <kbd>⌘K</kbd>
+  </div>
+  <div class="hdr-r">
+    <button class="btn" type="button">⤓ Export CSV</button>
+    <button class="btn" type="button">⧉ API query</button>
+    <button class="btn" type="button" id="theme">Dark mode</button>
+  </div>
+</header>
+
+<div class="filters" role="toolbar" aria-label="Filters that scope every panel">
+  <div><span class="fl">Window</span><span class="seg" data-group="win"><button aria-pressed="false" data-days="14">14d</button><button aria-pressed="false" data-days="30">30d</button><button aria-pressed="true" data-days="60">60d</button></span></div>
+  <div><span class="fl">Streams</span>
+    <span class="chips" id="stream-chips">
+      <button class="chip" aria-pressed="true" data-src="MARKET">Markets <span class="ct">KAL·POLY</span></button>
+      <button class="chip" aria-pressed="true" data-src="POLL">Polls</button>
+      <button class="chip" aria-pressed="true" data-src="FEC">FEC</button>
+      <button class="chip" aria-pressed="true" data-src="SCHED E">Outside $</button>
+      <button class="chip" aria-pressed="true" data-src="NEWS">News</button>
+      <button class="chip" aria-pressed="true" data-src="AI">AI analysis</button>
+    </span>
+  </div>
+  <div><span class="fl">Compare</span><span class="seg"><button aria-pressed="true">Off</button><button aria-pressed="false">+ National</button><button aria-pressed="false">+ Similar races</button></span></div>
+</div>
+
+<div class="layout">
+  <!-- Left: watchlist -->
+  <aside>
+    <section class="card" aria-labelledby="wl-h">
+      <div class="ch"><h2 id="wl-h">Watchlist</h2><span class="meta">D price · 7d</span></div>
+      <ul class="wl" id="watchlist"></ul>
+    </section>
+    <section class="card views-card" aria-labelledby="sv-h">
+      <div class="ch"><h2 id="sv-h">Saved views</h2></div>
+      <ul class="views">
+        <li>Senate toss-ups <span>9</span></li>
+        <li>Divergence &gt; 10 pts <span>6</span></li>
+        <li>Redistricted seats <span>14</span></li>
+        <li>No public polling <span>212</span></li>
+        <li>Self-funders <span>11</span></li>
+      </ul>
+    </section>
+  </aside>
+
+  <!-- Center: selected race, linked timeline, comparison -->
+  <div>
+    <section class="card" aria-labelledby="race-title">
+      <div class="race-h">
+        <div>
+          <div class="sub" id="race-kicker">US Senate · Class II · Open seat</div>
+          <h1 id="race-title">Maine Senate</h1>
+        </div>
+        <span class="badge" id="race-rating">Toss-up</span>
+        <div class="race-actions">
+          <button class="btn" type="button">☆ Watching</button>
+          <button class="btn" type="button">Full race page →</button>
+        </div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="card" aria-labelledby="tl-h">
+      <div class="ch"><h2 id="tl-h">Linked timeline</h2><span class="meta">hover any row: the crosshair moves on all of them</span></div>
+      <div class="tl" id="timeline"></div>
+      <div class="prov" id="prov"></div>
+    </section>
+
+    <section class="card" aria-labelledby="cmp-h">
+      <div class="ch"><h2 id="cmp-h">Competitive races</h2><span class="meta">click a row to load it above</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Race</th><th>Rating</th><th class="r">Market D</th><th>30d</th><th class="r">Δ 7d</th><th class="r">Poll avg</th><th class="r">Fundmt.</th><th class="r">COH D:R</th><th class="r">Divergence</th>
+          </tr></thead>
+          <tbody id="cmp"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Right: unified event stream -->
+  <aside class="stream-col">
+    <section class="card" aria-labelledby="st-h">
+      <div class="ch"><h2 id="st-h">Event stream</h2><span class="meta" id="st-count"></span></div>
+      <div class="cb" style="padding:8px 14px;border-bottom:1px solid var(--line-soft)">
+        <span class="seg" id="scope"><button aria-pressed="true" data-scope="race">This race</button><button aria-pressed="false" data-scope="all">All races</button></span>
+      </div>
+      <div class="stream" id="stream" aria-live="polite"></div>
+      <form class="ask" onsubmit="return false">
+        <input aria-label="Ask about this race" placeholder="Ask this race… answers cite stored data only" />
+        <button class="btn" type="submit">Ask</button>
+      </form>
+    </section>
+  </aside>
+</div>
+
+<footer>Market prices are not forecasts. Every series shows provider, price type, and fetch time. AI items are labeled and cite stored sources. Missing data is shown as missing, never as zero.</footer>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const tip = $("tip");
+  const showTip = (e, html) => {
+    tip.innerHTML = html; tip.classList.add("on");
+    tip.style.left = Math.min(e.clientX + 16, innerWidth - tip.offsetWidth - 8) + "px";
+    tip.style.top = Math.min(e.clientY + 16, innerHeight - tip.offsetHeight - 8) + "px";
+  };
+  const hideTip = () => tip.classList.remove("on");
+
+  const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const rng = (s) => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const walk = (r, n, start, vol, lo, hi) => { const o = [start]; for (let i = 1; i < n; i++) o.push(Math.min(hi, Math.max(lo, o[i - 1] + (r() - 0.5) * vol))); return o; };
+  const N = 60;
+  const END = new Date(2026, 9, 15);
+  const dayAt = (i) => { const d = new Date(END); d.setDate(END.getDate() - (N - 1 - i)); return d; };
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const margin = (v) => v === null ? "—" : `${v >= 0 ? "D" : "R"} +${Math.abs(v).toFixed(1)}`;
+
+  const RACES = [
+    { id: "ME-Sen", name: "Maine Senate", kicker: "US Senate · Class II · Incumbent running", p: 0.47, d7: 0.09, poll: 1.8, fund: 0.5, coh: [12.4, 9.8], lean: "D +6.1" },
+    { id: "NC-Sen", name: "North Carolina Senate", kicker: "US Senate · Class II · Open seat", p: 0.49, d7: 0.01, poll: 1.2, fund: -1.5, coh: [18.2, 14.9], lean: "R +3.2" },
+    { id: "GA-Sen", name: "Georgia Senate", kicker: "US Senate · Class II · Incumbent running", p: 0.52, d7: -0.01, poll: -0.6, fund: -1.1, coh: [21.0, 13.5], lean: "R +2.2" },
+    { id: "MI-Sen", name: "Michigan Senate", kicker: "US Senate · Class II · Open seat", p: 0.55, d7: 0.02, poll: 2.4, fund: 1.0, coh: [15.1, 11.2], lean: "R +1.4" },
+    { id: "OH-Sen", name: "Ohio Senate", kicker: "US Senate · Special election", p: 0.36, d7: -0.06, poll: -3.1, fund: -6.0, coh: [9.7, 16.3], lean: "R +11.2" },
+    { id: "IA-Sen", name: "Iowa Senate", kicker: "US Senate · Class II · Open seat", p: 0.31, d7: 0.05, poll: null, fund: -7.0, coh: [7.9, 8.4], lean: "R +13.2" },
+    { id: "NE-02", name: "Nebraska 2nd District", kicker: "US House · Open seat", p: 0.58, d7: 0.07, poll: 4.0, fund: 1.8, coh: [3.1, 2.2], lean: "D +4.6" },
+    { id: "PA-07", name: "Pennsylvania 7th District", kicker: "US House · Incumbent running", p: 0.51, d7: 0.06, poll: null, fund: -0.4, coh: [2.6, 3.4], lean: "R +0.8" },
+    { id: "AZ-06", name: "Arizona 6th District", kicker: "US House · Incumbent running", p: 0.44, d7: -0.05, poll: 1.1, fund: -0.9, coh: [3.8, 2.9], lean: "R +1.7" },
+    { id: "NY-17", name: "New York 17th District", kicker: "US House · Incumbent running", p: 0.49, d7: -0.04, poll: -0.8, fund: 0.6, coh: [4.2, 4.0], lean: "D +0.6" },
+  ];
+  const rating = (p) => p >= 0.85 ? ["Safe D", "var(--dem)"] : p >= 0.65 ? ["Likely D", "color-mix(in srgb, var(--dem) 70%, var(--mid))"] : p >= 0.55 ? ["Lean D", "color-mix(in srgb, var(--dem) 40%, var(--mid))"] : p > 0.45 ? ["Toss-up", "var(--mid)"] : p > 0.35 ? ["Lean R", "color-mix(in srgb, var(--rep) 40%, var(--mid))"] : p > 0.15 ? ["Likely R", "color-mix(in srgb, var(--rep) 70%, var(--mid))"] : ["Safe R", "var(--rep)"];
+  const signals = (r) => [ (r.p - 0.5) * 30, r.poll, r.fund, ((r.coh[0] - r.coh[1]) / (r.coh[0] + r.coh[1])) * 30 ];
+  const divergence = (r) => { const v = signals(r).filter((x) => x !== null); return Math.max(...v) - Math.min(...v); };
+
+  // Generate a race's timeline data deterministically.
+  function seriesFor(r) {
+    const g = rng(hash(r.id));
+    const kal = walk(g, N, r.p - r.d7 - 0.04 + g() * 0.08, 0.028, 0.03, 0.97); kal[N - 1] = r.p;
+    for (let i = N - 7; i < N; i++) kal[i] = kal[N - 8] + ((r.p - kal[N - 8]) * (i - (N - 8))) / 7 + (g() - 0.5) * 0.01;
+    kal[N - 1] = r.p;
+    const poly = kal.map((v) => Math.min(0.97, Math.max(0.03, v + (g() - 0.5) * 0.04 - 0.015)));
+    const pollAvg = r.poll === null ? null : walk(g, N, r.poll - 1 + g() * 2, 0.35, -12, 12).map((v, i, a) => i === N - 1 ? r.poll : v);
+    const polls = r.poll === null ? [] : Array.from({ length: 7 }, () => { const i = Math.floor(g() * N); return { i, v: pollAvg[i] + (g() - 0.5) * 5, n: 400 + Math.floor(g() * 600) }; });
+    let cd = r.coh[0] * 0.35, cr = r.coh[1] * 0.35;
+    const recD = [], recR = [];
+    for (let i = 0; i < N; i++) { cd += (r.coh[0] * 1.3) / N * (0.5 + g()); cr += (r.coh[1] * 1.3) / N * (0.5 + g()); recD.push(cd); recR.push(cr); }
+    const news = Array.from({ length: N }, (_, i) => Math.round(4 + g() * 10 + (i > N - 10 ? g() * 22 : 0)));
+    return { kal, poly, pollAvg, polls, recD, recR, news };
+  }
+
+  // Events shown both on the timeline (numbered flags) and in the stream.
+  function eventsFor(r) {
+    const nm = r.id;
+    return [
+      { i: 59, t: "Oct 15 · 14:31", src: "MARKET", h: `${nm} D crosses ${Math.round(r.p * 100)}¢`, d: `Kalshi · ${r.d7 >= 0 ? "+" : "−"}${Math.round(Math.abs(r.d7) * 100)}¢ over 7d · vol 12.4k contracts` },
+      { i: 58, t: "Oct 14 · 22:10", src: "AI", h: "Why it moved: debate coverage and a new poll", d: "Price rose after the Oct 13 debate; one new public poll released the same day.", cite: "4 cited sources · confidence medium · reviewed" },
+      { i: 57, t: "Oct 13 · 21:00", src: "NEWS", h: "Televised debate held", d: "41 articles tagged to this race in 24h (median 9)." },
+      { i: 55, t: "Oct 11 · 09:00", src: "POLL", h: r.poll === null ? "No public polling in 21 days" : `New poll: ${margin(r.poll + 0.7)} (n=612 LV)`, d: r.poll === null ? "Shown as missing, not as zero." : "Field Oct 7–10 · live phone + text · added to average" },
+      { i: 50, t: "Oct 6 · 16:42", src: "SCHED E", h: "$2.3M independent expenditure", d: "Super PAC · opposing Rep nominee · broadcast TV" },
+      { i: 45, t: "Oct 1 · 23:59", src: "FEC", h: "Q3 reports filed", d: `Receipts D $${(r.coh[0] * 0.6).toFixed(1)}M · R $${(r.coh[1] * 0.6).toFixed(1)}M` },
+      { i: 31, t: "Sep 17 · 11:20", src: "MARKET", h: "Polymarket and Kalshi diverge by 6¢", d: "Spread closed within 48 hours." },
+      { i: 12, t: "Aug 29 · 08:00", src: "AI", h: "District issues brief updated", d: "Top issues: housing costs, health care access, energy prices.", cite: "9 cited sources · auto-published tag" },
+    ];
+  }
+  const ALL_EXTRA = [
+    { t: "Oct 15 · 14:12", src: "MARKET", h: "House control D 61¢ (7-day high)", d: "Polymarket 59¢ · spread 2¢" },
+    { t: "Oct 15 · 13:58", src: "POLL", h: "NE-02 · D +4 (n=512 LV)", d: "Field Oct 9–12" },
+    { t: "Oct 15 · 13:40", src: "SCHED E", h: "$2.3M IE in AZ-06", d: "Opposing Dem nominee · TV" },
+    { t: "Oct 15 · 12:47", src: "FEC", h: "IA-Sen Rep nominee: Form 3", d: "COH $8.4M" },
+    { t: "Oct 15 · 12:30", src: "AI", h: "Daily brief published", d: "Top movers: ME-Sen, NE-02, OH-Sen", cite: "22 cited sources" },
+  ];
+
+  const state = { race: RACES[0], days: 60, scope: "race", active: null, srcs: new Set(["MARKET", "POLL", "FEC", "SCHED E", "NEWS", "AI"]) };
+
+  // Watchlist
+  function renderWatchlist() {
+    $("watchlist").innerHTML = RACES.map((r) => `<li><button type="button" data-id="${r.id}" aria-current="${r === state.race}">
+      <span class="n">${r.id}</span><span class="p num">${Math.round(r.p * 100)}¢</span>
+      <span class="s">${rating(r.p)[0]}</span><span class="d ${r.d7 > 0 ? "up" : r.d7 < 0 ? "down" : ""}">${r.d7 > 0 ? "▲" : r.d7 < 0 ? "▼" : "■"} ${Math.round(Math.abs(r.d7) * 100)}¢</span></button></li>`).join("");
+  }
+  $("watchlist").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pick(b.dataset.id); });
+
+  // KPI tiles
+  function renderHeader() {
+    const r = state.race, [rt] = rating(r.p);
+    $("race-title").textContent = r.name; $("race-kicker").textContent = r.kicker; $("race-rating").textContent = rt;
+    const div = divergence(r);
+    $("kpis").innerHTML = [
+      ["Market price D", `${Math.round(r.p * 100)}¢`, `Kalshi · ${r.d7 >= 0 ? "+" : "−"}${Math.round(Math.abs(r.d7) * 100)}¢ 7d`],
+      ["Polling average", r.poll === null ? "No public polling" : margin(r.poll), r.poll === null ? "last poll > 21 days" : "6 polls · 21-day window"],
+      ["Cash on hand", `$${r.coh[0]}M : $${r.coh[1]}M`, "D : R · FEC as of Sep 30"],
+      ["Partisan lean", r.lean, "2024 presidential margin"],
+      ["Signal divergence", `${div.toFixed(0)} pts`, div >= 10 ? "⚑ signals disagree" : "signals broadly agree"],
+    ].map(([k, v, s]) => `<div class="kpi"><div class="k">${k}</div><div class="v" style="${v.length > 12 ? "font-size:16px;padding-top:5px" : ""}">${v}</div><div class="s">${s}</div></div>`).join("");
+  }
+
+  // Linked small multiples sharing one x scale and one crosshair.
+  function renderTimeline() {
+    const r = state.race, S = seriesFor(r), ev = eventsFor(r).filter((e) => state.srcs.has(e.src));
+    const host = $("timeline");
+    const w = Math.max(240, host.clientWidth - (host.clientWidth > 640 ? 162 : 0) - 28);
+    const start = N - state.days;
+    const pw = w - 40; // right gutter holds the y-axis labels
+    const x = (i) => ((i - start) / (state.days - 1)) * (pw - 8) + 4;
+    const sl = (a) => a.slice(start);
+    const rows = [];
+
+    const path = (vals, y) => vals.map((v, k) => `${k ? "L" : "M"}${x(start + k).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    const yScale = (lo, hi, h) => (v) => 6 + (1 - (v - lo) / (hi - lo)) * (h - 12);
+    const gridY = (vals, y, fmt) => `<g class="grid">${vals.map((v) => `<line x1="0" x2="${pw}" y1="${y(v)}" y2="${y(v)}"/>`).join("")}</g><g class="axis">${vals.map((v) => `<text x="${w}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`).join("")}</g>`;
+
+    // 1. Market price: two providers, same unit, one axis.
+    { const h = 120, k = sl(S.kal), p = sl(S.poly);
+      const lo = Math.max(0, Math.floor((Math.min(...k, ...p) - 0.05) * 10) / 10), hi = Math.min(1, Math.ceil((Math.max(...k, ...p) + 0.05) * 10) / 10);
+      const y = yScale(lo, hi, h);
+      rows.push({ key: "mkt", h, label: `Market price, D<small>¢ per $1 contract</small><div class="lg"><span><i class="sw" style="background:var(--s-kalshi)"></i>Kalshi</span><span><i class="sw" style="background:var(--s-poly)"></i>Polymarket</span></div>`,
+        svg: `${gridY([lo, (lo + hi) / 2, hi], y, (v) => Math.round(v * 100) + "¢")}
+          ${lo < 0.5 && hi > 0.5 ? `<line x1="0" x2="${pw}" y1="${y(0.5)}" y2="${y(0.5)}" stroke="var(--quiet)" stroke-width="1"/>` : ""}
+          <path d="${path(p, y)}" fill="none" stroke="var(--s-poly)" stroke-width="2" stroke-linejoin="round"/>
+          <path d="${path(k, y)}" fill="none" stroke="var(--s-kalshi)" stroke-width="2" stroke-linejoin="round"/>`,
+        pts: [{ name: "Kalshi", c: "var(--s-kalshi)", v: S.kal, y, f: (v) => Math.round(v * 100) + "¢" }, { name: "Polymarket", c: "var(--s-poly)", v: S.poly, y, f: (v) => Math.round(v * 100) + "¢" }] });
+    }
+    // 2. Polling average or an explicit missing state.
+    { const h = 92;
+      if (!S.pollAvg) {
+        rows.push({ key: "poll", h, label: `Polling average<small>margin, pts</small>`, svg: `<rect x="0" y="6" width="${pw}" height="${h - 12}" rx="8" fill="var(--surface-2)" stroke="var(--line)"/><text x="${pw / 2}" y="${h / 2 + 4}" text-anchor="middle" fill="var(--quiet)" style="font:12px Inter,sans-serif">No public polling in this window — shown as missing, not zero</text>`, pts: [] });
+      } else {
+        const a = sl(S.pollAvg), dots = S.polls.filter((d) => d.i >= start);
+        const lo = Math.floor(Math.min(...a, ...dots.map((d) => d.v), -2) - 1), hi = Math.ceil(Math.max(...a, ...dots.map((d) => d.v), 2) + 1);
+        const y = yScale(lo, hi, h);
+        rows.push({ key: "poll", h, label: `Polling average<small>margin, pts · dots = polls</small>`,
+          svg: `${gridY([lo, 0, hi], y, (v) => v === 0 ? "0" : (v > 0 ? "D+" : "R+") + Math.abs(v))}
+            <line x1="0" x2="${pw}" y1="${y(0)}" y2="${y(0)}" stroke="var(--quiet)" stroke-width="1"/>
+            ${dots.map((d) => `<circle cx="${x(d.i)}" cy="${y(d.v)}" r="4" fill="var(--other)" opacity=".55" stroke="var(--surface)" stroke-width="2"/>`).join("")}
+            <path d="${path(a, y)}" fill="none" stroke="var(--text)" stroke-width="2" stroke-linejoin="round"/>`,
+          pts: [{ name: "Average", c: "var(--text)", v: S.pollAvg, y, f: (v) => margin(v) }] });
+      }
+    }
+    // 3. Cumulative receipts, D and R.
+    { const h = 92, d = sl(S.recD), rr = sl(S.recR), hi = Math.ceil(Math.max(...d, ...rr)), lo = 0, y = yScale(lo, hi, h);
+      rows.push({ key: "fec", h, label: `Cumulative receipts<small>$M · FEC</small><div class="lg"><span><i class="sw" style="background:var(--dem)"></i>Dem nominee</span><span><i class="sw" style="background:var(--rep)"></i>Rep nominee</span></div>`,
+        svg: `${gridY([0, hi], y, (v) => "$" + v + "M")}
+          <path d="${path(rr, y)}" fill="none" stroke="var(--rep)" stroke-width="2" stroke-linejoin="round"/>
+          <path d="${path(d, y)}" fill="none" stroke="var(--dem)" stroke-width="2" stroke-linejoin="round"/>`,
+        pts: [{ name: "Dem", c: "var(--dem)", v: S.recD, y, f: (v) => "$" + v.toFixed(1) + "M" }, { name: "Rep", c: "var(--rep)", v: S.recR, y, f: (v) => "$" + v.toFixed(1) + "M" }] });
+    }
+    // 4. News volume as thin bars.
+    { const h = 64, n = sl(S.news), hi = Math.max(...n), y = yScale(0, hi, h), bw = Math.max(2, (pw - 8) / state.days - 2);
+      rows.push({ key: "news", h, label: `News volume<small>articles tagged / day</small>`,
+        svg: `${gridY([0, hi], y, (v) => v)}
+          ${n.map((v, k) => `<rect x="${x(start + k) - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(0, y(0) - y(v))}" rx="${Math.min(2, bw / 2)}" fill="var(--other)"/>`).join("")}`,
+        pts: [{ name: "Articles", c: "var(--other)", v: S.news, y, f: (v) => v }] });
+    }
+
+    // Shared event flags along the top row, and date axis at the bottom.
+    const evIn = ev.map((e, k) => ({ ...e, n: k + 1 })).filter((e) => e.i >= start).sort((a, b) => a.i - b.i);
+    // Stack flags that would overlap into up to three levels.
+    evIn.forEach((e, k) => { const prev = evIn[k - 1]; e.lv = prev && x(e.i) - x(prev.i) < 16 ? (prev.lv + 1) % 3 : 0; });
+    host.innerHTML = rows.map((row, ri) => {
+      const v = row.pts.map((p) => `<span style="display:block">${row.pts.length > 1 ? `<i class="sw" style="background:${p.c}"></i>` : ""}${p.f(p.v[N - 1])}</span>`).join("");
+      const flags = ri === 0 ? evIn.map((e) => `<g class="ev-flag${state.active === e.n ? " on" : ""}" data-n="${e.n}" transform="translate(${x(e.i)},${-8 - e.lv * 15})"><line y1="7" y2="${row.h + 8 + e.lv * 15}" stroke="var(--line)" stroke-width="1"/><circle r="7"/><text text-anchor="middle" dy="3">${e.n}</text></g>`).join("") : evIn.map((e) => `<line x1="${x(e.i)}" x2="${x(e.i)}" y1="0" y2="${row.h}" stroke="var(--line)" stroke-width="1"/>`).join("");
+      const axis = ri === rows.length - 1 ? `<g class="axis">${[0, 0.25, 0.5, 0.75, 1].map((f) => { const i = start + Math.round(f * (state.days - 1)); return `<text x="${x(i)}" y="${row.h + 14}" text-anchor="${f === 0 ? "start" : f === 1 ? "end" : "middle"}">${fmtDay(dayAt(i))}</text>`; }).join("")}</g>` : "";
+      return `<div class="row" data-row="${ri}"><div class="lab">${row.label}<div class="val">${v}</div></div>
+        <svg width="${w}" height="${row.h + (axis ? 18 : 0)}" style="${ri === 0 ? "margin-top:40px" : ""}" role="img" aria-label="${row.key} chart">
+          ${flags}${row.svg}${axis}
+          <line class="xh" y1="0" y2="${row.h}" stroke="var(--muted)" stroke-width="1" opacity="0"/>
+          ${row.pts.map((p, pi) => `<circle class="xd" data-p="${pi}" r="4" fill="${p.c}" stroke="var(--surface)" stroke-width="2" opacity="0"/>`).join("")}
+          <rect class="hit" x="0" y="0" width="${pw}" height="${row.h}" fill="transparent"/>
+        </svg></div>`;
+    }).join("");
+
+    // Synced crosshair across every row.
+    const svgs = [...host.querySelectorAll("svg")];
+    const move = (i, e) => {
+      svgs.forEach((svg, ri) => {
+        svg.querySelector(".xh").setAttribute("x1", x(i)); svg.querySelector(".xh").setAttribute("x2", x(i)); svg.querySelector(".xh").setAttribute("opacity", .6);
+        svg.querySelectorAll(".xd").forEach((c) => { const p = rows[ri].pts[+c.dataset.p]; const v = p.v[i]; if (v === undefined || v === null) return; c.setAttribute("cx", x(i)); c.setAttribute("cy", p.y(v)); c.setAttribute("opacity", 1); });
+      });
+      const lines = rows.flatMap((row) => row.pts.map((p) => `<div class="ln"><span><i class="sw" style="background:${p.c}"></i>${row.key === "mkt" ? p.name : row.key === "fec" ? p.name + " receipts" : row.key === "poll" ? "Poll avg" : "Articles"}</span><b class="num">${p.f(p.v[i])}</b></div>`)).join("");
+      const evHere = ev.map((x2, k) => ({ ...x2, n: k + 1 })).filter((x2) => x2.i === i);
+      showTip(e, `<div class="t">${fmtDay(dayAt(i))}</div>${lines}${evHere.map((x2) => `<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--line)"><b>${x2.n}.</b> ${x2.h}</div>`).join("")}`);
+    };
+    svgs.forEach((svg) => {
+      const hit = svg.querySelector(".hit");
+      hit.addEventListener("mousemove", (e) => { const b = svg.getBoundingClientRect(); const i = Math.max(start, Math.min(N - 1, start + Math.round(((e.clientX - b.left - 4) / (pw - 8)) * (state.days - 1)))); move(i, e); });
+      hit.addEventListener("mouseleave", () => { svgs.forEach((s) => { s.querySelector(".xh").setAttribute("opacity", 0); s.querySelectorAll(".xd").forEach((c) => c.setAttribute("opacity", 0)); }); hideTip(); });
+    });
+    host.querySelectorAll(".ev-flag").forEach((f) => f.addEventListener("click", () => activate(+f.dataset.n)));
+
+    $("prov").innerHTML = `<span>Kalshi · ${r.id.replace("-", "").toUpperCase()}26-D · last trade · 14:32:05 ET</span><span>Polymarket · midpoint · 14:31:27 ET</span><span>Polls · 21-day weighted avg v1.2</span><span>FEC · filings through Sep 30</span><span>News · Agent 1 tags</span>`;
+  }
+
+  // Event stream
+  function renderStream() {
+    const r = state.race;
+    const list = state.scope === "race"
+      ? eventsFor(r).map((e, k) => ({ ...e, n: k + 1 }))
+      : [...ALL_EXTRA.map((e) => ({ ...e, n: null })), ...eventsFor(r).map((e, k) => ({ ...e, n: k + 1, h: `${r.id} · ${e.h}` }))].sort((a, b) => b.t.localeCompare(a.t));
+    const shown = list.filter((e) => state.srcs.has(e.src));
+    $("st-count").textContent = `${shown.length} events`;
+    $("stream").innerHTML = shown.map((e) => `<div class="ev${e.n && state.active === e.n ? " on" : ""}" ${e.n ? `data-n="${e.n}" tabindex="0"` : ""}>
+      <span class="ix${e.n ? "" : " none"}">${e.n ?? ""}</span>
+      <div><div class="top"><span class="src${e.src === "AI" ? " ai" : ""}">${e.src === "AI" ? "AI SUMMARY" : e.src}</span><time>${e.t}</time></div>
+      <div class="h">${e.h}</div><div class="d">${e.d}</div>${e.cite ? `<div class="cite">↳ ${e.cite}</div>` : ""}</div></div>`).join("") || `<div class="ev"><span></span><div class="d">No events for the selected streams.</div></div>`;
+  }
+  $("stream").addEventListener("click", (e) => { const ev = e.target.closest(".ev[data-n]"); if (ev) activate(+ev.dataset.n); });
+  $("stream").addEventListener("keydown", (e) => { const ev = e.target.closest(".ev[data-n]"); if (ev && e.key === "Enter") activate(+ev.dataset.n); });
+
+  // Comparison table
+  function renderTable() {
+    $("cmp").innerHTML = RACES.map((r) => {
+      const [rt, rc] = rating(r.p), S = seriesFor(r), last = S.kal.slice(-30), mn = Math.min(...last), mx = Math.max(...last), sp = mx - mn || 1;
+      const d = last.map((v, i) => `${i ? "L" : "M"}${(i / 29) * 76 + 2},${2 + (1 - (v - mn) / sp) * 18}`).join("");
+      const div = divergence(r);
+      return `<tr data-id="${r.id}" aria-selected="${r === state.race}">
+        <td><b>${r.id}</b></td>
+        <td><span class="rating"><i style="background:${rc}"></i>${rt}</span></td>
+        <td class="r mono num">${Math.round(r.p * 100)}¢</td>
+        <td><svg width="80" height="22" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--s-kalshi)" stroke-width="1.6"/></svg></td>
+        <td class="r mono num ${r.d7 > 0 ? "up" : r.d7 < 0 ? "down" : ""}">${r.d7 > 0 ? "+" : r.d7 < 0 ? "−" : ""}${Math.round(Math.abs(r.d7) * 100)}¢</td>
+        <td class="r mono">${r.poll === null ? `<span class="missing">no polling</span>` : margin(r.poll)}</td>
+        <td class="r mono">${margin(r.fund)}</td>
+        <td class="r mono num">${(r.coh[0] / r.coh[1]).toFixed(2)}</td>
+        <td class="r"><span class="flag ${div >= 10 ? "hi" : "lo"}">${div >= 10 ? "⚑ " : ""}${div.toFixed(0)} pt</span></td></tr>`;
+    }).join("");
+  }
+  $("cmp").addEventListener("click", (e) => { const tr = e.target.closest("tr"); if (tr) pick(tr.dataset.id); });
+
+  function activate(n) {
+    state.active = state.active === n ? null : n;
+    document.querySelectorAll(".ev-flag").forEach((f) => f.classList.toggle("on", +f.dataset.n === state.active));
+    document.querySelectorAll(".ev[data-n]").forEach((f) => f.classList.toggle("on", +f.dataset.n === state.active));
+    const target = document.querySelector(`.ev[data-n="${n}"]`);
+    if (target && state.active) target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function pick(id) { state.race = RACES.find((r) => r.id === id); state.active = null; renderAll(); }
+  function renderAll() { renderWatchlist(); renderHeader(); renderTimeline(); renderStream(); renderTable(); }
+
+  // Filters scope everything.
+  document.querySelector('[data-group="win"]').addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    e.currentTarget.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    state.days = +b.dataset.days; renderTimeline();
+  });
+  $("stream-chips").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on));
+    on ? state.srcs.add(b.dataset.src) : state.srcs.delete(b.dataset.src);
+    renderTimeline(); renderStream();
+  });
+  $("scope").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    e.currentTarget.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    state.scope = b.dataset.scope; renderStream();
+  });
+  document.querySelectorAll(".seg:not([data-group]):not(#scope)").forEach((g) => g.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+  $("theme").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    syncTheme();
+  });
+  function syncTheme() {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    $("theme").textContent = dark ? "Light mode" : "Dark mode";
+  }
+  syncTheme();
+
+  renderAll();
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderTimeline, 120); });
+})();
+</script>
+</body>
+</html>
