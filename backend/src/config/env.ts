@@ -23,6 +23,10 @@ const envSchema = z.object({
   // FRED (St. Louis Fed) economic data. Optional: the API server boots without it.
   FRED_API_KEY: z.string().trim().optional(),
   FRED_API_BASE_URL: z.string().url().default('https://api.stlouisfed.org/fred'),
+  // Economic indicators: the twice-daily FRED sync and GET /api/indicators.
+  ECON_INDICATORS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Serve S&P 500 and VIX, whose FRED copies bar reproduction without permission. Off until licensing is cleared.
+  FRED_RESTRICTED_SERIES_ENABLED: z.enum(['true', 'false']).default('false'),
   // Schedule E (outside spending) sync: days re-fetched in full each run, and the
   // most OpenFEC pages one run may request (it shares the FEC hourly budget).
   SCHEDULE_E_WINDOW_DAYS: z.string().regex(/^[1-9]\d*$/).default('30'),
@@ -111,6 +115,8 @@ export const env = {
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
+  ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
+  FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
