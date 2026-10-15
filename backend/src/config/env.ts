@@ -20,6 +20,9 @@ const envSchema = z.object({
   CENSUS_API_BASE_URL: z.string().url().default('https://api.census.gov/data'),
   // ACS 5-year vintage to sync and serve. 2024 covers 2020-2024 and uses 119th Congress districts.
   CENSUS_ACS_YEAR: z.string().regex(/^20\d{2}$/).default('2024'),
+  // FRED (St. Louis Fed) economic data. Optional: the API server boots without it.
+  FRED_API_KEY: z.string().trim().optional(),
+  FRED_API_BASE_URL: z.string().url().default('https://api.stlouisfed.org/fred'),
   // Schedule E (outside spending) sync: days re-fetched in full each run, and the
   // most OpenFEC pages one run may request (it shares the FEC hourly budget).
   SCHEDULE_E_WINDOW_DAYS: z.string().regex(/^[1-9]\d*$/).default('30'),
