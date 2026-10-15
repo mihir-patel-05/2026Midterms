@@ -10,6 +10,7 @@ export interface ShellNavLink {
 /** The election monitor is the home page of the new frontend (see App.tsx). */
 export const DASHBOARD_PATH = "/";
 export const SIMULATOR_PATH = "/simulator";
+export const MIDTERM_SIMULATOR_PATH = "/simulator/midterms";
 
 export const shellNavLinks: ShellNavLink[] = [
   { to: DASHBOARD_PATH, label: "Dashboard", icon: LayoutDashboard },

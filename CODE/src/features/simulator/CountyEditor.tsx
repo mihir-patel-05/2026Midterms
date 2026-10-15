@@ -11,7 +11,7 @@ const LIMIT = 100;
  * One county's margin. Setting it re-splits the county's two-party vote (turnout stays), and the
  * state's result is recomputed from all its counties.
  */
-export function CountyEditor({ name, state, baseMargin, margin, edited, base, onSet, onClearPick, onClose }: {
+export function CountyEditor({ name, state, baseMargin, margin, edited, base, outcome, onSet, onClearPick, onClose }: {
   name: string;
   state: StateOutcome;
   /** The baseline election's margin, or null when the county has no returns in the data. */
@@ -20,6 +20,8 @@ export function CountyEditor({ name, state, baseMargin, margin, edited, base, on
   margin: number | null;
   edited: boolean;
   base: number;
+  /** What the state's margin decides, e.g. "16 electoral votes to Democrats"; defaults to its electoral votes. */
+  outcome?: string;
   /** null clears the county's setting. */
   onSet: (margin: number | null) => void;
   onClearPick: () => void;
@@ -43,12 +45,12 @@ export function CountyEditor({ name, state, baseMargin, margin, edited, base, on
   }
 
   const set = (value: number) => onSet(Math.max(-LIMIT, Math.min(LIMIT, Math.round(value * 10) / 10)));
-  const stateEv = ELECTORAL_VOTES[state.code];
+  const decides = outcome ?? `${ELECTORAL_VOTES[state.code]} electoral votes to ${outcomeWords[state.winner]}`;
   const effect = state.source === "pick"
     ? `Your call on ${stateName} overrides its counties.`
     : state.winner === "T"
       ? `${stateName} is now exactly even.`
-      : `${stateName} is now ${formatMargin(state.margin)}: ${stateEv} electoral votes to ${outcomeWords[state.winner]}.`;
+      : `${stateName} is now ${formatMargin(state.margin)}: ${decides}.`;
 
   return (
     <section className="sim-card" aria-labelledby="sim-county-heading">

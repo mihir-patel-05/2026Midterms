@@ -12,6 +12,7 @@ import { CountyEditor } from "@/features/simulator/CountyEditor";
 import { formatMargin, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
+import { SimulatorTabs } from "@/features/simulator/SimulatorTabs";
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
 import { StateEditor } from "@/features/simulator/StateEditor";
 import { StateTable } from "@/features/simulator/StateTable";
@@ -128,6 +129,7 @@ export default function ElectionSimulator() {
       <div className="sim-shell">
         <section className="sim-main" aria-labelledby="sim-title">
           <header className="sim-head">
+            <SimulatorTabs />
             <div>
               <h1 id="sim-title">Electoral college simulator</h1>
               <p>Start from a past presidential election, swing it, and call states yourself.</p>

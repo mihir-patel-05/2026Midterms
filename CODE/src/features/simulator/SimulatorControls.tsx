@@ -5,8 +5,11 @@ import { swingLabel } from "./labels";
 import { BASE_YEARS, SWING_LIMIT } from "./useSimulatorParams";
 
 /** Baseline election, national swing, and the reset and share buttons. */
-export function SimulatorControls({ base, swing, onBaseChange, onSwingChange, onReset, onCopyLink }: {
+export function SimulatorControls({ base, swing, baseLabel = "Start from", note, onBaseChange, onSwingChange, onReset, onCopyLink }: {
   base: number | null;
+  baseLabel?: string;
+  /** Replaces the notes on the baseline's electoral votes and returns. */
+  note?: string;
   swing: number;
   onBaseChange: (base: number | null) => void;
   onSwingChange: (swing: number) => void;
@@ -16,7 +19,7 @@ export function SimulatorControls({ base, swing, onBaseChange, onSwingChange, on
   return (
     <section className="sim-controls" aria-label="Scenario">
       <label className="sim-field">
-        <span>Start from</span>
+        <span>{baseLabel}</span>
         <select value={base ?? "blank"} onChange={(event) => onBaseChange(event.target.value === "blank" ? null : Number(event.target.value))}>
           {BASE_YEARS.map((year) => <option key={year} value={year}>{year} results</option>)}
           <option value="blank">Blank map</option>
@@ -44,7 +47,7 @@ export function SimulatorControls({ base, swing, onBaseChange, onSwingChange, on
         <button type="button" className="sim-button" onClick={onReset}><RotateCcw aria-hidden="true" />Reset</button>
         <button type="button" className="sim-button" onClick={onCopyLink}><Link2 aria-hidden="true" />Copy link</button>
       </div>
-      {base !== null && (
+      {note !== undefined ? note && <p className="sim-note">{note}</p> : base !== null && (
         <p className="sim-note">
           {base !== 2024 && `Uses today's electoral votes (2020 census), not those of ${base}. `}
           {BASELINE_NOTES[base]}

@@ -7,7 +7,7 @@ function Swatch({ color, label }: { color: string; label: string }) {
 }
 
 /** Same ramp as Past results: darker is closer. Calls you make use the Lean, Likely, and Safe steps. */
-export function SimLegend() {
+export function SimLegend({ note }: { note?: string }) {
   return (
     <div className="sim-legend" aria-label="Map colours">
       {(["D", "R"] as const).map((party) => (
@@ -20,7 +20,7 @@ export function SimLegend() {
         <span>Tossup</span>
         <Swatch color={BIN_COLORS.tossup} label="Tossup" />
       </div>
-      <p>Margin in points: {marginLabels.join(", ")}. Your calls shade Lean 1–5, Likely 5–10, Safe 20+.</p>
+      <p>Margin in points: {marginLabels.join(", ")}. {note ?? "Your calls shade Lean 1–5, Likely 5–10, Safe 20+."}</p>
     </div>
   );
 }
