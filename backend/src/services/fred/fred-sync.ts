@@ -91,7 +91,7 @@ export async function syncFred(db: PrismaClient, client: FredClient, options: Fr
     try {
       const observations = await client.getObservations(def.fredId, start);
       result.fetched = observations.length;
-      Object.assign(result, await store(db, series.id, start, observations, new Date()));
+      Object.assign(result, await store(db, series.id, observations, new Date()));
       log(`  ${def.fredId}: ${result.fetched} fetched, ${result.inserted} new, ${result.updated} revised`);
     } catch (error) {
       result.error = error instanceof Error ? error.message : String(error);
@@ -123,9 +123,12 @@ export async function syncFred(db: PrismaClient, client: FredClient, options: Fr
 }
 
 /** Insert new observations and update the ones whose value changed. */
-async function store(db: PrismaClient, seriesId: string, start: string, observations: FredObservation[], fetchedAt: Date) {
+async function store(db: PrismaClient, seriesId: string, observations: FredObservation[], fetchedAt: Date) {
+  if (observations.length === 0) return { inserted: 0, updated: 0, unchanged: 0 };
+  // From the earliest date returned, not the requested start: FRED may include the period containing it.
+  const earliest = observations.reduce((min, observation) => (observation.date < min ? observation.date : min), observations[0].date);
   const stored = await db.indicatorObservation.findMany({
-    where: { seriesId, observedAt: { gte: new Date(`${start}T00:00:00Z`) } },
+    where: { seriesId, observedAt: { gte: new Date(`${earliest}T00:00:00Z`) } },
     select: { id: true, observedAt: true, value: true },
   });
   const byDate = new Map(stored.map((row) => [isoDate(row.observedAt), row]));
@@ -138,14 +141,15 @@ async function store(db: PrismaClient, seriesId: string, start: string, observat
     if (!existing) inserts.push({ seriesId, observedAt: new Date(`${observation.date}T00:00:00Z`), value, fetchedAt });
     else if (!existing.value.equals(value)) updates.push({ id: existing.id, value });
   }
+  let inserted = 0;
   for (let i = 0; i < inserts.length; i += INSERT_BATCH) {
-    await db.indicatorObservation.createMany({ data: inserts.slice(i, i + INSERT_BATCH), skipDuplicates: true });
+    inserted += (await db.indicatorObservation.createMany({ data: inserts.slice(i, i + INSERT_BATCH), skipDuplicates: true })).count;
   }
   for (let i = 0; i < updates.length; i += UPDATE_BATCH) {
     await db.$transaction(updates.slice(i, i + UPDATE_BATCH).map(({ id, value }) =>
       db.indicatorObservation.update({ where: { id }, data: { value, fetchedAt } })));
   }
-  return { inserted: inserts.length, updated: updates.length, unchanged: observations.length - inserts.length - updates.length };
+  return { inserted, updated: updates.length, unchanged: observations.length - inserted - updates.length };
 }
 
 function isoDate(date: Date): string {
