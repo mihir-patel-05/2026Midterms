@@ -2,8 +2,12 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { CloudOff, Loader2, Vote } from "lucide-react";
 import { districtLabel, formatEtTime, formatShortDate, initials, numberFormat, officeLabels, partyTone, priceTypeLabel } from "./constants";
+import { historyByTicker, historyStart, useMarketHistory } from "./marketHistory";
+import { Sparkline } from "./Sparkline";
 import type { MonitorContest, MonitorResults } from "./types";
 import { useRaceOdds } from "./useKalshiLive";
+
+const HISTORY_DAYS = 14;
 
 const compactMoney = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 
@@ -17,9 +21,14 @@ function fundingLine(receipts: number | null | undefined, cashOnHand: number | n
 function MarketOdds({ contest }: { contest: MonitorContest }) {
   const { status, markets } = useRaceOdds(contest.isFictional ? null : contest.stateCode, contest.office, contest.district);
   const priced = markets.filter((market) => market.pricePercent !== null);
+  const history = useMarketHistory(priced.length > 0 ? [priced[0].race] : [], HISTORY_DAYS);
   if (priced.length === 0) return null;
   const priceType = priceTypeLabel(priced.map((market) => market.priceType));
   const lastChange = priced.reduce((latest, market) => (market.updatedAt > latest ? market.updatedAt : latest), "");
+  const byTicker = historyByTicker(history.data);
+  const since = historyStart(history.data, priced.map((market) => market.ticker));
+  const end = Date.now();
+  const domain: [number, number] = [end - HISTORY_DAYS * 24 * 3_600_000, end];
   return (
     <div className="em-odds" role="group" aria-label="Kalshi market prices">
       <div className="em-odds-head">
@@ -32,6 +41,10 @@ function MarketOdds({ contest }: { contest: MonitorContest }) {
           <a key={market.ticker} className="em-odds-row" href={market.url} target="_blank" rel="noopener noreferrer"
             aria-label={`${market.outcome}: ${market.pricePercent!.toFixed(1)}% on Kalshi`}>
             <span>{market.outcome}{market.party ? ` (${market.party})` : ""}</span>
+            <span className="em-odds-spark">
+              <Sparkline domain={domain} title={`${market.outcome}, hourly price, past ${HISTORY_DAYS} days`}
+                series={[{ key: market.ticker, label: market.party ?? market.outcome, color: tone.fg, points: byTicker.get(market.ticker)?.points ?? [], now: market.pricePercent }]} />
+            </span>
             <strong key={market.updatedAt} data-moved={market.moved}>{market.pricePercent!.toFixed(1)}%</strong>
             <span className="em-result-bar" aria-hidden="true">
               <span style={{ "--width": `${market.pricePercent}%`, "--color": tone.fg } as CSSProperties} />
@@ -41,6 +54,7 @@ function MarketOdds({ contest }: { contest: MonitorContest }) {
       })}
       <small>
         Market price{priceType ? ` (${priceType})` : ""}{lastChange ? `, last changed ${formatEtTime(lastChange)} ET` : ""}. Not a forecast or result.
+        {since !== null && ` Lines show hourly prices since ${formatShortDate(new Date(since).toISOString())}; breaks are hours with no stored price.`}
       </small>
     </div>
   );

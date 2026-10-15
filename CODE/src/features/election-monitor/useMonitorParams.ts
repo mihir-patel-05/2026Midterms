@@ -1,10 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { DetailTab, MapLayer, OfficeFilter } from "./types";
+import type { DetailTab, MapLayer, MapMode, OfficeFilter } from "./types";
+import { PAST_OFFICES, type PastMetric, type PastOffice } from "./pastResults";
 
 const offices: OfficeFilter[] = ["ALL", "US_SENATE", "US_HOUSE"];
 const layers: MapLayer[] = ["states", "districts", "counties"];
-const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics"];
+const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics", "history"];
+const modes: MapMode[] = ["races", "past"];
+const metrics: PastMetric[] = ["winner", "shift"];
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return value && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
@@ -31,6 +34,18 @@ export interface MonitorParams {
   tab: DetailTab;
   /** Shareable camera, like `?lat=…&lon=…&zoom=…`; null until the user pans or zooms. */
   view: { lat: number; lon: number; zoom: number } | null;
+  mode: MapMode;
+  /** Past results: office, election year (null = latest), winner or shift view, and the shift's earlier year. */
+  pastOffice: PastOffice;
+  pastYear: number | null;
+  pastMetric: PastMetric;
+  pastFrom: number | null;
+  /** The map fills the window, with the detail panel docked beside it (`?map=full`). */
+  expanded: boolean;
+}
+
+function parseYear(value: string | null) {
+  return value && /^(19|20)\d{2}$/.test(value) ? Number(value) : null;
 }
 
 function parseList(value: string | null, pattern: RegExp, max: number) {
@@ -67,13 +82,30 @@ export function useMonitorParams() {
       layer: pick(searchParams.get("layer"), layers, "states"),
       tab: pick(searchParams.get("tab"), tabs, "overview"),
       view: parseView(searchParams),
+      mode: pick(searchParams.get("mode"), modes, "races"),
+      pastOffice: pick(searchParams.get("poffice"), PAST_OFFICES, "president"),
+      pastYear: parseYear(searchParams.get("pyear")),
+      pastMetric: pick(searchParams.get("pmetric"), metrics, "winner"),
+      pastFrom: parseYear(searchParams.get("pfrom")),
+      expanded: searchParams.get("map") === "full",
     };
   }, [searchParams]);
 
   const update = useCallback((patch: Partial<MonitorParams>) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      const { view, ...rest } = patch;
+      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, expanded, ...rest } = patch;
+      // Past results keep short URL names; defaults are left out so ordinary links stay clean.
+      const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null] } as const;
+      for (const [key, [value, fallback]] of Object.entries(past)) {
+        if (value === undefined) continue;
+        if (value === null || value === fallback) next.delete(key);
+        else next.set(key, String(value));
+      }
+      if (expanded !== undefined) {
+        if (expanded) next.set("map", "full");
+        else next.delete("map");
+      }
       if (view !== undefined) {
         for (const key of ["lat", "lon", "zoom"] as const) {
           if (view) next.set(key, String(view[key]));

@@ -1,7 +1,13 @@
 import type { ContestOfficeType } from "@/features/election-dashboard/types";
-import type { MonitorContest, OfficeFilter } from "./types";
+import type { MapLayer, MonitorContest, OfficeFilter } from "./types";
 
 export const FICTIONAL_STATE_CODE = "EX";
+
+export const layerOptions: Array<{ value: MapLayer; label: string }> = [
+  { value: "states", label: "States" },
+  { value: "districts", label: "House districts" },
+  { value: "counties", label: "Counties" },
+];
 
 export const officeLabels: Record<ContestOfficeType, string> = {
   US_SENATE: "U.S. Senate",

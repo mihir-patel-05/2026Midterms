@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 13, 2026
+Last updated: October 14, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -33,7 +33,7 @@ Differentiators:
 
 ---
 
-## 2. Where we are (as of Oct 10)
+## 2. Where we are (as of Oct 14)
 
 **Shipped**
 
@@ -50,10 +50,24 @@ Differentiators:
 - Testing environment wiring (Oct 10): the frontend adds `https://` to a bare `VITE_API_URL`, CORS falls back to Railway's `RAILWAY_SERVICE_*_URL` when `FRONTEND_URL`/`ADMIN_URL` are unset, Express trusts Railway's proxy so rate limits are per visitor, and the public API limit is 600 requests per 15 minutes.
 - Outside spending (FEC Schedule E, issue #31): a daily sync at 5:00 AM ET loads independent expenditures into `independent_expenditures` (recent 30 days re-fetched in full, older filings through a resumable weekly backfill). The Finance tab shows each candidate's spending for and against plus the race's top spenders, and candidate pages have an Outside Spending tab with totals, spenders, spending by medium, and recent filings. A 24/48-hour notice counts only until the same spending appears on the group's regular report, and support and opposition are never netted. Run `node dist/scripts/sync-outside-spending.js` once after deploy to start the backfill.
 - Every displayed number carries its source and time: FEC figures show the date the latest report runs through, the sync date, and a link to the FEC.gov filings; Kalshi prices show the price type (midpoint or last trade) and when they last changed.
+- Market history (Oct 14): `GET /api/prediction-markets/history?race=PA-07,PA-SEN&days=14` serves hourly Kalshi prices from `market_snapshots`. Race cards show a 14-day sparkline per outcome and the markets panel shows 7-day lines. Lines end at the live price, and hours with no stored price stay as breaks in the line.
+- Biggest movers, Kalshi only (Oct 14): `GET /api/prediction-markets/movers?window=24h|7d&state=PA` and a "Biggest movers" card in the monitor's lower rail.
+  - **Ranking rule (`backend/src/services/kalshi/history.ts`, `MOVERS_RULES`):** each market's newest stored hour (within 3 hours of the newest hour stored) is compared with its newest stored hour at or before the window start, at most 6 hours earlier than that.
+  - **Quotes:** both prices must be bid/ask midpoints with a spread of 15 points or less.
+  - **One row per race,** under the outcome that gained most. Races that moved less than 1 point are dropped.
+  - **Exclusions are counted,** never treated as zero: a market with no baseline, or with a thin or last-trade-only quote, is counted as left out.
+  - 7-day changes become available on Oct 17.
+  - Flags: `MARKET_HISTORY_ENABLED` (backend), and `VITE_FEATURE_MARKET_HISTORY` and `VITE_FEATURE_MOVERS` (frontend). All are on by default.
+  - The new migration adds a `(provider, captured_hour)` index on `market_snapshots`.
+- Past results (Oct 14, section 4.9): a "2026 races | Past results" switch on the map.
+  - **Coverage:** President 2000–2024 by state or county, winner or shift; Senate 1976–2024 by state; House 1976–2024, with districts coloured for 2024 only.
+  - **Panel:** a "Past" detail tab.
+  - **Data:** built from the MIT Election Lab CSVs as static JSON (`npm run build:past-results` in `CODE/`), not through a database table or API.
+  - **Check:** national presidential totals match the official counts to within 0.02% in every year.
+  - **Flag:** `VITE_FEATURE_PAST_RESULTS`, on by default.
 
 **Not done yet (carried over from Oct 1–7)**
 
-- A market history API and sparklines over `market_snapshots`.
 - FRED economic indicator ingestion.
 - District race pages with ACS demographics and partisan lean.
 - Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.
@@ -72,7 +86,7 @@ Differentiators:
 
 | When | Work |
 |---|---|
-| **Oct 8–14** | **Set up production on Railway first** (section 5.3). Market history API and sparklines. Biggest movers feed. NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
+| **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
 | **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
 | **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
@@ -90,13 +104,13 @@ Differentiators:
 |---|---|
 | **Demographics for selected areas** | Users select counties, House districts, or both on the map, and a Demographics tab shows population, citizens of voting age, age, race and ethnicity, income, poverty, education, unemployment, and housing from the ACS 5-year estimates. See section 4.5. |
 | **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," top local issues, and recent NYT and AP coverage of the race (section 4.6). |
-| **Market history** | Sparklines of Kalshi prices over time on each race card and in the markets panel. Hourly rows have been collected in `market_snapshots` since Oct 10, so this needs only a history API (for example `/api/prediction-markets/history?race=PA-07&days=14`) and the chart. Volume and liquidity come later. |
+| **Market history** | **Shipped Oct 14** (section 2). Volume and liquidity come later. |
 | **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
 | **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
 | **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
-| **Past results** | A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. See section 4.9. |
-| **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. Ship the Kalshi-only version first: it runs on `market_snapshots` alone and is the trigger Agent 3 needs. Show the related NYT and AP headlines until Agent 3's explanations exist. |
+| **Past results** | **Shipped Oct 14** (section 4.9). A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. |
+| **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. **The Kalshi-only version shipped Oct 14** (section 2); it is the trigger Agent 3 needs. Still to do: polls and money, NYT and AP headlines on each row, then Agent 3's explanations. |
 | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
 | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
@@ -379,7 +393,31 @@ We recommend **a mode inside the existing map**, not a second map. The map alrea
 | Senate | Ranked-choice states (Maine, Alaska) | MEDSL reports the first round; label it "First-round votes" |
 | All | Party names vary by year and state | Store MEDSL's simplified party for colors and its detailed party for display |
 
-**Code changes**
+**As built (Oct 14).** We shipped a simpler version than the plan below.
+
+- **Static files, not a database.** `CODE/scripts/build-past-results.mjs` converts the three CSVs into static JSON in `CODE/public/data/past-results/`, and the map reads those files directly.
+  - That skips the `historical_results` table, the importer rewrite, and the `/api/history/*` endpoints.
+  - The data changes only when MEDSL publishes a new release, so static files cached by the browser fit it.
+  - **To update:** follow `backend/data/medsl/README.md`.
+- **Clean-up rules.** The script applies the rules in the table above, plus the following, which turned up in the actual files:
+  - 2024 rows labelled `TOTAL VOTES CAST`, `OVERVOTES`, and `UNDERVOTES` are not candidates.
+  - Some 2024 states list a partial vote-method breakdown next to their `TOTAL` rows; the `TOTAL` row wins.
+  - Kansas City, MO reports separately (FIPS `2938000`, and `36000` in 2024); its votes are added to Jackson County.
+  - Oglala Lakota County, SD's old code `46113` maps to `46102`.
+  - Georgia's 1992 and 2008 Senate rows label the November round `pre` and the runoff `gen`.
+  - Georgia's January 2021 runoffs are filed under the 2020 cycle.
+  - Texas's court-ordered 1996 House elections are coded as primaries; they are treated as open specials.
+  - House unopposed races are marked with `totalvotes` of 1 or -1.
+  - House parties are simplified to D, R, or other; DFL and Democratic-NPL count as D.
+- **Map colouring.**
+  - The map colours by the race that decided the seat: the regular election, or its runoff when one was held. Specials are listed in the panel. For example, Georgia 2020 shows Ossoff.
+  - Connecticut's county shift works because both the data and the us-atlas county shapes use its old counties. That will break if `county2024.topo.json`, with planning regions, is built.
+- **Not built yet:**
+  - the database tables (needed only if Ask the race or other agents need past results)
+  - the "both seats' most recent races" Senate history
+  - the import fixtures and tests
+
+**Original plan (superseded where it conflicts with the above)**
 
 What exists: `backend/src/scripts/import-mit-results.ts` (`npm run import:county-results`), `seed-counties.ts`, and the `County` and `CountyResult` models, which feed the researcher simulator. The simulator's routes (`/api/research/*`) require a researcher login, so the public map cannot use them. The importer has problems that matter here:
 
@@ -483,7 +521,7 @@ Planned changes:
 | Geocodio | Address to 2026 district | `GEOCODIO_API_KEY`, `GEOCODIO_DAILY_LOOKUP_LIMIT` |
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
-| MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; files we load with `npm run import:medsl`; attribution required |
+| MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; raw files in `backend/data/medsl/` (not committed), converted with `npm run build:past-results` in `CODE/`; attribution required |
 | FRED | Economic indicators | to add |
 | EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
 | BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |

@@ -1,0 +1,10 @@
+/* Hourly price sparklines (market history). */
+.em-spark { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+.em-spark svg { display: block; overflow: visible; cursor: crosshair; }
+.em-spark-axis { stroke: hsl(var(--line)); stroke-width: 1; }
+.em-spark-guide { stroke: hsl(var(--quiet)); stroke-width: 1; stroke-dasharray: 2 2; }
+.em-spark-dot { stroke: hsl(var(--surface)); stroke-width: 1.5; }
+.em-spark-tip { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 6px); display: grid; gap: 2px; min-width: max-content; padding: 6px 8px; border: 1px solid hsl(var(--line)); border-radius: 7px; background: hsl(var(--surface-2)); box-shadow: 0 6px 18px hsl(0 0% 0% / 0.35); color: hsl(var(--foreground)); font-size: 0.68rem; font-weight: 400; line-height: 1.35; pointer-events: none; }
+.em-spark-tip time { color: hsl(var(--muted-foreground)); }
+.em-spark-tip span { display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.em-spark-tip i { width: 8px; height: 2px; border-radius: 1px; }

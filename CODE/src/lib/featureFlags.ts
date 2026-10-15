@@ -7,3 +7,11 @@ export const electionDashboardEnabled = flag(import.meta.env.VITE_FEATURE_ELECTI
 export const mockResultsProviderEnabled = flag(import.meta.env.VITE_RESULTS_PROVIDER_MOCK_ENABLED);
 /** Demographics tab on the monitor. On unless set to "false"; it shows a notice until the ACS sync has run. */
 export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !== "false";
+/** Hourly Kalshi price sparklines on race cards and the markets panel. On unless set to "false". */
+export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY !== "false";
+/** Biggest movers card (Kalshi price changes over 24 hours or 7 days). On unless set to "false". */
+export const moversEnabled = import.meta.env.VITE_FEATURE_MOVERS !== "false";
+/** Past results map mode (MIT Election Lab returns). On unless set to "false". */
+export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== "false";
+/** Electoral college and county simulator at /simulator. On unless set to "false"; it runs on the Past results files, so it needs that flag too. */
+export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
