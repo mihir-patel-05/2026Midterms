@@ -5,8 +5,8 @@
  * period not yet published). Those become no row, never 0.
  *
  * The API key is a query parameter, so request URLs are never logged or stored;
- * `redactedUrl` gives the same URL without it. Requests run one at a time, far
- * below FRED's limit of 120 per minute.
+ * `redactedUrl` gives the same URL without it. Requests, retries included, are
+ * spaced `minIntervalMs` apart to stay under FRED's limit of 120 per minute.
  */
 
 export interface FredObservation {
@@ -21,7 +21,21 @@ export interface FredClientOptions {
   fetchImpl?: typeof fetch;
   retries?: number;
   retryDelayMs?: number;
+  /** The least time between the starts of two requests. Defaults to 600 ms, about 100 a minute. */
+  minIntervalMs?: number;
+  /** Tests pass a fake clock. */
+  clock?: Clock;
 }
+
+export interface Clock {
+  now(): number;
+  sleep(ms: number): Promise<void>;
+}
+
+const realClock: Clock = {
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
 
 /** Parse `/series/observations` JSON, dropping FRED's "." missing values. */
 export function parseObservations(body: unknown): FredObservation[] {
@@ -44,12 +58,18 @@ export class FredClient {
   private readonly fetchImpl: typeof fetch;
   private readonly retries: number;
   private readonly retryDelayMs: number;
+  private readonly minIntervalMs: number;
+  private readonly clock: Clock;
+  /** Epoch ms before which the next request may not start. */
+  private nextRequestAt = 0;
 
   constructor(private readonly options: FredClientOptions) {
     this.observationsUrl = `${options.baseUrl.replace(/\/$/, '')}/series/observations`;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.retries = options.retries ?? 3;
     this.retryDelayMs = options.retryDelayMs ?? 2000;
+    this.minIntervalMs = options.minIntervalMs ?? 600;
+    this.clock = options.clock ?? realClock;
   }
 
   /** The request URL without the API key, safe to log or store. */
@@ -64,7 +84,8 @@ export class FredClient {
     const url = this.options.apiKey ? `${safeUrl}&api_key=${encodeURIComponent(this.options.apiKey)}` : safeUrl;
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.retries; attempt++) {
-      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs * 2 ** (attempt - 1)));
+      if (attempt > 0) await this.clock.sleep(this.retryDelayMs * 2 ** (attempt - 1));
+      await this.pace();
       this.requestCount++;
       try {
         const response = await this.fetchImpl(url, {
@@ -91,6 +112,14 @@ export class FredClient {
       }
     }
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  /** Wait for this request's slot. The slot is reserved before waiting, so concurrent callers queue too. */
+  private async pace(): Promise<void> {
+    const now = this.clock.now();
+    const startAt = Math.max(now, this.nextRequestAt);
+    this.nextRequestAt = startAt + this.minIntervalMs;
+    if (startAt > now) await this.clock.sleep(startAt - now);
   }
 }
 

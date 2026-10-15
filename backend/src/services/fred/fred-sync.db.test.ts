@@ -37,7 +37,7 @@ test('FRED sync backfills, re-runs cheaply, applies revisions, and survives a fa
     CLAIMS: [['2026-08-01', '230000'], ['2026-09-01', '225000']],
   };
   const starts: string[] = [];
-  const client = () => new FredClient({ apiKey: 'test', baseUrl: 'https://api.stlouisfed.org/fred', retries: 0, fetchImpl: fakeFredFetch(series, (url) => starts.push(`${url.searchParams.get('series_id')}:${url.searchParams.get('observation_start')}`)) });
+  const client = () => new FredClient({ apiKey: 'test', baseUrl: 'https://api.stlouisfed.org/fred', retries: 0, minIntervalMs: 0, fetchImpl: fakeFredFetch(series, (url) => starts.push(`${url.searchParams.get('series_id')}:${url.searchParams.get('observation_start')}`)) });
   const sync = () => syncFred(db, client(), { catalog, sourceKey: SOURCE_KEY, now: NOW, log: () => {} });
   try {
     const first = await sync();
