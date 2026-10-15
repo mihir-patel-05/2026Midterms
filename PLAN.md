@@ -65,6 +65,11 @@ Differentiators:
   - **Data:** built from the MIT Election Lab CSVs as static JSON (`npm run build:past-results` in `CODE/`), not through a database table or API.
   - **Check:** national presidential totals match the official counts to within 0.02% in every year.
   - **Flag:** `VITE_FEATURE_PAST_RESULTS`, on by default.
+- Midterm simulator (Oct 15): `/simulator/midterms`, a tab next to the electoral college simulator.
+  - **Senate:** the 35 races on the 2026 ballot, rolled up from presidential county baselines, with the same swings, county edits, and calls as the electoral college map.
+  - **House:** each district starts from its 2024 winner (or a tossup on a blank map) and is flipped by click.
+  - **Control:** seat bars show each chamber (51 Senate seats, or 50 with the vice president's tiebreak; 218 House seats). King and Sanders count as Democrats, noted as independents who caucus with them.
+  - The whole scenario is kept in the URL. Next step: impeachment vote math (section 4.10).
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -469,6 +474,74 @@ Planned changes:
 - [County Presidential Election Returns 2000–2024](https://doi.org/10.7910/DVN/VOQCHQ) (Harvard Dataverse)
 - [U.S. Senate Statewide 1976–2024](https://doi.org/10.7910/DVN/PEJ5QU) (Harvard Dataverse)
 - [U.S. House 1976–2024](https://doi.org/10.7910/DVN/IG0UN2) (Harvard Dataverse)
+
+### 4.10 Simulator: impeachment and removal math
+
+A card on the midterm simulator (`/simulator/midterms`) that answers, for the simulated 120th Congress (seated Jan 3, 2027; President Trump's term ends Jan 20, 2029): could this House impeach, could this Senate convict, and how many cross-party votes would each step need? **The exact formula is still to be agreed.** What follows are suggestions.
+
+This is **constitutional vote math, not a judgment on the merits.** Section 1 rules out "likelihood of" indexes about people and parties, and says numbers come from code. So every number here comes from the simulator, roll-call history, or a labeled market price, never from AI.
+
+**The thresholds**
+
+- **House impeachment:** a simple majority of members voting, which is **218** when all 435 vote.
+- **Senate conviction:** two-thirds of senators present, which is **67** of 100.
+- **Removal** needs both.
+
+**Layer 1: vote math (deterministic; ship first)**
+
+Computed straight from the simulator's totals (`simulateHouse` and `simulateSenate` in `CODE/src/features/simulator/midterms/model.ts`):
+
+- **House:** the opposing party's seats against 218, shown as "N votes short" or "N to spare" on a party-line vote.
+- **Senate:** `67 − (Democrats + independents who caucus with them)` is the number of Republican votes needed to convict. With the 2024 baseline (46 Democratic seats), that is 21.
+- **Display:** a card under the seat bars that updates as the user edits the map. No probability is shown at this layer.
+
+**Layer 2: probability (suggested formula)**
+
+`P(impeached) = Σ over House outcomes of P(House outcome) × P(articles pass | House outcome)`
+
+`P(removed) = P(impeached) × P(67 or more guilty votes | Senate)`
+
+- **P(House outcome) and P(Senate):**
+  - In a user's own scenario the chambers are fixed, so this is 1.
+  - For a "forecast" view, run a Monte Carlo over per-race Kalshi prices. This is the same engine as tipping-point races (section 4.1). Races with no market are labeled, not filled in.
+- **P(articles pass | House):** a vote-count model. Each majority member votes yes with probability `p`, and each minority member with probability `q`. The articles pass if the yes votes reach 218. Fit `p` and `q` from the four presidential impeachment roll calls, and verify them against the House Clerk before use:
+
+  | Year | Vote | Crossover |
+  |---|---|---|
+  | 1868 (Johnson) | 126–47 | Party line |
+  | 1998 (Clinton, Article I) | 228–206 | 5 D yes, 5 R no |
+  | 2019 (Trump, Article I) | 230–197 | 0 R yes, 2 D no |
+  | 2021 (Trump) | 232–197 | 10 R yes, 0 D no |
+
+  A narrow majority then becomes fragile without any extra assumption.
+- **Whether a majority brings articles at all.** This cannot be read from the data. Three options, which can sit side by side:
+  - **(a) Market price.** Use a Kalshi impeachment market if the catalog lists one, labeled "market price" with the provider and fetch time.
+  - **(b) User slider.** The user sets "chance the majority brings articles", so the judgment stays theirs. This fits "a simulation, not a forecast".
+  - **(c) Base rate.** Impeachments per Congress in which the House was held by the party opposed to the president, since 1868. This needs a count from the House history tables.
+- **P(67 or more guilty | Senate):** the same binomial model, with the cross-party guilty rate fitted from the Senate trials:
+
+  | Year | Result | Cross-party guilty votes |
+  |---|---|---|
+  | 1999 (Clinton) | Acquitted | 0 D |
+  | 2020 (Trump) | Acquitted | 1 R (Romney, Article I) |
+  | 2021 (Trump) | Acquitted, 57–43 | 7 R |
+
+  No president has been convicted. The card shows this history rather than hiding a near-zero number.
+
+**Rules**
+
+- **Process, not merits.** Call the card "Impeachment vote math". It never says or implies whether impeachment is warranted.
+- **Any president.** The code takes the sitting president and the parties as inputs, not a hard-coded name. It names Trump only because he holds the office through Jan 20, 2029.
+- **Sources for every number.** Probabilities come from code: roll-call fits, the Monte Carlo, or a labeled market price. A methodology page shows the roll-call tables with their sources.
+- **No bare probability.** A probability is shown only with its inputs: the chamber odds, `p`, `q`, and the source of the "brings articles" factor.
+- **Flag:** `VITE_FEATURE_IMPEACHMENT_MATH`.
+
+**Timing.** Layer 1 is frontend-only and small, so it could ship before the Oct 24 feature freeze. Layer 2 waits until the formula is agreed, which means after Nov 3 unless the Kalshi Monte Carlo for tipping-point races lands first.
+
+**To decide**
+
+- Which of (a), (b), or (c) drives "brings articles". Suggestion: (b) in the simulator, with (a) shown next to it when a market exists.
+- Whether to show removal odds at all, given they are near zero, or only the "votes needed" count.
 
 ---
 
