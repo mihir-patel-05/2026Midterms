@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 14, 2026
+Last updated: October 15, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -92,8 +92,8 @@ Differentiators:
 | When | Work |
 |---|---|
 | **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
-| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
+| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). Chatbot accounts and saved history (section 4.12). DB batch 3. |
+| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 through the chatbot, with tools and simulator guidance (section 4.12). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
 | **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
 | **Nov 3** | Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
@@ -120,6 +120,7 @@ Differentiators:
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
 | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
 | **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
+| **Research chatbot** | A signed-in Claude assistant that answers from our stored data with sources, saves chat history to the user's account, and reads the simulator scenario to help users think through their predictions. See section 4.12. |
 
 ### 4.2 AI agents
 
@@ -134,7 +135,7 @@ Agents are the analyst layer, not the data layer. Each agent is a job made of a 
 | 5 | Daily brief | Top stories, movers, and races to watch | Each morning |
 | 6 | Candidate positions | Positions by issue with a quote and link (requires human review) | Weekly, after Nov 3 |
 | 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
-| 8 | Ask the race | Answers grounded only in stored data, with citations | On demand |
+| 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
 | 9 | Election night | Live race notes and call summaries | Nov 3 |
 
 Rules:
@@ -161,7 +162,7 @@ These are prioritized. P01, P02, and P11 are the only pre-election commitments. 
 | P05 | **Since Your Last Visit** | Shows only the meaningful changes, including corrections | P1 |
 | P07 | **Office Powers Explorer** | What this office can actually do | P1, low-data |
 | P08 | **Portable Civic Guide** | Print, offline, and shareable cards that keep their sources | P1 |
-| P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8) | P2, controlled beta |
+| P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8; delivered by section 4.12) | P2, controlled beta |
 | P09 | **Reproducible Scenario Studio** | Save, compare, and explain a "what if turnout shifts 3 points" scenario | P2, research release |
 | P10 | **Civic Publisher Kit** | Libraries and newsrooms embed a maintained guide | P2, partner pilot |
 | P12 | **Promise-to-Action Ledger** | Follow a representative's documented actions after the election | P2, post-election |
@@ -620,6 +621,152 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 
 **Timing.** Small, free, and needs no migration, so it ships before the Oct 24 feature freeze.
 
+### 4.12 Research chatbot with accounts (Claude)
+
+A signed-in research assistant that replaces today's anonymous Gemini chat. It answers questions from our stored data through tools, saves every conversation to the user's account so they can return to it, and can read the simulator scenario on screen to help users think through their predictions. It is how Agent 8 (Ask the race) and P06 (Ask With Receipts) reach users, and it follows the agent rules in section 4.2.
+
+**What exists today**
+
+- **Gemini chat:** `backend/src/controllers/chat.controller.ts` (`POST /api/chat`, `DELETE /api/chat/:sessionId`). History lives in an in-memory map (24-hour TTL, 20 messages) and is lost on every deploy. The model has no tools and no access to our data.
+- **Chat UI:** `CODE/src/components/chat/` (`ChatButton`, `ChatInterface`, `ChatMessages`, `ChatInput`, `Message`), a sheet mounted in `AppShell.tsx` and `Layout.tsx`. History is kept in `sessionStorage`.
+- **Researcher login:** bcrypt passwords and a 7-day JWT (`researcher-auth.controller.ts`, `lib/researcherAuth.ts`). Accounts are created only by an admin script, so it is not suitable for the public.
+- **Admin sessions:** `AdminSession` stores a hashed opaque token, so a session can be revoked. This is the pattern to copy.
+
+**Accounts** (new, separate from researcher and admin accounts)
+
+- **Pages:** `/signup`, `/login`, and `/account` (delete history, delete account). Login is required to chat.
+- **API:** `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, and `DELETE /api/auth/me`.
+- **Passwords:** hashed with bcrypt, the same way as researcher accounts, with a minimum length of 10 characters. Login errors are generic. Signup and login are rate-limited per IP.
+- **Sessions:**
+  - **Token:** an opaque random token sent as a bearer token. Only its SHA-256 hash is stored, in `user_sessions` (modeled on `AdminSession`).
+  - **Expiry:** sessions last 30 days (`USER_SESSION_TTL_DAYS`), and logout revokes the session.
+  - **Why not a cookie:** Railway's `*.up.railway.app` testing domains are on the Public Suffix List, so `web` and `api` count as different sites there and a cookie would be blocked as third-party. Revisit cookies once `www` and `api` share a domain.
+- **Not in the first version:** email verification and password reset, because no email provider is connected yet.
+
+**Chat history**
+
+- **Storage:** conversations go in `chat_conversations` and messages in `chat_messages`, both scoped to `user_id`.
+- **Ownership:** a request for another user's conversation returns 404.
+- **The `/chat` page:**
+  - A sidebar lists conversations, newest first.
+  - Each conversation gets a title written once by a cheap model.
+  - Users can rename or delete a conversation.
+- **Account deletion:** deleting an account deletes all of its conversations and messages.
+- **What the model sees:** the system prompt plus the last N turns.
+- **What is saved:** tool calls and results are stored with each message, so any answer can be checked against what the model actually saw.
+
+**Model and loop** (`backend/src/services/chat/`)
+
+- **SDK and models:** `@anthropic-ai/sdk`. `CHAT_MODEL` defaults to `claude-sonnet-5-5`, and `claude-haiku-5-5` writes the titles.
+- **Provider layer:** a thin interface that the agents in section 4.2 can reuse. No agent framework.
+- **Tools:** run on the server, with at most 6 tool rounds per answer.
+- **Streaming:** answers stream to the browser over SSE from `POST /api/chat/conversations/:id/messages`.
+- **Prompt caching:** on the system prompt and the tool definitions.
+- **Token counts:** stored on each assistant message.
+
+**Tools** (read-only)
+
+Each tool wraps an existing service, and every result carries its source and timestamp.
+
+| Tool area | Backed by |
+|---|---|
+| Races and candidates | `election.service`, `candidate.service` |
+| FEC money and outside spending | `finance.service`, `services/outside-spending/` |
+| Kalshi prices, history, and movers (labeled "market price") | `prediction-markets.service`, `services/kalshi/history.ts` |
+| Demographics | `demographics.service` (section 4.5) |
+| Economic indicators | The `/api/indicators` read service, once section 4.11 ships |
+| Past results | The section 4.9 JSON, read from the web origin and cached |
+| Simulator | `get_simulator_scenario` and `propose_simulator_change` (below) |
+
+There is no address-lookup tool, because the privacy rules forbid storing addresses. Users name a district (for example, "PA-07") instead.
+
+**Simulator awareness and guidance**
+
+- **Context.** When the chat is open on `/simulator` or `/simulator/midterms`, the client attaches a compact `simulatorContext` to each message:
+  - the chamber and the URL search string
+  - totals and control from `simulateSenate` and `simulateHouse` (`CODE/src/features/simulator/midterms/model.ts`)
+  - the seats flipped from the baseline
+  - the seats each party needs (`HOUSE_TO_CONTROL`, `SENATE_TO_CONTROL`)
+- **Numbers come from code.** The client's simulator model produces those numbers, not the AI. The server validates the context with Zod, caps its size, and treats it as untrusted user input.
+- **Saved with the message.** The context is stored on the user's message, so the history can link back to that exact scenario.
+- **Guidance means explaining the user's own scenario.** The assistant can:
+  - say what the scenario implies, for example "you are 4 seats short of 218"
+  - list the closest races by Kalshi price, or by 2024 margin where there is no market
+  - give historical midterm swings against the president's party, from past results
+  - ask what the user believes about a race and show what that would change
+- **It never says who will win.**
+- **Proposed changes.** `propose_simulator_change` returns a structured patch in the `MidtermPatch` shape (House picks, national swing, state swings, picks).
+  - The UI shows the patch as an "Apply to simulator" card with a diff.
+  - It is applied through `useMidtermParams` only when the user clicks.
+  - It is never applied automatically.
+
+**UI**
+
+- **The `/chat` page:** full screen, with the conversation sidebar.
+- **The chat button:** the existing `ChatButton` sheet stays on every page.
+  - When the user is signed out, it shows "Sign in to chat".
+  - On simulator pages, it shows a "Sees your scenario" chip.
+- **Answers:** each answer carries the "AI summary" badge and its source links (section 4.2, rule 4).
+- **Under the input box:** "Don't share your address or how you plan to vote."
+
+**Rules**
+
+- **Nonpartisan.** One system prompt for every party. No endorsements, no predictions of winners, and no ranking or labeling by ideology.
+- **Numbers come only from tool results or the simulator context.** When no tool has the data, the answer is "not found". A market price is never called a forecast.
+- **Privacy.**
+  - The assistant never asks how someone will vote.
+  - Message text never goes into logs or analytics.
+  - Users can delete their history.
+  - Messages are not used for anything other than the user's own conversations.
+- **Cost controls.**
+  - A per-user daily message cap (`CHAT_DAILY_MESSAGE_LIMIT`, default 50).
+  - The existing per-IP limiter and a maximum message length.
+  - A global kill switch (`CHAT_ENABLED`).
+  - Without `ANTHROPIC_API_KEY`, chat returns 503.
+- **Flags:** `CHAT_ENABLED` and `ACCOUNTS_ENABLED` (backend); `VITE_FEATURE_CHAT` and `VITE_FEATURE_ACCOUNTS` (frontend).
+- **Gemini is retired.** Once this ships, remove the Gemini controller and `GEMINI_API_KEY`.
+
+**Migration** (additive)
+
+- `users`
+- `user_sessions`
+- `chat_conversations`
+- `chat_messages`: role, content blocks as JSON, `simulator_context` as JSON, model, and token counts
+
+**Tests.** Added to `test:results`:
+- signup, login, logout, and session expiry, plus a revoked session being rejected
+- one user unable to read another user's conversation
+- the daily cap
+- tool input validation and source fields
+- the `simulatorContext` schema
+- the tool loop with a mocked Anthropic client, including the round limit
+- `propose_simulator_change` patches parsed by `useMidtermParams`
+
+**Commits.** Seven separate commits, each passing typecheck and build on its own:
+1. accounts and sessions, with the migration
+2. conversation storage and the API
+3. the Claude provider, tools, and streaming
+4. the chat pages and login UI
+5. simulator context and Apply cards
+6. Gemini chat removed
+7. this plan
+
+**Verify.**
+- Sign up, chat, sign out, sign back in, and confirm the history is still there.
+- Confirm a second account cannot open the first account's conversation.
+- Ask about PA-07 and check the numbers against the race page.
+- On `/simulator/midterms`, ask "what do I need for a House majority?" and apply a proposal.
+- Check the phone layout.
+
+**Timing.** Accounts and history Oct 16–19, then tools and simulator context Oct 20–23, all behind flags, before the Oct 24 feature freeze. If the Apply cards slip, they move to after Nov 3.
+
+**To decide**
+
+- Email verification and password reset, and which email provider sends them.
+- How long to keep chat history.
+- Whether to add Google sign-in later.
+- Whether guests can chat without saved history.
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -632,7 +779,7 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | Admin web | React, Vite, TypeScript, Tailwind, served by nginx | `admin-dashboard/` |
 | API | Node 20, Express, TypeScript, Zod, node-cron, `ws` | `backend/` |
 | Database | PostgreSQL 16 with Prisma 6 | `backend/prisma/` |
-| AI | Gemini (`@google/generative-ai`) for chat today; the agents will use the same provider layer | `backend/src/` |
+| AI | Anthropic Claude (`@anthropic-ai/sdk`) for chat (section 4.12) and the agents, through one provider layer. Gemini (`@google/generative-ai`) runs today's chat until 4.12 ships. | `backend/src/` |
 | Local development | `docker-compose.yml` (Postgres, backend, frontend, admin) | repo root |
 
 ### 5.2 Railway services (one project, `staging` and `production` environments)
@@ -682,7 +829,8 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
-| Gemini | Chat and agents | `GEMINI_API_KEY` (chat returns 503 when blank) |
+| Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
+| Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
 
 ---
 
@@ -701,7 +849,7 @@ Conventions:
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
 | 2 | Oct 8–14 | `articles` (NYT and AP, unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
-| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9) |
+| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages` (section 4.12) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
 Schema cleanup to do after the election:
