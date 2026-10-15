@@ -36,21 +36,21 @@ const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit,
 const isState = (code: string) => code in ELECTORAL_VOTES;
 
 /** "PA2,GA-1.5" → { PA: 2, GA: -1.5 }. */
-function parseSwings(value: string | null) {
+export function parseSwings(value: string | null, valid: (code: string) => boolean = isState) {
   const swings: Record<string, number> = {};
   for (const item of value?.split(",") ?? []) {
     const match = /^([A-Z]{2})(-?\d+(?:\.\d+)?)$/.exec(item);
-    if (match && isState(match[1])) swings[match[1]] = clamp(round1(Number(match[2])), SWING_LIMIT);
+    if (match && valid(match[1])) swings[match[1]] = clamp(round1(Number(match[2])), SWING_LIMIT);
   }
   return swings;
 }
 
 /** "AZDl,GAT" → { AZ: lean D, GA: tossup }. */
-function parsePicks(value: string | null) {
+export function parsePicks(value: string | null, valid: (code: string) => boolean = isState) {
   const picks: Record<string, Pick> = {};
   for (const item of value?.split(",") ?? []) {
     const match = /^([A-Z]{2})(?:([DR])([skl])|T)$/.exec(item);
-    if (!match || !isState(match[1])) continue;
+    if (!match || !valid(match[1])) continue;
     picks[match[1]] = match[2] ? { party: match[2] as "D" | "R", rating: ratingsByLetter[match[3]] } : { party: "T" };
   }
   return picks;
@@ -68,7 +68,7 @@ function parseDistricts(value: string | null) {
 }
 
 /** "04013:1.5,13121:-30" → county margins, capped at MAX_COUNTY_EDITS. */
-function parseCounties(value: string | null) {
+export function parseCounties(value: string | null) {
   const counties: Record<string, number> = {};
   let count = 0;
   let truncated = false;
@@ -85,7 +85,11 @@ function parseCounties(value: string | null) {
   return { counties, truncated };
 }
 
-export function parseScenario(search: URLSearchParams): { scenario: Scenario; truncated: boolean } {
+/**
+ * Baseline, swings, county margins, and state picks: everything but Maine's and Nebraska's
+ * districts, which the midterm simulator's Senate side shares. `valid` limits which states count.
+ */
+export function parseCountyScenario(search: URLSearchParams, valid: (code: string) => boolean = isState) {
   const baseParam = search.get("base");
   const year = Number(baseParam);
   const base = baseParam === "blank" ? null : BASE_YEARS.includes(year) ? year : EMPTY_SCENARIO.base;
@@ -95,24 +99,36 @@ export function parseScenario(search: URLSearchParams): { scenario: Scenario; tr
     scenario: {
       base,
       swing: Number.isFinite(swing) ? clamp(round1(swing), SWING_LIMIT) : 0,
-      stateSwing: parseSwings(search.get("ss")),
+      stateSwing: parseSwings(search.get("ss"), valid),
       counties,
-      picks: parsePicks(search.get("p")),
-      districts: parseDistricts(search.get("d")),
+      picks: parsePicks(search.get("p"), valid),
     },
     truncated,
   };
 }
 
-/** Writes a scenario into `search`, leaving defaults out so plain links stay short. */
-export function writeScenario(search: URLSearchParams, scenario: Scenario) {
-  const set = (key: string, value: string) => (value ? search.set(key, value) : search.delete(key));
+export function parseScenario(search: URLSearchParams): { scenario: Scenario; truncated: boolean } {
+  const { scenario, truncated } = parseCountyScenario(search);
+  return { scenario: { ...scenario, districts: parseDistricts(search.get("d")) }, truncated };
+}
+
+/** Sets `key`, or removes it when `value` is empty. */
+export const setParam = (search: URLSearchParams, key: string, value: string) => (value ? search.set(key, value) : search.delete(key));
+
+/** Writes everything but the districts into `search`, leaving defaults out so plain links stay short. */
+export function writeCountyScenario(search: URLSearchParams, scenario: Omit<Scenario, "districts">) {
+  const set = (key: string, value: string) => setParam(search, key, value);
   set("base", scenario.base === null ? "blank" : scenario.base === EMPTY_SCENARIO.base ? "" : String(scenario.base));
   set("swing", scenario.swing ? String(round1(scenario.swing)) : "");
   set("ss", Object.entries(scenario.stateSwing).filter(([, value]) => value).map(([code, value]) => `${code}${round1(value)}`).join(","));
   set("p", Object.entries(scenario.picks).map(([code, pick]) => (pick.party === "T" ? `${code}T` : `${code}${pick.party}${ratingLetters[pick.rating]}`)).join(","));
-  set("d", Object.entries(scenario.districts).map(([code, winner]) => `${code.replace("-", "")}${winner}`).join(","));
   set("c", Object.entries(scenario.counties).slice(0, MAX_COUNTY_EDITS).map(([fips, margin]) => `${fips}:${round1(margin)}`).join(","));
+}
+
+/** Writes a scenario into `search`, leaving defaults out so plain links stay short. */
+export function writeScenario(search: URLSearchParams, scenario: Scenario) {
+  writeCountyScenario(search, scenario);
+  setParam(search, "d", Object.entries(scenario.districts).map(([code, winner]) => `${code.replace("-", "")}${winner}`).join(","));
 }
 
 /**
