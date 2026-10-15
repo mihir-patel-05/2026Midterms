@@ -21,6 +21,7 @@ import { newFrontendEnabled, simulatorEnabled } from "./lib/featureFlags";
 
 const ElectionDashboard = lazy(() => import("./pages/ElectionDashboard"));
 const ElectionSimulator = lazy(() => import("./pages/ElectionSimulator"));
+const MidtermSimulator = lazy(() => import("./pages/MidtermSimulator"));
 
 const queryClient = new QueryClient();
 
@@ -50,14 +51,24 @@ const App = () => (
               <Route path="/classic" element={<Index />} />
               <Route path="/election-dashboard" element={<DashboardRedirect />} />
               {simulatorEnabled && (
-                <Route
-                  path="/simulator"
-                  element={
-                    <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
-                      <ElectionSimulator />
-                    </Suspense>
-                  }
-                />
+                <>
+                  <Route
+                    path="/simulator"
+                    element={
+                      <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
+                        <ElectionSimulator />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/simulator/midterms"
+                    element={
+                      <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
+                        <MidtermSimulator />
+                      </Suspense>
+                    }
+                  />
+                </>
               )}
             </>
           ) : (

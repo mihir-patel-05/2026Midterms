@@ -15,6 +15,12 @@
 .sim-head h1 { margin: 0 0 5px; font-size: clamp(1.45rem, 2.2vw, 2.1rem); line-height: 1.1; letter-spacing: -0.035em; }
 .sim-head p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.88rem; }
 
+/* Simulator tabs */
+.sim-tabs { display: inline-flex; gap: 2px; margin-bottom: 12px; padding: 2px; border: 1px solid hsl(var(--line)); border-radius: 9px; }
+.sim-tabs a { padding: 6px 12px; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.8rem; font-weight: 700; }
+.sim-tabs a:hover { color: hsl(var(--foreground)); }
+.sim-tabs a[aria-current="page"] { background: hsl(var(--signal-teal) / 0.12); color: hsl(var(--foreground)); }
+
 /* Controls */
 .sim-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px; margin-bottom: 14px; }
 .sim-field { display: grid; gap: 6px; }
@@ -66,6 +72,17 @@
 .sim-ev-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: hsl(var(--foreground)); }
 .sim-ev-scale { position: relative; display: flex; justify-content: space-between; margin-top: 4px; color: hsl(var(--quiet)); font-size: 0.66rem; }
 .sim-ev-scale span:nth-child(2) { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+
+/* Midterms: Senate and House bars side by side */
+.sim-bars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.sim-bars .sim-ev { margin-bottom: 4px; }
+.sim-bars .sim-hint { display: block; margin: 0; line-height: 1.4; }
+.sim-bar-title { margin: 0 0 6px; color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.sim-tag {
+  margin-left: 6px; padding: 1px 5px; border-radius: 4px; background: hsl(var(--surface-3));
+  color: hsl(var(--muted-foreground)); font-size: 0.6rem; font-weight: 700; text-transform: uppercase; vertical-align: 1px;
+}
+.sim-district[aria-current="true"] { margin: 0 -6px; padding: 4px 6px; border-radius: 8px; background: hsl(var(--signal-teal) / 0.08); }
 
 /* Map */
 .sim-map-card { padding: 12px; border: 1px solid hsl(var(--line)); border-radius: 13px; background: hsl(var(--surface) / 0.82); }
@@ -149,6 +166,9 @@
 .sim-district small { display: block; margin-left: 15px; color: hsl(var(--quiet)); font-size: 0.66rem; }
 .sim-source { margin: 12px 0 0; color: hsl(var(--quiet)); font-size: 0.66rem; line-height: 1.5; }
 
+@media (max-width: 1180px) {
+  .sim-bars { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 980px) {
   .sim-shell { display: block; }
   .sim-panel { border-top: 1px solid hsl(var(--line)); border-left: 0; }
