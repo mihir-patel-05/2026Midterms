@@ -147,9 +147,20 @@
   /* Race map */
   .map-grid { display: grid; grid-template-columns: minmax(0, 1fr) 230px; }
   @media (max-width: 980px) { .map-grid { grid-template-columns: 1fr; } }
-  .map-box { position: relative; height: 320px; background: var(--surface-2); border-right: 1px solid var(--line-soft); }
-  @media (max-width: 980px) { .map-box { height: 280px; border-right: 0; border-bottom: 1px solid var(--line-soft); } }
+  .map-box { position: relative; height: 400px; background: var(--surface-2); border-right: 1px solid var(--line-soft); }
+  @media (max-width: 980px) { .map-box { height: 340px; border-right: 0; border-bottom: 1px solid var(--line-soft); } }
   .map-box .maplibregl-ctrl-attrib { font-size: 10px; }
+  .map-fs { position: absolute; left: 10px; top: 10px; z-index: 2; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 650; box-shadow: var(--shadow); }
+  .map-fs:hover { background: var(--surface-2); }
+  body.map-open { overflow: hidden; }
+  #map-card.expanded { position: fixed; inset: 0; z-index: 100; margin: 0; border: 0; border-radius: 0; display: flex; flex-direction: column; }
+  #map-card.expanded .map-grid { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); }
+  #map-card.expanded .map-box { height: auto; }
+  #map-card.expanded .geo-facts { overflow: auto; }
+  @media (max-width: 980px) {
+    #map-card.expanded .map-grid { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    #map-card.expanded .geo-facts { max-height: 32vh; }
+  }
   .map-note { position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 3px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font: 11px var(--mono); }
   .map-fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
   .geo-facts { padding: 6px 14px; }
@@ -275,13 +286,14 @@
       <div class="kpis" id="kpis"></div>
     </section>
 
-    <section class="card" aria-labelledby="map-h">
+    <section class="card" id="map-card" aria-labelledby="map-h">
       <div class="ch"><h2 id="map-h">Race map</h2>
         <span class="seg" id="map-mode" style="margin-left:auto"><button aria-pressed="true" data-mode="race">This race</button><button aria-pressed="false" data-mode="all">All watchlist</button></span>
       </div>
       <div class="map-grid">
         <div class="map-box">
           <div id="map" role="application" aria-label="Map of the selected race" style="position:absolute;inset:0"></div>
+          <button type="button" class="map-fs" id="map-fs" aria-pressed="false">⤢ Full screen</button>
           <div class="map-note" id="map-note" hidden></div>
         </div>
         <div class="geo-facts" id="geo-facts" aria-live="polite"></div>
@@ -669,6 +681,35 @@
     map.on("click", (e) => { const f = raceAt(e); if (f && f.properties.race !== state.race.id) pick(f.properties.race); });
     new ResizeObserver(() => map.resize()).observe($("map"));
   }
+
+  // Full screen: the browser's native full screen where supported (desktop, Android);
+  // otherwise (iPhone) the panel fills the browser window. Esc or the button exits.
+  function setupFullscreen(panel, button, onChange) {
+    const tipHome = tip.parentNode;
+    const label = (on) => { button.textContent = on ? "✕ Exit full screen" : "⤢ Full screen"; button.setAttribute("aria-pressed", String(on)); };
+    const set = (on) => {
+      if (panel.classList.contains("expanded") === on) return;
+      panel.classList.toggle("expanded", on);
+      document.body.classList.toggle("map-open", on);
+      // The tooltip has to sit inside a native full-screen element to stay visible.
+      (on ? panel : tipHome).appendChild(tip);
+      label(on);
+      setTimeout(onChange, 250);
+    };
+    button.addEventListener("click", () => {
+      if (panel.classList.contains("expanded")) {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        set(false);
+      } else {
+        set(true);
+        if (panel.requestFullscreen) panel.requestFullscreen().catch(() => {});
+      }
+    });
+    document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) set(false); });
+    addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+    label(false);
+  }
+  setupFullscreen($("map-card"), $("map-fs"), () => map && fit(true));
   $("map-mode").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     $("map-mode").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));

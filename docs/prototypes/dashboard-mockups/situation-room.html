@@ -136,8 +136,19 @@
   /* Real map */
   .map-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 14px; }
   @media (max-width: 760px) { .map-wrap { grid-template-columns: 1fr; } }
-  .map-box { position: relative; height: 430px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: #0a0f18; }
-  @media (max-width: 760px) { .map-box { height: 320px; } }
+  .map-box { position: relative; height: 520px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: #0a0f18; }
+  @media (max-width: 760px) { .map-box { height: 380px; } }
+  .map-views .fs { margin-left: 6px; color: var(--text); border-color: rgba(92,225,192,.45); }
+  body.map-open { overflow: hidden; }
+  #map-panel.expanded { position: fixed; inset: 0; z-index: 100; border: 0; border-radius: 0; }
+  #map-panel.expanded .map-wrap { grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); }
+  #map-panel.expanded .map-col { display: flex; flex-direction: column; min-height: 0; }
+  #map-panel.expanded .map-box { flex: 1; height: auto; min-height: 0; }
+  #map-panel.expanded #map-side { overflow: auto; }
+  @media (max-width: 760px) {
+    #map-panel.expanded .map-wrap { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    #map-panel.expanded #map-side { max-height: 24vh; }
+  }
   .map-box .maplibregl-ctrl-group { background: var(--surface-2); border: 1px solid var(--line); box-shadow: none; }
   .map-box .maplibregl-ctrl-group button { filter: invert(1) hue-rotate(180deg); }
   .map-box .maplibregl-ctrl-group button + button { border-top-color: var(--line); }
@@ -295,15 +306,15 @@
   </section>
 
   <!-- Row 2: map and movers -->
-  <section class="panel c7" aria-labelledby="h-map">
+  <section class="panel c7" id="map-panel" aria-labelledby="h-map">
     <div class="ph"><h2 id="h-map">National map</h2>
       <span class="seg" style="margin-left:auto" id="map-layers"><button aria-pressed="true" data-layer="senate">Senate</button><button aria-pressed="false" data-layer="house">House</button><button aria-pressed="false" data-layer="money">Money</button><button aria-pressed="false" data-layer="early">Early vote</button></span>
     </div>
     <div class="pb map-wrap">
-      <div>
+      <div class="map-col">
         <div class="map-box">
           <div id="map" role="application" aria-label="Map of the United States. Click a state or district for details." style="position:absolute;inset:0"></div>
-          <div class="map-views"><button type="button" data-view="l48">Lower 48</button><button type="button" data-view="ak">AK</button><button type="button" data-view="hi">HI</button></div>
+          <div class="map-views"><button type="button" data-view="l48">Lower 48</button><button type="button" data-view="ak">AK</button><button type="button" data-view="hi">HI</button><button type="button" class="fs" id="map-fs" aria-pressed="false">⤢ Full screen</button></div>
           <div class="map-note" id="map-note" hidden></div>
         </div>
         <div class="legend-row">
@@ -549,11 +560,41 @@
     try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw 0; return { style: await r.json(), ok: true }; }
     catch { return { style: FALLBACK_STYLE, ok: false }; } finally { clearTimeout(t); }
   }
+
+  // Full screen: the browser's native full screen where supported (desktop, Android);
+  // otherwise (iPhone) the panel fills the browser window. Esc or the button exits.
+  function setupFullscreen(panel, button, onChange) {
+    const tipHome = tip.parentNode;
+    const label = (on) => { button.textContent = on ? "✕ Exit full screen" : "⤢ Full screen"; button.setAttribute("aria-pressed", String(on)); };
+    const set = (on) => {
+      if (panel.classList.contains("expanded") === on) return;
+      panel.classList.toggle("expanded", on);
+      document.body.classList.toggle("map-open", on);
+      // The tooltip has to sit inside a native full-screen element to stay visible.
+      (on ? panel : tipHome).appendChild(tip);
+      label(on);
+      setTimeout(onChange, 250);
+    };
+    button.addEventListener("click", () => {
+      if (panel.classList.contains("expanded")) {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        set(false);
+      } else {
+        set(true);
+        if (panel.requestFullscreen) panel.requestFullscreen().catch(() => {});
+      }
+    });
+    document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) set(false); });
+    addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+    label(false);
+  }
+  let mapRef = null;
+  setupFullscreen(el("map-panel"), el("map-fs"), () => mapRef && mapRef.fitBounds(VIEWS.l48, { padding: 24, duration: 400 }));
   async function initMap() {
     if (!window.maplibregl) { el("map").innerHTML = '<div class="map-fail">The map library could not load. Check your internet connection; the rest of the dashboard still works.</div>'; return; }
     const { style, ok } = await loadStyle("https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
     if (!ok) { el("map-note").hidden = false; el("map-note").textContent = "Basemap unavailable · showing boundaries only"; }
-    const map = new maplibregl.Map({ container: "map", style, bounds: VIEWS.l48, fitBoundsOptions: { padding: 16 }, attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false });
+    const map = mapRef = new maplibregl.Map({ container: "map", style, bounds: VIEWS.l48, fitBoundsOptions: { padding: 16 }, attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false });
     map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
@@ -616,7 +657,7 @@
       });
       applyLayer(); applySelection();
     });
-    document.querySelectorAll(".map-views button").forEach((b) => b.addEventListener("click", () => map.fitBounds(VIEWS[b.dataset.view], { padding: 16, duration: 600 })));
+    document.querySelectorAll(".map-views [data-view]").forEach((b) => b.addEventListener("click", () => map.fitBounds(VIEWS[b.dataset.view], { padding: 16, duration: 600 })));
     new ResizeObserver(() => map.resize()).observe(el("map"));
   }
   renderLegend();

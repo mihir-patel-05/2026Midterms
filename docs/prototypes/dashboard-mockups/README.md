@@ -2,7 +2,7 @@
 
 Two standalone design mockups for turning VoteInformed into a single dashboard for researchers, where every data stream (markets, polls, FEC money, outside spending, economic indicators, news, AI agents, early vote, results) lands in one place. They do not change the app in `CODE/`. Open either file directly in a browser. All figures are illustrative mock data.
 
-Both mockups use a real, zoomable map: MapLibre (the map engine the app already uses) on CARTO vector basemaps, which are the same tiles as the app's default. The map needs an internet connection. State and district shapes are embedded in each HTML file, so a single downloaded file works on its own. If the basemap can't load, the race shapes still draw on a plain background.
+Both mockups use a real, zoomable map: MapLibre (the map engine the app already uses) on CARTO vector basemaps, which are the same tiles as the app's default. The map needs an internet connection. State and district shapes are embedded in each HTML file, so a single downloaded file works on its own. If the basemap can't load, the race shapes still draw on a plain background. Each map has a **Full screen** button that keeps its layer or race controls and details panel. It uses the browser's native full screen where supported; on iPhone it fills the browser window instead. Press Esc or the button to exit.
 
 | File | Concept | Best for |
 |---|---|---|
