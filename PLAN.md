@@ -92,7 +92,7 @@ Differentiators:
 | When | Work |
 |---|---|
 | **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
+| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
 | **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
 | **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
@@ -112,7 +112,7 @@ Differentiators:
 | **Market history** | **Shipped Oct 14** (section 2). Volume and liquidity come later. |
 | **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
 | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
-| **Economic indicators** | 10-year and 2-year Treasury yields, yield curve, S&P 500, VIX, gas prices, CPI, and unemployment, shown next to generic-ballot and chamber-control odds. |
+| **Economic indicators** | GDP, oil, gas, inflation, jobs, interest rates, Treasury yields, real income, and consumer sentiment from FRED, in a strip under the chamber-control odds. S&P 500 and VIX are ingested but not shown until their licensing is cleared. See section 4.11. |
 | **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
 | **Past results** | **Shipped Oct 14** (section 4.9). A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. |
 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. **The Kalshi-only version shipped Oct 14** (section 2); it is the trigger Agent 3 needs. Still to do: polls and money, NYT and AP headlines on each row, then Agent 3's explanations. |
@@ -312,7 +312,7 @@ What to show:
 **Build**
 
 1. **Data model (additive).** Reuse `indicator_series` and `indicator_observations` (batch 1). Add nullable `geo_level` (`nation`, `padd`, `state`, `county`, `metro`) and `geo_code` to `indicator_series` with a unique key on (`key`, `geo_code`). Series keys look like `eia.gas.regular`, `bls.qcew.mfg.employment`, and `ntuf.tariffs.exec_total`. The tariff-category breakdown and the Fed's one-off table go in `area_metrics` (state code, metric, period, value, source), or into `indicator_observations` if that fits.
-2. **Jobs.** `cron-econ`, a Railway cron job that runs EIA weekly (Tuesday after release), BLS monthly, Census trade monthly, and NTUF quarterly. Each raw response is saved as a `RawArtifact`, and `SyncLease` prevents overlaps. This is the same job as the FRED ingestion in section 2, extended.
+2. **Jobs.** `cron-econ`, a Railway cron job that runs EIA weekly (Tuesday after release), BLS monthly, Census trade monthly, and NTUF quarterly. Each raw response is saved as a `RawArtifact`, and `SyncLease` prevents overlaps. This is the same job as the FRED ingestion in section 4.11, extended.
 3. **API.** `GET /api/cost-of-living?state=MI` returns the gas price and change windows, tariff measures, job changes, and sources. `GET /api/cost-of-living/rankings?metric=gas.change_1y` returns the 50-state table.
 4. **Frontend.** The Cost of Living tab with a state choropleth, a comparison table, and a chart. Gate it with `VITE_FEATURE_COST_OF_LIVING` and `COST_OF_LIVING_INGEST_ENABLED`.
 5. **Timing.** EIA gas prices and the NTUF tariff data are small and free, so they can ship before the Oct 24 feature freeze if there is time. The Census trade, QCEW, and WARN builds come after Nov 3.
@@ -543,6 +543,83 @@ Computed straight from the simulator's totals (`simulateHouse` and `simulateSena
 - Which of (a), (b), or (c) drives "brings articles". Suggestion: (b) in the simulator, with (a) shown next to it when a market exists.
 - Whether to show removal odds at all, given they are near zero, or only the "votes needed" count.
 
+### 4.11 Economic indicators (FRED)
+
+A strip of tiles directly under the Kalshi House and Senate control banner on the monitor. It shows the economy next to the chamber-control odds, as context. It is **never presented as a forecast or as an explanation of why the odds moved.** No migration is needed: the series go into `indicator_series` and `indicator_observations` (batch 1), and the `(series_id, observed_at)` unique key lets revised values overwrite old ones in place.
+
+**Series (20)**
+
+| Tile | FRED IDs | Frequency | Shown as | Original source |
+|---|---|---|---|---|
+| GDP growth | `A191RL1Q225SBEA` | Quarterly | Annualized %, as published | BEA |
+| GDPNow | `GDPNOW` | Quarterly, updated several times a month | Annualized %, labeled "Atlanta Fed estimate for Q_" | Atlanta Fed |
+| Oil | `DCOILWTICO`, `DCOILBRENTEU` | Daily | Dollars per barrel for WTI; Brent in the tooltip | EIA |
+| Gas | `GASREGW` | Weekly | Dollars per gallon, with the change over 1 year | EIA |
+| Inflation | `CPIAUCSL`, `CPILFESL` | Monthly | Change from a year ago, computed in code; core CPI in the tooltip | BLS |
+| (no tile) | `CPILEGSL` | Monthly | Stored only. The inflation-adjusted gas toggle in section 4.8 uses it. | BLS |
+| Unemployment | `UNRATE` | Monthly | % | BLS |
+| Jobs | `PAYEMS` | Monthly | Change from the previous month, in thousands | BLS |
+| Jobless claims | `ICSA` | Weekly | Count | Department of Labor |
+| Fed rate | `DFEDTARL`, `DFEDTARU` | Daily | The target range, e.g. "4.25–4.50%" | Federal Reserve Board |
+| Mortgage rate | `MORTGAGE30US` | Weekly | % (30-year fixed) | Freddie Mac |
+| Treasuries | `DGS10`, `DGS2`, `T10Y2Y` | Daily | The 10-year yield; the 2-year yield and the 10-year minus 2-year gap in the tooltip | Treasury, through the Fed's H.15 |
+| Real income per person | `A229RX0` | Monthly | Change from a year ago | BEA |
+| Consumer sentiment | `UMCSENT` | Monthly | Index (FRED shows it about a month late) | University of Michigan |
+| *Restricted* | `SP500`, `VIXCLS` | Daily | Ingested but **not served** until the licensing is cleared (see below) | S&P Dow Jones Indices, Cboe |
+
+- **S&P 500 and VIX.** FRED's copies carry notices from S&P Dow Jones Indices and Cboe that bar reproduction without permission. Like AAA gas prices (section 4.8), we do not publish them until the terms are read or permission is granted. They stay hidden behind `FRED_RESTRICTED_SERIES_ENABLED`, which is off by default.
+- **National gas.** `GASREGW` is FRED's copy of EIA's U.S. regular series (`EMM_EPMR_PTE_NUS_DPG`), so it needs no second key before the freeze. When the EIA feed for section 4.8 lands, the U.S. gas figure must come from one source only: either 4.8 reads this series or it replaces it.
+
+**Backend** (`backend/src/services/fred/`, modeled on `services/census/`)
+
+1. **Catalog** (`series-catalog.ts`). The table above as data, with each series' key (`fred.<ID>`), unit, frequency, original source, transform (`level`, `yoy`, or `mom_change`), and a `restricted` flag. `FRED_CATALOG_VERSION` is used as the `IngestionRun` parser version.
+2. **Client** (`fred-client.ts`). `FredClient` calls `/series/observations?file_type=json`, shaped like `CensusClient`. FRED's `"."` value means missing, so it becomes no row, never 0. `redactedUrl()` removes `api_key` so the key is never logged or stored. Requests run one at a time, about 20 per run, well under FRED's 120 per minute.
+3. **Sync** (`fred-sync.ts`). Follows `syncAcs`: insert the `DataSource` (key `fred`, authority "Federal Reserve Bank of St. Louis"), open an `IngestionRun`, and upsert each `IndicatorSeries`.
+   - **Window:** a series with no rows backfills 5 years. Later runs re-fetch the last 400 days, which catches revisions to GDP and payrolls and the annual CPI seasonal-factor update.
+   - **Writes:** insert new rows and update only rows whose value changed, with a new `fetched_at`.
+   - **Failures:** one failing series is recorded and the run continues. The run ends as `PARTIAL` and the source's health as `DEGRADED`.
+   - **No `RawArtifact` yet.** Its storage is still the local filesystem, which a Railway redeploy wipes. The ACS sync skips it too. The source URL, without the key, goes in the run's metadata. Revisit once the Railway Bucket (section 5.3) exists.
+4. **Runner and CLI.** `run-fred-sync.ts` holds the `fred` `SyncLease` (30 minutes), like the Schedule E runner. `npm run sync:fred` runs it by hand and exits non-zero if nothing loaded. The future `cron-econ` Railway service runs `node dist/scripts/sync-fred.js`.
+5. **Schedule.** In `jobs/scheduler.ts`, at 9:15 and 18:15 ET daily. The morning run is after the 8:30 BLS and BEA releases; the evening run is after the afternoon updates for rates, oil, and mortgages. It is scheduled only when `FRED_API_KEY` is set and `ECON_INDICATORS_ENABLED` is on.
+6. **Read service and API.** `GET /api/indicators?days=730`. For each series it returns:
+   - the latest value and its period ("Aug 2026", "Q2 2026", "Week of Oct 5")
+   - the change for its transform, computed in code from stored levels. A year-over-year change is null if the observation from a year earlier is missing.
+   - a stale flag, set when the latest observation is older than 7 days (daily), 14 (weekly), 60 (monthly), or 150 (quarterly)
+   - 2 years of history, with daily series reduced to one value per week
+   - a source line, e.g. "BLS via FRED, fetched Oct 15"
+   
+   It answers `404 NOT_LOADED` before the first sync, and 404 when the flag is off. The response is cached for 15 minutes.
+
+**Frontend** (`CODE/src/features/election-monitor/`)
+
+- **`EconomyStrip.tsx`**, placed under each `ControlOddsBanner`, with data from `useEconIndicators()` in `economy.ts`. Each tile shows a label, value, change, small chart, and period. On phones the strip scrolls sideways within itself.
+- **`IndicatorSparkline.tsx`**, a new small chart that reuses `sparkline.css`. The existing `Sparkline` is built for hourly prices on a 0–100% scale, and we leave the shipped market history alone before the freeze.
+- **Neutral changes.** Arrows and chips use neutral colors, never red for bad and green for good. Whether rising rates or falling oil is good depends on who is asked.
+- **States.** Missing shows "Not available"; stale shows an amber "Stale" pill.
+- **Footer note:** "Economic data via FRED (Federal Reserve Bank of St. Louis). Shown for context, not as a forecast or an explanation of market odds." Each tile's tooltip names its original source and fetch date.
+- **Flags:** `VITE_FEATURE_ECONOMY` (frontend, on by default); `ECON_INDICATORS_ENABLED` (backend, on by default); `FRED_RESTRICTED_SERIES_ENABLED` (backend, off by default).
+
+**Tests.** Added to `test:results`:
+- the client: parsing, missing values, and the key removed from URLs
+- the indicator math: year-over-year, monthly change, staleness, weekly reduction, and restricted series left out
+- a database test of the sync: backfill, incremental run, a revised value, and a partial failure. It uses test-only `fred-test.*` keys and is skipped without `TEST_DATABASE_URL`.
+- the route's query checking
+
+**Commits.** Five separate commits, each passing typecheck and build on its own:
+1. client and catalog
+2. sync, runner, CLI, and schedule
+3. API
+4. the monitor strip
+5. this plan
+
+**Verify.**
+- Run `npm run sync:fred` against the dev database, then run it again and confirm the second run changes almost nothing.
+- Spot-check `UNRATE`, year-over-year CPI, and `DGS10` against fred.stlouisfed.org.
+- Confirm `SP500` and `VIXCLS` are absent from `/api/indicators` unless their flag is on.
+- Check the strip at desktop and phone widths.
+
+**Timing.** Small, free, and needs no migration, so it ships before the Oct 24 feature freeze.
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -595,7 +672,7 @@ Computed straight from the simulator's totals (`simulateHouse` and `simulateSena
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
 | MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; raw files in `backend/data/medsl/` (not committed), converted with `npm run build:past-results` in `CODE/`; attribution required |
-| FRED | Economic indicators | to add |
+| FRED (St. Louis Fed) | Economic indicators: 20 series (section 4.11); `SP500` and `VIXCLS` not served until licensing is cleared | `FRED_API_KEY`; `ECON_INDICATORS_ENABLED`, `FRED_RESTRICTED_SERIES_ENABLED` |
 | EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
 | BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |
 | Census International Trade API (`intltrade/imports/statehs`, `exports/statehs`) | Imports and exports by state, product, and country (section 4.8) | `CENSUS_API_KEY` (existing) |
