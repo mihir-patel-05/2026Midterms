@@ -92,7 +92,7 @@ Differentiators:
 | When | Work |
 |---|---|
 | **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). Chatbot accounts and saved history (section 4.12). DB batch 3. |
+| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). Chatbot Google sign-in and daily chat history (section 4.12). DB batch 3. |
 | **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 through the chatbot, with tools and simulator guidance (section 4.12). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
 | **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
@@ -120,7 +120,7 @@ Differentiators:
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
 | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
 | **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
-| **Research chatbot** | A signed-in Claude assistant that answers from our stored data with sources, saves chat history to the user's account, and reads the simulator scenario to help users think through their predictions. See section 4.12. |
+| **Research chatbot** | A Claude assistant behind Google sign-in that answers from our stored data with sources, keeps the day's chats (reset nightly), and reads the simulator scenario to help users think through their predictions. See section 4.12. |
 
 ### 4.2 AI agents
 
@@ -623,7 +623,7 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 
 ### 4.12 Research chatbot with accounts (Claude)
 
-A signed-in research assistant that replaces today's anonymous Gemini chat. It answers questions from our stored data through tools, saves every conversation to the user's account so they can return to it, and can read the simulator scenario on screen to help users think through their predictions. It is how Agent 8 (Ask the race) and P06 (Ask With Receipts) reach users, and it follows the agent rules in section 4.2.
+A research assistant that users reach by signing in with Google. It replaces today's anonymous Gemini chat. It answers questions from our stored data through tools, keeps the day's conversations so users can go back to them until the nightly reset, and can read the simulator scenario on screen to help users think through their predictions. It is how Agent 8 (Ask the race) and P06 (Ask With Receipts) reach users, and it follows the agent rules in section 4.2.
 
 **What exists today**
 
@@ -632,26 +632,48 @@ A signed-in research assistant that replaces today's anonymous Gemini chat. It a
 - **Researcher login:** bcrypt passwords and a 7-day JWT (`researcher-auth.controller.ts`, `lib/researcherAuth.ts`). Accounts are created only by an admin script, so it is not suitable for the public.
 - **Admin sessions:** `AdminSession` stores a hashed opaque token, so a session can be revoked. This is the pattern to copy.
 
-**Accounts** (new, separate from researcher and admin accounts)
+**Accounts: Sign in with Google** (new, separate from researcher and admin accounts)
 
-- **Pages:** `/signup`, `/login`, and `/account` (delete history, delete account). Login is required to chat.
-- **API:** `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, and `DELETE /api/auth/me`.
-- **Passwords:** hashed with bcrypt, the same way as researcher accounts, with a minimum length of 10 characters. Login errors are generic. Signup and login are rate-limited per IP.
+Google sign-in is the only login for now. We store no passwords, so we need no password reset and no email verification.
+
+- **Flow:**
+  1. The `/login` page shows the Google Identity Services "Sign in with Google" button.
+  2. Google returns an ID token to the browser.
+  3. The browser posts it to `POST /api/auth/google`.
+  4. The backend verifies it with `google-auth-library` (`verifyIdToken`). The audience must be `GOOGLE_CLIENT_ID`, the issuer must be Google, and `email_verified` must be true.
+  5. The backend finds or creates the user by Google's `sub`. The first sign-in creates the account, so there is no separate signup page.
+  6. The backend returns our own session token.
+- **What we store:** Google `sub`, email, and display name only. No profile photo, and no Google access or refresh tokens. We request only the `openid email profile` scopes.
+- **API and pages:**
+  - Endpoints: `POST /api/auth/google`, `POST /api/auth/logout`, `GET /api/auth/me`, and `DELETE /api/auth/me`.
+  - Pages: `/login` and `/account` (delete today's chats, delete account).
+  - The auth endpoints are rate-limited per IP.
 - **Sessions:**
   - **Token:** an opaque random token sent as a bearer token. Only its SHA-256 hash is stored, in `user_sessions` (modeled on `AdminSession`).
   - **Expiry:** sessions last 30 days (`USER_SESSION_TTL_DAYS`), and logout revokes the session.
   - **Why not a cookie:** Railway's `*.up.railway.app` testing domains are on the Public Suffix List, so `web` and `api` count as different sites there and a cookie would be blocked as third-party. Revisit cookies once `www` and `api` share a domain.
-- **Not in the first version:** email verification and password reset, because no email provider is connected yet.
+- **Google Cloud setup:**
+  - An OAuth client of type "Web application" in a project we own.
+  - Authorized JavaScript origins: the Testing `web` domain, `www`, and `http://localhost:5173` for local development.
+  - An OAuth consent screen with the app name, support email, and a privacy policy link.
+  - The client ID is public: `GOOGLE_CLIENT_ID` on `api` and `VITE_GOOGLE_CLIENT_ID` on `web`. No client secret is needed for the ID-token flow.
+  - The `web` Content Security Policy allows `https://accounts.google.com` for the script, frame, and connect sources.
 
-**Chat history**
+**Chat history: kept for one day, reset nightly**
 
 - **Storage:** conversations go in `chat_conversations` and messages in `chat_messages`, both scoped to `user_id`.
 - **Ownership:** a request for another user's conversation returns 404.
+- **Nightly reset:** at midnight ET, a job in `jobs/scheduler.ts` deletes every conversation started before that midnight, and its messages with it.
+  - Reads also hide conversations from before the last midnight ET, so history still resets on time if the job runs late or fails.
+  - A chat started at 11:55 PM ET is gone at midnight. The UI says so.
 - **The `/chat` page:**
-  - A sidebar lists conversations, newest first.
+  - A sidebar lists today's conversations, newest first.
   - Each conversation gets a title written once by a cheap model.
-  - Users can rename or delete a conversation.
-- **Account deletion:** deleting an account deletes all of its conversations and messages.
+  - Users can rename a conversation, delete it, or delete all of today's chats at any time.
+- **Account deletion:** deleting an account deletes its sessions, conversations, and messages.
+- **Usage counts:** `chat_usage_daily` keeps per-user daily message and token counts, with no text.
+  - Deleting a chat does not reset the daily cap.
+  - Counts older than 90 days are dropped.
 - **What the model sees:** the system prompt plus the last N turns.
 - **What is saved:** tool calls and results are stored with each message, so any answer can be checked against what the model actually saw.
 
@@ -704,10 +726,14 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 - **The `/chat` page:** full screen, with the conversation sidebar.
 - **The chat button:** the existing `ChatButton` sheet stays on every page.
-  - When the user is signed out, it shows "Sign in to chat".
   - On simulator pages, it shows a "Sees your scenario" chip.
+- **Signed out:** guests cannot chat.
+  - The chat button still opens the sheet.
+  - The sheet shows "You must sign in to use the research assistant" with the "Sign in with Google" button, and no message box.
+  - `/chat` redirects to `/login` and returns the user to the chat afterwards.
+  - The chat API answers 401 without a valid session.
 - **Answers:** each answer carries the "AI summary" badge and its source links (section 4.2, rule 4).
-- **Under the input box:** "Don't share your address or how you plan to vote."
+- **Under the input box:** "Don't share your address or how you plan to vote." and "Chats are deleted every night at midnight ET."
 
 **Rules**
 
@@ -716,8 +742,9 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 - **Privacy.**
   - The assistant never asks how someone will vote.
   - Message text never goes into logs or analytics.
-  - Users can delete their history.
+  - Chats last until midnight ET at most, and users can delete them sooner.
   - Messages are not used for anything other than the user's own conversations.
+  - Only Google's `sub`, email, and name are kept about the user.
 - **Cost controls.**
   - A per-user daily message cap (`CHAT_DAILY_MESSAGE_LIMIT`, default 50).
   - The existing per-IP limiter and a maximum message length.
@@ -728,23 +755,30 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 **Migration** (additive)
 
-- `users`
+- `users`: `google_sub` (unique), email, and name
 - `user_sessions`
 - `chat_conversations`
 - `chat_messages`: role, content blocks as JSON, `simulator_context` as JSON, model, and token counts
+- `chat_usage_daily`: user, ET date, message count, and token counts
 
 **Tests.** Added to `test:results`:
-- signup, login, logout, and session expiry, plus a revoked session being rejected
+- Google sign-in with a mocked verifier:
+  - the first sign-in creates a user
+  - the next sign-in reuses that user through `sub`
+  - a wrong audience, an expired token, and an unverified email are each rejected
+- logout and session expiry, plus a revoked session being rejected
+- the chat API returning 401 without a session
 - one user unable to read another user's conversation
-- the daily cap
+- the nightly reset: the job deletes conversations from earlier days, and reads hide them even before the job runs
+- the daily cap, which still counts messages after a chat is deleted
 - tool input validation and source fields
 - the `simulatorContext` schema
 - the tool loop with a mocked Anthropic client, including the round limit
 - `propose_simulator_change` patches parsed by `useMidtermParams`
 
 **Commits.** Seven separate commits, each passing typecheck and build on its own:
-1. accounts and sessions, with the migration
-2. conversation storage and the API
+1. Google sign-in and sessions, with the migration
+2. conversation storage, the API, and the nightly reset
 3. the Claude provider, tools, and streaming
 4. the chat pages and login UI
 5. simulator context and Apply cards
@@ -752,20 +786,27 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 7. this plan
 
 **Verify.**
-- Sign up, chat, sign out, sign back in, and confirm the history is still there.
-- Confirm a second account cannot open the first account's conversation.
+- Sign in with Google, chat, sign out, sign back in, and confirm today's history is still there.
+- While signed out, open the chat and confirm it asks you to sign in and offers no message box.
+- Confirm a second Google account cannot open the first account's conversation.
+- Run the reset job with a clock past midnight ET and confirm earlier chats are gone.
+- Delete a chat and confirm it is gone.
 - Ask about PA-07 and check the numbers against the race page.
 - On `/simulator/midterms`, ask "what do I need for a House majority?" and apply a proposal.
 - Check the phone layout.
 
-**Timing.** Accounts and history Oct 16–19, then tools and simulator context Oct 20–23, all behind flags, before the Oct 24 feature freeze. If the Apply cards slip, they move to after Nov 3.
+**Timing.** Google sign-in and history Oct 16–19, then tools and simulator context Oct 20–23, all behind flags, before the Oct 24 feature freeze. If the Apply cards slip, they move to after Nov 3.
 
-**To decide**
+**Decided (Oct 15)**
 
-- Email verification and password reset, and which email provider sends them.
-- How long to keep chat history.
-- Whether to add Google sign-in later.
-- Whether guests can chat without saved history.
+- **Login:** Sign in with Google is the only login for now. A second sign-in option can come later if users ask for one.
+- **Retention:** chat history lasts one day. Everything resets at midnight ET, and users can delete chats sooner.
+- **Guests:** guests cannot chat. The chat tells them to sign in.
+
+**To do before building**
+
+- Create the Google OAuth client and consent screen, and register the Testing and production `web` origins.
+- Publish a privacy policy page for the consent screen, covering what we keep (Google ID, email, name, and one day of chats).
 
 ---
 
@@ -830,6 +871,7 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
+| Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
 | Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
 
 ---
@@ -849,7 +891,7 @@ Conventions:
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
 | 2 | Oct 8–14 | `articles` (NYT and AP, unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
-| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages` (section 4.12) |
+| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
 Schema cleanup to do after the election:
