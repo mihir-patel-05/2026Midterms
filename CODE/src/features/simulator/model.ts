@@ -83,7 +83,7 @@ export function ratingFor(margin: number): Rating {
 }
 
 /** Decided by the exact margin: Florida 2000 was won by 537 votes, a 0.01-point margin. */
-function winnerOf(margin: number | null): Outcome {
+export function winnerOf(margin: number | null): Outcome {
   if (margin === null || margin === 0) return "T";
   return margin > 0 ? "D" : "R";
 }
@@ -104,58 +104,72 @@ export function countiesByState(data: PresidentYear) {
   return index;
 }
 
+/** The county edits and swings that `rollUpState` reads; the midterm Senate scenario has them too. */
+export type CountyScenario = Omit<Scenario, "picks" | "districts">;
+
 /**
- * Plays out a scenario on a baseline election. Each county's margin is its hand-set value, or its
- * baseline margin plus the national and state swing; a state's margin is the sum of its counties'
- * re-split votes, so an edited county moves its state by its share of the state's turnout.
+ * One state's margin from its counties. Each county's margin is its hand-set value, or its baseline
+ * margin plus the national and state swing; the state's margin is the sum of its counties' re-split
+ * votes, so an edited county moves its state by its share of the state's turnout. Every county's
+ * simulated margin is written to `countiesOut`.
  */
+export function rollUpState(code: string, scenario: CountyScenario, data: PresidentYear | null, countiesOut: Map<string, number>) {
+  const blank = scenario.base === null || !data;
+  const stateVotes = data?.states[code]?.votes;
+  const baseMargin = !blank && stateVotes ? marginOf(stateVotes) : null;
+  let margin: number | null = null;
+  let edited = 0;
+
+  if (!blank && data && stateVotes) {
+    const swing = scenario.swing + (scenario.stateSwing[code] ?? 0);
+    let lead = 0;
+    let total = 0;
+    // Votes in the state total but in no county: overseas and federal-only ballots, ballots a
+    // certified canvass added (Florida 2000), and all of Alaska. They swing like one more county.
+    const rest: VoteTriple = [...stateVotes];
+    for (const fips of countiesByState(data).get(code) ?? []) {
+      const votes = data.counties[fips];
+      rest[0] -= votes[0];
+      rest[1] -= votes[1];
+      rest[2] -= votes[2];
+      const own = marginOf(votes);
+      if (own === null) continue;
+      const set = scenario.counties[fips];
+      if (set !== undefined) edited++;
+      const [d, r, o] = withMargin(votes, set ?? own + swing);
+      countiesOut.set(fips, ((d - r) / (d + r + o)) * 100);
+      lead += d - r;
+      total += d + r + o;
+    }
+    const restMargin = marginOf(rest);
+    const [d, r, o] = restMargin !== null && rest.every((n) => n >= 0) ? withMargin(rest, restMargin + swing) : rest;
+    lead += d - r;
+    total += d + r + o;
+    margin = total > 0 ? (lead / total) * 100 : null;
+  }
+  return { margin, baseMargin, edited };
+}
+
+/** A state's call from its rolled-up margin, unless a pick replaces it. */
+export function callState(margin: number | null, edited: number, pick: Pick | undefined) {
+  const computed = winnerOf(margin);
+  const winner: Outcome = pick ? pick.party : computed;
+  const rating = pick ? (pick.party === "T" ? null : pick.rating) : computed === "T" ? null : ratingFor(margin!);
+  const source: StateSource = pick ? "pick" : margin === null ? "tossup" : edited > 0 ? "counties" : "baseline";
+  return { winner, rating, source };
+}
+
+/** Plays out a scenario on a baseline election; see `rollUpState` for how counties add up. */
 export function simulate(scenario: Scenario, data: PresidentYear | null): SimulationResult {
   const states: Record<string, StateOutcome> = {};
   const counties = new Map<string, number>();
   const totals: Record<Outcome, number> = { D: 0, R: 0, T: 0 };
   const blank = scenario.base === null || !data;
-  const index = data && !blank ? countiesByState(data) : null;
 
   for (const code of Object.keys(ELECTORAL_VOTES)) {
     const ev = statewideVotes(code);
-    const stateVotes = data?.states[code]?.votes;
-    const baseMargin = !blank && stateVotes ? marginOf(stateVotes) : null;
-    let margin: number | null = null;
-    let edited = 0;
-
-    if (!blank && data && stateVotes) {
-      const swing = scenario.swing + (scenario.stateSwing[code] ?? 0);
-      let lead = 0;
-      let total = 0;
-      // Votes in the state total but in no county: overseas and federal-only ballots, ballots a
-      // certified canvass added (Florida 2000), and all of Alaska. They swing like one more county.
-      const rest: VoteTriple = [...stateVotes];
-      for (const fips of index!.get(code) ?? []) {
-        const votes = data.counties[fips];
-        rest[0] -= votes[0];
-        rest[1] -= votes[1];
-        rest[2] -= votes[2];
-        const own = marginOf(votes);
-        if (own === null) continue;
-        const set = scenario.counties[fips];
-        if (set !== undefined) edited++;
-        const [d, r, o] = withMargin(votes, set ?? own + swing);
-        counties.set(fips, ((d - r) / (d + r + o)) * 100);
-        lead += d - r;
-        total += d + r + o;
-      }
-      const restMargin = marginOf(rest);
-      const [d, r, o] = restMargin !== null && rest.every((n) => n >= 0) ? withMargin(rest, restMargin + swing) : rest;
-      lead += d - r;
-      total += d + r + o;
-      margin = total > 0 ? (lead / total) * 100 : null;
-    }
-
-    const pick = scenario.picks[code];
-    const computed = winnerOf(margin);
-    const winner: Outcome = pick ? pick.party : computed;
-    const rating = pick ? (pick.party === "T" ? null : pick.rating) : computed === "T" ? null : ratingFor(margin!);
-    const source: StateSource = pick ? "pick" : margin === null ? "tossup" : edited > 0 ? "counties" : "baseline";
+    const { margin, baseMargin, edited } = rollUpState(code, scenario, data, counties);
+    const { winner, rating, source } = callState(margin, edited, scenario.picks[code]);
     states[code] = { code, ev, margin, baseMargin, winner, rating, source, editedCounties: edited };
     totals[winner] += ev;
   }

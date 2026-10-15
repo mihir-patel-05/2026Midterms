@@ -7,10 +7,13 @@ import { formatMargin, type Pick, type Rating, type StateOutcome } from "./model
 const RATINGS: Rating[] = ["safe", "likely", "lean"];
 
 /** One state: its baseline and simulated margin, and a pick that overrides them. */
-export function StateEditor({ state, pick, base, onPick, onClose, children }: {
+export function StateEditor({ state, pick, base, summary, backLabel = "All states", onPick, onClose, children }: {
   state: StateOutcome;
   pick: Pick | undefined;
   base: number | null;
+  /** Line under the name; defaults to the state's electoral votes and who wins them. */
+  summary?: string;
+  backLabel?: string;
   /** null clears the pick, returning the state to its computed result. */
   onPick: (pick: Pick | null) => void;
   onClose: () => void;
@@ -24,12 +27,12 @@ export function StateEditor({ state, pick, base, onPick, onClose, children }: {
 
   return (
     <section className="sim-card" aria-labelledby="sim-state-heading">
-      <button type="button" className="sim-back" onClick={onClose}><ArrowLeft aria-hidden="true" />All states</button>
+      <button type="button" className="sim-back" onClick={onClose}><ArrowLeft aria-hidden="true" />{backLabel}</button>
       <div className="sim-identity">
         <span className="sim-monogram" data-party={state.winner}>{state.code}</span>
         <div>
           <h2 id="sim-state-heading">{name}</h2>
-          <p>{ELECTORAL_VOTES[state.code]} electoral votes · {state.winner === "T" ? "Tossup" : `${outcomeWords[state.winner]} win`} ({sourceLabels[state.source]})</p>
+          <p>{summary ?? `${ELECTORAL_VOTES[state.code]} electoral votes · ${state.winner === "T" ? "Tossup" : `${outcomeWords[state.winner]} win`} (${sourceLabels[state.source]})`}</p>
         </div>
       </div>
 
