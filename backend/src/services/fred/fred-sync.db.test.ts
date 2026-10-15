@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { FredClient } from './fred-client.js';
 import { syncFred } from './fred-sync.js';
+import { getIndicators } from './indicator-read.js';
 import type { FredSeriesDef } from './series-catalog.js';
 import { fakeFredFetch, type FakeSeries } from './test-fixtures.js';
 
@@ -66,6 +67,11 @@ test('FRED sync backfills, re-runs cheaply, applies revisions, and survives a fa
     assert.equal(run.status, 'PARTIAL');
     assert.match(run.errorSummary ?? '', /^CLAIMS: /);
     assert(!JSON.stringify(run.metadata).includes('api_key'));
+
+    // The read model serves what the sync stored; 2022 is outside the 730-day window.
+    const read = await getIndicators(db, { days: 730, includeRestricted: false, now: NOW, catalog });
+    assert.deepEqual(read.series.map((s) => [s.fredId, s.latest?.value, s.latest?.period, s.history.length]), [['RATE', 4.5, 'Oct 2026', 3], ['CLAIMS', 225000, 'Sep 2026', 2]]);
+    assert.equal(read.series[0].change?.toFixed(2), '0.10');
 
     // Every series failing fails the run.
     series.RATE = 400;

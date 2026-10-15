@@ -12,6 +12,7 @@ import predictionMarketsRoutes from './prediction-markets.routes.js';
 import districtsRoutes from './districts.routes.js';
 import demographicsRoutes from './demographics.routes.js';
 import outsideSpendingRoutes from './outside-spending.routes.js';
+import indicatorsRoutes from './indicators.routes.js';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { prisma } from '../config/database.js';
 
@@ -31,6 +32,7 @@ router.use('/prediction-markets', predictionMarketsRoutes);
 router.use('/districts', districtsRoutes);
 router.use('/demographics', demographicsRoutes);
 router.use('/outside-spending', outsideSpendingRoutes);
+router.use('/indicators', indicatorsRoutes);
 
 // Static catalog of supported lobbies (for UI legends/filters)
 router.get('/lobbies', (req, res) => candidateController.getLobbyCatalog(req, res));
