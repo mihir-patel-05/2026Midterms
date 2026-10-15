@@ -11,6 +11,8 @@ export const demographicsEnabled = import.meta.env.VITE_FEATURE_DEMOGRAPHICS !==
 export const marketHistoryEnabled = import.meta.env.VITE_FEATURE_MARKET_HISTORY !== "false";
 /** Biggest movers card (Kalshi price changes over 24 hours or 7 days). On unless set to "false". */
 export const moversEnabled = import.meta.env.VITE_FEATURE_MOVERS !== "false";
+/** FRED economic indicators strip under the chamber-control odds. On unless set to "false"; hidden until the backend's FRED sync has run. */
+export const economyEnabled = import.meta.env.VITE_FEATURE_ECONOMY !== "false";
 /** Past results map mode (MIT Election Lab returns). On unless set to "false". */
 export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== "false";
 /** Electoral college and county simulator at /simulator. On unless set to "false"; it runs on the Past results files, so it needs that flag too. */

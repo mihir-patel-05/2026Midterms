@@ -333,6 +333,33 @@
 @keyframes em-tick-up { from { background: hsl(var(--signal-teal) / 0.3); } }
 @keyframes em-tick-down { from { background: hsl(var(--signal-coral) / 0.3); } }
 
+/* FRED economic indicators under the control banner. One row that scrolls sideways
+   rather than wrapping, so the map stays high on the page. Changes are neutral grey:
+   whether a rise is good depends on who is asked, and red and blue mean parties here. */
+.em-econ { margin-bottom: 9px; padding: 9px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; background: hsl(var(--surface) / 0.72); }
+.em-econ-row { display: flex; gap: 7px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: hsl(var(--line)) transparent; padding-bottom: 2px; }
+.em-econ-tile {
+  display: grid; flex: 0 0 auto; align-content: start; gap: 2px; min-width: 124px; padding: 8px 10px; scroll-snap-align: start;
+  border: 1px solid hsl(var(--line-soft)); border-radius: 8px; background: hsl(var(--surface-2) / 0.6); cursor: default;
+}
+.em-econ-tile:hover, .em-econ-tile:focus-visible { border-color: hsl(var(--line)); }
+.em-econ-tile:focus-visible { outline: 2px solid hsl(var(--quiet)); outline-offset: 1px; }
+.em-econ-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: hsl(var(--quiet)); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap; }
+.em-econ-head .em-pill { min-height: 16px; padding: 0 5px; font-size: 0.54rem; }
+.em-econ-figures { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.em-econ-value { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.em-econ-tile[data-missing] .em-econ-value { color: hsl(var(--muted-foreground)); font-size: 0.8rem; font-weight: 600; }
+.em-econ-change { display: inline-flex; align-items: center; gap: 2px; color: hsl(var(--muted-foreground)); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.em-econ-change svg { width: 11px; height: 11px; }
+.em-econ-spark { margin: 2px 0; }
+.em-econ-spark polyline { stroke: hsl(var(--muted-foreground)); }
+.em-econ-spark circle { fill: hsl(var(--foreground)); }
+.em-econ-period { color: hsl(var(--quiet)); font-size: 0.62rem; white-space: nowrap; }
+.em-econ-note { margin: 7px 2px 0; color: hsl(var(--quiet)); font-size: 0.66rem; }
+.em-econ-tip { max-width: 260px; font-size: 0.72rem; line-height: 1.4; }
+.em-econ-tip p { margin: 0; }
+.em-econ-tip p + p { margin-top: 3px; }
+
 @media (max-width: 720px) {
   .em-control-banner { grid-template-columns: minmax(0, 1fr); }
   .em-control-meta { flex-direction: row; align-items: center; justify-content: space-between; }
@@ -503,6 +530,7 @@
 .em-shell[data-map="expanded"] > .em-sidebar,
 .em-shell[data-map="expanded"] .em-canvas-head,
 .em-shell[data-map="expanded"] .em-canvas > .em-control-banner,
+.em-shell[data-map="expanded"] .em-canvas > .em-econ,
 .em-shell[data-map="expanded"] .em-canvas > .em-stats,
 .em-shell[data-map="expanded"] .em-rail { display: none; }
 .em-shell[data-map="expanded"] .em-canvas { display: flex; flex-direction: column; min-height: 0; padding: 0; }
@@ -540,6 +568,9 @@
 .em-map-hud .em-hud-card > .em-note:first-child { margin-top: 0; }
 .em-map-hud .em-control-banner { gap: 7px; }
 .em-map-hud .em-control-note { display: none; }
+.em-map-hud .em-econ { margin: 0; }
+.em-map-hud .em-econ-tile { min-width: 104px; padding: 6px 8px; }
+.em-map-hud .em-econ-value { font-size: 0.86rem; }
 .em-map-hud .em-stats { grid-template-columns: repeat(4, minmax(0, max-content)); gap: 18px; margin: 0; }
 .em-map-hud .em-stat { padding: 0; border: 0; background: none; }
 .em-map-hud .em-stat span { overflow: hidden; font-size: 0.6rem; letter-spacing: 0.05em; text-overflow: ellipsis; white-space: nowrap; }

@@ -11,6 +11,7 @@ import { describeResult, describeShift } from "./pastResults";
 import { usePastResultsView } from "./usePastResultsView";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
+import { EconomyStrip } from "./EconomyStrip";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DemographicsTab } from "./DemographicsTab";
 import { DetailPanel } from "./DetailPanel";
@@ -279,6 +280,7 @@ export function ElectionMonitor() {
             onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
           <ControlOddsBanner />
+          <EconomyStrip />
           <MapCard
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
@@ -301,6 +303,7 @@ export function ElectionMonitor() {
             hud={!pastActive && (
               <>
                 <ControlOddsBanner />
+                <EconomyStrip compact />
                 <StatStrip stats={stats} />
               </>
             )}
