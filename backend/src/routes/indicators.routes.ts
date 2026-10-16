@@ -7,15 +7,22 @@ import { getIndicators, IndicatorsNotLoadedError } from '../services/fred/indica
 const router = Router();
 
 const DAYS_MESSAGE = 'days must be a whole number from 30 to 1825';
+const STATE_MESSAGE = 'state must be a two-letter postal code';
 
 export const indicatorsQuery = z.object({
   days: z.coerce.number({ invalid_type_error: DAYS_MESSAGE }).int(DAYS_MESSAGE).min(30, DAYS_MESSAGE).max(1825, DAYS_MESSAGE).default(730),
+  state: z.preprocess(
+    (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+    z.string({ invalid_type_error: STATE_MESSAGE }).regex(/^[A-Z]{2}$/, STATE_MESSAGE),
+  ).optional(),
 });
 
 /**
- * GET /api/indicators?days=730
+ * GET /api/indicators?days=730&state=CA
  * FRED economic indicators for the monitor's economy strip: each series' latest
- * value, change, staleness, source, and history. Context only, never a forecast.
+ * value, change, staleness, source, and history. With `state`, also that state's
+ * series (`supported: false` for a code FRED has none for). Context only, never
+ * a forecast.
  */
 router.get('/', async (req, res) => {
   if (!env.ECON_INDICATORS_ENABLED) {
@@ -29,7 +36,8 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const data = await getIndicators(prisma, { days: parsed.data.days, includeRestricted: env.FRED_RESTRICTED_SERIES_ENABLED });
+    const { days, state } = parsed.data;
+    const data = await getIndicators(prisma, { days, state, includeRestricted: env.FRED_RESTRICTED_SERIES_ENABLED });
     // Syncs run twice a day; 15 minutes keeps a fresh run visible soon after it lands.
     res.set('Cache-Control', 'public, max-age=900');
     res.json({ data });
