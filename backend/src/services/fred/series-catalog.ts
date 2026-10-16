@@ -6,18 +6,21 @@
  * fetched pre-computed, so a revised level revises its change too.
  */
 import type { IndicatorFrequency } from '@prisma/client';
+import { STATE_FIPS_TO_POSTAL } from '../census/census-client.js';
 
 export const FRED_SOURCE_KEY = 'fred';
 
 /** Bump when the catalog or the stored shape changes; recorded as the IngestionRun parser version. */
-export const FRED_CATALOG_VERSION = 'fred-indicators-v1';
+export const FRED_CATALOG_VERSION = 'fred-indicators-v2';
 
 /**
  * - `level`: the value as published.
  * - `yoy`: percent change from the observation a year earlier.
  * - `mom_change`: difference from the previous observation (payrolls).
+ * - `qoq_annualized`: percent change from the prior quarter at an annual rate
+ *   (state real GDP, which FRED publishes only as a level).
  */
-export type IndicatorTransform = 'level' | 'yoy' | 'mom_change';
+export type IndicatorTransform = 'level' | 'yoy' | 'mom_change' | 'qoq_annualized';
 
 export interface FredSeriesDef {
   fredId: string;
@@ -34,6 +37,10 @@ export interface FredSeriesDef {
    * but only served when FRED_RESTRICTED_SERIES_ENABLED is on.
    */
   restricted: boolean;
+  /** Postal code for a state series; null for a national one. */
+  stateCode: string | null;
+  /** Overrides STALE_AFTER_DAYS for this series' frequency. */
+  staleAfterDays?: number;
 }
 
 const series = (
@@ -44,9 +51,9 @@ const series = (
   originalSource: string,
   transform: IndicatorTransform = 'level',
   restricted = false,
-): FredSeriesDef => ({ fredId, key: `fred.${fredId}`, name, unit, frequency, originalSource, transform, restricted });
+): FredSeriesDef => ({ fredId, key: `fred.${fredId}`, name, unit, frequency, originalSource, transform, restricted, stateCode: null });
 
-export const FRED_SERIES: readonly FredSeriesDef[] = [
+export const FRED_NATIONAL_SERIES: readonly FredSeriesDef[] = [
   series('A191RL1Q225SBEA', 'Real GDP growth', 'Percent, annualized', 'QUARTERLY', 'BEA'),
   series('GDPNOW', 'GDPNow estimate', 'Percent, annualized', 'QUARTERLY', 'Atlanta Fed'),
   series('DCOILWTICO', 'WTI crude oil', 'Dollars per barrel', 'DAILY', 'EIA'),
@@ -67,9 +74,47 @@ export const FRED_SERIES: readonly FredSeriesDef[] = [
   series('T10Y2Y', '10-year minus 2-year Treasury', 'Percentage points', 'DAILY', 'Federal Reserve H.15'),
   series('A229RX0', 'Real disposable income per person', 'Chained 2017 dollars', 'MONTHLY', 'BEA', 'yoy'),
   series('UMCSENT', 'Consumer sentiment', 'Index 1966:Q1=100', 'MONTHLY', 'University of Michigan'),
+  // The U.S. line for the state home price tiles; its own tile too.
+  series('USSTHPI', 'House price index, U.S.', 'Index 1980:Q1=100', 'QUARTERLY', 'FHFA', 'yoy'),
   series('SP500', 'S&P 500', 'Index', 'DAILY', 'S&P Dow Jones Indices', 'level', true),
   series('VIXCLS', 'Cboe Volatility Index (VIX)', 'Index', 'DAILY', 'Cboe', 'level', true),
 ];
+
+/** The 50 states and DC. FRED has none of these series for Puerto Rico. */
+export const FRED_STATE_CODES: readonly string[] = Object.values(STATE_FIPS_TO_POSTAL).filter((code) => code !== 'PR');
+
+/** FRED IDs are the postal code followed by `suffix`, e.g. CAUR. */
+const STATE_TEMPLATES: ReadonlyArray<Omit<FredSeriesDef, 'fredId' | 'key' | 'name' | 'restricted' | 'stateCode'> & { suffix: string; name: string }> = [
+  { suffix: 'UR', name: 'Unemployment rate', unit: 'Percent', frequency: 'MONTHLY', originalSource: 'BLS', transform: 'level' },
+  { suffix: 'NA', name: 'Nonfarm payrolls', unit: 'Thousands of persons', frequency: 'MONTHLY', originalSource: 'BLS', transform: 'mom_change' },
+  // State claims come out a week after the national figure and are not seasonally
+  // adjusted; 14 days would show them "Stale" every Wednesday.
+  { suffix: 'ICLAIMS', name: 'Initial jobless claims, not seasonally adjusted', unit: 'Number', frequency: 'WEEKLY', originalSource: 'Department of Labor', transform: 'level', staleAfterDays: 21 },
+  { suffix: 'RQGSP', name: 'Real GDP', unit: 'Millions of chained 2017 dollars', frequency: 'QUARTERLY', originalSource: 'BEA', transform: 'qoq_annualized' },
+  { suffix: 'STHPI', name: 'House price index', unit: 'Index 1980:Q1=100', frequency: 'QUARTERLY', originalSource: 'FHFA', transform: 'yoy' },
+];
+
+export const FRED_STATE_SERIES: readonly FredSeriesDef[] = FRED_STATE_CODES.flatMap((stateCode) =>
+  STATE_TEMPLATES.map(({ suffix, name, ...template }): FredSeriesDef => ({
+    ...template,
+    fredId: `${stateCode}${suffix}`,
+    key: `fred.${stateCode}${suffix}`,
+    name: `${name}, ${stateCode}`,
+    restricted: false,
+    stateCode,
+  })));
+
+/** Everything the sync loads. */
+export const FRED_SERIES: readonly FredSeriesDef[] = [...FRED_NATIONAL_SERIES, ...FRED_STATE_SERIES];
+
+/** A state's series in `catalog`, or none for a code FRED has no state series for (PR). */
+export function stateSeries(code: string, catalog: readonly FredSeriesDef[] = FRED_STATE_SERIES): FredSeriesDef[] {
+  return catalog.filter((def) => def.stateCode === code);
+}
+
+export function nationalSeries(catalog: readonly FredSeriesDef[] = FRED_SERIES): FredSeriesDef[] {
+  return catalog.filter((def) => def.stateCode === null);
+}
 
 export function seriesByKey(catalog: readonly FredSeriesDef[] = FRED_SERIES): Map<string, FredSeriesDef> {
   return new Map(catalog.map((def) => [def.key, def]));

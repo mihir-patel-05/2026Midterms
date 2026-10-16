@@ -4,7 +4,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { buildIndicator, servedSeries, type IndicatorView } from './indicator-math.js';
-import { FRED_SERIES, FRED_SOURCE_KEY, type FredSeriesDef } from './series-catalog.js';
+import { FRED_SERIES, FRED_SOURCE_KEY, nationalSeries, type FredSeriesDef } from './series-catalog.js';
 
 /** Extra history read before the window so the first shown point has a year-over-year change. */
 const LOOKBACK_DAYS = 400;
@@ -29,7 +29,7 @@ export async function getIndicators(
   options: { days: number; includeRestricted: boolean; now?: Date; catalog?: readonly FredSeriesDef[] },
 ): Promise<IndicatorsResponse> {
   const { days, includeRestricted, now = new Date(), catalog = FRED_SERIES } = options;
-  const defs = servedSeries(catalog, includeRestricted);
+  const defs = servedSeries(nationalSeries(catalog), includeRestricted);
   const since = new Date(now.getTime() - days * DAY_MS);
   const readFrom = new Date(since.getTime() - LOOKBACK_DAYS * DAY_MS);
 

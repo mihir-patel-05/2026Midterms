@@ -3,7 +3,8 @@
  * Load FRED economic indicators. See src/services/fred/.
  *
  * Needs egress to api.stlouisfed.org, a reachable DATABASE_URL, and FRED_API_KEY.
- * A run makes one request per series (about 20).
+ * A run makes one request per series: about 22 national and 255 state series,
+ * paced to about 100 a minute, so a run takes about 4 minutes.
  *
  * Usage:
  *   npm run sync:fred

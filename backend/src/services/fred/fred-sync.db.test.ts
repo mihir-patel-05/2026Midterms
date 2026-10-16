@@ -22,6 +22,7 @@ const catalog: FredSeriesDef[] = ['RATE', 'CLAIMS'].map((fredId) => ({
   originalSource: 'Test agency',
   transform: 'level',
   restricted: false,
+  stateCode: null,
 }));
 
 const values = async (db: PrismaClient, key: string) => {

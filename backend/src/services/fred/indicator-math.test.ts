@@ -6,13 +6,14 @@ import {
   periodEnd,
   periodLabel,
   priorChange,
+  qoqAnnualized,
   servedSeries,
   sourceLine,
   weeklyReduce,
   yoyPercent,
   type Point,
 } from './indicator-math.js';
-import { FRED_SERIES, seriesByKey } from './series-catalog.js';
+import { FRED_SERIES, seriesByKey, stateSeries } from './series-catalog.js';
 
 const at = (iso: string) => new Date(`${iso}T15:00:00Z`);
 
@@ -38,6 +39,38 @@ test('staleness counts from the end of the period, so normal release lags are no
   assert.equal(isStale('2026-10-03', 'WEEKLY', at('2026-10-15')), false);
   assert.equal(isStale('2026-09-28', 'WEEKLY', at('2026-10-15')), true);
   assert.equal(isStale('2026-01-01', 'QUARTERLY', at('2026-10-15')), true);
+});
+
+test('a series can allow longer than its frequency before it counts as stale', () => {
+  // State claims for the week ending Sep 26, the Wednesday before the week ending Oct 3 is published.
+  assert.equal(isStale('2026-09-26', 'WEEKLY', at('2026-10-14')), true);
+  assert.equal(isStale('2026-09-26', 'WEEKLY', at('2026-10-14'), 21), false);
+  assert.equal(isStale('2026-09-19', 'WEEKLY', at('2026-10-14'), 21), true);
+
+  const claims = stateSeries('CA').find((def) => def.fredId === 'CAICLAIMS')!;
+  const view = buildIndicator(claims, [{ date: '2026-09-26', value: 41_000 }], { since: '2026-01-01', now: at('2026-10-14'), fetchedAt: null });
+  assert.equal(view.stale, false);
+  assert.equal(view.stateCode, 'CA');
+});
+
+test('quarterly growth is annualized from the prior quarter, or none when a quarter is missing', () => {
+  const gdp: Point[] = [
+    { date: '2025-10-01', value: 1000 },
+    { date: '2026-01-01', value: 1010 },
+    // Q2 2026 is missing.
+    { date: '2026-07-01', value: 1030 },
+  ];
+  // (1010 / 1000)^4 - 1 = 4.06%.
+  assert.equal(qoqAnnualized(gdp, 1)?.toFixed(2), '4.06');
+  assert.equal(qoqAnnualized(gdp, 2), null);
+  assert.equal(qoqAnnualized(gdp, 0), null);
+  // The prior quarter across a year boundary.
+  assert.equal(qoqAnnualized([{ date: '2025-10-01', value: 100 }, { date: '2026-01-01', value: 99 }], 1)?.toFixed(2), '-3.94');
+
+  const def = stateSeries('NY').find((series) => series.transform === 'qoq_annualized')!;
+  const view = buildIndicator(def, gdp, { since: '2025-01-01', now: at('2026-10-15'), fetchedAt: null });
+  assert.equal(view.change, null);
+  assert.deepEqual(view.changeHistory?.map(([date, value]) => [date, value.toFixed(2)]), [['2026-01-01', '4.06']]);
 });
 
 test('year-over-year change uses the observation a year earlier, or none', () => {

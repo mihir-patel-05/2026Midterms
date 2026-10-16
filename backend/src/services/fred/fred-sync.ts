@@ -22,6 +22,8 @@ const REFETCH_DAYS = 400;
 const INSERT_BATCH = 1000;
 const UPDATE_BATCH = 250;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COVERAGE = 'National economic indicators (GDP, oil, gasoline, inflation, jobs, interest rates, Treasury yields, real income, '
+  + 'consumer sentiment, and home prices), and for the 50 states and DC: unemployment, payrolls, jobless claims, real GDP, and home prices.';
 
 export interface FredSeriesStats {
   fredId: string;
@@ -62,12 +64,13 @@ export async function syncFred(db: PrismaClient, client: FredClient, options: Fr
       attributionText: 'Economic data via FRED (Federal Reserve Bank of St. Louis). Each series is published by its original source.',
       licenseName: 'FRED terms of use; the original source\'s terms apply to each series',
       licenseUrl: 'https://fred.stlouisfed.org/legal/',
-      coverageDescription: 'National economic indicators: GDP, oil, gasoline, inflation, jobs, interest rates, Treasury yields, real income, and consumer sentiment.',
+      coverageDescription: COVERAGE,
       expectedCadenceSeconds: 12 * 60 * 60,
       isEnabled: true,
     },
   });
-  const source = await db.dataSource.update({ where: { key: sourceKey }, data: { lastCheckedAt: now } });
+  // The coverage text is set here too, so a source created by an older catalog picks up the new one.
+  const source = await db.dataSource.update({ where: { key: sourceKey }, data: { lastCheckedAt: now, coverageDescription: COVERAGE } });
   const run = await db.ingestionRun.create({
     data: {
       sourceId: source.id,

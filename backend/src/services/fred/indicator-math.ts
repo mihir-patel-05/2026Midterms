@@ -44,8 +44,8 @@ export function periodEnd(date: string, frequency: IndicatorFrequency): Date {
   }
 }
 
-export function isStale(latestDate: string, frequency: IndicatorFrequency, now: Date): boolean {
-  return now.getTime() - periodEnd(latestDate, frequency).getTime() > STALE_AFTER_DAYS[frequency] * DAY_MS;
+export function isStale(latestDate: string, frequency: IndicatorFrequency, now: Date, staleAfterDays = STALE_AFTER_DAYS[frequency]): boolean {
+  return now.getTime() - periodEnd(latestDate, frequency).getTime() > staleAfterDays * DAY_MS;
 }
 
 /** The observation nearest to one year before `points[index]`, within tolerance. */
@@ -79,12 +79,32 @@ export function priorChange(points: Point[], index: number): number | null {
 }
 
 /**
+ * Percent change from the prior quarter at an annual rate, as BEA reports GDP
+ * growth. Null unless the previous observation is exactly the prior quarter, so
+ * a missing quarter never shows as a half-year compressed into one.
+ */
+export function qoqAnnualized(points: Point[], index: number): number | null {
+  if (index <= 0) return null;
+  const current = toDate(points[index].date);
+  const prior = points[index - 1];
+  const expected = toIso(new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 3, 1)));
+  if (prior.date !== expected || prior.value <= 0 || points[index].value <= 0) return null;
+  return ((points[index].value / prior.value) ** 4 - 1) * 100;
+}
+
+/**
  * The change shown for a series. `yoy` series show the percent change from a
- * year ago; `level` and `mom_change` series show the difference from the
- * previous observation.
+ * year ago; `qoq_annualized` series the annualized change from the prior
+ * quarter; `level` and `mom_change` series the difference from the previous
+ * observation.
  */
 export function changeAt(points: Point[], index: number, def: Pick<FredSeriesDef, 'transform' | 'frequency'>): number | null {
-  return def.transform === 'yoy' ? yoyPercent(points, index, def.frequency) : priorChange(points, index);
+  switch (def.transform) {
+    case 'yoy': return yoyPercent(points, index, def.frequency);
+    case 'qoq_annualized': return qoqAnnualized(points, index);
+    case 'level':
+    case 'mom_change': return priorChange(points, index);
+  }
 }
 
 /** The Monday of the ISO week containing `date`. */
@@ -134,6 +154,8 @@ export interface IndicatorView {
   frequency: IndicatorFrequency;
   transform: IndicatorTransform;
   originalSource: string;
+  /** Postal code for a state series; null for a national one. */
+  stateCode: string | null;
   latest: { date: string; value: number; period: string } | null;
   /** See `changeAt`. Null when the observation it needs is missing. */
   change: number | null;
@@ -142,7 +164,7 @@ export interface IndicatorView {
   sourceLine: string | null;
   /** Stored levels; daily series reduced to one value per week. */
   history: Array<[date: string, value: number]>;
-  /** `changeAt` for each history point, for yoy and mom_change series; null for level series. */
+  /** `changeAt` for each history point; null for level series. */
   changeHistory: Array<[date: string, value: number]> | null;
 }
 
@@ -174,9 +196,10 @@ export function buildIndicator(
     frequency: def.frequency,
     transform: def.transform,
     originalSource: def.originalSource,
+    stateCode: def.stateCode,
     latest: latest ? { date: latest.date, value: latest.value, period: periodLabel(latest.date, def.frequency) } : null,
     change: latest ? changeAt(points, last, def) : null,
-    stale: latest ? isStale(latest.date, def.frequency, options.now) : true,
+    stale: latest ? isStale(latest.date, def.frequency, options.now, def.staleAfterDays) : true,
     fetchedAt: options.fetchedAt?.toISOString() ?? null,
     sourceLine: options.fetchedAt ? sourceLine(def.originalSource, options.fetchedAt) : null,
     history,

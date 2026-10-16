@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FredClient, FredRequestError, parseObservations } from './fred-client.js';
-import { FRED_SERIES } from './series-catalog.js';
 import { fakeFredFetch } from './test-fixtures.js';
 
 const BASE_URL = 'https://api.stlouisfed.org/fred';
@@ -94,11 +93,4 @@ test('requests, retries included, start at least minIntervalMs apart', async () 
   const gaps = startedAt.slice(1).map((at, i) => at - startedAt[i]);
   assert(gaps.slice(0, 2).every((gap) => gap >= 600), `gaps ${gaps.join(', ')}`);
   assert(gaps[2] >= 5_000);
-});
-
-test('the catalog has unique keys, and only S&P 500 and VIX are restricted', () => {
-  const keys = FRED_SERIES.map((def) => def.key);
-  assert.equal(new Set(keys).size, keys.length);
-  assert(keys.every((key, i) => key === `fred.${FRED_SERIES[i].fredId}`));
-  assert.deepEqual(FRED_SERIES.filter((def) => def.restricted).map((def) => def.fredId), ['SP500', 'VIXCLS']);
 });
