@@ -75,6 +75,11 @@ Differentiators:
   - **API:** `GET /api/indicators?days=730`, cached for 15 minutes.
   - **Restricted:** S&P 500 and VIX are stored but not served.
   - **Flags:** `ECON_INDICATORS_ENABLED` and `FRED_RESTRICTED_SERIES_ENABLED` (backend), and `VITE_FEATURE_ECONOMY` (frontend).
+- State economic indicators and history charts (Oct 16, section 4.11): picking a state narrows the economy strip to that state, and every tile opens a history chart.
+  - **Data:** 5 series for each of the 50 states and DC (255 in all: unemployment, payrolls, jobless claims, real GDP, home prices), plus `USSTHPI` nationally. Requests are paced to about 100 a minute, so a sync takes about 4 minutes.
+  - **API:** `GET /api/indicators?state=CA` adds that state's series; `supported: false` for Puerto Rico.
+  - **Strip:** with a state selected, 5 state tiles replace the national ones and the U.S.-only tiles are hidden; the U.S. figure is in each tooltip.
+  - **Dialog:** 1Y / 2Y / 5Y history, with the U.S. on the same axis (rates, growth, home prices) or on a second chart (jobs, claims).
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -552,7 +557,7 @@ Computed straight from the simulator's totals (`simulateHouse` and `simulateSena
 
 A strip of tiles directly under the Kalshi House and Senate control banner on the monitor. It shows the economy next to the chamber-control odds, as context. It is **never presented as a forecast or as an explanation of why the odds moved.** No migration is needed: the series go into `indicator_series` and `indicator_observations` (batch 1), and the `(series_id, observed_at)` unique key lets revised values overwrite old ones in place.
 
-**Series (21)**
+**National series (22)**
 
 | Tile | FRED IDs | Frequency | Shown as | Original source |
 |---|---|---|---|---|
@@ -570,16 +575,32 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | Treasuries | `DGS10`, `DGS2`, `T10Y2Y` | Daily | The 10-year yield; the 2-year yield and the 10-year minus 2-year gap in the tooltip | Treasury, through the Fed's H.15 |
 | Real income per person | `A229RX0` | Monthly | Change from a year ago | BEA |
 | Consumer sentiment | `UMCSENT` | Monthly | Index (FRED shows it about a month late) | University of Michigan |
+| Home prices | `USSTHPI` | Quarterly | Change from a year ago (all-transactions index) | FHFA |
 | *Restricted* | `SP500`, `VIXCLS` | Daily | Ingested but **not served** until the licensing is cleared (see below) | S&P Dow Jones Indices, Cboe |
 
 - **S&P 500 and VIX.** FRED's copies carry notices from S&P Dow Jones Indices and Cboe that bar reproduction without permission. Like AAA gas prices (section 4.8), we do not publish them until the terms are read or permission is granted. They stay hidden behind `FRED_RESTRICTED_SERIES_ENABLED`, which is off by default.
+**State series (5 for each of the 50 states and DC, 255 in all; added Oct 16)**
+
+`{ST}` is the postal code. The list is `STATE_FIPS_TO_POSTAL` from the Census client minus Puerto Rico, which FRED has none of these series for. They are ordinary `indicator_series` rows (`fred.CAUR` and so on), so there is still no migration.
+
+| Tile | State series | U.S. counterpart | Shown as | Original source |
+|---|---|---|---|---|
+| Unemployment | `{ST}UR`, monthly | `UNRATE` | % | BLS (LAUS) |
+| Jobs added | `{ST}NA`, monthly, thousands | `PAYEMS` | Change from the previous month | BLS (CES) |
+| Jobless claims | `{ST}ICLAIMS`, weekly, **not seasonally adjusted** | `ICSA` | Count | Department of Labor |
+| GDP growth | `{ST}RQGSP`, quarterly real GDP level | `A191RL1Q225SBEA` | Annualized % from the prior quarter, computed in code (`qoq_annualized`) | BEA |
+| Home prices | `{ST}STHPI`, quarterly | `USSTHPI` | Change from a year ago | FHFA |
+
+- **`qoq_annualized`.** `((v / prev)^4 − 1) × 100`, null unless the previous row is exactly the prior quarter, so a missing quarter never shows as two quarters of growth.
+- **State claims staleness.** State claims come out a week after the national figure, so they allow 21 days (`staleAfterDays` on the series) instead of the weekly 14; otherwise they would show "Stale" every Wednesday.
+
 - **National gas.** `GASREGW` is FRED's copy of EIA's U.S. regular series (`EMM_EPMR_PTE_NUS_DPG`), so it needs no second key before the freeze. When the EIA feed for section 4.8 lands, the U.S. gas figure must come from one source only: either 4.8 reads this series or it replaces it.
 
 **Backend** (`backend/src/services/fred/`, modeled on `services/census/`)
 
-1. **Catalog** (`series-catalog.ts`). The table above as data, with each series' key (`fred.<ID>`), unit, frequency, original source, transform (`level`, `yoy`, or `mom_change`), and a `restricted` flag. `FRED_CATALOG_VERSION` is used as the `IngestionRun` parser version.
-2. **Client** (`fred-client.ts`). `FredClient` calls `/series/observations?file_type=json`, shaped like `CensusClient`. FRED's `"."` value means missing, so it becomes no row, never 0. `redactedUrl()` removes `api_key` so the key is never logged or stored. Requests run one at a time, about 20 per run, well under FRED's 120 per minute.
-3. **Sync** (`fred-sync.ts`). Follows `syncAcs`: insert the `DataSource` (key `fred`, authority "Federal Reserve Bank of St. Louis"), open an `IngestionRun`, and upsert each `IndicatorSeries`.
+1. **Catalog** (`series-catalog.ts`). The tables above as data, with each series' key (`fred.<ID>`), unit, frequency, original source, transform (`level`, `yoy`, `mom_change`, or `qoq_annualized`), a `restricted` flag, its `stateCode` (null for national series), and an optional `staleAfterDays`. The state series are built from 5 templates; `stateSeries(code)` returns one state's. `FRED_CATALOG_VERSION` (`fred-indicators-v2`) is used as the `IngestionRun` parser version.
+2. **Client** (`fred-client.ts`). `FredClient` calls `/series/observations?file_type=json`, shaped like `CensusClient`. FRED's `"."` value means missing, so it becomes no row, never 0. `redactedUrl()` removes `api_key` so the key is never logged or stored. A run makes about 277 requests (22 national, 255 state), so requests, retries included, start at least `minIntervalMs` apart (600 ms, about 100 a minute) to stay under FRED's 120 per minute. A run takes about 4 minutes, well inside the 30-minute lease.
+3. **Sync** (`fred-sync.ts`). Follows `syncAcs`: insert the `DataSource` (key `fred`, authority "Federal Reserve Bank of St. Louis"), open an `IngestionRun`, and upsert each `IndicatorSeries`. Every run also rewrites the source's coverage text, so a source created by an older catalog picks up the new one.
    - **Window:** a series with no rows backfills 5 years. Later runs re-fetch the last 400 days, which catches revisions to GDP and payrolls and the annual CPI seasonal-factor update.
    - **Writes:** insert new rows and update only rows whose value changed, with a new `fetched_at`.
    - **Window detail:** FRED can return the observation for the period containing the start date (Sep 1 for a monthly series asked from Sep 10), so stored rows are compared from the earliest date returned.
@@ -587,22 +608,31 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
    - **No `RawArtifact` yet.** Its storage is still the local filesystem, which a Railway redeploy wipes. The ACS sync skips it too. The source URL, without the key, goes in the run's metadata. Revisit once the Railway Bucket (section 5.3) exists.
 4. **Runner and CLI.** `run-fred-sync.ts` holds the `fred` `SyncLease` (30 minutes), like the Schedule E runner. `npm run sync:fred` runs it by hand. It exits non-zero if the run failed or if no shown series has data. A healthy re-run inserts almost nothing, so the number of rows written is not the test. The future `cron-econ` Railway service runs `node dist/scripts/sync-fred.js`.
 5. **Schedule.** In `jobs/scheduler.ts`, at 9:15 and 18:15 ET daily. The morning run is after the 8:30 BLS and BEA releases; the evening run is after the afternoon updates for rates, oil, and mortgages. It is scheduled only when `FRED_API_KEY` is set and `ECON_INDICATORS_ENABLED` is on.
-6. **Read service and API.** `GET /api/indicators?days=730`. For each series it returns:
+6. **Read service and API.** `GET /api/indicators?days=730&state=CA`. For each national series it returns:
    - the latest value and its period ("Aug 2026", "Q2 2026", "Week ending Oct 10"). FRED dates weekly values to the *last* day of the week: Saturday for claims, Monday for gas, Thursday for mortgages.
    - the change for its transform, computed in code from stored levels. A year-over-year change is null if the observation from a year earlier is missing.
-   - a stale flag, measured from the **end** of the latest period rather than its FRED date. FRED dates monthly and quarterly values to the period's first day, so counting from that date would flag September CPI (dated Sep 1, published Oct 15) as stale. The limits are 7 days (daily), 14 (weekly), 75 (monthly) and 150 (quarterly). Monthly is 75 rather than 60 because FRED shows consumer sentiment about a month late.
+   - a stale flag, measured from the **end** of the latest period rather than its FRED date. FRED dates monthly and quarterly values to the period's first day, so counting from that date would flag September CPI (dated Sep 1, published Oct 15) as stale. The limits are 7 days (daily), 14 (weekly), 75 (monthly) and 150 (quarterly), unless the series sets `staleAfterDays`. Monthly is 75 rather than 60 because FRED shows consumer sentiment about a month late.
    - 2 years of history, with daily series reduced to one value per week
    - a source line, e.g. "BLS via FRED, fetched Oct 15"
    
-   - `change`: year over year for `yoy` series; for the rest, the difference from the previous observation. `changeHistory` gives the same change for each point, so the inflation and real-income charts plot the rate rather than the index.
+   - `change`: year over year for `yoy` series; annualized from the prior quarter for `qoq_annualized`; for the rest, the difference from the previous observation. `changeHistory` gives the same change for each point, so the inflation and real-income charts plot the rate rather than the index.
 
-   It answers `404 NOT_LOADED` before the first sync, and 404 when the flag is off. The response is cached for 15 minutes (`Cache-Control: max-age=900`; there is no shared cache helper).
+   `state` is optional: two letters, uppercased before it is checked; anything else is a 400. With it, the response adds `state: { code, supported, series }`, read in the same query as the national series. `supported` is false for a well-formed code FRED has no series for (Puerto Rico); the monitor never asks for its fictional state. Without it, `state` is null.
+
+   It answers `404 NOT_LOADED` before the first sync (judged on the national rows only), and 404 when the flag is off. The response is cached for 15 minutes (`Cache-Control: max-age=900`; there is no shared cache helper).
 
 **Frontend** (`CODE/src/features/election-monitor/`)
 
-- **`EconomyStrip.tsx`**, placed under each `ControlOddsBanner`. In the expanded map's overlay it is compact, with no charts or footer. Data comes from `useEconIndicators()` in `economy.ts`, whose `buildTiles()` turns the series into 13 tiles.
+- **`EconomyStrip.tsx`**, placed under each `ControlOddsBanner`. In the expanded map's overlay it is compact, with no charts or footer. Data comes from `useEconIndicators(days, stateCode)` in `economy.ts`, whose `buildTiles()` turns the series into 14 tiles.
   - Each tile shows a label, value, change, small chart, and period.
   - The row scrolls sideways at every width rather than wrapping, so the map stays high on the page.
+  - **With a state selected**, the strip asks for `?state=` and shows that state's 5 tiles (GDP growth, unemployment, jobs, claims, home prices). The tiles FRED only has for the U.S. are **hidden**. The row is labelled with the state, each tooltip carries the U.S. figure ("U.S.: 4.3%, Sep 2026"), and the footer names the state sources and notes that state claims are not seasonally adjusted. A state FRED has no series for keeps the national strip, and the previous tiles stay up while another state loads.
+  - Small state counts keep one decimal under 10K ("+0.4K", not "+0K"); claims under 1,000 show the plain number.
+- **`IndicatorHistoryDialog.tsx`**. Each tile is a button (click, Enter, or Space) that opens a history chart in a dialog, in the compact overlay too.
+  - It fetches the 5-year backfill (`days=1825`) and cuts 1Y / 2Y / 5Y ranges from it on the client. The header shows the label, scope (state or "United States"), latest value, period, change, and the stale pill; the footer gives the source line(s) and the "context, not a forecast" note.
+  - With a state selected, the U.S. is compared on **one axis** for unemployment, GDP growth, and home prices, with a legend. Jobs and claims, whose sizes are not comparable, get a **state chart and a U.S. chart**, each on its own axis. Never two y-scales on one chart.
+  - Neutral inks only: the state line is the foreground colour, the U.S. line muted and dashed. Lines break at missing periods (`indicatorGaps.ts`, shared with the sparkline). A collapsed data table gives the values as text, and focus returns to the tile on close.
+  - Recharts loads with the first dialog opened, not with the monitor.
 - **`IndicatorSparkline.tsx`**, a new small chart that reuses `sparkline.css`. The existing `Sparkline` is built for hourly prices on a 0–100% scale, and we leave the shipped market history alone before the freeze.
 - **Neutral changes.** Arrows and chips use neutral colors, never red for bad and green for good. Whether rising rates or falling oil is good depends on who is asked.
 - **States.** Missing shows "Not available"; stale shows an amber "Stale" pill.
@@ -613,7 +643,10 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 - the client: parsing, missing values, and the key removed from URLs
 - the indicator math: year-over-year, monthly change, staleness, weekly reduction, and restricted series left out
 - a database test of the sync: backfill, incremental run, a revised value, and a partial failure. It uses test-only `fred-test.*` keys and is skipped without `TEST_DATABASE_URL`.
-- the route's query checking
+- the route's query checking, including `state`
+- the catalog: 51 × 5 state series, unique keys and IDs, none for Puerto Rico
+- `qoq_annualized` (including a skipped quarter) and the stale override
+- the read model's state block, `supported: false`, and NOT_LOADED judged on national rows
 
 **Commits (shipped Oct 15).** Each passes typecheck and build on its own:
 1. client and catalog
@@ -623,13 +656,24 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 5. the monitor strip
 6. this plan
 
-The frontend has Vitest tests for `buildTiles()` in `economy.test.ts`.
+**Commits for the state series and history charts (shipped Oct 16).** Each passes typecheck, tests, and build on its own:
+1. pace FRED requests under the 120/min limit
+2. state series, `qoq_annualized`, and the claims stale override
+3. `?state=` on the API
+4. the strip follows the selected state
+5. the history chart dialog
+6. this plan
+
+The frontend has Vitest tests for `buildTiles()` (national and state tiles, the fallback for unsupported states, the small-number formats) in `economy.test.ts`, and for the chart helpers in `indicatorGaps.test.ts` and `indicatorHistory.test.ts`.
 
 **Verify.**
 - Run `npm run sync:fred` against the dev database, then run it again and confirm the second run changes almost nothing.
 - Spot-check `UNRATE`, year-over-year CPI, and `DGS10` against fred.stlouisfed.org.
 - Confirm `SP500` and `VIXCLS` are absent from `/api/indicators` unless their flag is on.
 - Check the strip at desktop and phone widths.
+- After the state series land, run `npm run sync:fred` with `FRED_API_KEY` set: it should end `SUCCEEDED` with zero failed series (a wrong ID would leave the source `DEGRADED` every run). Spot-check `CAUR`, `TXNA` month over month, `NYRQGSP` annualized growth, and `FLSTHPI` year over year against fred.stlouisfed.org.
+- `curl '/api/indicators?state=CA'`, then `?state=PR` (`supported: false`), then `?state=ZZZ` (400).
+- Pick a state: 5 state tiles appear and the U.S.-only tiles disappear; clear it and all 14 national tiles return. Open a tile: ranges switch, the overlay or stacked chart appears, gaps render, and the keyboard opens and closes it.
 
 **Timing.** Small, free, and needs no migration, so it ships before the Oct 24 feature freeze.
 
