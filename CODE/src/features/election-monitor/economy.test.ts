@@ -9,6 +9,7 @@ const series = (fredId: string, patch: Partial<IndicatorSeries>): IndicatorSerie
   frequency: "MONTHLY",
   transform: "level",
   originalSource: "BLS",
+  stateCode: null,
   latest: null,
   change: null,
   stale: false,
@@ -19,7 +20,7 @@ const series = (fredId: string, patch: Partial<IndicatorSeries>): IndicatorSerie
   ...patch,
 });
 
-const data = (list: IndicatorSeries[]): IndicatorsData => ({ asOf: "2026-10-15T14:00:00Z", days: 730, attribution: "", series: list });
+const data = (list: IndicatorSeries[], state: IndicatorsData["state"] = null): IndicatorsData => ({ asOf: "2026-10-15T14:00:00Z", days: 730, attribution: "", series: list, state });
 const tile = (list: IndicatorSeries[], id: string) => buildTiles(data(list)).find((item) => item.id === id)!;
 
 describe("number formats", () => {
@@ -31,7 +32,19 @@ describe("number formats", () => {
     expect(fmt.signedDollars(1.05)).toBe("+$1.05");
     expect(fmt.thousands(199_000)).toBe("199K");
     expect(fmt.signedThousands(29, true)).toBe("+29K");
-    expect(fmt.signedThousands(-1_400)).toBe("−1K");
+    expect(fmt.signedThousands(-1_400)).toBe("−1.4K");
+  });
+
+  it("keeps small state counts readable", () => {
+    expect(fmt.signedThousands(0.4, true)).toBe("+0.4K");
+    expect(fmt.signedThousands(-0.04, true)).toBe("0.0K");
+    expect(fmt.signedThousands(9.96, true)).toBe("+10K");
+    expect(fmt.signedThousands(-312)).toBe("−0.3K");
+    expect(fmt.signedThousands(12_400)).toBe("+12K");
+    expect(fmt.count(812)).toBe("812");
+    expect(fmt.count(999.6)).toBe("1.0K");
+    expect(fmt.count(4_380)).toBe("4.4K");
+    expect(fmt.count(41_200)).toBe("41K");
   });
 });
 
@@ -81,5 +94,58 @@ describe("economy tiles", () => {
     const tiles = buildTiles(data([sentiment]));
     expect(tiles.find((item) => item.id === "sentiment")).toMatchObject({ value: "51.7", stale: true, change: { text: "−3.5", direction: "down" } });
     expect(tiles.find((item) => item.id === "unemployment")).toMatchObject({ value: "Not available", missing: true, stale: false, change: null, spark: null });
+  });
+});
+
+describe("state tiles", () => {
+  const usRate = series("UNRATE", {
+    latest: { date: "2026-09-01", value: 4.3, period: "Sep 2026" },
+    change: 0.1,
+    history: [["2026-08-01", 4.2], ["2026-09-01", 4.3]],
+  });
+  const usPayrolls = series("PAYEMS", {
+    transform: "mom_change",
+    latest: { date: "2026-09-01", value: 159_044, period: "Sep 2026" },
+    change: 29,
+    changeHistory: [["2026-08-01", 12], ["2026-09-01", 29]],
+  });
+  const usHomes = series("USSTHPI", { frequency: "QUARTERLY", transform: "yoy", originalSource: "FHFA", latest: { date: "2026-04-01", value: 690, period: "Q2 2026" }, change: 2.6 });
+  const national = [usRate, usPayrolls, usHomes, series("UMCSENT", { latest: { date: "2026-09-01", value: 55, period: "Sep 2026" } })];
+
+  const caRate = series("CAUR", { stateCode: "CA", latest: { date: "2026-08-01", value: 5.5, period: "Aug 2026" }, change: -0.1, history: [["2026-07-01", 5.6], ["2026-08-01", 5.5]] });
+  const vtJobs = series("VTNA", { stateCode: "VT", transform: "mom_change", latest: { date: "2026-08-01", value: 316.2, period: "Aug 2026" }, change: 0.4, changeHistory: [["2026-07-01", -0.2], ["2026-08-01", 0.4]] });
+  const caGdp = series("CARQGSP", { stateCode: "CA", frequency: "QUARTERLY", transform: "qoq_annualized", originalSource: "BEA", latest: { date: "2026-04-01", value: 3_400_000, period: "Q2 2026" }, change: 2.84, changeHistory: [["2026-01-01", 1.1], ["2026-04-01", 2.84]] });
+
+  it("replace the national tiles, and the U.S.-only tiles are hidden", () => {
+    const tiles = buildTiles(data(national, { code: "CA", supported: true, series: [caRate, caGdp] }));
+    expect(tiles.map((item) => item.id)).toEqual(["gdp", "unemployment", "jobs", "claims", "homes"]);
+    expect(tiles.every((item) => item.scope === "state")).toBe(true);
+
+    const rate = tiles.find((item) => item.id === "unemployment")!;
+    expect(rate).toMatchObject({ value: "5.5%", period: "Aug 2026", change: { text: "−0.1 pts", basis: "vs. prior month" } });
+    expect(rate.chart).toMatchObject({ unit: "Percent", frequency: "MONTHLY" });
+    expect(rate.comparison).toMatchObject({ mode: "overlay", points: [[Date.parse("2026-08-01T00:00:00Z"), 4.2], [Date.parse("2026-09-01T00:00:00Z"), 4.3]] });
+
+    const gdp = tiles.find((item) => item.id === "gdp")!;
+    expect(gdp).toMatchObject({ value: "2.8%", change: { text: "+1.7 pts", basis: "vs. prior quarter" } });
+    expect(gdp.chart?.unit).toBe("Percent change from prior quarter, annualized");
+  });
+
+  it("put the U.S. figure in the tooltip, and say Not available for a missing state series", () => {
+    const tiles = buildTiles(data(national, { code: "VT", supported: true, series: [vtJobs] }));
+    const jobs = tiles.find((item) => item.id === "jobs")!;
+    expect(jobs).toMatchObject({ value: "+0.4K", change: null });
+    expect(jobs.details).toContain("U.S.: +29K, Sep 2026");
+    expect(jobs.comparison?.mode).toBe("stacked");
+
+    const homes = tiles.find((item) => item.id === "homes")!;
+    expect(homes).toMatchObject({ value: "Not available", missing: true, scope: "state", chart: null, comparison: null });
+  });
+
+  it("fall back to the national strip when FRED has no series for the state", () => {
+    const tiles = buildTiles(data(national, { code: "PR", supported: false, series: [] }));
+    expect(tiles).toHaveLength(14);
+    expect(tiles.every((item) => item.scope === "national" && item.comparison === null)).toBe(true);
+    expect(tiles.find((item) => item.id === "homes")).toMatchObject({ value: "+2.6%", period: "Q2 2026" });
   });
 });

@@ -355,6 +355,10 @@
 .em-econ-spark polyline { stroke: hsl(var(--muted-foreground)); }
 .em-econ-spark circle { fill: hsl(var(--foreground)); }
 .em-econ-period { color: hsl(var(--quiet)); font-size: 0.62rem; white-space: nowrap; }
+/* The selected state's name, leading the row when the tiles are state figures. */
+.em-econ-scope { margin: 0 2px 6px; color: hsl(var(--foreground)); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.em-econ-scope span { color: hsl(var(--quiet)); font-weight: 600; }
+.em-map-hud .em-econ-scope { margin-bottom: 4px; }
 .em-econ-note { margin: 7px 2px 0; color: hsl(var(--quiet)); font-size: 0.66rem; }
 .em-econ-tip { max-width: 260px; font-size: 0.72rem; line-height: 1.4; }
 .em-econ-tip p { margin: 0; }

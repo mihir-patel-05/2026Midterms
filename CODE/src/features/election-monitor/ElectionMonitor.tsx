@@ -66,6 +66,8 @@ export function ElectionMonitor() {
   }, [counts.data, mockFeed.data, params.state, realContests.data]);
 
   const selectedState = states.find((state) => state.code === params.state) ?? null;
+  // FRED has no series for the fictional state; the strip stays national.
+  const econStateCode = selectedState && !selectedState.isFictional ? selectedState.code : null;
   const stateContests = useMemo(
     () => (isFictionalSelection ? mockFeed.data?.contests ?? [] : realContests.data ?? []),
     [isFictionalSelection, mockFeed.data, realContests.data],
@@ -280,7 +282,7 @@ export function ElectionMonitor() {
             onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
           <ControlOddsBanner />
-          <EconomyStrip />
+          <EconomyStrip stateCode={econStateCode} stateName={selectedState?.name ?? null} />
           <MapCard
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
@@ -303,7 +305,7 @@ export function ElectionMonitor() {
             hud={!pastActive && (
               <>
                 <ControlOddsBanner />
-                <EconomyStrip compact />
+                <EconomyStrip compact stateCode={econStateCode} stateName={selectedState?.name ?? null} />
                 <StatStrip stats={stats} />
               </>
             )}

@@ -40,20 +40,35 @@ function Tile({ tile, compact }: { tile: EconTile; compact: boolean }) {
  * FRED economic indicators under the chamber-control odds. Context only: never
  * presented as a forecast or as the reason the odds moved. Hidden until the
  * backend has synced, and on any error.
+ *
+ * With a state selected, the strip narrows to that state's figures and hides the
+ * tiles FRED only has for the U.S. A state FRED has no series for (Puerto Rico)
+ * keeps the national strip.
  */
-export function EconomyStrip({ compact = false }: { compact?: boolean }) {
-  const { data } = useEconIndicators();
+export function EconomyStrip({ compact = false, stateCode = null, stateName = null }: {
+  compact?: boolean;
+  stateCode?: string | null;
+  stateName?: string | null;
+}) {
+  const { data } = useEconIndicators(730, stateCode);
   if (!economyEnabled || !data) return null;
   const tiles = buildTiles(data);
   if (tiles.every((tile) => tile.missing)) return null;
+  // While another state loads, the previous response is still shown; label what it is.
+  const shownState = tiles[0]?.scope === "state" ? data.state?.code ?? null : null;
+  const scopeName = shownState && shownState === stateCode ? stateName ?? shownState : shownState;
   return (
-    <section className="em-econ" data-compact={compact || undefined} aria-label="Economic indicators from FRED">
+    <section className="em-econ" data-compact={compact || undefined}
+      aria-label={scopeName ? `Economic indicators for ${scopeName} from FRED` : "Economic indicators from FRED"}>
+      {scopeName && <p className="em-econ-scope">{scopeName} <span>state figures</span></p>}
       <div className="em-econ-row" role="list">
         {tiles.map((tile) => <Tile key={tile.id} tile={tile} compact={compact} />)}
       </div>
       {!compact && (
         <p className="em-econ-note">
-          Economic data via FRED (Federal Reserve Bank of St. Louis). Shown for context, not as a forecast or an explanation of market odds.
+          Economic data via FRED (Federal Reserve Bank of St. Louis).
+          {scopeName && ` ${scopeName} figures: unemployment and jobs from BLS, jobless claims from the Department of Labor (not seasonally adjusted), GDP from BEA, and home prices from FHFA.`}
+          {" "}Shown for context, not as a forecast or an explanation of market odds.
         </p>
       )}
     </section>
