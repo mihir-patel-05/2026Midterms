@@ -14,6 +14,7 @@
     "build:geo:counties": "node scripts/build-counties.mjs",
     "build:past-results": "node scripts/build-past-results.mjs",
     "build:redistricting": "node scripts/build-redistricting.mjs",
+    "build:seat-holders": "node scripts/build-seat-holders.mjs",
     "test": "vitest run"
   },
   "dependencies": {
