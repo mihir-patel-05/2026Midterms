@@ -146,6 +146,34 @@ export function buildOddsView(byRace: Map<string, KalshiMarket[]>, office: OddsO
 
 const formatPrice = (value: number) => `${Number(value.toFixed(1))}%`;
 
+/** The map's hatch layer as a CSS background, layered over a fill colour. */
+export const HATCH_BACKGROUND = "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 1.5px, transparent 1.5px 5px)";
+
+/** States too small to label on the map; the Senate odds map lists them beside it, as Kalshi does. */
+export const CALLOUT_STATES = ["VT", "NH", "MA", "RI", "CT", "NJ", "DE", "MD", "DC"];
+const INK = { dark: "#0b0f16", light: "#ffffff", muted: "#8b93a1" } as const;
+
+export interface OddsLabel {
+  code: string;
+  /** The leader's rounded price ("93%"), "I 55%" for an independent, "Even", or "" with no price. */
+  price: string;
+  /** Text colour that reads on the bin's fill: dark on the pale bins, white on the strong ones. */
+  ink: string;
+  color: string;
+  hatch: boolean;
+}
+
+/** A label for every state on the Senate odds map. */
+export function oddsLabels(view: OddsView): OddsLabel[] {
+  return [...view.races.values()].map((race) => {
+    const leader = race.leader;
+    const step = Number(race.bin.slice(1));
+    const price = leader ? `${leader.party === "O" ? "I " : ""}${Math.round(leader.price)}%` : race.bin === "even" ? "Even" : "";
+    const ink = !leader ? (race.bin === "even" ? INK.light : INK.muted) : step <= 1 ? INK.dark : INK.light;
+    return { code: race.code, price, ink, color: ODDS_COLORS[race.bin], hatch: race.flip };
+  });
+}
+
 /** Tooltip lines for one race. */
 export function describeOddsRace(race: OddsRace | undefined, office: OddsOffice): string[] {
   if (!race || race.bin === "no_race") return ["No Senate race in 2026"];

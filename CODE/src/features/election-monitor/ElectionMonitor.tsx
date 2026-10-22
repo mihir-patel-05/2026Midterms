@@ -6,7 +6,7 @@ import { PredictionMarketsPanel } from "@/features/election-dashboard/Prediction
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
 import { OddsControls, OddsLegend } from "./OddsControls";
-import { describeOddsRace, ODDS_COLORS, ODDS_STATUS_COLORS, useOddsView } from "./oddsMap";
+import { CALLOUT_STATES, describeOddsRace, HATCH_BACKGROUND, ODDS_COLORS, ODDS_STATUS_COLORS, oddsLabels, useOddsView } from "./oddsMap";
 import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
 import { PastResultsTab } from "./PastResultsTab";
 import { BIN_COLORS, describeResult, describeShift, STATUS_COLORS } from "./pastResults";
@@ -29,7 +29,7 @@ import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
-import type { MapOverlay, MapTarget, MapView } from "./map/ElectionMap";
+import type { MapCallout, MapLabel, MapOverlay, MapTarget, MapView } from "./map/ElectionMap";
 import { isRedistricted } from "./map/redistricting";
 import type { MapLayer, MapMode, MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
@@ -114,6 +114,18 @@ export function ElectionMonitor() {
     if (oddsActive) return { bins: oddsBins, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true, hatch: oddsFlips };
     return null;
   }, [pastActive, past.bins, oddsActive, oddsBins, oddsFlips]);
+  // Senate odds label each state with its leader's price; small Northeast states are listed beside the map.
+  const senateLabels = useMemo(() => {
+    if (!oddsActive || params.oddsOffice !== "senate" || !odds.view) return null;
+    const all = oddsLabels(odds.view);
+    const labels: MapLabel[] = all.filter((item) => !CALLOUT_STATES.includes(item.code))
+      .map((item) => ({ code: item.code, text: item.price ? `${item.code}\n${item.price}` : item.code, ink: item.ink }));
+    const callouts: MapCallout[] = CALLOUT_STATES.flatMap((code) => {
+      const item = all.find((label) => label.code === code);
+      return item ? [{ code, text: item.price, ink: item.ink, background: item.hatch ? `${HATCH_BACKGROUND}, ${item.color}` : item.color }] : [];
+    });
+    return { labels, callouts };
+  }, [oddsActive, params.oddsOffice, odds.view]);
   const setMode = useCallback((mode: MapMode) => {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);
@@ -357,6 +369,9 @@ export function ElectionMonitor() {
                 layer={mapLayer}
                 expanded={expanded}
                 overlay={overlay}
+                labels={senateLabels?.labels ?? null}
+                // Zoomed into a state, the column would cover the map; it belongs to the national view.
+                callouts={selectedState ? null : senateLabels?.callouts ?? null}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}

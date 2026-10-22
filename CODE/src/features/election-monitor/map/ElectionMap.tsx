@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./electionMap.css";
+import type { Position } from "geojson";
 import type { MapLayer, Readiness } from "../types";
 import {
   ALASKA_BOUNDS,
@@ -36,6 +37,19 @@ export interface MapOverlay {
   hatch?: Set<string>;
 }
 
+/** A state label drawn on the map ("MT\n93%"), in a colour that reads on its fill. */
+export interface MapLabel {
+  code: string;
+  text: string;
+  ink: string;
+}
+
+/** A state listed beside the map because it is too small to label (Kalshi's call-out column). */
+export interface MapCallout extends MapLabel {
+  /** CSS background: the state's fill colour, hatched when the map hatches it. */
+  background: string;
+}
+
 export type MapTarget =
   | { kind: "state"; state: string }
   | { kind: "district"; state: string; district: string }
@@ -67,6 +81,10 @@ export interface ElectionMapProps {
   overlay?: MapOverlay | null;
   /** The map fills the window. Switching it keeps the same area in view, scaled to the new frame. */
   expanded?: boolean;
+  /** State labels on the map; null hides them. Redrawn at most every two seconds as prices tick. */
+  labels?: MapLabel[] | null;
+  /** Small states listed beside the map; clicking one selects it. */
+  callouts?: MapCallout[] | null;
 }
 
 // MapLibre paints on a canvas and cannot read CSS variables; these mirror the theme tokens.
@@ -83,7 +101,19 @@ const DEFAULT_FILL = {
   districts: ["case", selectedState, 0.42, hovered, 0.3, 0.06],
 };
 const INTERACTIVE = ["districts-fill", "counties-fill", "states-fill"] as const;
+const LABEL_INTERVAL_MS = 2_000;
 const hatchOpacity = ["case", ["boolean", ["feature-state", "hatch"], false], 0.55, 0];
+
+/** Each state's largest polygon, so a label is placed once (not on every island) at its pole of inaccessibility. */
+function largestPart(item: StateFeature): StateFeature {
+  if (item.geometry.type !== "MultiPolygon") return item;
+  const area = (ring: Position[]) => Math.abs(ring.reduce((sum, [x, y], i) => {
+    const [nx, ny] = ring[(i + 1) % ring.length];
+    return sum + x * ny - nx * y;
+  }, 0));
+  const largest = item.geometry.coordinates.reduce((best, polygon) => (area(polygon[0]) > area(best[0]) ? polygon : best));
+  return { ...item, geometry: { type: "Polygon", coordinates: largest } };
+}
 
 /** White diagonal stripes on a transparent tile, for the hatch layers' fill-pattern. */
 function hatchImage() {
@@ -111,7 +141,7 @@ const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
 export default function ElectionMap(props: ElectionMapProps) {
-  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, overlay = null, expanded = false } = props;
+  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, overlay = null, expanded = false, labels = null, callouts = null } = props;
   const overlayOn = overlay !== null;
   // An overlay with nothing to colour yet (loading, or House lines that don't match): outlines only.
   const overlayPainted = overlayOn && Boolean(overlay?.bins);
@@ -125,6 +155,11 @@ export default function ElectionMap(props: ElectionMapProps) {
   const highlightedCounties = useRef<string[]>([]);
   const binsApplied = useRef<{ source: string; bins: Map<string, string> } | null>(null);
   const hatchApplied = useRef<{ source: string; codes: Set<string> } | null>(null);
+  const labelShapes = useRef<StateFeature[]>([]);
+  const latestLabels = useRef(labels);
+  latestLabels.current = labels;
+  const labelTimer = useRef<number | null>(null);
+  const labelsDrawnAt = useRef(0);
   const callbacks = useRef(props);
   callbacks.current = props;
   const initialViewRef = useRef(initialView);
@@ -150,6 +185,7 @@ export default function ElectionMap(props: ElectionMapProps) {
       const [{ style, isFallback }, states] = await Promise.all([resolveMapStyle(controller.signal), loadStates()]);
       if (controller.signal.aborted || !containerRef.current) return;
       statesRef.current = new Map(states.features.map((item) => [item.properties.code, item]));
+      labelShapes.current = states.features.map(largestPart);
 
       const start = initialViewRef.current;
       try {
@@ -224,6 +260,19 @@ export default function ElectionMap(props: ElectionMapProps) {
         map.addLayer({ id: "states-selected", type: "line", source: "states", filter: ["==", ["get", "code"], ""], paint: {
           "line-color": COLORS.teal, "line-width": 2.4,
         } }, beforeId);
+
+        // Labels need the basemap's glyphs; the fallback style has none, so it shows colours only.
+        // Prefer an upright bold or medium face; the basemap's first symbol layer is often italic water names.
+        const stacks = map.getStyle().layers.map((item) => (item.type === "symbol" ? item.layout?.["text-font"] : undefined))
+          .filter((font): font is string[] => Array.isArray(font) && font.every((part) => typeof part === "string"))
+          .filter((font) => !font.some((part) => /italic/i.test(part)));
+        const fontStack = stacks.find((font) => font.some((part) => /bold|medium/i.test(part))) ?? stacks[0];
+        if (map.getStyle().glyphs && fontStack) {
+          map.addSource("states-labels", { type: "geojson", data: empty });
+          map.addLayer({ id: "states-labels", type: "symbol", source: "states-labels", layout: {
+            "text-field": ["get", "text"], "text-font": fontStack, "text-size": 12, "text-line-height": 1.25, "text-padding": 1,
+          }, paint: { "text-color": ["get", "ink"] as never } });
+        }
 
         setStatus(isFallback ? "basemap-fallback" : "ready");
         setReady(true);
@@ -410,6 +459,35 @@ export default function ElectionMap(props: ElectionMapProps) {
     hatchApplied.current = next.size > 0 ? { source: layer, codes: next } : null;
   }, [hatch, layer, ready, countyStatus, districtStatus]);
 
+  // State labels. Prices tick about once a second, so the label source is rewritten at most every
+  // LABEL_INTERVAL_MS, always with the newest labels; turning labels off clears them at once.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !map.getSource("states-labels")) return;
+    const draw = () => {
+      labelTimer.current = null;
+      labelsDrawnAt.current = Date.now();
+      const byCode = new Map((latestLabels.current ?? []).map((item) => [item.code, item]));
+      const features = labelShapes.current.flatMap((item) => {
+        const label = byCode.get(item.properties.code);
+        return label ? [{ ...item, properties: { ...item.properties, text: label.text, ink: label.ink } }] : [];
+      });
+      (map.getSource("states-labels") as GeoJSONSource).setData({ type: "FeatureCollection", features });
+    };
+    if (!labels) {
+      if (labelTimer.current !== null) window.clearTimeout(labelTimer.current);
+      draw();
+      return;
+    }
+    if (labelTimer.current !== null) return;
+    const wait = labelsDrawnAt.current + LABEL_INTERVAL_MS - Date.now();
+    if (wait <= 0) draw();
+    else labelTimer.current = window.setTimeout(draw, wait);
+  }, [labels, ready]);
+  useEffect(() => () => {
+    if (labelTimer.current !== null) window.clearTimeout(labelTimer.current);
+  }, []);
+
   // Readiness colouring.
   useEffect(() => {
     const map = mapRef.current;
@@ -479,6 +557,18 @@ export default function ElectionMap(props: ElectionMapProps) {
         <button type="button" onClick={() => jump(ALASKA_BOUNDS)}>Alaska</button>
         <button type="button" onClick={() => jump(HAWAII_BOUNDS)}>Hawaii</button>
       </div>
+      {callouts && callouts.length > 0 && (
+        <ul className="em-map-callouts" aria-label="Small states">
+          {callouts.map((item) => (
+            <li key={item.code}>
+              <button type="button" style={{ background: item.background, color: item.ink }} onClick={() => callbacks.current.onSelectState(item.code)}>
+                <strong>{item.code}</strong>
+                <span>{item.text}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="em-map-chips">
         {status === "basemap-fallback" && <span className="em-map-chip">Basemap unavailable · boundaries only</span>}
         {layerNotice && <span className="em-map-chip" role="status">{layerNotice}</span>}

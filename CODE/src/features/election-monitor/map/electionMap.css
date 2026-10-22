@@ -20,6 +20,14 @@
 .em-map-tooltip strong, .em-map-tooltip span { display: block; }
 .em-map-tooltip strong { margin-bottom: 3px; font-size: 0.8rem; }
 .em-map-tooltip span { color: hsl(var(--muted-foreground)); font-size: 0.72rem; }
+/* Small states listed beside the map, like Kalshi's call-out column. */
+.em-map-callouts { position: absolute; top: 50%; right: 10px; z-index: 2; display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; transform: translateY(-50%); }
+.em-map-callouts button {
+  display: flex; justify-content: space-between; gap: 12px; min-width: 88px; padding: 4px 8px; border: 0; border-radius: 5px;
+  font-size: 0.72rem; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.em-map-callouts button:hover { box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.7); }
+.em-map-callouts strong { font-weight: 700; letter-spacing: 0.04em; }
 .em-map-fallback { display: grid; place-content: center; gap: 6px; height: 320px; margin-top: 14px; border: 1px dashed hsl(var(--line)); border-radius: 10px; color: hsl(var(--muted-foreground)); font-size: 0.8rem; text-align: center; }
 .em-map-fallback strong { color: hsl(var(--foreground)); }
 .em-map-frame .maplibregl-ctrl-group { border: 1px solid hsl(var(--line)); background: hsl(var(--surface-2)); box-shadow: none; }
@@ -28,4 +36,4 @@
 .em-map-frame .maplibregl-ctrl-attrib { background: hsl(var(--surface) / 0.8); color: hsl(var(--quiet)); }
 .em-map-frame .maplibregl-ctrl-attrib a { color: hsl(var(--muted-foreground)); }
 .em-map-frame .maplibregl-ctrl-attrib-button { filter: invert(1); }
-@media (max-width: 720px) { .em-map-frame { height: max(340px, 60vh); } .em-map-jumps button { padding: 0 8px; } }
+@media (max-width: 720px) { .em-map-frame { height: max(340px, 60vh); } .em-map-jumps button { padding: 0 8px; } .em-map-callouts { display: none; } }

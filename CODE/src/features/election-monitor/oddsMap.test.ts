@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOddsView, describeOddsRace, isFlip, oddsBin, raceLeader } from "./oddsMap";
+import { buildOddsView, describeOddsRace, isFlip, oddsBin, oddsLabels, raceLeader } from "./oddsMap";
 import type { KalshiMarket } from "./useKalshiLive";
 
 const market = (race: string, party: KalshiMarket["party"], pricePercent: number | null, outcome = party === "D" ? "Democratic" : party === "R" ? "Republican" : "Independent"): KalshiMarket => ({
@@ -96,5 +96,16 @@ describe("describeOddsRace", () => {
     const senate = buildOddsView(board(market("ME-SEN", "D", 64.5), market("ME-SEN", "R", 35.5)), "senate", null);
     expect(describeOddsRace(senate.races.get("ME"), "senate")).toEqual(["Democratic 64.5%", "Republican 35.5%", "Leader differs from the party holding the seat (R)"]);
     expect(describeOddsRace(senate.races.get("CA"), "senate")).toEqual(["No Senate race in 2026"]);
+  });
+});
+
+describe("oddsLabels", () => {
+  it("labels the leader's rounded price, with ink that reads on the fill", () => {
+    const view = buildOddsView(board(market("MT-SEN", "R", 93.4), market("IA-SEN", "R", 59), market("NE-SEN", null, 55.2), market("NE-SEN", "R", 44.8)), "senate", null);
+    const labels = new Map(oddsLabels(view).map((label) => [label.code, label]));
+    expect(labels.get("MT")).toMatchObject({ price: "93%", ink: "#ffffff" });
+    expect(labels.get("IA")).toMatchObject({ price: "59%", ink: "#0b0f16" });
+    expect(labels.get("NE")).toMatchObject({ price: "I 55%", hatch: true });
+    expect(labels.get("CA")).toMatchObject({ price: "", ink: "#8b93a1" });
   });
 });
