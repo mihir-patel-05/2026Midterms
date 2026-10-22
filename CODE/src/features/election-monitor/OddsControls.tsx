@@ -4,6 +4,8 @@ import { ODDS_BREAKS, ODDS_COLORS, ODDS_OFFICES, ODDS_STATUS_COLORS, oddsBinLabe
 import { Swatch } from "./PastResultsControls";
 import type { KalshiFeedStatus } from "./useKalshiLive";
 
+/** The map's hatch layer, as a CSS background over a swatch colour. */
+const HATCH = "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 1.5px, transparent 1.5px 5px)";
 const officeLabels: Record<OddsOffice, string> = { senate: "U.S. Senate", house: "U.S. House" };
 // Keep the legend in step with the bin edges if they ever change.
 if (ODDS_BREAKS.length !== oddsBinLabels.length - 1) throw new Error("Legend labels are out of step with the bins");
@@ -54,6 +56,7 @@ export function OddsLegend({ office, view, status }: { office: OddsOffice; view:
         </tbody>
       </table>
       <ul className="em-past-greys">
+        <li><Swatch color={`${HATCH}, ${ODDS_COLORS.D1}`} />Leader differs from {office === "senate" ? "the party holding the seat" : "the 2024 winner"}</li>
         {greys.map(([color, label]) => <li key={label}><Swatch color={color} />{label}</li>)}
       </ul>
       {office === "house" && redistricted.length > 0 && (
@@ -67,6 +70,7 @@ export function OddsLegend({ office, view, status }: { office: OddsOffice; view:
           <li>Each {office === "senate" ? "state" : "district"} is coloured by the outcome its Kalshi market prices highest. The shade is that outcome's price: paler is closer to a toss-up.</li>
           <li>Prices are the bid/ask midpoint when both sides are quoted, otherwise the last trade. They move with trading and are not probabilities from a model.</li>
           <li>A race with no market or no price is grey, never shown as 50/50.</li>
+          <li>Hatching marks a race whose leader is from a different party than {office === "senate" ? "the senator holding the seat" : "the 2024 winner"}. Redistricted House seats are never hatched.</li>
           {office === "house" && <li>Kalshi lists about 415 of the 435 House races; the rest are grey.</li>}
         </ul>
       </details>

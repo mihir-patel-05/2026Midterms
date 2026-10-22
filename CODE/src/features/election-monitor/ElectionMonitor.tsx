@@ -108,11 +108,12 @@ export function ElectionMonitor() {
   // districts for House. Market odds is by state for the Senate and by district for the House.
   const mapLayer: MapLayer = pastActive ? past.layer : oddsActive ? (params.oddsOffice === "senate" ? "states" : "districts") : params.layer;
   const oddsBins = odds.view?.bins ?? null;
+  const oddsFlips = odds.view?.flips;
   const overlay = useMemo<MapOverlay | null>(() => {
     if (pastActive) return { bins: past.bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
-    if (oddsActive) return { bins: oddsBins, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true };
+    if (oddsActive) return { bins: oddsBins, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true, hatch: oddsFlips };
     return null;
-  }, [pastActive, past.bins, oddsActive, oddsBins]);
+  }, [pastActive, past.bins, oddsActive, oddsBins, oddsFlips]);
   const setMode = useCallback((mode: MapMode) => {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);

@@ -32,6 +32,8 @@ export interface MapOverlay {
   fallback: string;
   /** Keep the dashed outline on states that redrew for 2026, for an overlay about the 2026 races. */
   redistricting?: boolean;
+  /** Feature codes drawn with white diagonal hatching over their colour (market odds: the seat would flip). */
+  hatch?: Set<string>;
 }
 
 export type MapTarget =
@@ -81,6 +83,28 @@ const DEFAULT_FILL = {
   districts: ["case", selectedState, 0.42, hovered, 0.3, 0.06],
 };
 const INTERACTIVE = ["districts-fill", "counties-fill", "states-fill"] as const;
+const hatchOpacity = ["case", ["boolean", ["feature-state", "hatch"], false], 0.55, 0];
+
+/** White diagonal stripes on a transparent tile, for the hatch layers' fill-pattern. */
+function hatchImage() {
+  const ratio = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const size = 8 * ratio;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.strokeStyle = "#ffffff";
+  context.lineWidth = 1.5 * ratio;
+  // Three strokes so the stripes join across tile edges.
+  for (const offset of [-size, 0, size]) {
+    context.beginPath();
+    context.moveTo(offset, size);
+    context.lineTo(offset + size, 0);
+    context.stroke();
+  }
+  return { image: context.getImageData(0, 0, size, size), ratio };
+}
 /** Districts in states that adopted a new map for 2026; their outlines are the 119th Congress lines. */
 const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED_STATES]]];
 
@@ -100,6 +124,7 @@ export default function ElectionMap(props: ElectionMapProps) {
   const districtsRef = useRef<Map<string, DistrictFeature>>(new Map());
   const highlightedCounties = useRef<string[]>([]);
   const binsApplied = useRef<{ source: string; bins: Map<string, string> } | null>(null);
+  const hatchApplied = useRef<{ source: string; codes: Set<string> } | null>(null);
   const callbacks = useRef(props);
   callbacks.current = props;
   const initialViewRef = useRef(initialView);
@@ -166,6 +191,11 @@ export default function ElectionMap(props: ElectionMapProps) {
           "fill-color": readinessColor as never,
           "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.34, hovered, 0.28, 0.16] as never,
         } }, beforeId);
+        const hatch = hatchImage();
+        if (hatch) map.addImage("overlay-hatch", hatch.image, { pixelRatio: hatch.ratio });
+        map.addLayer({ id: "states-hatch", type: "fill", source: "states", layout: { visibility: "none" }, paint: {
+          "fill-pattern": "overlay-hatch", "fill-opacity": hatchOpacity as never,
+        } }, beforeId);
         map.addLayer({ id: "counties-fill", type: "fill", source: "counties", layout: { visibility: "none" }, paint: {
           "fill-color": COLORS.blue, "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.02] as never,
         } }, beforeId);
@@ -177,6 +207,9 @@ export default function ElectionMap(props: ElectionMapProps) {
         map.addLayer({ id: "districts-fill", type: "fill", source: "districts", layout: { visibility: "none" }, paint: {
           "fill-color": COLORS.teal,
           "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.06] as never,
+        } }, beforeId);
+        map.addLayer({ id: "districts-hatch", type: "fill", source: "districts", layout: { visibility: "none" }, paint: {
+          "fill-pattern": "overlay-hatch", "fill-opacity": hatchOpacity as never,
         } }, beforeId);
         map.addLayer({ id: "districts-line", type: "line", source: "districts", layout: { visibility: "none" }, paint: {
           "line-color": COLORS.teal, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.4, 8, 1.4] as never,
@@ -317,6 +350,8 @@ export default function ElectionMap(props: ElectionMapProps) {
     if (!map || !ready) return;
     const show = (ids: string[], visible: boolean) => ids.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
     show(["districts-fill", "districts-line"], layer === "districts");
+    show(["states-hatch"], layer === "states" && overlayOn);
+    show(["districts-hatch"], layer === "districts" && overlayOn);
     // The dashed "2026 lines differ" outline is about the 2026 races, not past results.
     show(["districts-outdated-line"], layer === "districts" && outdatedLines);
     show(["counties-fill", "counties-line"], layer === "counties");
@@ -334,7 +369,7 @@ export default function ElectionMap(props: ElectionMapProps) {
     map.setPaintProperty("states-selected", "line-color", overlayOn ? "#ffffff" : COLORS.teal);
     map.setPaintProperty("states-line", "line-color", overlayOn && layer === "states" ? "#0b0f16" : COLORS.line);
     const stateFilter = selectedState ? ["==", ["get", "state"], selectedState] : null;
-    for (const id of ["districts-fill", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
+    for (const id of ["districts-fill", "districts-hatch", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
     // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
     const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
     map.setFilter("districts-line", outdatedLines ? both(["!", redistrictedFilter]) : stateFilter as never);
@@ -358,6 +393,22 @@ export default function ElectionMap(props: ElectionMapProps) {
     for (const [code, bin] of next) if (previous?.get(code) !== bin) map.setFeatureState({ source: layer, id: code }, { bin });
     binsApplied.current = { source: layer, bins: next };
   }, [bins, layer, ready, countyStatus, districtStatus]);
+
+  // Hatching, as feature state on the layer's source; only codes that gained or lost it are touched.
+  const hatch = overlay?.hatch ?? null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const sourceReady = layer === "states" || (layer === "counties" ? countyStatus === "ready" : districtStatus === "ready");
+    const next = hatch && sourceReady ? hatch : new Set<string>();
+    const applied = hatchApplied.current;
+    if (applied) {
+      for (const code of applied.codes) if (applied.source !== layer || !next.has(code)) map.setFeatureState({ source: applied.source, id: code }, { hatch: false });
+    }
+    const previous = applied?.source === layer ? applied.codes : null;
+    for (const code of next) if (!previous?.has(code)) map.setFeatureState({ source: layer, id: code }, { hatch: true });
+    hatchApplied.current = next.size > 0 ? { source: layer, codes: next } : null;
+  }, [hatch, layer, ready, countyStatus, districtStatus]);
 
   // Readiness colouring.
   useEffect(() => {
