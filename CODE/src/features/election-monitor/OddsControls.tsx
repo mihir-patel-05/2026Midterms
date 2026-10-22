@@ -1,4 +1,4 @@
-import { formatEtTime, numberFormat } from "./constants";
+import { formatEtTime, formatShortDate, numberFormat } from "./constants";
 import { REDISTRICTED_STATES } from "./map/redistricting";
 import { HATCH_BACKGROUND, ODDS_BREAKS, ODDS_COLORS, ODDS_OFFICES, ODDS_STATUS_COLORS, oddsBinLabels, type OddsOffice, type OddsView } from "./oddsMap";
 import { Swatch } from "./PastResultsControls";
@@ -26,7 +26,13 @@ export function OddsControls({ office, view, onChange }: { office: OddsOffice; v
 }
 
 /** Legend, method, and price caveat for the Market odds map. */
-export function OddsLegend({ office, view, status }: { office: OddsOffice; view: OddsView | null; status: KalshiFeedStatus }) {
+export function OddsLegend({ office, view, status, holdersAsOf }: {
+  office: OddsOffice;
+  view: OddsView | null;
+  status: KalshiFeedStatus;
+  /** Date of the House seat-holders file; null until it loads. */
+  holdersAsOf: string | null;
+}) {
   const feedDown = (status === "offline" || status === "disabled") && (!view || view.withMarket === 0);
   const redistricted = [...REDISTRICTED_STATES].sort();
   const greys: Array<[string, string]> = [
@@ -54,7 +60,7 @@ export function OddsLegend({ office, view, status }: { office: OddsOffice; view:
         </tbody>
       </table>
       <ul className="em-past-greys">
-        <li><Swatch color={`${HATCH_BACKGROUND}, ${ODDS_COLORS.D1}`} />Leader differs from {office === "senate" ? "the party holding the seat" : "the 2024 winner"}</li>
+        <li><Swatch color={`${HATCH_BACKGROUND}, ${ODDS_COLORS.D1}`} />Leader differs from the party holding the seat</li>
         {greys.map(([color, label]) => <li key={label}><Swatch color={color} />{label}</li>)}
       </ul>
       {office === "house" && redistricted.length > 0 && (
@@ -68,7 +74,8 @@ export function OddsLegend({ office, view, status }: { office: OddsOffice; view:
           <li>Each {office === "senate" ? "state" : "district"} is coloured by the outcome its Kalshi market prices highest. The shade is that outcome's price: paler is closer to a toss-up.</li>
           <li>Prices are the bid/ask midpoint when both sides are quoted, otherwise the last trade. They move with trading and are not probabilities from a model.</li>
           <li>A race with no market or no price is grey, never shown as 50/50.</li>
-          <li>Hatching marks a race whose leader is from a different party than {office === "senate" ? "the senator holding the seat" : "the 2024 winner"}. Redistricted House seats are never hatched.</li>
+          <li>Hatching marks a race whose leader is from a different party than the member holding the seat today. A vacant seat is compared with its last holder, and an independent holder counts as neither party. Redistricted House seats are never hatched.</li>
+          {office === "house" && <li>House seat holders: congress-legislators{holdersAsOf ? `, as of ${formatShortDate(holdersAsOf)}` : ""}.</li>}
           {office === "house" && <li>Kalshi lists about 415 of the 435 House races; the rest are grey.</li>}
         </ul>
       </details>

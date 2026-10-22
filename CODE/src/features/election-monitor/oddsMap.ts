@@ -1,11 +1,10 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { houseBaseline } from "@/features/simulator/midterms/model";
 import { HOUSE_DISTRICT_CODES, SENATE_RACES_2026 } from "@/features/simulator/midterms/races2026";
 import type { Side } from "@/features/simulator/model";
 import { priceTypeLabel } from "./constants";
 import { isRedistricted } from "./map/redistricting";
-import { usePastYear, type HouseYear } from "./pastResults";
 import { useKalshiMarkets, type KalshiFeedStatus, type KalshiMarket } from "./useKalshiLive";
 
 /**
@@ -45,6 +44,40 @@ export const ODDS_COLORS: Record<string, string> = {
   ...ODDS_STATUS_COLORS,
 };
 
+/** Who holds a seat today. A vacant seat carries its last holder. */
+export interface SeatHolder {
+  party: OddsParty;
+  name: string;
+  vacant?: boolean;
+  /** Senate only: the senator is not on the 2026 ballot. */
+  retiring?: boolean;
+}
+
+/** `public/data/seat-holders-2026.json`, written by `npm run build:seat-holders` from congress-legislators. */
+export interface SeatHoldersFile {
+  generatedAt: string;
+  source: string;
+  house: Record<string, { party: "D" | "R" | "I"; name: string; since: string }>;
+  vacant: Record<string, { party: "D" | "R" | "I"; name: string; until: string }>;
+  /** Keyed "GA-2": state and Senate class. */
+  senate: Record<string, { party: "D" | "R" | "I"; name: string }>;
+}
+
+const toParty = (party: "D" | "R" | "I"): OddsParty => (party === "I" ? "O" : party);
+
+/** Every House seat's holder; vacant seats keep their last holder's party, marked vacant. */
+export function houseHolders(file: SeatHoldersFile): Map<string, SeatHolder> {
+  const seats = new Map<string, SeatHolder>();
+  for (const [code, seat] of Object.entries(file.house)) seats.set(code, { party: toParty(seat.party), name: seat.name });
+  for (const [code, seat] of Object.entries(file.vacant)) seats.set(code, { party: toParty(seat.party), name: seat.name, vacant: true });
+  return seats;
+}
+
+/** The senators whose seats are on the 2026 ballot (`races2026.ts`). */
+const SENATE_HOLDERS = new Map<string, SeatHolder>(
+  Object.entries(SENATE_RACES_2026).map(([code, race]) => [code, { party: race.holder, name: race.incumbent, retiring: race.open }]),
+);
+
 export interface RaceLeader {
   market: KalshiMarket;
   party: OddsParty;
@@ -58,8 +91,8 @@ export interface OddsRace {
   /** Null when no outcome is priced, or the top two are tied. */
   leader: RaceLeader | null;
   bin: string;
-  /** Party holding the seat (Senate) or that won it in 2024 (House); null when unknown. */
-  holder: Side | null;
+  /** Who holds the seat today; null when unknown. */
+  holder: SeatHolder | null;
   flip: boolean;
   /** House only: the state drew new districts for 2026, so the shape on the map is the 2024 one. */
   redistricted: boolean;
@@ -95,14 +128,14 @@ export function oddsBin(markets: KalshiMarket[]): string {
   return `${leader.party}${ODDS_BREAKS.filter((limit) => leader.price >= limit).length}`;
 }
 
-export function isFlip(leader: RaceLeader | null, holder: Side | null, redistricted: boolean) {
-  return Boolean(leader && holder && !redistricted && leader.party !== holder);
+export function isFlip(leader: RaceLeader | null, holder: SeatHolder | null, redistricted: boolean) {
+  return Boolean(leader && holder && !redistricted && leader.party !== holder.party);
 }
 
 /** All 50 states and DC; DC and states with no 2026 race are "no race" unless Kalshi lists one. */
 const SENATE_CODES = [...new Set([...stateMapItems.map((item) => item.code), "DC"])];
 
-export function buildOddsView(byRace: Map<string, KalshiMarket[]>, office: OddsOffice, houseHolders: Map<string, Side> | null): OddsView {
+export function buildOddsView(byRace: Map<string, KalshiMarket[]>, office: OddsOffice, holders: Map<string, SeatHolder> | null): OddsView {
   const races = new Map<string, OddsRace>();
   const included: KalshiMarket[] = [];
   let total = 0;
@@ -113,7 +146,7 @@ export function buildOddsView(byRace: Map<string, KalshiMarket[]>, office: OddsO
     const markets = byRace.get(office === "senate" ? `${code}-SEN` : code) ?? [];
     const onBallot = office === "house" || code in SENATE_RACES_2026 || markets.length > 0;
     const redistricted = office === "house" && isRedistricted(code.slice(0, 2));
-    const holder = office === "senate" ? SENATE_RACES_2026[code]?.holder ?? null : houseHolders?.get(code) ?? null;
+    const holder = (office === "senate" ? SENATE_HOLDERS.get(code) : holders?.get(code)) ?? null;
     const leader = raceLeader(markets);
     if (onBallot) total++;
     if (markets.length > 0) withMarket++;
@@ -145,6 +178,13 @@ export function buildOddsView(byRace: Map<string, KalshiMarket[]>, office: OddsO
 }
 
 const formatPrice = (value: number) => `${Number(value.toFixed(1))}%`;
+const partyLetter = (party: OddsParty) => (party === "O" ? "I" : party);
+
+/** "Held by Thom Tillis (R), not running" or "Vacant; last held by Tony Gonzales (R)". */
+export function describeHolder(holder: SeatHolder) {
+  const who = `${holder.name} (${partyLetter(holder.party)})`;
+  return holder.vacant ? `Vacant; last held by ${who}` : `Held by ${who}${holder.retiring ? ", not running" : ""}`;
+}
 
 /** The map's hatch layer as a CSS background, layered over a fill colour. */
 export const HATCH_BACKGROUND = "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 1.5px, transparent 1.5px 5px)";
@@ -186,22 +226,39 @@ export function describeOddsRace(race: OddsRace | undefined, office: OddsOffice)
     if (ranked.length > 3) lines.push(`+${ranked.length - 3} more outcomes`);
     if (race.bin === "even") lines.push("Top outcomes priced the same");
   }
-  if (race.flip) lines.push(office === "senate" ? `Leader differs from the party holding the seat (${race.holder})` : `Leader differs from the 2024 winner (${race.holder})`);
   if (race.redistricted) lines.push("Shape shows 2024 lines; the market is for the 2026 district");
+  // A redistricted seat's holder represents different lines, so it is not compared.
+  else if (race.holder) lines.push(describeHolder(race.holder));
+  if (race.flip) lines.push(`Leader is from a different party than ${race.holder!.vacant ? "the last holder" : "the holder"}`);
   return lines;
 }
 
-/** Live Kalshi markets turned into the odds map for one chamber; null while inactive. */
-export function useOddsView(active: boolean, office: OddsOffice): { status: KalshiFeedStatus; view: OddsView | null } {
+const SEAT_HOLDERS_URL = `${import.meta.env.BASE_URL}data/seat-holders-2026.json`;
+
+/** Who holds each seat; the file changes only when someone reruns the script and redeploys. */
+function useSeatHolders(enabled: boolean) {
+  return useQuery<SeatHoldersFile, Error>({
+    queryKey: ["seat-holders-2026"],
+    queryFn: async ({ signal }) => {
+      const response = await fetch(SEAT_HOLDERS_URL, { signal });
+      // A missing static file can come back as the app's index.html instead of a 404.
+      if (!response.ok || !(response.headers.get("content-type") ?? "").includes("json")) throw new Error("Seat holders are not available");
+      return response.json() as Promise<SeatHoldersFile>;
+    },
+    enabled,
+    staleTime: Infinity,
+    retry: 1,
+  });
+}
+
+/**
+ * Live Kalshi markets turned into the odds map for one chamber; null while inactive. `holdersAsOf`
+ * dates the House holders file, for the legend.
+ */
+export function useOddsView(active: boolean, office: OddsOffice): { status: KalshiFeedStatus; view: OddsView | null; holdersAsOf: string | null } {
   const { status, byRace } = useKalshiMarkets();
-  // The seats' 2024 winners, for marking House flips.
-  const house = usePastYear<HouseYear>("house", active && office === "house" ? 2024 : null);
-  const holders = useMemo(() => {
-    if (!house.data) return null;
-    const seats = new Map<string, Side>();
-    for (const [code, seat] of houseBaseline(house.data)) if (seat.winner !== "T") seats.set(code, seat.winner);
-    return seats;
-  }, [house.data]);
+  const file = useSeatHolders(active && office === "house");
+  const holders = useMemo(() => (file.data ? houseHolders(file.data) : null), [file.data]);
   const view = useMemo(() => (active ? buildOddsView(byRace, office, office === "house" ? holders : null) : null), [active, byRace, office, holders]);
-  return { status, view };
+  return { status, view, holdersAsOf: file.data?.generatedAt ?? null };
 }

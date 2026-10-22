@@ -354,7 +354,7 @@ export function ElectionMonitor() {
                 onLevelChange={(counties) => update({ layer: counties ? "counties" : "states" })}
               />
             )}
-            modeLegend={oddsActive ? <OddsLegend office={params.oddsOffice} view={odds.view} status={odds.status} /> : pastActive && (
+            modeLegend={oddsActive ? <OddsLegend office={params.oddsOffice} view={odds.view} status={odds.status} holdersAsOf={odds.holdersAsOf} /> : pastActive && (
               <>
                 {past.error && <p className="em-note" role="status">Past results could not be loaded.</p>}
                 {params.pastOffice === "house" && past.year !== null && !past.houseLinesMatch && (

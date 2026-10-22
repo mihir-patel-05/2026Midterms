@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOddsView, describeOddsRace, isFlip, oddsBin, oddsLabels, raceLeader } from "./oddsMap";
+import { buildOddsView, describeOddsRace, houseHolders, isFlip, oddsBin, oddsLabels, raceLeader, type SeatHolder, type SeatHoldersFile } from "./oddsMap";
 import type { KalshiMarket } from "./useKalshiLive";
 
 const market = (race: string, party: KalshiMarket["party"], pricePercent: number | null, outcome = party === "D" ? "Democratic" : party === "R" ? "Republican" : "Independent"): KalshiMarket => ({
@@ -47,15 +47,37 @@ describe("oddsBin", () => {
   });
 });
 
+const held = (party: SeatHolder["party"], name = "Member", extra: Partial<SeatHolder> = {}): SeatHolder => ({ party, name, ...extra });
+
 describe("isFlip", () => {
   const leader = raceLeader([market("NC-SEN", "D", 70), market("NC-SEN", "R", 30)]);
   it("marks a leader from the other party", () => {
-    expect(isFlip(leader, "R", false)).toBe(true);
-    expect(isFlip(leader, "D", false)).toBe(false);
+    expect(isFlip(leader, held("R"), false)).toBe(true);
+    expect(isFlip(leader, held("D"), false)).toBe(false);
     expect(isFlip(leader, null, false)).toBe(false);
   });
+  it("compares a vacant seat with its last holder, and an independent with neither party", () => {
+    expect(isFlip(leader, held("R", "Gone", { vacant: true }), false)).toBe(true);
+    expect(isFlip(leader, held("O"), false)).toBe(true);
+  });
   it("never marks a redistricted seat", () => {
-    expect(isFlip(leader, "R", true)).toBe(false);
+    expect(isFlip(leader, held("R"), true)).toBe(false);
+  });
+});
+
+describe("houseHolders", () => {
+  it("reads held and vacant seats, and maps independents to their own side", () => {
+    const file: SeatHoldersFile = {
+      generatedAt: "2026-10-22",
+      source: "test",
+      house: { "CA-03": { party: "I", name: "Kevin Kiley", since: "2025-01-03" }, "PA-07": { party: "R", name: "Ryan Mackenzie", since: "2025-01-03" } },
+      vacant: { "TX-23": { party: "R", name: "Tony Gonzales", until: "2026-04-14" } },
+      senate: {},
+    };
+    const seats = houseHolders(file);
+    expect(seats.get("CA-03")).toEqual({ party: "O", name: "Kevin Kiley" });
+    expect(seats.get("TX-23")).toEqual({ party: "R", name: "Tony Gonzales", vacant: true });
+    expect(seats.size).toBe(3);
   });
 });
 
@@ -74,11 +96,11 @@ describe("buildOddsView", () => {
     expect(view.priceType).toBe("bid/ask midpoint");
   });
 
-  it("keys House races by district, at-large included, and flips against the 2024 winner", () => {
+  it("keys House races by district, at-large included, and flips against today's holder", () => {
     const view = buildOddsView(
       board(market("DE-00", "D", 97), market("PA-07", "D", 62), market("PA-07", "R", 38), market("TX-28", "R", 70)),
       "house",
-      new Map([["PA-07", "R"], ["DE-00", "D"], ["TX-28", "D"]]),
+      new Map([["PA-07", held("R")], ["DE-00", held("D")], ["TX-28", held("D")]]),
     );
     expect(view.total).toBe(435);
     expect(view.bins.get("DE-00")).toBe("D3");
@@ -90,11 +112,18 @@ describe("buildOddsView", () => {
 });
 
 describe("describeOddsRace", () => {
-  it("lists prices, the flip, and the redistricting caveat", () => {
-    const view = buildOddsView(board(market("TX-28", "R", 70), market("TX-28", "D", 30)), "house", null);
+  it("lists prices, the holder, the flip, and the redistricting caveat", () => {
+    const view = buildOddsView(
+      board(market("TX-28", "R", 70), market("TX-28", "D", 30), market("FL-20", "D", 95), market("CA-03", "R", 55), market("CA-03", "D", 45)),
+      "house",
+      new Map([["TX-28", held("D", "Henry Cuellar")], ["FL-20", held("D", "Sheila Cherfilus-McCormick", { vacant: true })], ["CA-03", held("O", "Kevin Kiley")]]),
+    );
     expect(describeOddsRace(view.races.get("TX-28"), "house")).toEqual(["Republican 70%", "Democratic 30%", "Shape shows 2024 lines; the market is for the 2026 district"]);
-    const senate = buildOddsView(board(market("ME-SEN", "D", 64.5), market("ME-SEN", "R", 35.5)), "senate", null);
-    expect(describeOddsRace(senate.races.get("ME"), "senate")).toEqual(["Democratic 64.5%", "Republican 35.5%", "Leader differs from the party holding the seat (R)"]);
+    expect(describeOddsRace(view.races.get("FL-20"), "house")).toEqual(["Democratic 95%", "Vacant; last held by Sheila Cherfilus-McCormick (D)"]);
+    expect(describeOddsRace(view.races.get("CA-03"), "house")).toEqual(["Republican 55%", "Democratic 45%", "Held by Kevin Kiley (I)", "Leader is from a different party than the holder"]);
+    const senate = buildOddsView(board(market("ME-SEN", "D", 64.5), market("ME-SEN", "R", 35.5), market("NC-SEN", "D", 96)), "senate", null);
+    expect(describeOddsRace(senate.races.get("ME"), "senate")).toEqual(["Democratic 64.5%", "Republican 35.5%", "Held by Susan Collins (R)", "Leader is from a different party than the holder"]);
+    expect(describeOddsRace(senate.races.get("NC"), "senate")).toEqual(["Democratic 96%", "Held by Thom Tillis (R), not running", "Leader is from a different party than the holder"]);
     expect(describeOddsRace(senate.races.get("CA"), "senate")).toEqual(["No Senate race in 2026"]);
   });
 });
