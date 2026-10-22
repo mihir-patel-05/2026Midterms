@@ -83,9 +83,10 @@ Differentiators:
 - Kalshi odds map (Oct 22): a "Market odds" mode next to "2026 races | Past results" on the map, with a U.S. Senate / U.S. House picker (`?mode=odds&ooffice=house`). Plan: `docs/plans/kalshi-odds-map.md`.
   - **Colours:** each Senate state or House district takes the colour of the outcome its live Kalshi market prices highest, from pale (under 60%) to saturated (90% and up), as on Kalshi's own maps. Independents have their own hue.
   - **Never 50/50:** no 2026 race, no open market, and no price yet each get their own grey; a tie at the top is gold.
-  - **Flips:** hatching marks a race led by a different party than the seat's holder (the 2024 winner for the House). Redistricted seats are never hatched.
+  - **Flips:** hatching marks a race led by a different party than the member holding the seat today. A vacant seat is compared with its last holder, and an independent holder counts as neither party. Redistricted seats are never hatched.
+  - **Seat holders:** `npm run build:seat-holders` (in `CODE/`) writes `public/data/seat-holders-2026.json` from the congress-legislators project. Rerun it after any special election, resignation, or party switch, then commit the output. A test checks the Senate races in `races2026.ts` against it; that check caught Oklahoma (Alan Armstrong was appointed to Markwayne Mullin's seat and is not running).
   - **Senate labels:** each state shows its leader's price; small Northeast states and DC are listed beside the national view.
-  - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number.
+  - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
   - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
   - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
 
