@@ -41,7 +41,8 @@ export const SENATE_RACES_2026: Record<string, SenateRace> = {
   NJ: { holder: "D", incumbent: "Cory Booker", open: false },
   NM: { holder: "D", incumbent: "Ben Ray Luján", open: false },
   OH: { holder: "R", incumbent: "Jon Husted", open: false, special: true },
-  OK: { holder: "R", incumbent: "Markwayne Mullin", open: false },
+  // Mullin left the Senate on Mar 23, 2026. Armstrong was appointed and is not on the ballot (Kalshi lists Kevin Hern).
+  OK: { holder: "R", incumbent: "Alan Armstrong", open: true },
   OR: { holder: "D", incumbent: "Jeff Merkley", open: false },
   RI: { holder: "D", incumbent: "Jack Reed", open: false },
   SC: { holder: "R", incumbent: "Lindsey Graham", open: false },
