@@ -33,5 +33,8 @@ it returns no boundary shapes, so it cannot replace the outlines above. It is us
   point per district under today's lines (`cd119`, a control) and the 2026 lines (`cd120`),
   and flags states where a point lands in a differently numbered district. A run bills about
   1,750 or more lookups, so check the day's Geocodio allowance first, then review and commit
-  the JSON. The committed file is provisional (Texas only, confirmed by a direct lookup) until
-  the script has been run in full.
+  the JSON. Last run on 2026-10-22, which flagged CA, FL, MO, NC, OH, TN, TX, and UT. 37 of the
+  436 sample points fell outside their own district on the simplified outlines and were
+  skipped, and a redraw that keeps every sampled point's number goes unseen, so states can
+  be added by hand in `MANUAL_STATES`. AL and LA are there: both redrew after *Louisiana v.
+  Callais*, and Louisiana's May 2026 map was not yet in Geocodio's `cd120` data.

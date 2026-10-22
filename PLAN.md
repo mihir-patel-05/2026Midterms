@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 14, 2026
+Last updated: October 22, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -70,10 +70,28 @@ Differentiators:
   - **House:** each district starts from its 2024 winner (or a tossup on a blank map) and is flipped by click.
   - **Control:** seat bars show each chamber (51 Senate seats, or 50 with the vice president's tiebreak; 218 House seats). King and Sanders count as Democrats, noted as independents who caucus with them.
   - The whole scenario is kept in the URL. Next step: impeachment vote math (section 4.10).
+- Economic indicators from FRED (Oct 15, section 4.11): a row of 13 tiles under the chamber-control banner, with a compact copy in the expanded map's overlay.
+  - **Data:** 21 FRED series in `indicator_series` and `indicator_observations`, synced at 9:15 AM and 6:15 PM ET (`npm run sync:fred` by hand).
+  - **API:** `GET /api/indicators?days=730`, cached for 15 minutes.
+  - **Restricted:** S&P 500 and VIX are stored but not served.
+  - **Flags:** `ECON_INDICATORS_ENABLED` and `FRED_RESTRICTED_SERIES_ENABLED` (backend), and `VITE_FEATURE_ECONOMY` (frontend).
+- State economic indicators and history charts (Oct 16, section 4.11): picking a state narrows the economy strip to that state, and every tile opens a history chart.
+  - **Data:** 5 series for each of the 50 states and DC (255 in all: unemployment, payrolls, jobless claims, real GDP, home prices), plus `USSTHPI` nationally. Requests are paced to about 100 a minute, so a sync takes about 4 minutes.
+  - **API:** `GET /api/indicators?state=CA` adds that state's series; `supported: false` for Puerto Rico.
+  - **Strip:** with a state selected, 5 state tiles replace the national ones and the U.S.-only tiles are hidden; the U.S. figure is in each tooltip.
+  - **Dialog:** 1Y / 2Y / 5Y history, with the U.S. on the same axis (rates, growth, home prices) or on a second chart (jobs, claims).
+- Kalshi odds map (Oct 22): a "Market odds" mode next to "2026 races | Past results" on the map, with a U.S. Senate / U.S. House picker (`?mode=odds&ooffice=house`). Plan: `docs/plans/kalshi-odds-map.md`.
+  - **Colours:** each Senate state or House district takes the colour of the outcome its live Kalshi market prices highest, from pale (under 60%) to saturated (90% and up), as on Kalshi's own maps. Independents have their own hue.
+  - **Never 50/50:** no 2026 race, no open market, and no price yet each get their own grey; a tie at the top is gold.
+  - **Flips:** hatching marks a race led by a different party than the member holding the seat today. A vacant seat is compared with its last holder, and an independent holder counts as neither party. Redistricted seats are never hatched.
+  - **Seat holders:** `npm run build:seat-holders` (in `CODE/`) writes `public/data/seat-holders-2026.json` from the congress-legislators project. Rerun it after any special election, resignation, or party switch, then commit the output. A test checks the Senate races in `races2026.ts` against it; that check caught Oklahoma (Alan Armstrong was appointed to Markwayne Mullin's seat and is not running).
+  - **Senate labels:** each state shows its leader's price; small Northeast states and DC are listed beside the national view.
+  - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
+  - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
+  - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
 
 **Not done yet (carried over from Oct 1–7)**
 
-- FRED economic indicator ingestion.
 - District race pages with ACS demographics and partisan lean.
 - Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.
 
@@ -91,9 +109,9 @@ Differentiators:
 
 | When | Work |
 |---|---|
-| **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. FRED indicators if time allows. |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). FRED economic indicators (section 4.11). Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). DB batch 3. |
-| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 (Ask the race, grounded). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
+| **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. ~~FRED indicators if time allows.~~ |
+| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). ~~FRED economic indicators (section 4.11).~~ (done Oct 15) Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). Chatbot Google sign-in and daily chat history (section 4.12). DB batch 3. |
+| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 through the chatbot, with tools and simulator guidance (section 4.12). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
 | **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
 | **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
 | **Nov 3** | Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
@@ -120,6 +138,7 @@ Differentiators:
 | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
 | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
 | **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
+| **Research chatbot** | A Claude assistant behind Google sign-in that answers from our stored data with sources, keeps the day's chats (reset nightly), and reads the simulator scenario to help users think through their predictions. See section 4.12. |
 
 ### 4.2 AI agents
 
@@ -134,7 +153,7 @@ Agents are the analyst layer, not the data layer. Each agent is a job made of a 
 | 5 | Daily brief | Top stories, movers, and races to watch | Each morning |
 | 6 | Candidate positions | Positions by issue with a quote and link (requires human review) | Weekly, after Nov 3 |
 | 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
-| 8 | Ask the race | Answers grounded only in stored data, with citations | On demand |
+| 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
 | 9 | Election night | Live race notes and call summaries | Nov 3 |
 
 Rules:
@@ -161,7 +180,7 @@ These are prioritized. P01, P02, and P11 are the only pre-election commitments. 
 | P05 | **Since Your Last Visit** | Shows only the meaningful changes, including corrections | P1 |
 | P07 | **Office Powers Explorer** | What this office can actually do | P1, low-data |
 | P08 | **Portable Civic Guide** | Print, offline, and shareable cards that keep their sources | P1 |
-| P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8) | P2, controlled beta |
+| P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8; delivered by section 4.12) | P2, controlled beta |
 | P09 | **Reproducible Scenario Studio** | Save, compare, and explain a "what if turnout shifts 3 points" scenario | P2, research release |
 | P10 | **Civic Publisher Kit** | Libraries and newsrooms embed a maintained guide | P2, partner pilot |
 | P12 | **Promise-to-Action Ledger** | Follow a representative's documented actions after the election | P2, post-election |
@@ -547,7 +566,7 @@ Computed straight from the simulator's totals (`simulateHouse` and `simulateSena
 
 A strip of tiles directly under the Kalshi House and Senate control banner on the monitor. It shows the economy next to the chamber-control odds, as context. It is **never presented as a forecast or as an explanation of why the odds moved.** No migration is needed: the series go into `indicator_series` and `indicator_observations` (batch 1), and the `(series_id, observed_at)` unique key lets revised values overwrite old ones in place.
 
-**Series (20)**
+**National series (22)**
 
 | Tile | FRED IDs | Frequency | Shown as | Original source |
 |---|---|---|---|---|
@@ -565,34 +584,64 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | Treasuries | `DGS10`, `DGS2`, `T10Y2Y` | Daily | The 10-year yield; the 2-year yield and the 10-year minus 2-year gap in the tooltip | Treasury, through the Fed's H.15 |
 | Real income per person | `A229RX0` | Monthly | Change from a year ago | BEA |
 | Consumer sentiment | `UMCSENT` | Monthly | Index (FRED shows it about a month late) | University of Michigan |
+| Home prices | `USSTHPI` | Quarterly | Change from a year ago (all-transactions index) | FHFA |
 | *Restricted* | `SP500`, `VIXCLS` | Daily | Ingested but **not served** until the licensing is cleared (see below) | S&P Dow Jones Indices, Cboe |
 
 - **S&P 500 and VIX.** FRED's copies carry notices from S&P Dow Jones Indices and Cboe that bar reproduction without permission. Like AAA gas prices (section 4.8), we do not publish them until the terms are read or permission is granted. They stay hidden behind `FRED_RESTRICTED_SERIES_ENABLED`, which is off by default.
+**State series (5 for each of the 50 states and DC, 255 in all; added Oct 16)**
+
+`{ST}` is the postal code. The list is `STATE_FIPS_TO_POSTAL` from the Census client minus Puerto Rico, which FRED has none of these series for. They are ordinary `indicator_series` rows (`fred.CAUR` and so on), so there is still no migration.
+
+| Tile | State series | U.S. counterpart | Shown as | Original source |
+|---|---|---|---|---|
+| Unemployment | `{ST}UR`, monthly | `UNRATE` | % | BLS (LAUS) |
+| Jobs added | `{ST}NA`, monthly, thousands | `PAYEMS` | Change from the previous month | BLS (CES) |
+| Jobless claims | `{ST}ICLAIMS`, weekly, **not seasonally adjusted** | `ICSA` | Count | Department of Labor |
+| GDP growth | `{ST}RQGSP`, quarterly real GDP level | `A191RL1Q225SBEA` | Annualized % from the prior quarter, computed in code (`qoq_annualized`) | BEA |
+| Home prices | `{ST}STHPI`, quarterly | `USSTHPI` | Change from a year ago | FHFA |
+
+- **`qoq_annualized`.** `((v / prev)^4 − 1) × 100`, null unless the previous row is exactly the prior quarter, so a missing quarter never shows as two quarters of growth.
+- **State claims staleness.** State claims come out a week after the national figure, so they allow 21 days (`staleAfterDays` on the series) instead of the weekly 14; otherwise they would show "Stale" every Wednesday.
+
 - **National gas.** `GASREGW` is FRED's copy of EIA's U.S. regular series (`EMM_EPMR_PTE_NUS_DPG`), so it needs no second key before the freeze. When the EIA feed for section 4.8 lands, the U.S. gas figure must come from one source only: either 4.8 reads this series or it replaces it.
 
 **Backend** (`backend/src/services/fred/`, modeled on `services/census/`)
 
-1. **Catalog** (`series-catalog.ts`). The table above as data, with each series' key (`fred.<ID>`), unit, frequency, original source, transform (`level`, `yoy`, or `mom_change`), and a `restricted` flag. `FRED_CATALOG_VERSION` is used as the `IngestionRun` parser version.
-2. **Client** (`fred-client.ts`). `FredClient` calls `/series/observations?file_type=json`, shaped like `CensusClient`. FRED's `"."` value means missing, so it becomes no row, never 0. `redactedUrl()` removes `api_key` so the key is never logged or stored. Requests run one at a time, about 20 per run, well under FRED's 120 per minute.
-3. **Sync** (`fred-sync.ts`). Follows `syncAcs`: insert the `DataSource` (key `fred`, authority "Federal Reserve Bank of St. Louis"), open an `IngestionRun`, and upsert each `IndicatorSeries`.
+1. **Catalog** (`series-catalog.ts`). The tables above as data, with each series' key (`fred.<ID>`), unit, frequency, original source, transform (`level`, `yoy`, `mom_change`, or `qoq_annualized`), a `restricted` flag, its `stateCode` (null for national series), and an optional `staleAfterDays`. The state series are built from 5 templates; `stateSeries(code)` returns one state's. `FRED_CATALOG_VERSION` (`fred-indicators-v2`) is used as the `IngestionRun` parser version.
+2. **Client** (`fred-client.ts`). `FredClient` calls `/series/observations?file_type=json`, shaped like `CensusClient`. FRED's `"."` value means missing, so it becomes no row, never 0. `redactedUrl()` removes `api_key` so the key is never logged or stored. A run makes about 277 requests (22 national, 255 state), so requests, retries included, start at least `minIntervalMs` apart (600 ms, about 100 a minute) to stay under FRED's 120 per minute. A run takes about 4 minutes, well inside the 30-minute lease.
+3. **Sync** (`fred-sync.ts`). Follows `syncAcs`: insert the `DataSource` (key `fred`, authority "Federal Reserve Bank of St. Louis"), open an `IngestionRun`, and upsert each `IndicatorSeries`. Every run also rewrites the source's coverage text, so a source created by an older catalog picks up the new one.
    - **Window:** a series with no rows backfills 5 years. Later runs re-fetch the last 400 days, which catches revisions to GDP and payrolls and the annual CPI seasonal-factor update.
    - **Writes:** insert new rows and update only rows whose value changed, with a new `fetched_at`.
-   - **Failures:** one failing series is recorded and the run continues. The run ends as `PARTIAL` and the source's health as `DEGRADED`.
+   - **Window detail:** FRED can return the observation for the period containing the start date (Sep 1 for a monthly series asked from Sep 10), so stored rows are compared from the earliest date returned.
+   - **Failures:** one failing series is recorded and the run continues. If some series fail, the run ends as `PARTIAL`; if all fail, it ends as `FAILED`. In both cases the source's health is `DEGRADED`.
    - **No `RawArtifact` yet.** Its storage is still the local filesystem, which a Railway redeploy wipes. The ACS sync skips it too. The source URL, without the key, goes in the run's metadata. Revisit once the Railway Bucket (section 5.3) exists.
-4. **Runner and CLI.** `run-fred-sync.ts` holds the `fred` `SyncLease` (30 minutes), like the Schedule E runner. `npm run sync:fred` runs it by hand and exits non-zero if nothing loaded. The future `cron-econ` Railway service runs `node dist/scripts/sync-fred.js`.
+4. **Runner and CLI.** `run-fred-sync.ts` holds the `fred` `SyncLease` (30 minutes), like the Schedule E runner. `npm run sync:fred` runs it by hand. It exits non-zero if the run failed or if no shown series has data. A healthy re-run inserts almost nothing, so the number of rows written is not the test. The future `cron-econ` Railway service runs `node dist/scripts/sync-fred.js`.
 5. **Schedule.** In `jobs/scheduler.ts`, at 9:15 and 18:15 ET daily. The morning run is after the 8:30 BLS and BEA releases; the evening run is after the afternoon updates for rates, oil, and mortgages. It is scheduled only when `FRED_API_KEY` is set and `ECON_INDICATORS_ENABLED` is on.
-6. **Read service and API.** `GET /api/indicators?days=730`. For each series it returns:
-   - the latest value and its period ("Aug 2026", "Q2 2026", "Week of Oct 5")
+6. **Read service and API.** `GET /api/indicators?days=730&state=CA`. For each national series it returns:
+   - the latest value and its period ("Aug 2026", "Q2 2026", "Week ending Oct 10"). FRED dates weekly values to the *last* day of the week: Saturday for claims, Monday for gas, Thursday for mortgages.
    - the change for its transform, computed in code from stored levels. A year-over-year change is null if the observation from a year earlier is missing.
-   - a stale flag, set when the latest observation is older than 7 days (daily), 14 (weekly), 60 (monthly), or 150 (quarterly)
+   - a stale flag, measured from the **end** of the latest period rather than its FRED date. FRED dates monthly and quarterly values to the period's first day, so counting from that date would flag September CPI (dated Sep 1, published Oct 15) as stale. The limits are 7 days (daily), 14 (weekly), 75 (monthly) and 150 (quarterly), unless the series sets `staleAfterDays`. Monthly is 75 rather than 60 because FRED shows consumer sentiment about a month late.
    - 2 years of history, with daily series reduced to one value per week
    - a source line, e.g. "BLS via FRED, fetched Oct 15"
    
-   It answers `404 NOT_LOADED` before the first sync, and 404 when the flag is off. The response is cached for 15 minutes.
+   - `change`: year over year for `yoy` series; annualized from the prior quarter for `qoq_annualized`; for the rest, the difference from the previous observation. `changeHistory` gives the same change for each point, so the inflation and real-income charts plot the rate rather than the index.
+
+   `state` is optional: two letters, uppercased before it is checked; anything else is a 400. With it, the response adds `state: { code, supported, series }`, read in the same query as the national series. `supported` is false for a well-formed code FRED has no series for (Puerto Rico); the monitor never asks for its fictional state. Without it, `state` is null.
+
+   It answers `404 NOT_LOADED` before the first sync (judged on the national rows only), and 404 when the flag is off. The response is cached for 15 minutes (`Cache-Control: max-age=900`; there is no shared cache helper).
 
 **Frontend** (`CODE/src/features/election-monitor/`)
 
-- **`EconomyStrip.tsx`**, placed under each `ControlOddsBanner`, with data from `useEconIndicators()` in `economy.ts`. Each tile shows a label, value, change, small chart, and period. On phones the strip scrolls sideways within itself.
+- **`EconomyStrip.tsx`**, placed under each `ControlOddsBanner`. In the expanded map's overlay it is compact, with no charts or footer. Data comes from `useEconIndicators(days, stateCode)` in `economy.ts`, whose `buildTiles()` turns the series into 14 tiles.
+  - Each tile shows a label, value, change, small chart, and period.
+  - The row scrolls sideways at every width rather than wrapping, so the map stays high on the page.
+  - **With a state selected**, the strip asks for `?state=` and shows that state's 5 tiles (GDP growth, unemployment, jobs, claims, home prices). The tiles FRED only has for the U.S. are **hidden**. The row is labelled with the state, each tooltip carries the U.S. figure ("U.S.: 4.3%, Sep 2026"), and the footer names the state sources and notes that state claims are not seasonally adjusted. A state FRED has no series for keeps the national strip, and the previous tiles stay up while another state loads.
+  - Small state counts keep one decimal under 10K ("+0.4K", not "+0K"); claims under 1,000 show the plain number.
+- **`IndicatorHistoryDialog.tsx`**. Each tile is a button (click, Enter, or Space) that opens a history chart in a dialog, in the compact overlay too.
+  - It fetches the 5-year backfill (`days=1825`) and cuts 1Y / 2Y / 5Y ranges from it on the client. The header shows the label, scope (state or "United States"), latest value, period, change, and the stale pill; the footer gives the source line(s) and the "context, not a forecast" note.
+  - With a state selected, the U.S. is compared on **one axis** for unemployment, GDP growth, and home prices, with a legend. Jobs and claims, whose sizes are not comparable, get a **state chart and a U.S. chart**, each on its own axis. Never two y-scales on one chart.
+  - Neutral inks only: the state line is the foreground colour, the U.S. line muted and dashed. Lines break at missing periods (`indicatorGaps.ts`, shared with the sparkline). A collapsed data table gives the values as text, and focus returns to the tile on close.
+  - Recharts loads with the first dialog opened, not with the monitor.
 - **`IndicatorSparkline.tsx`**, a new small chart that reuses `sparkline.css`. The existing `Sparkline` is built for hourly prices on a 0–100% scale, and we leave the shipped market history alone before the freeze.
 - **Neutral changes.** Arrows and chips use neutral colors, never red for bad and green for good. Whether rising rates or falling oil is good depends on who is asked.
 - **States.** Missing shows "Not available"; stale shows an amber "Stale" pill.
@@ -603,22 +652,226 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 - the client: parsing, missing values, and the key removed from URLs
 - the indicator math: year-over-year, monthly change, staleness, weekly reduction, and restricted series left out
 - a database test of the sync: backfill, incremental run, a revised value, and a partial failure. It uses test-only `fred-test.*` keys and is skipped without `TEST_DATABASE_URL`.
-- the route's query checking
+- the route's query checking, including `state`
+- the catalog: 51 × 5 state series, unique keys and IDs, none for Puerto Rico
+- `qoq_annualized` (including a skipped quarter) and the stale override
+- the read model's state block, `supported: false`, and NOT_LOADED judged on national rows
 
-**Commits.** Five separate commits, each passing typecheck and build on its own:
+**Commits (shipped Oct 15).** Each passes typecheck and build on its own:
 1. client and catalog
 2. sync, runner, CLI, and schedule
-3. API
-4. the monitor strip
-5. this plan
+3. a fix to the sync's stored-rows window
+4. API
+5. the monitor strip
+6. this plan
+
+**Commits for the state series and history charts (shipped Oct 16).** Each passes typecheck, tests, and build on its own:
+1. pace FRED requests under the 120/min limit
+2. state series, `qoq_annualized`, and the claims stale override
+3. `?state=` on the API
+4. the strip follows the selected state
+5. the history chart dialog
+6. this plan
+
+The frontend has Vitest tests for `buildTiles()` (national and state tiles, the fallback for unsupported states, the small-number formats) in `economy.test.ts`, and for the chart helpers in `indicatorGaps.test.ts` and `indicatorHistory.test.ts`.
 
 **Verify.**
 - Run `npm run sync:fred` against the dev database, then run it again and confirm the second run changes almost nothing.
 - Spot-check `UNRATE`, year-over-year CPI, and `DGS10` against fred.stlouisfed.org.
 - Confirm `SP500` and `VIXCLS` are absent from `/api/indicators` unless their flag is on.
 - Check the strip at desktop and phone widths.
+- After the state series land, run `npm run sync:fred` with `FRED_API_KEY` set: it should end `SUCCEEDED` with zero failed series (a wrong ID would leave the source `DEGRADED` every run). Spot-check `CAUR`, `TXNA` month over month, `NYRQGSP` annualized growth, and `FLSTHPI` year over year against fred.stlouisfed.org.
+- `curl '/api/indicators?state=CA'`, then `?state=PR` (`supported: false`), then `?state=ZZZ` (400).
+- Pick a state: 5 state tiles appear and the U.S.-only tiles disappear; clear it and all 14 national tiles return. Open a tile: ranges switch, the overlay or stacked chart appears, gaps render, and the keyboard opens and closes it.
 
 **Timing.** Small, free, and needs no migration, so it ships before the Oct 24 feature freeze.
+
+### 4.12 Research chatbot with accounts (Claude)
+
+A research assistant that users reach by signing in with Google. It replaces today's anonymous Gemini chat. It answers questions from our stored data through tools, keeps the day's conversations so users can go back to them until the nightly reset, and can read the simulator scenario on screen to help users think through their predictions. It is how Agent 8 (Ask the race) and P06 (Ask With Receipts) reach users, and it follows the agent rules in section 4.2.
+
+**What exists today**
+
+- **Gemini chat:** `backend/src/controllers/chat.controller.ts` (`POST /api/chat`, `DELETE /api/chat/:sessionId`). History lives in an in-memory map (24-hour TTL, 20 messages) and is lost on every deploy. The model has no tools and no access to our data.
+- **Chat UI:** `CODE/src/components/chat/` (`ChatButton`, `ChatInterface`, `ChatMessages`, `ChatInput`, `Message`), a sheet mounted in `AppShell.tsx` and `Layout.tsx`. History is kept in `sessionStorage`.
+- **Researcher login:** bcrypt passwords and a 7-day JWT (`researcher-auth.controller.ts`, `lib/researcherAuth.ts`). Accounts are created only by an admin script, so it is not suitable for the public.
+- **Admin sessions:** `AdminSession` stores a hashed opaque token, so a session can be revoked. This is the pattern to copy.
+
+**Accounts: Sign in with Google** (new, separate from researcher and admin accounts)
+
+Google sign-in is the only login for now. We store no passwords, so we need no password reset and no email verification.
+
+- **Flow:**
+  1. The `/login` page shows the Google Identity Services "Sign in with Google" button.
+  2. Google returns an ID token to the browser.
+  3. The browser posts it to `POST /api/auth/google`.
+  4. The backend verifies it with `google-auth-library` (`verifyIdToken`). The audience must be `GOOGLE_CLIENT_ID`, the issuer must be Google, and `email_verified` must be true.
+  5. The backend finds or creates the user by Google's `sub`. The first sign-in creates the account, so there is no separate signup page.
+  6. The backend returns our own session token.
+- **What we store:** Google `sub`, email, and display name only. No profile photo, and no Google access or refresh tokens. We request only the `openid email profile` scopes.
+- **API and pages:**
+  - Endpoints: `POST /api/auth/google`, `POST /api/auth/logout`, `GET /api/auth/me`, and `DELETE /api/auth/me`.
+  - Pages: `/login` and `/account` (delete today's chats, delete account).
+  - The auth endpoints are rate-limited per IP.
+- **Sessions:**
+  - **Token:** an opaque random token sent as a bearer token. Only its SHA-256 hash is stored, in `user_sessions` (modeled on `AdminSession`).
+  - **Expiry:** sessions last 30 days (`USER_SESSION_TTL_DAYS`), and logout revokes the session.
+  - **Why not a cookie:** Railway's `*.up.railway.app` testing domains are on the Public Suffix List, so `web` and `api` count as different sites there and a cookie would be blocked as third-party. Revisit cookies once `www` and `api` share a domain.
+- **Google Cloud setup:**
+  - An OAuth client of type "Web application" in a project we own.
+  - Authorized JavaScript origins: the Testing `web` domain, `www`, and `http://localhost:5173` for local development.
+  - An OAuth consent screen with the app name, support email, and a privacy policy link.
+  - The client ID is public: `GOOGLE_CLIENT_ID` on `api` and `VITE_GOOGLE_CLIENT_ID` on `web`. No client secret is needed for the ID-token flow.
+  - The `web` Content Security Policy allows `https://accounts.google.com` for the script, frame, and connect sources.
+
+**Chat history: kept for one day, reset nightly**
+
+- **Storage:** conversations go in `chat_conversations` and messages in `chat_messages`, both scoped to `user_id`.
+- **Ownership:** a request for another user's conversation returns 404.
+- **Nightly reset:** at midnight ET, a job in `jobs/scheduler.ts` deletes every conversation started before that midnight, and its messages with it.
+  - Reads also hide conversations from before the last midnight ET, so history still resets on time if the job runs late or fails.
+  - A chat started at 11:55 PM ET is gone at midnight. The UI says so.
+- **The `/chat` page:**
+  - A sidebar lists today's conversations, newest first.
+  - Each conversation gets a title written once by a cheap model.
+  - Users can rename a conversation, delete it, or delete all of today's chats at any time.
+- **Account deletion:** deleting an account deletes its sessions, conversations, and messages.
+- **Usage counts:** `chat_usage_daily` keeps per-user daily message and token counts, with no text.
+  - Deleting a chat does not reset the daily cap.
+  - Counts older than 90 days are dropped.
+- **What the model sees:** the system prompt plus the last N turns.
+- **What is saved:** tool calls and results are stored with each message, so any answer can be checked against what the model actually saw.
+
+**Model and loop** (`backend/src/services/chat/`)
+
+- **SDK and models:** `@anthropic-ai/sdk`. `CHAT_MODEL` defaults to `claude-sonnet-5-5`, and `claude-haiku-5-5` writes the titles.
+- **Provider layer:** a thin interface that the agents in section 4.2 can reuse. No agent framework.
+- **Tools:** run on the server, with at most 6 tool rounds per answer.
+- **Streaming:** answers stream to the browser over SSE from `POST /api/chat/conversations/:id/messages`.
+- **Prompt caching:** on the system prompt and the tool definitions.
+- **Token counts:** stored on each assistant message.
+
+**Tools** (read-only)
+
+Each tool wraps an existing service, and every result carries its source and timestamp.
+
+| Tool area | Backed by |
+|---|---|
+| Races and candidates | `election.service`, `candidate.service` |
+| FEC money and outside spending | `finance.service`, `services/outside-spending/` |
+| Kalshi prices, history, and movers (labeled "market price") | `prediction-markets.service`, `services/kalshi/history.ts` |
+| Demographics | `demographics.service` (section 4.5) |
+| Economic indicators | The `/api/indicators` read service, once section 4.11 ships |
+| Past results | The section 4.9 JSON, read from the web origin and cached |
+| Simulator | `get_simulator_scenario` and `propose_simulator_change` (below) |
+
+There is no address-lookup tool, because the privacy rules forbid storing addresses. Users name a district (for example, "PA-07") instead.
+
+**Simulator awareness and guidance**
+
+- **Context.** When the chat is open on `/simulator` or `/simulator/midterms`, the client attaches a compact `simulatorContext` to each message:
+  - the chamber and the URL search string
+  - totals and control from `simulateSenate` and `simulateHouse` (`CODE/src/features/simulator/midterms/model.ts`)
+  - the seats flipped from the baseline
+  - the seats each party needs (`HOUSE_TO_CONTROL`, `SENATE_TO_CONTROL`)
+- **Numbers come from code.** The client's simulator model produces those numbers, not the AI. The server validates the context with Zod, caps its size, and treats it as untrusted user input.
+- **Saved with the message.** The context is stored on the user's message, so the history can link back to that exact scenario.
+- **Guidance means explaining the user's own scenario.** The assistant can:
+  - say what the scenario implies, for example "you are 4 seats short of 218"
+  - list the closest races by Kalshi price, or by 2024 margin where there is no market
+  - give historical midterm swings against the president's party, from past results
+  - ask what the user believes about a race and show what that would change
+- **It never says who will win.**
+- **Proposed changes.** `propose_simulator_change` returns a structured patch in the `MidtermPatch` shape (House picks, national swing, state swings, picks).
+  - The UI shows the patch as an "Apply to simulator" card with a diff.
+  - It is applied through `useMidtermParams` only when the user clicks.
+  - It is never applied automatically.
+
+**UI**
+
+- **The `/chat` page:** full screen, with the conversation sidebar.
+- **The chat button:** the existing `ChatButton` sheet stays on every page.
+  - On simulator pages, it shows a "Sees your scenario" chip.
+- **Signed out:** guests cannot chat.
+  - The chat button still opens the sheet.
+  - The sheet shows "You must sign in to use the research assistant" with the "Sign in with Google" button, and no message box.
+  - `/chat` redirects to `/login` and returns the user to the chat afterwards.
+  - The chat API answers 401 without a valid session.
+- **Answers:** each answer carries the "AI summary" badge and its source links (section 4.2, rule 4).
+- **Under the input box:** "Don't share your address or how you plan to vote." and "Chats are deleted every night at midnight ET."
+
+**Rules**
+
+- **Nonpartisan.** One system prompt for every party. No endorsements, no predictions of winners, and no ranking or labeling by ideology.
+- **Numbers come only from tool results or the simulator context.** When no tool has the data, the answer is "not found". A market price is never called a forecast.
+- **Privacy.**
+  - The assistant never asks how someone will vote.
+  - Message text never goes into logs or analytics.
+  - Chats last until midnight ET at most, and users can delete them sooner.
+  - Messages are not used for anything other than the user's own conversations.
+  - Only Google's `sub`, email, and name are kept about the user.
+- **Cost controls.**
+  - A per-user daily message cap (`CHAT_DAILY_MESSAGE_LIMIT`, default 50).
+  - The existing per-IP limiter and a maximum message length.
+  - A global kill switch (`CHAT_ENABLED`).
+  - Without `ANTHROPIC_API_KEY`, chat returns 503.
+- **Flags:** `CHAT_ENABLED` and `ACCOUNTS_ENABLED` (backend); `VITE_FEATURE_CHAT` and `VITE_FEATURE_ACCOUNTS` (frontend).
+- **Gemini is retired.** Once this ships, remove the Gemini controller and `GEMINI_API_KEY`.
+
+**Migration** (additive)
+
+- `users`: `google_sub` (unique), email, and name
+- `user_sessions`
+- `chat_conversations`
+- `chat_messages`: role, content blocks as JSON, `simulator_context` as JSON, model, and token counts
+- `chat_usage_daily`: user, ET date, message count, and token counts
+
+**Tests.** Added to `test:results`:
+- Google sign-in with a mocked verifier:
+  - the first sign-in creates a user
+  - the next sign-in reuses that user through `sub`
+  - a wrong audience, an expired token, and an unverified email are each rejected
+- logout and session expiry, plus a revoked session being rejected
+- the chat API returning 401 without a session
+- one user unable to read another user's conversation
+- the nightly reset: the job deletes conversations from earlier days, and reads hide them even before the job runs
+- the daily cap, which still counts messages after a chat is deleted
+- tool input validation and source fields
+- the `simulatorContext` schema
+- the tool loop with a mocked Anthropic client, including the round limit
+- `propose_simulator_change` patches parsed by `useMidtermParams`
+
+**Commits.** Seven separate commits, each passing typecheck and build on its own:
+1. Google sign-in and sessions, with the migration
+2. conversation storage, the API, and the nightly reset
+3. the Claude provider, tools, and streaming
+4. the chat pages and login UI
+5. simulator context and Apply cards
+6. Gemini chat removed
+7. this plan
+
+**Verify.**
+- Sign in with Google, chat, sign out, sign back in, and confirm today's history is still there.
+- While signed out, open the chat and confirm it asks you to sign in and offers no message box.
+- Confirm a second Google account cannot open the first account's conversation.
+- Run the reset job with a clock past midnight ET and confirm earlier chats are gone.
+- Delete a chat and confirm it is gone.
+- Ask about PA-07 and check the numbers against the race page.
+- On `/simulator/midterms`, ask "what do I need for a House majority?" and apply a proposal.
+- Check the phone layout.
+
+**Timing.** Google sign-in and history Oct 16–19, then tools and simulator context Oct 20–23, all behind flags, before the Oct 24 feature freeze. If the Apply cards slip, they move to after Nov 3.
+
+**Decided (Oct 15)**
+
+- **Login:** Sign in with Google is the only login for now. A second sign-in option can come later if users ask for one.
+- **Retention:** chat history lasts one day. Everything resets at midnight ET, and users can delete chats sooner.
+- **Guests:** guests cannot chat. The chat tells them to sign in.
+
+**To do before building**
+
+- Create the Google OAuth client and consent screen, and register the Testing and production `web` origins.
+- Publish a privacy policy page for the consent screen, covering what we keep (Google ID, email, name, and one day of chats).
 
 ---
 
@@ -632,7 +885,7 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | Admin web | React, Vite, TypeScript, Tailwind, served by nginx | `admin-dashboard/` |
 | API | Node 20, Express, TypeScript, Zod, node-cron, `ws` | `backend/` |
 | Database | PostgreSQL 16 with Prisma 6 | `backend/prisma/` |
-| AI | Gemini (`@google/generative-ai`) for chat today; the agents will use the same provider layer | `backend/src/` |
+| AI | Anthropic Claude (`@anthropic-ai/sdk`) for chat (section 4.12) and the agents, through one provider layer. Gemini (`@google/generative-ai`) runs today's chat until 4.12 ships. | `backend/src/` |
 | Local development | `docker-compose.yml` (Postgres, backend, frontend, admin) | repo root |
 
 ### 5.2 Railway services (one project, `staging` and `production` environments)
@@ -672,7 +925,7 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | GovTrack and unitedstates/congress-legislators | Ideology, incumbents | `IDEOLOGY_*` |
 | Census (cartographic boundaries, ACS) | Maps, demographics (`npm run sync:acs`) | `CENSUS_API_KEY` (required for the sync; Census rejects keyless requests). See `CODE/public/geo/SOURCES.md` |
 | MIT Election Data + Science Lab (Harvard Dataverse CSVs) | Past results: county and state presidential returns, Senate by state, House by district (section 4.9) | No key; raw files in `backend/data/medsl/` (not committed), converted with `npm run build:past-results` in `CODE/`; attribution required |
-| FRED (St. Louis Fed) | Economic indicators: 20 series (section 4.11); `SP500` and `VIXCLS` not served until licensing is cleared | `FRED_API_KEY`; `ECON_INDICATORS_ENABLED`, `FRED_RESTRICTED_SERIES_ENABLED` |
+| FRED (St. Louis Fed) | Economic indicators: 21 series (section 4.11); `SP500` and `VIXCLS` not served until licensing is cleared | `FRED_API_KEY`; `ECON_INDICATORS_ENABLED`, `FRED_RESTRICTED_SERIES_ENABLED` |
 | EIA API v2 (`petroleum/pri/gnd`) | Weekly gas prices: U.S., 9 states, PADD regions (section 4.8) | `EIA_API_KEY`, to add (free) |
 | BLS API (QCEW, CES, LAUS, CPI) | Jobs by state and county, gasoline CPI (section 4.8) | `BLS_API_KEY`, to add (free) |
 | Census International Trade API (`intltrade/imports/statehs`, `exports/statehs`) | Imports and exports by state, product, and country (section 4.8) | `CENSUS_API_KEY` (existing) |
@@ -682,7 +935,9 @@ A strip of tiles directly under the Kalshi House and Senate control banner on th
 | AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
-| Gemini | Chat and agents | `GEMINI_API_KEY` (chat returns 503 when blank) |
+| Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
+| Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
+| Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
 
 ---
 
@@ -701,7 +956,7 @@ Conventions:
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
 | 2 | Oct 8–14 | `articles` (NYT and AP, unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
-| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9) |
+| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
 Schema cleanup to do after the election:

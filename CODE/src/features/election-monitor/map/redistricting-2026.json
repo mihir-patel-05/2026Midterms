@@ -1,10 +1,75 @@
 {
-  "generatedAt": "2026-10-06",
-  "source": "Provisional: TX confirmed by a direct Geocodio cd120 lookup (Austin moves from TX-37 to TX-10). Rerun `npm run build:redistricting` to detect every state.",
+  "generatedAt": "2026-10-22",
+  "source": "Geocodio cd120 (2026 maps) vs Census cb_2024_us_cd119 interior points",
   "states": {
-    "TX": {
+    "AL": {
       "changedDistricts": [],
       "manual": true
+    },
+    "CA": {
+      "changedDistricts": [
+        "02",
+        "03",
+        "06",
+        "32",
+        "47",
+        "48"
+      ]
+    },
+    "FL": {
+      "changedDistricts": [
+        "12",
+        "18",
+        "20",
+        "22",
+        "23",
+        "25"
+      ]
+    },
+    "LA": {
+      "changedDistricts": [],
+      "manual": true
+    },
+    "MO": {
+      "changedDistricts": [
+        "03"
+      ]
+    },
+    "NC": {
+      "changedDistricts": [
+        "03"
+      ]
+    },
+    "OH": {
+      "changedDistricts": [
+        "09"
+      ]
+    },
+    "TN": {
+      "changedDistricts": [
+        "07",
+        "09"
+      ]
+    },
+    "TX": {
+      "changedDistricts": [
+        "04",
+        "06",
+        "08",
+        "09",
+        "17",
+        "18",
+        "22",
+        "29",
+        "32",
+        "37"
+      ]
+    },
+    "UT": {
+      "changedDistricts": [
+        "02",
+        "04"
+      ]
     }
   }
 }

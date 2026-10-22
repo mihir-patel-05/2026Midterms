@@ -1,16 +1,19 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
+import { OddsControls, OddsLegend } from "./OddsControls";
+import { CALLOUT_STATES, describeOddsRace, HATCH_BACKGROUND, ODDS_COLORS, ODDS_STATUS_COLORS, oddsLabels, useOddsView } from "./oddsMap";
 import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
 import { PastResultsTab } from "./PastResultsTab";
-import { describeResult, describeShift } from "./pastResults";
+import { BIN_COLORS, describeResult, describeShift, STATUS_COLORS } from "./pastResults";
 import { usePastResultsView } from "./usePastResultsView";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
+import { EconomyStrip } from "./EconomyStrip";
 import { contestMatchesOffice, districtLabel, FICTIONAL_STATE_CODE, formatEtTime, numberFormat } from "./constants";
 import { DemographicsTab } from "./DemographicsTab";
 import { DetailPanel } from "./DetailPanel";
@@ -26,7 +29,7 @@ import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
-import type { MapTarget, MapView } from "./map/ElectionMap";
+import type { MapCallout, MapLabel, MapOverlay, MapTarget, MapView } from "./map/ElectionMap";
 import { isRedistricted } from "./map/redistricting";
 import type { MapLayer, MapMode, MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
@@ -65,6 +68,8 @@ export function ElectionMonitor() {
   }, [counts.data, mockFeed.data, params.state, realContests.data]);
 
   const selectedState = states.find((state) => state.code === params.state) ?? null;
+  // FRED has no series for the fictional state; the strip stays national.
+  const econStateCode = selectedState && !selectedState.isFictional ? selectedState.code : null;
   const stateContests = useMemo(
     () => (isFictionalSelection ? mockFeed.data?.contests ?? [] : realContests.data ?? []),
     [isFictionalSelection, mockFeed.data, realContests.data],
@@ -95,9 +100,32 @@ export function ElectionMonitor() {
     { office: params.pastOffice, year: params.pastYear, metric: params.pastMetric, from: params.pastFrom },
     params.layer === "counties",
   );
-  // In Past results the office decides the layer: states or counties for president, states for Senate, districts for House.
-  const mapLayer: MapLayer = pastActive ? past.layer : params.layer;
-  const pastPaint = useMemo(() => (pastActive ? { bins: past.bins } : null), [pastActive, past.bins]);
+  const oddsActive = oddsMapEnabled && params.mode === "odds";
+  const odds = useOddsView(oddsActive, params.oddsOffice);
+  const mapMode: MapMode = pastActive ? "past" : oddsActive ? "odds" : "races";
+  const extraModes = [...(pastResultsEnabled ? ["past" as const] : []), ...(oddsMapEnabled ? ["odds" as const] : [])];
+  // In Past results the office decides the layer: states or counties for president, states for Senate,
+  // districts for House. Market odds is by state for the Senate and by district for the House.
+  const mapLayer: MapLayer = pastActive ? past.layer : oddsActive ? (params.oddsOffice === "senate" ? "states" : "districts") : params.layer;
+  const oddsBins = odds.view?.bins ?? null;
+  const oddsFlips = odds.view?.flips;
+  const overlay = useMemo<MapOverlay | null>(() => {
+    if (pastActive) return { bins: past.bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
+    if (oddsActive) return { bins: oddsBins, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true, hatch: oddsFlips };
+    return null;
+  }, [pastActive, past.bins, oddsActive, oddsBins, oddsFlips]);
+  // Senate odds label each state with its leader's price; small Northeast states are listed beside the map.
+  const senateLabels = useMemo(() => {
+    if (!oddsActive || params.oddsOffice !== "senate" || !odds.view) return null;
+    const all = oddsLabels(odds.view);
+    const labels: MapLabel[] = all.filter((item) => !CALLOUT_STATES.includes(item.code))
+      .map((item) => ({ code: item.code, text: item.price ? `${item.code}\n${item.price}` : item.code, ink: item.ink }));
+    const callouts: MapCallout[] = CALLOUT_STATES.flatMap((code) => {
+      const item = all.find((label) => label.code === code);
+      return item ? [{ code, text: item.price, ink: item.ink, background: item.hatch ? `${HATCH_BACKGROUND}, ${item.color}` : item.color }] : [];
+    });
+    return { labels, callouts };
+  }, [oddsActive, params.oddsOffice, odds.view]);
   const setMode = useCallback((mode: MapMode) => {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);
@@ -149,6 +177,13 @@ export function ElectionMonitor() {
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
   const describe = useCallback((target: MapTarget) => {
     const state = states.find((item) => item.code === target.state);
+    if (oddsActive && target.kind !== "county") {
+      const code = target.kind === "district" ? `${target.state}-${target.district}` : target.state;
+      const title = target.kind === "district" ? districtLabel(target.state, target.district) : state?.name ?? target.state;
+      const office = params.oddsOffice;
+      if (!odds.view) return { title, lines: ["Loading Kalshi markets…"] };
+      return { title, lines: [`2026 ${office === "senate" ? "Senate" : "House"} · Kalshi market`, ...describeOddsRace(odds.view.races.get(code), office)] };
+    }
     if (pastActive) {
       const title = target.kind === "county" ? target.name : target.kind === "district" ? districtLabel(target.state, target.district) : state?.name ?? target.state;
       const year = past.year;
@@ -183,7 +218,7 @@ export function ElectionMonitor() {
         state?.readiness === "partial" ? "No candidates on file yet" : "",
       ].filter(Boolean),
     };
-  }, [states, selectedState?.code, stateContests, pastActive, past]);
+  }, [states, selectedState?.code, stateContests, pastActive, past, oddsActive, odds.view, params.oddsOffice]);
   const chosenDistricts = selectedDistricts(params);
   // Plain click selects one district; Shift-click adds or removes it. Another state starts over.
   const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
@@ -279,10 +314,12 @@ export function ElectionMonitor() {
             onStateCrumb={() => update({ district: null, districts: [], counties: [], contest: null })}
           />
           <ControlOddsBanner />
+          <EconomyStrip stateCode={econStateCode} stateName={selectedState?.name ?? null} />
           <MapCard
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
-            mode={pastActive ? "past" : "races"}
+            mode={mapMode}
+            modes={extraModes}
             expanded={expanded}
             onExpandedChange={setExpanded}
             fullscreen={fullscreen}
@@ -292,20 +329,23 @@ export function ElectionMonitor() {
                 states={states}
                 stateCode={selectedState?.code ?? null}
                 layer={params.layer}
-                showLayers={!pastActive}
+                showLayers={mapMode === "races"}
                 onStateChange={selectState}
                 onLayerChange={(layer) => update({ layer })}
               />
             }
-            // 2026 numbers; Past results has its own legend and detail tab.
-            hud={!pastActive && (
+            // 2026 numbers; Past results has its own legend and detail tab, and market odds keeps the chamber odds.
+            hud={mapMode === "odds" ? <ControlOddsBanner /> : mapMode === "races" && (
               <>
                 <ControlOddsBanner />
+                <EconomyStrip compact stateCode={econStateCode} stateName={selectedState?.name ?? null} />
                 <StatStrip stats={stats} />
               </>
             )}
-            onModeChange={pastResultsEnabled ? setMode : undefined}
-            pastControls={pastActive && (
+            onModeChange={setMode}
+            modeControls={oddsActive ? (
+              <OddsControls office={params.oddsOffice} view={odds.view} onChange={(oddsOffice) => update({ oddsOffice })} />
+            ) : pastActive && (
               <PastResultsControls
                 view={past}
                 office={params.pastOffice}
@@ -314,7 +354,7 @@ export function ElectionMonitor() {
                 onLevelChange={(counties) => update({ layer: counties ? "counties" : "states" })}
               />
             )}
-            pastLegend={pastActive && (
+            modeLegend={oddsActive ? <OddsLegend office={params.oddsOffice} view={odds.view} status={odds.status} holdersAsOf={odds.holdersAsOf} /> : pastActive && (
               <>
                 {past.error && <p className="em-note" role="status">Past results could not be loaded.</p>}
                 {params.pastOffice === "house" && past.year !== null && !past.houseLinesMatch && (
@@ -328,7 +368,10 @@ export function ElectionMonitor() {
               <ElectionMap
                 layer={mapLayer}
                 expanded={expanded}
-                past={pastPaint}
+                overlay={overlay}
+                labels={senateLabels?.labels ?? null}
+                // Zoomed into a state, the column would cover the map; it belongs to the national view.
+                callouts={selectedState ? null : senateLabels?.callouts ?? null}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}
