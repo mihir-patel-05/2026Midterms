@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 15, 2026
+Last updated: October 22, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -80,6 +80,14 @@ Differentiators:
   - **API:** `GET /api/indicators?state=CA` adds that state's series; `supported: false` for Puerto Rico.
   - **Strip:** with a state selected, 5 state tiles replace the national ones and the U.S.-only tiles are hidden; the U.S. figure is in each tooltip.
   - **Dialog:** 1Y / 2Y / 5Y history, with the U.S. on the same axis (rates, growth, home prices) or on a second chart (jobs, claims).
+- Kalshi odds map (Oct 22): a "Market odds" mode next to "2026 races | Past results" on the map, with a U.S. Senate / U.S. House picker (`?mode=odds&ooffice=house`). Plan: `docs/plans/kalshi-odds-map.md`.
+  - **Colours:** each Senate state or House district takes the colour of the outcome its live Kalshi market prices highest, from pale (under 60%) to saturated (90% and up), as on Kalshi's own maps. Independents have their own hue.
+  - **Never 50/50:** no 2026 race, no open market, and no price yet each get their own grey; a tie at the top is gold.
+  - **Flips:** hatching marks a race led by a different party than the seat's holder (the 2024 winner for the House). Redistricted seats are never hatched.
+  - **Senate labels:** each state shows its leader's price; small Northeast states and DC are listed beside the national view.
+  - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number.
+  - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
+  - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
 
 **Not done yet (carried over from Oct 1–7)**
 
