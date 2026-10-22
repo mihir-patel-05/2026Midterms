@@ -7,16 +7,28 @@ const layerDescriptions = {
   districts: "Congressional districts for the selected state",
   counties: "County reporting units where a results source provides them",
 } as const;
+const modeLabels: Record<MapMode, string> = { races: "2026 races", past: "Past results", odds: "Market odds" };
+const modeDescriptions: Partial<Record<MapMode, string>> = {
+  past: "How states, districts, and counties voted in past elections",
+  odds: "Which way each race's Kalshi market leans, and how strongly",
+};
+const modeCaptions: Record<MapMode, string> = {
+  races: "Readiness reflects data loaded into VoteInformed, not election outcomes.",
+  past: "Past results are from MIT Election Lab files and are never shown as 2026 counts.",
+  odds: "Market prices from Kalshi, not forecasts or results.",
+};
 
-export function MapCard({ layer, readout, children, mode = "races", onModeChange, pastControls, pastLegend, expanded = false, onExpandedChange, fullscreen = false, onFullscreenToggle, quickControls, hud }: {
+export function MapCard({ layer, readout, children, mode = "races", modes = [], onModeChange, modeControls, modeLegend, expanded = false, onExpandedChange, fullscreen = false, onFullscreenToggle, quickControls, hud }: {
   layer: keyof typeof layerDescriptions;
   readout: string;
   children: ReactNode;
   mode?: MapMode;
-  /** Omitted when the Past results feature flag is off, which hides the mode switch. */
+  /** Modes offered besides "races"; the switch is hidden when their feature flags leave none. */
+  modes?: Array<Exclude<MapMode, "races">>;
   onModeChange?: (mode: MapMode) => void;
-  pastControls?: ReactNode;
-  pastLegend?: ReactNode;
+  /** Options and legend for the current mode other than "races". */
+  modeControls?: ReactNode;
+  modeLegend?: ReactNode;
   /** The map fills the window; the toolbar button switches it. */
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -28,7 +40,7 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
   /** Data that floats over the expanded map, under the legend. */
   hud?: ReactNode;
 }) {
-  const past = mode === "past";
+  const overlay = mode !== "races";
   const [hudOpen, setHudOpen] = useState(true);
   const readinessLegend = (
     <div className="em-legend" aria-label="Data readiness legend">
@@ -43,16 +55,17 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
       <div className="em-map-toolbar">
         <div className="em-map-title">
           <strong id="em-map-heading">United States election map</strong>
-          <span>{past ? "How states, districts, and counties voted in past elections" : layerDescriptions[layer]}</span>
+          <span>{modeDescriptions[mode] ?? layerDescriptions[layer]}</span>
         </div>
-        {onModeChange && (
+        {onModeChange && modes.length > 0 && (
           <div className="em-seg em-mode" role="group" aria-label="Map mode">
-            <button type="button" aria-pressed={!past} onClick={() => onModeChange("races")}>2026 races</button>
-            <button type="button" aria-pressed={past} onClick={() => onModeChange("past")}>Past results</button>
+            {(["races", ...modes] as MapMode[]).map((item) => (
+              <button key={item} type="button" aria-pressed={item === mode} onClick={() => onModeChange(item)}>{modeLabels[item]}</button>
+            ))}
           </div>
         )}
         {expanded && quickControls}
-        {!past && !expanded && readinessLegend}
+        {!overlay && !expanded && readinessLegend}
         {onExpandedChange && (
           <div className="em-map-actions">
             {expanded && onFullscreenToggle && (
@@ -80,7 +93,7 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
           </div>
         )}
       </div>
-      {past && pastControls}
+      {overlay && modeControls}
       {/* The stage wraps the map in both layouts so switching never remounts it. */}
       <div className="em-map-stage">
         {children}
@@ -92,16 +105,16 @@ export function MapCard({ layer, readout, children, mode = "races", onModeChange
             </button>
             {hudOpen && (
               <div className="em-hud-body" id="em-map-hud-body">
-                <div className="em-hud-card">{past ? pastLegend : readinessLegend}</div>
+                <div className="em-hud-card">{overlay ? modeLegend : readinessLegend}</div>
                 {hud}
               </div>
             )}
           </div>
         )}
       </div>
-      {past && !expanded && pastLegend}
+      {overlay && !expanded && modeLegend}
       <div className="em-map-caption">
-        <span>{past ? "Past results are from MIT Election Lab files and are never shown as 2026 counts." : "Readiness reflects data loaded into VoteInformed, not election outcomes."}</span>
+        <span>{modeCaptions[mode]}</span>
         <span>{readout}</span>
       </div>
     </section>

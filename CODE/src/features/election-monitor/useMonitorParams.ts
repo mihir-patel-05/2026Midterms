@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { DetailTab, MapLayer, MapMode, OfficeFilter } from "./types";
+import { ODDS_OFFICES, type OddsOffice } from "./oddsMap";
 import { PAST_OFFICES, type PastMetric, type PastOffice } from "./pastResults";
 
 const offices: OfficeFilter[] = ["ALL", "US_SENATE", "US_HOUSE"];
 const layers: MapLayer[] = ["states", "districts", "counties"];
 const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics", "history"];
-const modes: MapMode[] = ["races", "past"];
+const modes: MapMode[] = ["races", "past", "odds"];
 const metrics: PastMetric[] = ["winner", "shift"];
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
@@ -40,6 +41,8 @@ export interface MonitorParams {
   pastYear: number | null;
   pastMetric: PastMetric;
   pastFrom: number | null;
+  /** Market odds: the chamber whose races colour the map. */
+  oddsOffice: OddsOffice;
   /** The map fills the window, with the detail panel docked beside it (`?map=full`). */
   expanded: boolean;
 }
@@ -87,6 +90,7 @@ export function useMonitorParams() {
       pastYear: parseYear(searchParams.get("pyear")),
       pastMetric: pick(searchParams.get("pmetric"), metrics, "winner"),
       pastFrom: parseYear(searchParams.get("pfrom")),
+      oddsOffice: pick(searchParams.get("ooffice"), ODDS_OFFICES, "senate"),
       expanded: searchParams.get("map") === "full",
     };
   }, [searchParams]);
@@ -94,9 +98,9 @@ export function useMonitorParams() {
   const update = useCallback((patch: Partial<MonitorParams>) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, expanded, ...rest } = patch;
-      // Past results keep short URL names; defaults are left out so ordinary links stay clean.
-      const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null] } as const;
+      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, oddsOffice, expanded, ...rest } = patch;
+      // Past results and market odds keep short URL names; defaults are left out so ordinary links stay clean.
+      const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null], ooffice: [oddsOffice, "senate"] } as const;
       for (const [key, [value, fallback]] of Object.entries(past)) {
         if (value === undefined) continue;
         if (value === null || value === fallback) next.delete(key);

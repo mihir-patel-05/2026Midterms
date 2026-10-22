@@ -1,10 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
+import { OddsControls, OddsLegend } from "./OddsControls";
+import { describeOddsRace, ODDS_COLORS, ODDS_STATUS_COLORS, useOddsView } from "./oddsMap";
 import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
 import { PastResultsTab } from "./PastResultsTab";
 import { BIN_COLORS, describeResult, describeShift, STATUS_COLORS } from "./pastResults";
@@ -98,12 +100,19 @@ export function ElectionMonitor() {
     { office: params.pastOffice, year: params.pastYear, metric: params.pastMetric, from: params.pastFrom },
     params.layer === "counties",
   );
-  // In Past results the office decides the layer: states or counties for president, states for Senate, districts for House.
-  const mapLayer: MapLayer = pastActive ? past.layer : params.layer;
-  const overlay = useMemo<MapOverlay | null>(
-    () => (pastActive ? { bins: past.bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported } : null),
-    [pastActive, past.bins],
-  );
+  const oddsActive = oddsMapEnabled && params.mode === "odds";
+  const odds = useOddsView(oddsActive, params.oddsOffice);
+  const mapMode: MapMode = pastActive ? "past" : oddsActive ? "odds" : "races";
+  const extraModes = [...(pastResultsEnabled ? ["past" as const] : []), ...(oddsMapEnabled ? ["odds" as const] : [])];
+  // In Past results the office decides the layer: states or counties for president, states for Senate,
+  // districts for House. Market odds is by state for the Senate and by district for the House.
+  const mapLayer: MapLayer = pastActive ? past.layer : oddsActive ? (params.oddsOffice === "senate" ? "states" : "districts") : params.layer;
+  const oddsBins = odds.view?.bins ?? null;
+  const overlay = useMemo<MapOverlay | null>(() => {
+    if (pastActive) return { bins: past.bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
+    if (oddsActive) return { bins: oddsBins, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true };
+    return null;
+  }, [pastActive, past.bins, oddsActive, oddsBins]);
   const setMode = useCallback((mode: MapMode) => {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);
@@ -155,6 +164,13 @@ export function ElectionMonitor() {
   const readiness = useMemo(() => Object.fromEntries(states.map((state) => [state.code, state.readiness])) as Record<string, Readiness>, [states]);
   const describe = useCallback((target: MapTarget) => {
     const state = states.find((item) => item.code === target.state);
+    if (oddsActive && target.kind !== "county") {
+      const code = target.kind === "district" ? `${target.state}-${target.district}` : target.state;
+      const title = target.kind === "district" ? districtLabel(target.state, target.district) : state?.name ?? target.state;
+      const office = params.oddsOffice;
+      if (!odds.view) return { title, lines: ["Loading Kalshi markets…"] };
+      return { title, lines: [`2026 ${office === "senate" ? "Senate" : "House"} · Kalshi market`, ...describeOddsRace(odds.view.races.get(code), office)] };
+    }
     if (pastActive) {
       const title = target.kind === "county" ? target.name : target.kind === "district" ? districtLabel(target.state, target.district) : state?.name ?? target.state;
       const year = past.year;
@@ -189,7 +205,7 @@ export function ElectionMonitor() {
         state?.readiness === "partial" ? "No candidates on file yet" : "",
       ].filter(Boolean),
     };
-  }, [states, selectedState?.code, stateContests, pastActive, past]);
+  }, [states, selectedState?.code, stateContests, pastActive, past, oddsActive, odds.view, params.oddsOffice]);
   const chosenDistricts = selectedDistricts(params);
   // Plain click selects one district; Shift-click adds or removes it. Another state starts over.
   const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
@@ -289,7 +305,8 @@ export function ElectionMonitor() {
           <MapCard
             layer={mapLayer}
             readout={`LAYER: ${mapLayer.toUpperCase()}${params.view ? ` · ${params.view.lat.toFixed(2)}, ${params.view.lon.toFixed(2)} · Z${params.view.zoom.toFixed(1)}` : ""}`}
-            mode={pastActive ? "past" : "races"}
+            mode={mapMode}
+            modes={extraModes}
             expanded={expanded}
             onExpandedChange={setExpanded}
             fullscreen={fullscreen}
@@ -299,21 +316,23 @@ export function ElectionMonitor() {
                 states={states}
                 stateCode={selectedState?.code ?? null}
                 layer={params.layer}
-                showLayers={!pastActive}
+                showLayers={mapMode === "races"}
                 onStateChange={selectState}
                 onLayerChange={(layer) => update({ layer })}
               />
             }
-            // 2026 numbers; Past results has its own legend and detail tab.
-            hud={!pastActive && (
+            // 2026 numbers; Past results has its own legend and detail tab, and market odds keeps the chamber odds.
+            hud={mapMode === "odds" ? <ControlOddsBanner /> : mapMode === "races" && (
               <>
                 <ControlOddsBanner />
                 <EconomyStrip compact stateCode={econStateCode} stateName={selectedState?.name ?? null} />
                 <StatStrip stats={stats} />
               </>
             )}
-            onModeChange={pastResultsEnabled ? setMode : undefined}
-            pastControls={pastActive && (
+            onModeChange={setMode}
+            modeControls={oddsActive ? (
+              <OddsControls office={params.oddsOffice} view={odds.view} onChange={(oddsOffice) => update({ oddsOffice })} />
+            ) : pastActive && (
               <PastResultsControls
                 view={past}
                 office={params.pastOffice}
@@ -322,7 +341,7 @@ export function ElectionMonitor() {
                 onLevelChange={(counties) => update({ layer: counties ? "counties" : "states" })}
               />
             )}
-            pastLegend={pastActive && (
+            modeLegend={oddsActive ? <OddsLegend office={params.oddsOffice} view={odds.view} status={odds.status} /> : pastActive && (
               <>
                 {past.error && <p className="em-note" role="status">Past results could not be loaded.</p>}
                 {params.pastOffice === "house" && past.year !== null && !past.houseLinesMatch && (

@@ -62,7 +62,7 @@ const shiftLabels = ["0.5–2", "2–5", "5–10", "10+"];
 // Keep the legend in step with the bin edges if they ever change.
 if (MARGIN_BREAKS.length !== marginLabels.length - 1 || SHIFT_BREAKS.length !== shiftLabels.length) throw new Error("Legend labels are out of step with the bins");
 
-function Swatch({ color, label }: { color: string; label?: string }) {
+export function Swatch({ color, label }: { color: string; label?: string }) {
   return <span className="em-past-swatch" style={{ background: color }} title={label} aria-hidden="true" />;
 }
 

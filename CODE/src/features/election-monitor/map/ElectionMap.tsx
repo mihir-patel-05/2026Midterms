@@ -30,6 +30,8 @@ export interface MapOverlay {
   bins: Map<string, string> | null;
   colors: Record<string, string>;
   fallback: string;
+  /** Keep the dashed outline on states that redrew for 2026, for an overlay about the 2026 races. */
+  redistricting?: boolean;
 }
 
 export type MapTarget =
@@ -91,6 +93,7 @@ export default function ElectionMap(props: ElectionMapProps) {
   const overlayPainted = overlayOn && Boolean(overlay?.bins);
   const overlayColors = overlay?.colors ?? null;
   const overlayFallback = overlay?.fallback ?? null;
+  const outdatedLines = !overlayOn || Boolean(overlay?.redistricting);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const statesRef = useRef<Map<string, StateFeature>>(new Map());
@@ -315,7 +318,7 @@ export default function ElectionMap(props: ElectionMapProps) {
     const show = (ids: string[], visible: boolean) => ids.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
     show(["districts-fill", "districts-line"], layer === "districts");
     // The dashed "2026 lines differ" outline is about the 2026 races, not past results.
-    show(["districts-outdated-line"], layer === "districts" && !overlayOn);
+    show(["districts-outdated-line"], layer === "districts" && outdatedLines);
     show(["counties-fill", "counties-line"], layer === "counties");
     const fillColor = overlayColors && overlayFallback !== null ? binColor(overlayColors, overlayFallback) : null;
     map.setPaintProperty("states-fill", "fill-color", (fillColor && layer === "states" ? fillColor : readinessColor) as never);
@@ -334,9 +337,9 @@ export default function ElectionMap(props: ElectionMapProps) {
     for (const id of ["districts-fill", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
     // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
     const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
-    map.setFilter("districts-line", overlayOn ? stateFilter as never : both(["!", redistrictedFilter]));
+    map.setFilter("districts-line", outdatedLines ? both(["!", redistrictedFilter]) : stateFilter as never);
     map.setFilter("districts-outdated-line", both(redistrictedFilter));
-  }, [layer, ready, selectedState, overlayOn, overlayPainted, overlayColors, overlayFallback]);
+  }, [layer, ready, selectedState, overlayOn, overlayPainted, overlayColors, overlayFallback, outdatedLines]);
 
   // Overlay colour bins, as feature state on the layer's source (over 3,000 counties). Live odds
   // change a few bins at a time, so only codes whose bin changed are touched.

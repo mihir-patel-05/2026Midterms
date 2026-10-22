@@ -20,7 +20,7 @@ export type OddsParty = Side | "O";
 
 /** Leader's price in percent: under 60, 60–75, 75–90, 90+. */
 export const ODDS_BREAKS = [60, 75, 90];
-export const oddsBinLabels = ["<60", "60–75", "75–90", "90+"];
+export const oddsBinLabels = ["<60%", "60–75%", "75–90%", "90%+"];
 
 /**
  * Pale to saturated, so a close race reads pale and a near-certain one reads strong, as on Kalshi's
