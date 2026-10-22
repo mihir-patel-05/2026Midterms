@@ -17,13 +17,19 @@ import {
   type StateFeature,
 } from "./geo";
 import { resolveMapStyle } from "./mapStyle";
-import { BIN_COLORS, STATUS_COLORS } from "../pastResults";
 import { REDISTRICTED_STATES } from "./redistricting";
 
 export interface MapView {
   lat: number;
   lon: number;
   zoom: number;
+}
+
+export interface MapOverlay {
+  /** Null while there is nothing to colour yet (loading); the map shows outlines only. */
+  bins: Map<string, string> | null;
+  colors: Record<string, string>;
+  fallback: string;
 }
 
 export type MapTarget =
@@ -50,10 +56,11 @@ export interface ElectionMapProps {
   onSelectCounty: (state: string, fips: string, additive: boolean) => void;
   onViewChange: (view: MapView) => void;
   /**
-   * Past results colouring for the current `layer`: a colour bin per feature code. While set,
-   * readiness colours are replaced; null returns the map to the 2026 view.
+   * Colouring for the current `layer` (Past results, market odds): a colour bin per feature code,
+   * each bin's colour, and the colour for codes with no bin. While set, readiness colours are
+   * replaced; null returns the map to the 2026 view.
    */
-  past?: { bins: Map<string, string> | null } | null;
+  overlay?: MapOverlay | null;
   /** The map fills the window. Switching it keeps the same area in view, scaled to the new frame. */
   expanded?: boolean;
 }
@@ -63,9 +70,9 @@ const COLORS = { teal: "#5ce1c0", blue: "#6eb6ff", amber: "#f4c769", quiet: "#60
 const readinessColor = ["match", ["coalesce", ["feature-state", "readiness"], "pending"], "ready", COLORS.teal, "partial", COLORS.amber, COLORS.quiet];
 const hovered = ["boolean", ["feature-state", "hover"], false];
 const selectedState = ["boolean", ["feature-state", "selected"], false];
-/** Past results: every bin key to its colour; features with no data (no shape match, nothing reported) are grey. */
-const pastColor = ["match", ["coalesce", ["feature-state", "past"], "none"], ...Object.entries(BIN_COLORS).flat(), STATUS_COLORS.not_reported];
-const pastOpacity = ["case", selectedState, 0.96, hovered, 0.94, 0.82];
+/** Overlay: every bin key to its colour; features with no bin (no shape match, nothing reported) get the fallback. */
+const binColor = (colors: Record<string, string>, fallback: string) => ["match", ["coalesce", ["feature-state", "bin"], "none"], ...Object.entries(colors).flat(), fallback];
+const overlayOpacity = ["case", selectedState, 0.96, hovered, 0.94, 0.82];
 const DEFAULT_FILL = {
   states: ["case", selectedState, 0.34, hovered, 0.28, 0.16],
   counties: ["case", selectedState, 0.42, hovered, 0.3, 0.02],
@@ -78,16 +85,18 @@ const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
 export default function ElectionMap(props: ElectionMapProps) {
-  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, past = null, expanded = false } = props;
-  const pastOn = past !== null;
-  // Past mode with nothing to colour yet (loading, or House lines that don't match): outlines only.
-  const pastPainted = pastOn && Boolean(past?.bins);
+  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, overlay = null, expanded = false } = props;
+  const overlayOn = overlay !== null;
+  // An overlay with nothing to colour yet (loading, or House lines that don't match): outlines only.
+  const overlayPainted = overlayOn && Boolean(overlay?.bins);
+  const overlayColors = overlay?.colors ?? null;
+  const overlayFallback = overlay?.fallback ?? null;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const statesRef = useRef<Map<string, StateFeature>>(new Map());
   const districtsRef = useRef<Map<string, DistrictFeature>>(new Map());
   const highlightedCounties = useRef<string[]>([]);
-  const pastApplied = useRef<{ source: string; codes: string[] } | null>(null);
+  const binsApplied = useRef<{ source: string; bins: Map<string, string> } | null>(null);
   const callbacks = useRef(props);
   callbacks.current = props;
   const initialViewRef = useRef(initialView);
@@ -299,48 +308,53 @@ export default function ElectionMap(props: ElectionMapProps) {
     }
   }, [layer, ready, districtStatus, countyStatus]);
 
-  // Layer visibility, per-state filters, and the switch between readiness and past-results colours.
+  // Layer visibility, per-state filters, and the switch between readiness and overlay colours.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const show = (ids: string[], visible: boolean) => ids.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
     show(["districts-fill", "districts-line"], layer === "districts");
     // The dashed "2026 lines differ" outline is about the 2026 races, not past results.
-    show(["districts-outdated-line"], layer === "districts" && !pastOn);
+    show(["districts-outdated-line"], layer === "districts" && !overlayOn);
     show(["counties-fill", "counties-line"], layer === "counties");
-    map.setPaintProperty("states-fill", "fill-color", (pastOn && layer === "states" ? pastColor : readinessColor) as never);
+    const fillColor = overlayColors && overlayFallback !== null ? binColor(overlayColors, overlayFallback) : null;
+    map.setPaintProperty("states-fill", "fill-color", (fillColor && layer === "states" ? fillColor : readinessColor) as never);
     map.setPaintProperty("states-fill", "fill-opacity", (layer === "states"
-      ? pastOn ? (pastPainted ? pastOpacity : 0) : DEFAULT_FILL.states
-      : pastOn ? 0 : ["case", hovered, 0.12, 0.05]) as never);
-    map.setPaintProperty("counties-fill", "fill-color", (pastOn ? pastColor : COLORS.blue) as never);
-    map.setPaintProperty("counties-fill", "fill-opacity", (pastOn ? (pastPainted ? pastOpacity : 0) : DEFAULT_FILL.counties) as never);
-    map.setPaintProperty("districts-fill", "fill-color", (pastOn ? pastColor : COLORS.teal) as never);
-    map.setPaintProperty("districts-fill", "fill-opacity", (pastOn ? (pastPainted ? pastOpacity : 0) : DEFAULT_FILL.districts) as never);
-    // Party colours fill the shapes in past mode, so outlines and the selection ring turn neutral.
-    map.setPaintProperty("districts-line", "line-color", pastOn ? COLORS.line : COLORS.teal);
-    map.setPaintProperty("states-selected", "line-color", pastOn ? "#ffffff" : COLORS.teal);
-    map.setPaintProperty("states-line", "line-color", pastOn && layer === "states" ? "#0b0f16" : COLORS.line);
+      ? overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.states
+      : overlayOn ? 0 : ["case", hovered, 0.12, 0.05]) as never);
+    map.setPaintProperty("counties-fill", "fill-color", (fillColor ?? COLORS.blue) as never);
+    map.setPaintProperty("counties-fill", "fill-opacity", (overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.counties) as never);
+    map.setPaintProperty("districts-fill", "fill-color", (fillColor ?? COLORS.teal) as never);
+    map.setPaintProperty("districts-fill", "fill-opacity", (overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.districts) as never);
+    // Party colours fill the shapes under an overlay, so outlines and the selection ring turn neutral.
+    map.setPaintProperty("districts-line", "line-color", overlayOn ? COLORS.line : COLORS.teal);
+    map.setPaintProperty("states-selected", "line-color", overlayOn ? "#ffffff" : COLORS.teal);
+    map.setPaintProperty("states-line", "line-color", overlayOn && layer === "states" ? "#0b0f16" : COLORS.line);
     const stateFilter = selectedState ? ["==", ["get", "state"], selectedState] : null;
     for (const id of ["districts-fill", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
     // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
     const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
-    map.setFilter("districts-line", pastOn ? stateFilter as never : both(["!", redistrictedFilter]));
+    map.setFilter("districts-line", overlayOn ? stateFilter as never : both(["!", redistrictedFilter]));
     map.setFilter("districts-outdated-line", both(redistrictedFilter));
-  }, [layer, ready, selectedState, pastOn, pastPainted]);
+  }, [layer, ready, selectedState, overlayOn, overlayPainted, overlayColors, overlayFallback]);
 
-  // Past results colour bins, as feature state on the layer's source (over 3,000 counties).
-  const pastBins = past?.bins ?? null;
+  // Overlay colour bins, as feature state on the layer's source (over 3,000 counties). Live odds
+  // change a few bins at a time, so only codes whose bin changed are touched.
+  const bins = overlay?.bins ?? null;
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     const sourceReady = layer === "states" || (layer === "counties" ? countyStatus === "ready" : districtStatus === "ready");
-    const applied = pastApplied.current;
-    if (applied) for (const code of applied.codes) map.setFeatureState({ source: applied.source, id: code }, { past: null });
-    pastApplied.current = null;
-    if (!pastBins || !sourceReady) return;
-    for (const [code, bin] of pastBins) map.setFeatureState({ source: layer, id: code }, { past: bin });
-    pastApplied.current = { source: layer, codes: [...pastBins.keys()] };
-  }, [pastBins, layer, ready, countyStatus, districtStatus]);
+    const next = bins && sourceReady ? bins : null;
+    const applied = binsApplied.current;
+    const previous = applied && next && applied.source === layer ? applied.bins : null;
+    if (applied && !previous) for (const code of applied.bins.keys()) map.setFeatureState({ source: applied.source, id: code }, { bin: null });
+    if (previous) for (const code of previous.keys()) if (!next!.has(code)) map.setFeatureState({ source: layer, id: code }, { bin: null });
+    binsApplied.current = null;
+    if (!next) return;
+    for (const [code, bin] of next) if (previous?.get(code) !== bin) map.setFeatureState({ source: layer, id: code }, { bin });
+    binsApplied.current = { source: layer, bins: next };
+  }, [bins, layer, ready, countyStatus, districtStatus]);
 
   // Readiness colouring.
   useEffect(() => {

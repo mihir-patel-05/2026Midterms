@@ -7,7 +7,7 @@ import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRa
 import { MoversCard } from "./MoversCard";
 import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
 import { PastResultsTab } from "./PastResultsTab";
-import { describeResult, describeShift } from "./pastResults";
+import { BIN_COLORS, describeResult, describeShift, STATUS_COLORS } from "./pastResults";
 import { usePastResultsView } from "./usePastResultsView";
 import { CanvasHeader } from "./CanvasHeader";
 import { ControlOddsBanner } from "./ControlOddsBanner";
@@ -27,7 +27,7 @@ import { SemanticsCard } from "./SemanticsCard";
 import { Sidebar } from "./Sidebar";
 import { SnapshotCard } from "./SnapshotCard";
 import { StatStrip } from "./StatStrip";
-import type { MapTarget, MapView } from "./map/ElectionMap";
+import type { MapOverlay, MapTarget, MapView } from "./map/ElectionMap";
 import { isRedistricted } from "./map/redistricting";
 import type { MapLayer, MapMode, MonitorStateSummary, OfficeFilter, Readiness } from "./types";
 import { UnitsCard } from "./UnitsCard";
@@ -100,7 +100,10 @@ export function ElectionMonitor() {
   );
   // In Past results the office decides the layer: states or counties for president, states for Senate, districts for House.
   const mapLayer: MapLayer = pastActive ? past.layer : params.layer;
-  const pastPaint = useMemo(() => (pastActive ? { bins: past.bins } : null), [pastActive, past.bins]);
+  const overlay = useMemo<MapOverlay | null>(
+    () => (pastActive ? { bins: past.bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported } : null),
+    [pastActive, past.bins],
+  );
   const setMode = useCallback((mode: MapMode) => {
     update(mode === "past" ? { mode, tab: "history" } : { mode, ...(params.tab === "history" ? { tab: "overview" as const } : {}) });
   }, [update, params.tab]);
@@ -333,7 +336,7 @@ export function ElectionMonitor() {
               <ElectionMap
                 layer={mapLayer}
                 expanded={expanded}
-                past={pastPaint}
+                overlay={overlay}
                 readiness={readiness}
                 selectedState={selectedState && !selectedState.isFictional ? selectedState.code : null}
                 selectedDistrict={params.district}

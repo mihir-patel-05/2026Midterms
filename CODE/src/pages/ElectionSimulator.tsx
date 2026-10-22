@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/shell/AppShell";
 import type { MapTarget } from "@/features/election-monitor/map/ElectionMap";
 import { stateFipsToPostal } from "@/features/election-monitor/map/fips";
-import { usePastYear, type PresidentYear } from "@/features/election-monitor/pastResults";
+import { BIN_COLORS, STATUS_COLORS, usePastYear, type PresidentYear } from "@/features/election-monitor/pastResults";
 import { DistrictPicks } from "@/features/simulator/DistrictPicks";
 import { ELECTORAL_VOTES, SPLIT_DISTRICTS } from "@/features/simulator/electoralVotes";
 import { EvBar } from "@/features/simulator/EvBar";
@@ -38,7 +38,7 @@ export default function ElectionSimulator() {
 
   const result = useMemo(() => simulate(scenario, data), [scenario, data]);
   const bins = useMemo(() => simBins(result, layer), [result, layer]);
-  const paint = useMemo(() => ({ bins: loading ? null : bins }), [bins, loading]);
+  const paint = useMemo(() => ({ bins: loading ? null : bins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported }), [bins, loading]);
   const selected = params.state ? result.states[params.state] : null;
   const countyNames = useCountyNames(layer === "counties" || Object.keys(scenario.counties).length > 0);
   const countyName = (fips: string) => countyNames.data?.get(fips) ?? `County ${fips}`;
@@ -163,7 +163,7 @@ export default function ElectionSimulator() {
             <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
               <ElectionMap
                 layer={layer}
-                past={paint}
+                overlay={paint}
                 readiness={NO_READINESS}
                 selectedState={layer === "counties" ? params.state : null}
                 selectedDistrict={null}

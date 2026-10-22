@@ -5,7 +5,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import type { MapTarget } from "@/features/election-monitor/map/ElectionMap";
 import { stateFipsToPostal } from "@/features/election-monitor/map/fips";
 import { isRedistricted } from "@/features/election-monitor/map/redistricting";
-import { usePastYear, type HouseYear, type PresidentYear } from "@/features/election-monitor/pastResults";
+import { BIN_COLORS, STATUS_COLORS, usePastYear, type HouseYear, type PresidentYear } from "@/features/election-monitor/pastResults";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
 import { outcomeWords, pickLabel, sourceLabels, STATE_NAMES } from "@/features/simulator/labels";
 import { formatMargin, marginOf, nextPick, type Outcome, type Pick } from "@/features/simulator/model";
@@ -53,8 +53,9 @@ export default function MidtermSimulator() {
   const senateResult = useMemo(() => simulateSenate(senate, presidentData), [senate, presidentData]);
   const houseResult = useMemo(() => simulateHouse(house.picks, houseData), [house.picks, houseData]);
   const paint = useMemo(() => {
-    if (chamber === "house") return { bins: houseLoading ? null : houseBins(houseResult) };
-    return { bins: senateLoading ? null : senateBins(senateResult, senateLayer) };
+    const colors = { colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
+    if (chamber === "house") return { bins: houseLoading ? null : houseBins(houseResult), ...colors };
+    return { bins: senateLoading ? null : senateBins(senateResult, senateLayer), ...colors };
   }, [chamber, houseResult, houseLoading, senateResult, senateLoading, senateLayer]);
 
   const race = params.state ? senateResult.states[params.state] : null;
@@ -292,7 +293,7 @@ export default function MidtermSimulator() {
             <Suspense fallback={<div className="em-map-frame"><div className="em-map-loading" /></div>}>
               <ElectionMap
                 layer={mapLayer}
-                past={paint}
+                overlay={paint}
                 readiness={NO_READINESS}
                 selectedState={mapLayer === "states" ? null : params.state}
                 selectedDistrict={null}
