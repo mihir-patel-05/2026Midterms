@@ -17,3 +17,5 @@ export const economyEnabled = import.meta.env.VITE_FEATURE_ECONOMY !== "false";
 export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== "false";
 /** Electoral college and county simulator at /simulator. On unless set to "false"; it runs on the Past results files, so it needs that flag too. */
 export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
+/** Market odds map mode (each Senate state or House district coloured by its Kalshi market). On unless set to "false". */
+export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
