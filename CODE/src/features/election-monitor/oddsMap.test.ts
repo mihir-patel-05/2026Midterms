@@ -114,13 +114,14 @@ describe("buildOddsView", () => {
 describe("describeOddsRace", () => {
   it("lists prices, the holder, the flip, and the redistricting caveat", () => {
     const view = buildOddsView(
-      board(market("TX-28", "R", 70), market("TX-28", "D", 30), market("FL-20", "D", 95), market("CA-03", "R", 55), market("CA-03", "D", 45)),
+      board(market("TX-28", "R", 70), market("TX-28", "D", 30), market("VA-02", "D", 95), market("NE-02", "R", 55), market("NE-02", "D", 45)),
       "house",
-      new Map([["TX-28", held("D", "Henry Cuellar")], ["FL-20", held("D", "Sheila Cherfilus-McCormick", { vacant: true })], ["CA-03", held("O", "Kevin Kiley")]]),
+      // VA and NE are not redistricted, so their holders are compared.
+      new Map([["TX-28", held("D", "Henry Cuellar")], ["VA-02", held("D", "Former Member", { vacant: true })], ["NE-02", held("O", "Independent Member")]]),
     );
     expect(describeOddsRace(view.races.get("TX-28"), "house")).toEqual(["Republican 70%", "Democratic 30%", "Shape shows 2024 lines; the market is for the 2026 district"]);
-    expect(describeOddsRace(view.races.get("FL-20"), "house")).toEqual(["Democratic 95%", "Vacant; last held by Sheila Cherfilus-McCormick (D)"]);
-    expect(describeOddsRace(view.races.get("CA-03"), "house")).toEqual(["Republican 55%", "Democratic 45%", "Held by Kevin Kiley (I)", "Leader is from a different party than the holder"]);
+    expect(describeOddsRace(view.races.get("VA-02"), "house")).toEqual(["Democratic 95%", "Vacant; last held by Former Member (D)"]);
+    expect(describeOddsRace(view.races.get("NE-02"), "house")).toEqual(["Republican 55%", "Democratic 45%", "Held by Independent Member (I)", "Leader is from a different party than the holder"]);
     const senate = buildOddsView(board(market("ME-SEN", "D", 64.5), market("ME-SEN", "R", 35.5), market("NC-SEN", "D", 96)), "senate", null);
     expect(describeOddsRace(senate.races.get("ME"), "senate")).toEqual(["Democratic 64.5%", "Republican 35.5%", "Held by Susan Collins (R)", "Leader is from a different party than the holder"]);
     expect(describeOddsRace(senate.races.get("NC"), "senate")).toEqual(["Democratic 96%", "Held by Thom Tillis (R), not running", "Leader is from a different party than the holder"]);

@@ -23,8 +23,12 @@ import { fileURLToPath } from "node:url";
 import pointOnFeature from "@turf/point-on-feature";
 import { feature } from "topojson-client";
 
-/** States to flag even if no sampled point changed district. */
-const MANUAL_STATES = [];
+/**
+ * States to flag even if no sampled point changed district. Both redrew after Louisiana v. Callais:
+ * Alabama returned to its 2023 map (AL-02's sample point keeps its number), and Louisiana's May 2026
+ * map is not in Geocodio's cd120 data as of Oct 2026.
+ */
+const MANUAL_STATES = ["AL", "LA"];
 
 const apiKey = process.env.GEOCODIO_API_KEY?.trim();
 if (!apiKey) {
