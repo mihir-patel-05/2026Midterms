@@ -318,6 +318,18 @@ export class FECApiService {
   }
 
   /**
+   * Every House and Senate pre-general (12G) and post-general (30G) report for
+   * a two-year cycle, amendments included.
+   */
+  async getGeneralElectionReports(cycle: number): Promise<Array<{ committee_id: string; report_type?: string }>> {
+    return fecClient.getAll<{ committee_id: string; report_type?: string }>(
+      '/reports/house-senate/',
+      { cycle, report_type: ['12G', '30G'] },
+      Infinity,
+    );
+  }
+
+  /**
    * Get financial totals for a committee
    */
   async getFinancialSummary(committeeId: string, cycle?: number): Promise<FECFinancialSummary[]> {

@@ -3,6 +3,7 @@ import { Candidate, Committee } from '@prisma/client';
 import { fecApiService, FECCandidate, FECCommittee } from './fec-api.service.js';
 import { getPaginationParams, createPaginationResult, normalizePagination, PaginationResult } from '../utils/pagination.js';
 import { bulkTotalsData } from './finance.service.js';
+import { findPrimaryLosers } from './primary-pruning.service.js';
 
 const publicCommitteeSelect = {
   id: true,
@@ -151,22 +152,34 @@ export class CandidateService {
    * Sync every active candidate for one chamber, with headline finance totals,
    * from OpenFEC's bulk /candidates/totals/ endpoint (~40 requests per chamber).
    * Fetch failures throw so a partial candidate list is never mistaken for a
-   * complete one.
+   * complete one. With `nominees`, candidates who lost their primary are not saved.
    */
   async syncCandidatesWithTotals(params: {
     office: 'H' | 'S';
     cycle: number;
-  }): Promise<{ synced: number; errors: number }> {
-    const { office, cycle } = params;
+    nominees?: ReadonlySet<string>;
+  }): Promise<{ synced: number; errors: number; primaryLosers: string[] }> {
+    const { office, cycle, nominees } = params;
     const fetched = await fecApiService.getCandidateTotalsSummaries({ office, electionYear: cycle });
     const syncedAt = new Date();
 
     // OpenFEC occasionally returns a stub row with no name. It cannot be shown,
     // and inside a batch transaction it would roll back every valid row with it.
-    const rows = fetched.filter((row) => row.candidate_id && row.name);
+    const named = fetched.filter((row) => row.candidate_id && row.name);
     let synced = 0;
-    let errors = fetched.length - rows.length;
+    let errors = fetched.length - named.length;
     if (errors > 0) console.warn(`⚠️  Skipped ${errors} ${office} row(s) with no candidate id or name`);
+
+    const primaryLosers = new Set(
+      nominees
+        ? findPrimaryLosers(
+            named.map((row) => ({ candidateId: row.candidate_id, state: row.state || 'US', office, district: row.district ?? null })),
+            nominees,
+          ).map((candidate) => candidate.candidateId)
+        : [],
+    );
+    const rows = named.filter((row) => !primaryLosers.has(row.candidate_id));
+    if (primaryLosers.size > 0) console.log(`🗳️  Skipped ${primaryLosers.size} ${office} candidate(s) who lost their primary`);
     const batchSize = 100;
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
@@ -193,7 +206,7 @@ export class CandidateService {
     }
 
     console.log(`✅ ${office === 'S' ? 'Senate' : 'House'}: ${synced} candidates with totals, ${errors} errors`);
-    return { synced, errors };
+    return { synced, errors, primaryLosers: [...primaryLosers] };
   }
 
   /**
@@ -321,12 +334,18 @@ export class CandidateService {
    * Sync every House and Senate campaign committee for a cycle in bulk (~70
    * requests) instead of one /candidate/{id}/committees/ request per candidate.
    * Returns the fetched committees so detailed totals can be mapped to their
-   * candidates without fetching them again.
+   * candidates without fetching them again. Committees of `skipCandidateIds`
+   * (primary losers) are not saved.
    */
   async syncHouseSenateCommittees(
     cycle: number,
+    options: { committees?: FECCommittee[]; skipCandidateIds?: ReadonlySet<string> } = {},
   ): Promise<{ synced: number; errors: number; committees: FECCommittee[] }> {
-    const committees = await fecApiService.getHouseSenateCommittees(cycle);
+    const fetched = options.committees ?? await fecApiService.getHouseSenateCommittees(cycle);
+    const skip = options.skipCandidateIds;
+    const committees = skip
+      ? fetched.filter((committee) => !skip.has(committee.candidate_ids?.[0] ?? ''))
+      : fetched;
     const linkedIds = [...new Set(committees.flatMap((committee) => committee.candidate_ids?.[0] ?? []))];
     const known = new Set(
       (await prisma.candidate.findMany({
