@@ -644,6 +644,7 @@ model DataSource {
   indicatorSeries     IndicatorSeries[]
   districtProfiles    DistrictProfile[]
   areaDemographics    AreaDemographics[]
+  articles            Article[]
 
   @@index([type])
   @@index([healthStatus])
@@ -884,6 +885,7 @@ model IngestionRun {
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
   areaDemographics    AreaDemographics[]
+  articles            Article[]
 
   @@index([sourceId, startedAt])
   @@index([status, createdAt])
@@ -1085,6 +1087,7 @@ enum AgentKind {
   DATA_QA
   ASK_THE_RACE
   ELECTION_NIGHT
+  TOP_STORIES
 }
 
 // Hourly prediction-market price per provider market outcome. Prices are
@@ -1202,6 +1205,8 @@ model AgentRun {
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
 
+  outputs AgentOutput[]
+
   @@unique([agent, promptVersion, inputSha256])
   @@index([agent, createdAt])
   @@index([status, createdAt])
@@ -1308,4 +1313,98 @@ model ScheduleESyncState {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   @@map("schedule_e_sync_state")
+}
+
+// One news article seen in a Google News feed, fetched through an Apify actor
+// (docs/plans/news-agents.md). Only the headline, outlet, link, publish time, and
+// Google's snippet are stored, never article text. A repeat sighting updates the
+// row instead of adding one.
+model Article {
+  id             String    @id @default(uuid())
+  sourceId       String    @map("source_id")
+  // The run that first saw the article.
+  ingestionRunId String    @map("ingestion_run_id")
+  // SHA-256 of canonical_url.
+  externalId     String    @map("external_id")
+  url            String
+  canonicalUrl   String    @map("canonical_url")
+  headline       String
+  snippet        String?   @db.Text
+  outlet         String
+  // Lowercased outlet name with punctuation removed, used to count distinct outlets.
+  outletKey      String    @map("outlet_key")
+  outletDomain   String?   @map("outlet_domain")
+  publishedAt    DateTime  @map("published_at")
+  firstSeenAt    DateTime  @map("first_seen_at")
+  lastSeenAt     DateTime  @map("last_seen_at")
+  // Feed labels that returned it: "top", "topic:NATION", "search:Senate race", "elections:<topic id>".
+  foundBy        String[]  @map("found_by")
+  // Best Google rank in a ranked feed (top stories or a topic) on the last run that ranked it.
+  feedPosition   Int?      @map("feed_position")
+  feedPositionAt DateTime? @map("feed_position_at")
+  // Other outlets Google groups with this story: [{ headline, outlet, url }].
+  related        Json?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  source       DataSource            @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  ingestionRun IngestionRun          @relation(fields: [ingestionRunId], references: [id], onDelete: Restrict)
+  citations    AgentOutputCitation[]
+
+  @@unique([sourceId, externalId])
+  @@index([lastSeenAt])
+  @@index([publishedAt])
+  @@map("articles")
+}
+
+enum AgentOutputScope {
+  NATIONAL
+  STATE
+  RACE
+}
+
+enum AgentOutputStatus {
+  PUBLISHED
+  PENDING_REVIEW
+  REJECTED
+  SUPERSEDED
+}
+
+// What an agent run produced for one scope. Only one output per agent and scope is
+// PUBLISHED at a time; a newer one marks the previous one SUPERSEDED.
+model AgentOutput {
+  id         String            @id @default(uuid())
+  agent      AgentKind
+  scopeType  AgentOutputScope  @map("scope_type")
+  // "US" for the national scope.
+  scopeKey   String            @map("scope_key")
+  status     AgentOutputStatus
+  payload    Json
+  agentRunId String            @map("agent_run_id")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  agentRun  AgentRun              @relation(fields: [agentRunId], references: [id], onDelete: Restrict)
+  citations AgentOutputCitation[]
+
+  @@index([agent, scopeType, scopeKey, status, createdAt])
+  @@map("agent_outputs")
+}
+
+// A stored article an output cites, in the output's order.
+model AgentOutputCitation {
+  id        String   @id @default(uuid())
+  outputId  String   @map("output_id")
+  articleId String   @map("article_id")
+  rank      Int
+  // The agent's reason code for picking it, such as POLL or DEBATE.
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  output  AgentOutput @relation(fields: [outputId], references: [id], onDelete: Cascade)
+  article Article     @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  @@unique([outputId, articleId])
+  @@index([articleId])
+  @@map("agent_output_citations")
 }
