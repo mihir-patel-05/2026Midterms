@@ -44,6 +44,20 @@ const envSchema = z.object({
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
+  // News (docs/plans/news-agents.md): Google News through an Apify actor, ranked by a
+  // trending score. The token stays on the backend. Spend is capped per rolling 24 hours
+  // and in total; APIFY_PRICE_PER_1000_USD is the actor's all-in price per 1,000 articles.
+  APIFY_TOKEN: z.string().trim().optional(),
+  APIFY_API_BASE_URL: z.string().url().default('https://api.apify.com/v2'),
+  APIFY_NEWS_ACTOR_ID: z.string().trim().optional(),
+  APIFY_PRICE_PER_1000_USD: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
+  NEWS_INGEST_ENABLED: z.enum(['true', 'false']).default('false'),
+  // Run the news job from this process every 30 minutes, until a cron-news Railway service exists.
+  NEWS_SCHEDULER_IN_PROCESS: z.enum(['true', 'false']).default('false'),
+  NEWS_DAILY_BUDGET_USD: z.string().regex(/^\d+(\.\d+)?$/).default('8'),
+  NEWS_TOTAL_BUDGET_USD: z.string().regex(/^\d+(\.\d+)?$/).default('100'),
+  // Google News topic IDs (CAAq…) whose articles count as election news, comma-separated.
+  NEWS_ELECTION_TOPIC_IDS: z.string().default(''),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -122,6 +136,12 @@ export const env = {
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
+  APIFY_PRICE_PER_1000_USD: Number(parsed.data.APIFY_PRICE_PER_1000_USD),
+  NEWS_INGEST_ENABLED: parsed.data.NEWS_INGEST_ENABLED === 'true',
+  NEWS_SCHEDULER_IN_PROCESS: parsed.data.NEWS_SCHEDULER_IN_PROCESS === 'true',
+  NEWS_DAILY_BUDGET_USD: Number(parsed.data.NEWS_DAILY_BUDGET_USD),
+  NEWS_TOTAL_BUDGET_USD: Number(parsed.data.NEWS_TOTAL_BUDGET_USD),
+  NEWS_ELECTION_TOPIC_IDS: parsed.data.NEWS_ELECTION_TOPIC_IDS.split(',').map((id) => id.trim()).filter(Boolean),
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
     .map((providerId) => providerId.trim())

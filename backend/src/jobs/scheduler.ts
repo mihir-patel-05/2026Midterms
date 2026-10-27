@@ -14,6 +14,7 @@ import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { runScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { runFredSync } from '../services/fred/run-fred-sync.js';
+import { runNewsCycle } from '../services/news/run-news-cycle.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
 import { fecApiService, type FECCommittee } from '../services/fec-api.service.js';
@@ -371,6 +372,27 @@ export function initializeScheduler(): void {
     console.log('📈 FRED sync: daily at 9:15 AM and 6:15 PM ET\n');
   } else {
     console.log('FRED sync scheduler disabled: FRED_API_KEY is not set or ECON_INDICATORS_ENABLED is off');
+  }
+
+  // News (Google News through Apify). A cron-news Railway service is the target; this
+  // in-process schedule covers the Testing environment until it exists. Each tick runs
+  // only if a run is due (every 2 hours, every 30 minutes on election night).
+  if (env.NEWS_INGEST_ENABLED && env.NEWS_SCHEDULER_IN_PROCESS && env.APIFY_TOKEN && env.APIFY_NEWS_ACTOR_ID) {
+    cron.schedule(
+      '*/30 * * * *',
+      async () => {
+        try {
+          await runNewsCycle();
+        } catch (error) {
+          if (error instanceof SyncAlreadyRunningError) console.log('📰 News run skipped: another run holds the lease');
+          else console.error('❌ Scheduled news run failed:', error instanceof Error ? error.message : error);
+        }
+      },
+      { timezone: 'America/New_York' },
+    );
+    console.log('📰 News job: checked every 30 minutes\n');
+  } else {
+    console.log('News scheduler disabled: needs NEWS_INGEST_ENABLED, NEWS_SCHEDULER_IN_PROCESS, APIFY_TOKEN, and APIFY_NEWS_ACTOR_ID');
   }
 }
 
