@@ -33,7 +33,54 @@ Differentiators:
 
 ---
 
-## 2. Where we are (as of Oct 14)
+## 2. Where we are (as of Oct 27)
+
+**Feature checklist.** `[x]` means built and `[ ]` means not built yet. Nested items are the parts of a built feature that are still open. Details on built work are under "Shipped" below. When something ships, tick it here and in its table in section 4.
+
+Built:
+
+- [x] Election monitor home page: map with state, district, and county layers, the Overview, Counties, and Finance tabs, and search
+- [x] FEC candidates, committees, and totals, plus outside spending (Schedule E)
+- [x] Address-to-2026-district lookup (Geocodio)
+- [x] Live Kalshi prices over SSE, with hourly snapshots
+- [x] Market history sparklines (Oct 14)
+- [x] Biggest movers, Kalshi only (Oct 14)
+  - [ ] Polls and money moves
+  - [ ] News headlines on each row
+  - [ ] Agent 3's "why it moved" explanations
+- [x] Demographics for selected counties and districts (Oct 10, section 4.5)
+- [x] Past results map mode for president, Senate, and House (Oct 14, section 4.9)
+  - [ ] Senate history for both seats, the database tables, and the import tests
+- [x] Electoral college simulator (Oct 14) and midterm simulator (Oct 15)
+  - [ ] Impeachment vote math (section 4.10)
+- [x] Economic indicators, national and by state, with history charts (Oct 15–16, section 4.11)
+- [x] Kalshi odds map, with flips against today's seat holders (Oct 22)
+- [x] Dropping candidates who lost their primary, behind `NOMINEES_ONLY` (Oct 23)
+- [x] Top election stories: Apify news, a trending score, and Agent 10 (Oct 27, all flags off, branch `feat/news-trending`)
+  - [ ] Actor bake-off and a live Claude check
+  - [ ] Flags turned on in Testing, then production
+- [x] Election-results foundation served from the database (fictional fixtures only)
+- [x] Incumbent ideology scores, the admin dashboard, the researcher simulator, and today's Gemini chat
+- [x] Testing and production running on Railway (production apps online since Oct 22)
+  - [ ] The rest of the section 5.3 checklist: custom domains, cron services, `market-feed`, Redis, a bucket, and a backup drill
+
+Not built yet:
+
+- [ ] District race pages (section 4.1)
+- [ ] Kalshi odds on the Candidates page
+- [ ] Win probability index
+- [ ] Tipping-point races
+- [ ] Early vote tracker
+- [ ] Election night live mode
+- [ ] Live coverage panel (section 4.7)
+- [ ] Cost of living: gas prices and tariff exposure (section 4.8)
+- [ ] Research chatbot with Google sign-in, replacing Gemini (section 4.12)
+- [ ] NYT and AP news (section 4.6)
+- [ ] Shared agent runner. Agent 10 logs to `agent_runs` and checks its output with Zod, but it runs on its own code.
+- [ ] Agents 1–9 (section 4.2)
+- [ ] P01 Five-Minute Briefing, P02 My Ballot kit, and P11 Coverage and Corrections Desk (section 4.3)
+- [ ] A licensed election-night results provider (section 6)
+- [ ] Database batches 3 and 4 (section 6)
 
 **Shipped**
 
@@ -49,6 +96,7 @@ Differentiators:
 - The map's prediction-markets panel follows the state, district, and office filters. With a state selected it shows that state's Senate race and every House race that has a market, closest first. At-large districts (`00`) work.
 - Testing environment wiring (Oct 10): the frontend adds `https://` to a bare `VITE_API_URL`, CORS falls back to Railway's `RAILWAY_SERVICE_*_URL` when `FRONTEND_URL`/`ADMIN_URL` are unset, Express trusts Railway's proxy so rate limits are per visitor, and the public API limit is 600 requests per 15 minutes.
 - Outside spending (FEC Schedule E, issue #31): a daily sync at 5:00 AM ET loads independent expenditures into `independent_expenditures` (recent 30 days re-fetched in full, older filings through a resumable weekly backfill). The Finance tab shows each candidate's spending for and against plus the race's top spenders, and candidate pages have an Outside Spending tab with totals, spenders, spending by medium, and recent filings. A 24/48-hour notice counts only until the same spending appears on the group's regular report, and support and opposition are never netted. Run `node dist/scripts/sync-outside-spending.js` once after deploy to start the backfill.
+- Demographics (Oct 10, section 4.5): a Demographics tab on the monitor for the selected counties, districts, or their overlap, and the whole state when nothing is selected. Data comes from ACS 5-year tables through `npm run sync:acs` and is served at `GET /api/demographics`. Flag: `VITE_FEATURE_DEMOGRAPHICS`, on by default.
 - Every displayed number carries its source and time: FEC figures show the date the latest report runs through, the sync date, and a link to the FEC.gov filings; Kalshi prices show the price type (midpoint or last trade) and when they last changed.
 - Market history (Oct 14): `GET /api/prediction-markets/history?race=PA-07,PA-SEN&days=14` serves hourly Kalshi prices from `market_snapshots`. Race cards show a 14-day sparkline per outcome and the markets panel shows 7-day lines. Lines end at the live price, and hours with no stored price stay as breaks in the line.
 - Biggest movers, Kalshi only (Oct 14): `GET /api/prediction-markets/movers?window=24h|7d&state=PA` and a "Biggest movers" card in the monitor's lower rail.
@@ -89,38 +137,36 @@ Differentiators:
   - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
   - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
   - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
+- Primary losers dropped (Oct 23): with `NOMINEES_ONLY=true`, the scheduled FEC sync keeps only candidates whose committee filed a pre- or post-general report, and deletes stored primary losers with their committees and money rows. `npm run prune:primary-losers` previews the deletions; `--apply` runs them. `loadNomineeRoster()` gives later features the nominee list. Off by default.
 - News (built Oct 27, all flags off): national election stories from Google News through Apify, ranked in code by a published trending score, then optionally re-ranked by Claude (Agent 10). Plan and rollout: `docs/plans/news-agents.md`.
   - **Data:** one Apify actor run every 2 hours (every 30 minutes on election night) reads US top stories, the U.S. section, and 7 national election searches into `articles`. Spend is capped at $8 per 24 hours and $100 in total.
   - **Ranking:** stories are scored by outlets covering them, Google placement, and a 12-hour half-life. Agent 10 picks up to 10 of the top 30 by likely midterm impact and returns only story IDs, reason codes, and race keys.
   - **API and UI:** `GET /api/news/top`, a "Top election stories" card in the monitor's lower rail, and an admin panel with spend and a picks-versus-trending audit.
   - **Flags:** `NEWS_INGEST_ENABLED`, `NEWS_AGENTS_ENABLED` (backend), `VITE_FEATURE_NEWS` (frontend). Still to do: the actor bake-off and a live Claude check.
 
-**Not done yet (carried over from Oct 1–7)**
-
-- District race pages with ACS demographics and partisan lean.
-- Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.
-
 **Known gaps**
 
-- **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
-- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Apify news is built but off (section 2); it needs the actor bake-off and keys before it is turned on. See `docs/plans/news-agents.md`.
-- No live election-results provider is licensed. Election night depends on getting one; see section 6.
-- District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
-- The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
+- [ ] **Production is only partly set up.** Checked Oct 27: the `main-prod` environment runs the backend, frontend, and admin on Railway domains, the backend health check passes, and the frontend calls the production API. There are no custom domains, cron services, `market-feed`, Redis, or bucket yet. See section 5.3.
+- [ ] No news source is live. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Apify news is built but off (section 2); it needs the actor bake-off and keys before it is turned on. See `docs/plans/news-agents.md`.
+- [ ] No live election-results provider is licensed. Election night depends on getting one; see section 6.
+- [x] District boundaries: `CODE/public/geo/cd119.topo.json` is built and committed (Oct 5). See `CODE/public/geo/SOURCES.md`.
+- [ ] The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 
 ---
 
 ## 3. Plan to November 3
 
+✅ done · 🟡 partly done · ⬜ not done. Status as of Oct 27.
+
 | When | Work |
 |---|---|
-| **Oct 8–14** | **Set up production on Railway first** (section 5.3). ~~Market history API and sparklines. Biggest movers feed.~~ (done Oct 14). NYT and AP news ingestion into `articles` (section 4.6). Agent foundation, then Agent 1 (news triage). DB batch 2. ~~FRED indicators if time allows.~~ |
-| **Oct 15–21** | Agent 3 (why it moved), citing NYT and AP articles. Kalshi odds on the Candidates page. District race pages, with a news section. Win probability index and its methodology page. Agent 5 (daily brief). ~~FRED economic indicators (section 4.11).~~ (done Oct 15) Past results for president, with county shifts (section 4.9). Five-Minute Briefing (P01) for pilot races. Coverage and Corrections Desk minimum (P11). Chatbot Google sign-in and daily chat history (section 4.12). DB batch 3. |
-| **Oct 22–24** | Tipping-point races. Agents 2 and 4. Agent 8 through the chatbot, with tools and simulator guidance (section 4.12). Early vote tracker. My Ballot kit (P02). Live coverage panel (section 4.7). Senate and House past results (section 4.9). **Feature freeze Oct 24.** |
-| **Oct 25–30** | Election night mode. Agent 9. Agent 7 (data QA). DB batch 4 (`race_calls`), then a schema freeze. Load test on Railway at expected election-night traffic. Rehearse rollback and a provider outage. **Code freeze Oct 30.** |
-| **Oct 31–Nov 2** | Monitoring and reviewed data corrections only. Final results-feed rehearsal. On-call schedule set. Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
-| **Nov 3** | Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
-| **After Nov 3** | Agent 6 (candidate positions), polarization and democratic-institutions indexes, post-election product ideas (section 4.3), and Phase 2 (section 4.4). |
+| **Oct 8–14** | 🟡 **Set up production on Railway first** (section 5.3): apps deployed Oct 22, the rest of 5.3 open. ✅ Market history API and sparklines (Oct 14). ✅ Biggest movers feed (Oct 14). ⬜ NYT and AP news ingestion into `articles` (section 4.6); Apify news came first instead (Oct 27). 🟡 Agent foundation: `agent_runs` logging and Zod checks exist through Agent 10, but there is no shared runner. ⬜ Agent 1 (news triage). 🟡 DB batch 2: news tables only. ✅ FRED indicators (Oct 15). |
+| **Oct 15–21** | ⬜ Agent 3 (why it moved), citing NYT and AP articles. ⬜ Kalshi odds on the Candidates page. ⬜ District race pages, with a news section. ⬜ Win probability index and its methodology page. ⬜ Agent 5 (daily brief). ✅ FRED economic indicators (section 4.11; national Oct 15, states Oct 16). ✅ Past results for president, with county shifts (section 4.9; Oct 14). ⬜ Five-Minute Briefing (P01) for pilot races. ⬜ Coverage and Corrections Desk minimum (P11). ⬜ Chatbot Google sign-in and daily chat history (section 4.12). ⬜ DB batch 3. Also shipped: ✅ midterm simulator (Oct 15). |
+| **Oct 22–24** | ⬜ Tipping-point races. ⬜ Agents 2 and 4. ⬜ Agent 8 through the chatbot, with tools and simulator guidance (section 4.12). ⬜ Early vote tracker. ⬜ My Ballot kit (P02). ⬜ Live coverage panel (section 4.7). ✅ Senate and House past results (section 4.9; Oct 14). Also shipped: ✅ Kalshi odds map and seat holders (Oct 22), ✅ dropping primary losers (Oct 23). **Feature freeze Oct 24.** |
+| **Oct 25–30** | ⬜ Election night mode. ⬜ Agent 9. ⬜ Agent 7 (data QA). ⬜ DB batch 4 (`race_calls`), then a schema freeze. ⬜ Load test on Railway at expected election-night traffic. ⬜ Rehearse rollback and a provider outage. Also built: ✅ Apify news and Agent 10 (Oct 27, flags off). **Code freeze Oct 30.** |
+| **Oct 31–Nov 2** | ⬜ Monitoring and reviewed data corrections only. ⬜ Final results-feed rehearsal. ⬜ On-call schedule set. ⬜ Look up each network's scheduled election-night YouTube stream and load the video IDs (section 4.7). |
+| **Nov 3** | ⬜ Election night. Scale the API up, keep the results ingestor at exactly one replica, and fall back to official state result links for any race whose feed is unhealthy. |
+| **After Nov 3** | ⬜ Agent 6 (candidate positions), polarization and democratic-institutions indexes, post-election product ideas (section 4.3), and Phase 2 (section 4.4). |
 
 ---
 
@@ -128,39 +174,46 @@ Differentiators:
 
 ### 4.1 Intel v2 features (pre-election)
 
-| Feature | What it is |
-|---|---|
-| **Demographics for selected areas** | Users select counties, House districts, or both on the map, and a Demographics tab shows population, citizens of voting age, age, race and ethnicity, income, poverty, education, unemployment, and housing from the ACS 5-year estimates. See section 4.5. |
-| **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," top local issues, and recent NYT and AP coverage of the race (section 4.6). |
-| **Market history** | **Shipped Oct 14** (section 2). Volume and liquidity come later. |
-| **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
-| **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
-| **Economic indicators** | GDP, oil, gas, inflation, jobs, interest rates, Treasury yields, real income, and consumer sentiment from FRED, in a strip under the chamber-control odds. S&P 500 and VIX are ingested but not shown until their licensing is cleared. See section 4.11. |
-| **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
-| **Past results** | **Shipped Oct 14** (section 4.9). A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. |
-| **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. **The Kalshi-only version shipped Oct 14** (section 2); it is the trigger Agent 3 needs. Still to do: polls and money, NYT and AP headlines on each row, then Agent 3's explanations. |
-| **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
-| **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
-| **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
-| **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
-| **Research chatbot** | A Claude assistant behind Google sign-in that answers from our stored data with sources, keeps the day's chats (reset nightly), and reads the simulator scenario to help users think through their predictions. See section 4.12. |
+✅ done · 🟡 partly done · ⬜ not done.
+
+| | Feature | What it is |
+|---|---|---|
+| ✅ | **Demographics for selected areas** | **Shipped Oct 10** (section 2). Users select counties, House districts, or both on the map, and a Demographics tab shows population, citizens of voting age, age, race and ethnicity, income, poverty, education, unemployment, and housing from the ACS 5-year estimates. See section 4.5. |
+| ⬜ | **District race pages** | Every House, Senate, and governor race on one page: candidates, the incumbent's record and ideology, partisan lean, 2024 presidential margin, ACS demographics, FEC cash on hand and receipts, odds history, a polling average or "No public polling," top local issues, and recent NYT and AP coverage of the race (section 4.6). |
+| ✅ | **Market history** | **Shipped Oct 14** (section 2). Volume and liquidity come later. |
+| ⬜ | **Kalshi odds on the Candidates page** | Each candidate card shows that candidate's market price when Kalshi lists one. The live feed already carries candidate names, so this is a join on state, district, and name, with party as the fallback. |
+| ⬜ | **Win probability index** | A published formula that blends market prices, the polling average, and fundamentals (lean, incumbency, money ratio). Versioned methodology, computed in code, and every input stored so a value can be recomputed. |
+| ✅ | **Economic indicators** | **Shipped Oct 15, state figures Oct 16** (section 2). GDP, oil, gas, inflation, jobs, interest rates, Treasury yields, real income, and consumer sentiment from FRED, in a strip under the chamber-control odds. S&P 500 and VIX are ingested but not shown until their licensing is cleared. See section 4.11. |
+| ⬜ | **Cost of living by state** | Gas prices for each state compared with the U.S. average, with 1-week, 1-month, and 1-year changes, plus tariff exposure (imported share of spending, extra tariffs paid, and trade-exposed job changes) for each state. See section 4.8. |
+| ✅ | **Past results** | **Shipped Oct 14** (section 4.9). A Past results mode on the map: winners for president (by state and county), Senate (by state), and House (by district) from MIT Election Lab files, plus county and state shifts between two presidential years. |
+| 🟡 | **Biggest movers** | The races where odds, polls, or money moved most over 24 hours or 7 days, each linked to its "why it moved" explanation. **The Kalshi-only version shipped Oct 14** (section 2); it is the trigger Agent 3 needs. Still to do: polls and money, NYT and AP headlines on each row, then Agent 3's explanations. |
+| ⬜ | **Tipping-point races** | A Monte Carlo simulation over win probabilities that finds the seats most likely to decide House and Senate control. It can start from Kalshi prices for the 415 House and 34 Senate races that have markets, then switch to the win probability index once that exists. Races without a market are labeled, not filled in. |
+| ⬜ | **Early vote tracker** | Ballots returned by party registration, in states that publish the data. |
+| ⬜ | **Election night live mode** | Results, called and uncalled counts, and live odds per race. Browsers poll every 15–30 seconds; Kalshi stays on SSE. |
+| ⬜ | **Live coverage panel** | Election-night YouTube live streams from major networks (NBC News, CNN, and others) embedded in the dashboard, so users can watch coverage next to the map and odds. See section 4.7. |
+| ⬜ | **Research chatbot** | A Claude assistant behind Google sign-in that answers from our stored data with sources, keeps the day's chats (reset nightly), and reads the simulator scenario to help users think through their predictions. See section 4.12. |
+| ✅ | **Midterm simulator** | **Shipped Oct 15** (section 2). Senate and House scenarios with seat bars for chamber control, kept in the URL. Impeachment vote math (section 4.10) is not built. |
+| ✅ | **Kalshi odds map** | **Shipped Oct 22** (section 2). Each Senate state or House district coloured by its market leader, with flips hatched against today's seat holders. Plan: `docs/plans/kalshi-odds-map.md`. |
+| 🟡 | **Top election stories** | **Built Oct 27, all flags off** (section 2). National election news from Apify, ranked by a trending score and re-ranked by Agent 10. Still to do: the actor bake-off, a live Claude check, and turning the flags on. Plan: `docs/plans/news-agents.md`. |
 
 ### 4.2 AI agents
 
 Agents are the analyst layer, not the data layer. Each agent is a job made of a prompt, a Zod schema, and a database write. We are not using an agent framework.
 
-| # | Agent | Output | Cadence |
-|---|---|---|---|
-| 1 | News triage | Tags each NYT and AP article (section 4.6) with races, candidates, issue, event type, and relevance | Every 15–30 min |
-| 2 | District issues | Top issues per district, with sources | Daily |
-| 3 | Why it moved | A cited explanation of a signal event, using tagged articles published before the move, or "no clear cause found" | Event-driven |
-| 4 | Signal divergence | Races where odds, polls, and money disagree | Daily |
-| 5 | Daily brief | Top stories, movers, and races to watch | Each morning |
-| 6 | Candidate positions | Positions by issue with a quote and link (requires human review) | Weekly, after Nov 3 |
-| 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
-| 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
-| 9 | Election night | Live race notes and call summaries | Nov 3 |
-| 10 | Top stories | Re-ranks the 30 highest trending election stories and picks up to 10 nationally by likely midterm impact. Returns story IDs, reason codes, and race keys only, so it publishes without review. Built Oct 27: `docs/plans/news-agents.md` | After a news run, at most hourly (every 30 min on election night) |
+✅ built · ⬜ not built. Only Agent 10 exists so far, and it stays off until `NEWS_AGENTS_ENABLED` is set.
+
+| | # | Agent | Output | Cadence |
+|---|---|---|---|---|
+| ⬜ | 1 | News triage | Tags each NYT and AP article (section 4.6) with races, candidates, issue, event type, and relevance | Every 15–30 min |
+| ⬜ | 2 | District issues | Top issues per district, with sources | Daily |
+| ⬜ | 3 | Why it moved | A cited explanation of a signal event, using tagged articles published before the move, or "no clear cause found" | Event-driven |
+| ⬜ | 4 | Signal divergence | Races where odds, polls, and money disagree | Daily |
+| ⬜ | 5 | Daily brief | Top stories, movers, and races to watch | Each morning |
+| ⬜ | 6 | Candidate positions | Positions by issue with a quote and link (requires human review) | Weekly, after Nov 3 |
+| ⬜ | 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
+| ⬜ | 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
+| ⬜ | 9 | Election night | Live race notes and call summaries | Nov 3 |
+| ✅ | 10 | Top stories | Re-ranks the 30 highest trending election stories and picks up to 10 nationally by likely midterm impact. Returns story IDs, reason codes, and race keys only, so it publishes without review. Built Oct 27: `docs/plans/news-agents.md` | After a news run, at most hourly (every 30 min on election night) |
 
 Rules:
 
@@ -176,20 +229,22 @@ Rules:
 
 These are prioritized. P01, P02, and P11 are the only pre-election commitments. Everything else comes after Nov 3, unless it is already nearly finished.
 
-| ID | Idea | The moment it creates | Priority |
-|---|---|---|---|
-| P01 | **Five-Minute Election Briefing** | A race becomes a short, sourced story | P0, pilot races before the election |
-| P02 | **My Ballot and Readiness Kit** | Address or district lookup, then a private checklist, a print view, and links to official voting resources | P0, before the election |
-| P11 | **Coverage and Corrections Desk** | Editors see what voters can't safely rely on yet, and corrections reach the public UI | P0, foundation |
-| P03 | **Evidence Lens and Issue Compare** | Every comparison cell opens its evidence | P1, a few reviewed topics |
-| P04 | **Money Trail Stories** | Explains where reported campaign money comes from, without implying influence | P1, after finance validation |
-| P05 | **Since Your Last Visit** | Shows only the meaningful changes, including corrections | P1 |
-| P07 | **Office Powers Explorer** | What this office can actually do | P1, low-data |
-| P08 | **Portable Civic Guide** | Print, offline, and shareable cards that keep their sources | P1 |
-| P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8; delivered by section 4.12) | P2, controlled beta |
-| P09 | **Reproducible Scenario Studio** | Save, compare, and explain a "what if turnout shifts 3 points" scenario | P2, research release |
-| P10 | **Civic Publisher Kit** | Libraries and newsrooms embed a maintained guide | P2, partner pilot |
-| P12 | **Promise-to-Action Ledger** | Follow a representative's documented actions after the election | P2, post-election |
+None of these are built yet (⬜).
+
+| | ID | Idea | The moment it creates | Priority |
+|---|---|---|---|---|
+| ⬜ | P01 | **Five-Minute Election Briefing** | A race becomes a short, sourced story | P0, pilot races before the election |
+| ⬜ | P02 | **My Ballot and Readiness Kit** | Address or district lookup, then a private checklist, a print view, and links to official voting resources | P0, before the election |
+| ⬜ | P11 | **Coverage and Corrections Desk** | Editors see what voters can't safely rely on yet, and corrections reach the public UI | P0, foundation |
+| ⬜ | P03 | **Evidence Lens and Issue Compare** | Every comparison cell opens its evidence | P1, a few reviewed topics |
+| ⬜ | P04 | **Money Trail Stories** | Explains where reported campaign money comes from, without implying influence | P1, after finance validation |
+| ⬜ | P05 | **Since Your Last Visit** | Shows only the meaningful changes, including corrections | P1 |
+| ⬜ | P07 | **Office Powers Explorer** | What this office can actually do | P1, low-data |
+| ⬜ | P08 | **Portable Civic Guide** | Print, offline, and shareable cards that keep their sources | P1 |
+| ⬜ | P06 | **Ask With Receipts** | Chat answers with inspectable supporting passages (merges with Agent 8; delivered by section 4.12) | P2, controlled beta |
+| ⬜ | P09 | **Reproducible Scenario Studio** | Save, compare, and explain a "what if turnout shifts 3 points" scenario | P2, research release |
+| ⬜ | P10 | **Civic Publisher Kit** | Libraries and newsrooms embed a maintained guide | P2, partner pilot |
+| ⬜ | P12 | **Promise-to-Action Ledger** | Follow a representative's documented actions after the election | P2, post-election |
 
 Shared requirements for all of these:
 
@@ -210,6 +265,8 @@ Shared requirements for all of these:
 
 ### 4.5 Demographics (ACS 5-year)
 
+**Status: ✅ shipped Oct 10.**
+
 - **Source.** Census Data API, ACS 5-year detailed tables (2020–2024 vintage, `CENSUS_ACS_YEAR`). `npm run sync:acs` loads the nation, states, counties, 119th Congress districts, and the county pieces inside each district into `area_demographics`, and fills `district_profiles`. ACS publishes once a year, so the sync is run by hand after each December release.
 - **Selection.** Nothing selected: the whole state, compared with the US. Counties only: the counties combined. Districts only: the districts combined. Both: the **overlap**, meaning only the parts of the selected counties that lie inside the selected districts, with each piece listed.
 - **Math in code.** Only counts are stored. Sums use root-sum-of-squares margins of error, shares use the Census proportion formula, and a combined median household income is interpolated from income brackets and labeled "estimated." Values with a coefficient of variation over 30% are flagged. Census "not available" codes become null, never 0.
@@ -217,6 +274,8 @@ Shared requirements for all of these:
 - **Nonpartisan.** Demographics are shown as facts about an area, never as a prediction of how it votes.
 
 ### 4.6 News: New York Times and AP
+
+**Status: ⬜ NYT and AP not started. ✅ Apify news built Oct 27, flags off.**
 
 **Oct 27: Apify comes first, built and off.** Google News top stories, the U.S. section, and national election searches through our Apify account ($205 of credits) feed the `articles` table. Code ranks them by a trending score, and Agent 10 re-ranks the top 30 with Claude. Version 1 is one national list; per-race news comes later. See `docs/plans/news-agents.md`. NYT and AP become additional sources once licensed, and the rules below apply to every source.
 
@@ -248,6 +307,8 @@ NYT and AP articles are the source material for news on race pages and for Agent
 - Which NYT APIs our key is enabled for, and the NYT and AP terms on caching headlines and abstracts.
 
 ### 4.7 Live coverage: network election-night streams
+
+**Status: ⬜ not started.**
 
 Embed election-night YouTube live streams from major news outlets in the dashboard, so users can watch the broadcast next to the map, results, and odds.
 
@@ -283,6 +344,8 @@ Embed election-night YouTube live streams from major news outlets in the dashboa
 - YouTube's embedding terms for live content, and whether any outlet requires attribution beyond the player's own branding.
 
 ### 4.8 Cost of living: gas prices and tariff exposure by state
+
+**Status: ⬜ not started.**
 
 A **Cost of Living** tab on the map, next to Demographics, with two panels: gas prices and tariff exposure. Selecting a state shows that state compared with the U.S. average. No state selected shows a 50-state map and a ranked table. Like demographics (section 4.5), these are facts about a place. They are never presented as a prediction or explanation of how it votes.
 
@@ -382,6 +445,8 @@ National context:
 
 ### 4.9 Past results: MIT Election Lab presidential, Senate, and House returns
 
+**Status: ✅ shipped Oct 14** as static files (see "As built" below). The database tables, Senate history for both seats, and import tests are not built.
+
 A **Past results** mode for the map that shows how places voted before, using the MIT Election Data + Science Lab (MEDSL) CSV files we load. It covers three offices:
 
 | Office | MEDSL file (Harvard Dataverse) | Geography | Map layer it colors |
@@ -445,9 +510,9 @@ We recommend **a mode inside the existing map**, not a second map. The map alrea
   - The map colours by the race that decided the seat: the regular election, or its runoff when one was held. Specials are listed in the panel. For example, Georgia 2020 shows Ossoff.
   - Connecticut's county shift works because both the data and the us-atlas county shapes use its old counties. That will break if `county2024.topo.json`, with planning regions, is built.
 - **Not built yet:**
-  - the database tables (needed only if Ask the race or other agents need past results)
-  - the "both seats' most recent races" Senate history
-  - the import fixtures and tests
+  - [ ] the database tables (needed only if Ask the race or other agents need past results)
+  - [ ] the "both seats' most recent races" Senate history
+  - [ ] the import fixtures and tests
 
 **Original plan (superseded where it conflicts with the above)**
 
@@ -503,6 +568,8 @@ Planned changes:
 - [U.S. House 1976–2024](https://doi.org/10.7910/DVN/IG0UN2) (Harvard Dataverse)
 
 ### 4.10 Simulator: impeachment and removal math
+
+**Status: ⬜ not started.** The midterm simulator it builds on shipped Oct 15.
 
 A card on the midterm simulator (`/simulator/midterms`) that answers, for the simulated 120th Congress (seated Jan 3, 2027; President Trump's term ends Jan 20, 2029): could this House impeach, could this Senate convict, and how many cross-party votes would each step need? **The exact formula is still to be agreed.** What follows are suggestions.
 
@@ -571,6 +638,8 @@ Computed straight from the simulator's totals (`simulateHouse` and `simulateSena
 - Whether to show removal odds at all, given they are near zero, or only the "votes needed" count.
 
 ### 4.11 Economic indicators (FRED)
+
+**Status: ✅ shipped Oct 15 (national) and Oct 16 (states and history charts).** S&P 500 and VIX stay hidden until their licensing is cleared.
 
 A strip of tiles directly under the Kalshi House and Senate control banner on the monitor. It shows the economy next to the chamber-control odds, as context. It is **never presented as a forecast or as an explanation of why the odds moved.** No migration is needed: the series go into `indicator_series` and `indicator_observations` (batch 1), and the `(series_id, observed_at)` unique key lets revised values overwrite old ones in place.
 
@@ -695,6 +764,8 @@ The frontend has Vitest tests for `buildTiles()` (national and state tiles, the 
 **Timing.** Small, free, and needs no migration, so it ships before the Oct 24 feature freeze.
 
 ### 4.12 Research chatbot with accounts (Claude)
+
+**Status: ⬜ not started.** Today's anonymous Gemini chat is still in place.
 
 A research assistant that users reach by signing in with Google. It replaces today's anonymous Gemini chat. It answers questions from our stored data through tools, keeps the day's conversations so users can go back to them until the nightly reset, and can read the simulator scenario on screen to help users think through their predictions. It is how Agent 8 (Ask the race) and P06 (Ask With Receipts) reach users, and it follows the agent rules in section 4.2.
 
@@ -878,8 +949,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 **To do before building**
 
-- Create the Google OAuth client and consent screen, and register the Testing and production `web` origins.
-- Publish a privacy policy page for the consent screen, covering what we keep (Google ID, email, name, and one day of chats).
+- [ ] Create the Google OAuth client and consent screen, and register the Testing and production `web` origins.
+- [ ] Publish a privacy policy page for the consent screen, covering what we keep (Google ID, email, name, and one day of chats).
 
 ---
 
@@ -914,13 +985,15 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 ### 5.3 Migration checklist (Oct 8–14)
 
-- [ ] Create `staging` and `production` environments in the Railway project. Use Railway private networking (`api.railway.internal`) between services. *Oct 10: the project has `Testing` and `production`. Only `Testing` is wired up; production's backend has no domain and its frontend has no variables.*
-- [ ] Deploy `web` and `admin` from their Dockerfiles. Set `VITE_API_URL` to the Railway `api` domain.
-- [ ] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deploy to Vercel, with Railway deploys (`railway up --service web|admin`, like `backend-deploy.yml`) or with Railway's GitHub autodeploy. Then remove the Vercel secrets.
-- [ ] Move `sync-fec-data.yml` and the in-process `node-cron` schedules to Railway cron services.
+Checked Oct 27 against the repo and the Railway project (`attractive-victory`, environments `Testing` and `main-prod`).
+
+- [x] Create `staging` and `production` environments in the Railway project. Use Railway private networking (`api.railway.internal`) between services. *Oct 27: `Testing` and `main-prod` both run the backend, frontend, and admin; the production deploys went out Oct 22. Private networking between services was not checked.*
+- [x] Deploy `web` and `admin` from their Dockerfiles. Set `VITE_API_URL` to the Railway `api` domain. *Oct 27: the production frontend's bundle calls `backend-main-prod.up.railway.app`, and that backend's `/api/health/ready` returns 200.*
+- [ ] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deploy to Vercel, with Railway deploys (`railway up --service web|admin`, like `backend-deploy.yml`) or with Railway's GitHub autodeploy. Then remove the Vercel secrets. *Both workflows still deploy to Vercel.*
+- [ ] Move `sync-fec-data.yml` and the in-process `node-cron` schedules to Railway cron services. *No cron services exist yet; the news job has its own in-process switch until `cron-news` exists.*
 - [ ] Split the Kalshi live feed into `market-feed` and add Redis fan-out.
 - [ ] Add a Railway Bucket and point `RawArtifact` storage at it instead of the local filesystem.
-- [ ] Set up DNS for `www`, `api`, and `admin`. Set CORS through `FRONTEND_URL` and `ADMIN_URL`.
+- [ ] Set up DNS for `www`, `api`, and `admin`. Set CORS through `FRONTEND_URL` and `ADMIN_URL`. *Only Railway-generated domains so far.*
 - [ ] Prove that a backup and restore works and that rolling back to a previous Railway deployment completes within 15 minutes.
 
 ### 5.4 External data sources
@@ -961,12 +1034,14 @@ Conventions:
 - Results are append-only. A correction creates a new snapshot, and publishing moves `Contest.currentSnapshotId`.
 - Migrations stay additive until after the election.
 
-| Batch | When | Tables |
-|---|---|---|
-| 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
-| 2 | Oct 8–14 (news tables done Oct 27) | Done: `articles` (Apify, then NYT and AP; unique on source and external ID), `agent_outputs` (with review status), `agent_output_citations`. Still to do: `article_tags` (with Agent 1), `race_signal_events`, `win_probability_values` |
-| 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
-| 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
+✅ done · 🟡 partly done · ⬜ not done. Also added outside these batches: `area_demographics` (Oct 10) and the Schedule E tables `independent_expenditures` and `schedule_e_sync_state` (Oct 10).
+
+| | Batch | When | Tables |
+|---|---|---|---|
+| ✅ | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
+| 🟡 | 2 | Oct 8–14 (news tables done Oct 27) | Done: `articles` (Apify, then NYT and AP; unique on source and external ID), `agent_outputs` (with review status), `agent_output_citations`. Still to do: `article_tags` (with Agent 1), `race_signal_events`, `win_probability_values` |
+| ⬜ | 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
+| ⬜ | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
 Schema cleanup to do after the election:
 
@@ -992,3 +1067,4 @@ If no provider is licensed in time, the site links to official state results and
 - **Feature flags** gate every new module. `VITE_*` flags need a rebuild of `web`.
 - **No secrets in frontend bundles.** All keys live in Railway service variables.
 - **This file is the plan.** Update it here instead of adding new planning docs.
+- **Keep the checkmarks current.** When a feature ships, tick it in the section 2 checklist, its row in section 3 and its table in section 4, and the status list at the top of its `docs/plans/` file.
