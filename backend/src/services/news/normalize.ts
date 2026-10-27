@@ -126,7 +126,11 @@ export function normalizeItem(item: RawNewsItem, now: Date): NormalizeResult {
       publishedAt,
       feed: item.feed,
       position: item.position,
-      related: item.related.filter((entry) => entry.outlet && !isExcludedDomain(domainOf(entry.url))).slice(0, 15),
+      // Related links are kept only if they are http(s), the same check as the article's own link.
+      related: item.related
+        .map((entry) => ({ ...entry, url: entry.url && canonicalUrl(entry.url) ? entry.url : null }))
+        .filter((entry) => entry.outlet && !isExcludedDomain(domainOf(entry.url)))
+        .slice(0, 15),
     },
   };
 }

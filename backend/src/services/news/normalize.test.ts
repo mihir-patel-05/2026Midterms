@@ -76,3 +76,15 @@ test('one article from several feeds keeps every feed and its best rank', () => 
   assert.equal(merged.position, 3);
   assert.equal(merged.related.length, 1);
 });
+
+test('related links must be http(s), and control characters never reach the database', async () => {
+  const result = normalizeItem(item({ related: [
+    { headline: 'Bad', outlet: 'Evil', url: 'javascript:alert(1)' },
+    { headline: 'Good', outlet: 'NPR', url: 'https://www.npr.org/a' },
+  ] }), NOW);
+  assert.ok(result.ok);
+  assert.deepEqual(result.article.related.map((entry) => entry.url), [null, 'https://www.npr.org/a']);
+  const { str } = await import('./apify-actors.js');
+  assert.equal(str('Senate\u0000 race\u0007'), 'Senate race');
+  assert.equal(str('\u0000'), null);
+});

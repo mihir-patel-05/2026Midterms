@@ -41,7 +41,13 @@ export interface ActorAdapter {
 
 type Raw = Record<string, unknown>;
 
-export const str = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null);
+/** A trimmed string with control characters removed (Postgres rejects NUL in text), or null. */
+export const str = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  // eslint-disable-next-line no-control-regex
+  const clean = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
+  return clean || null;
+};
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null);
 
 /** Text from an HTML snippet: tags dropped, common entities decoded, whitespace collapsed. */

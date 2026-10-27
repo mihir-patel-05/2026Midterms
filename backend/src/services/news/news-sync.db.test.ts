@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import type { ApifyClient, ApifyRunResult } from './apify-client.js';
+import { loadSpend } from './budget.js';
 import { loadStoryArticles } from './news-store.js';
 import { syncNews } from './news-sync.js';
 import { rankStories } from './trending.js';
@@ -79,6 +80,12 @@ test('news sync stores articles once, refreshes repeats, ranks stories, and stop
     const runs = await db.ingestionRun.findMany({ where: { source: { key: SOURCE_KEY } }, orderBy: { createdAt: 'asc' } });
     assert.deepEqual(runs.map((row) => row.status), ['SUCCEEDED', 'SUCCEEDED', 'CANCELLED']);
     assert.deepEqual(runs.map((row) => (row.metadata as { costUsd: number }).costUsd), [0.05, 0.05, 0]);
+
+    // A run whose process died before recording its cost counts at its upper bound, not zero.
+    await db.ingestionRun.create({ data: { sourceId: runs[0].sourceId, status: 'RUNNING', parserVersion: 'test', startedAt: new Date('2026-10-28T16:30:00Z'), metadata: { maxCostUsd: 0.4 } } });
+    const spend = await loadSpend(db, SOURCE_KEY, new Date('2026-10-28T17:00:00Z'));
+    assert.equal(Math.round(spend.totalUsd * 100) / 100, 0.5);
+    assert.equal(Math.round(spend.last24hUsd * 100) / 100, 0.5);
   } finally {
     await cleanup(db);
     await db.$disconnect();

@@ -74,7 +74,9 @@ export async function syncNews(db: PrismaClient, client: Pick<ApifyClient, 'runA
 
   const plan = buildFeedPlan(now, electionTopicIds);
   const input = adapter.buildInput(plan, budget.maxItems);
-  const baseMetadata = { actorId: adapter.id, queryVersion: NEWS_QUERY_VERSION, feeds: feedCount(plan), queries: plan.queries, maxItems: budget.maxItems, maxChargeUsd: budget.maxChargeUsd };
+  // Until the run records what it cost, the budget counts it at this upper bound.
+  const maxCostUsd = runCostUsd(budget.maxItems, limits.pricePer1000Usd, null);
+  const baseMetadata = { actorId: adapter.id, queryVersion: NEWS_QUERY_VERSION, feeds: feedCount(plan), queries: plan.queries, maxItems: budget.maxItems, maxChargeUsd: budget.maxChargeUsd, maxCostUsd };
   const run = await db.ingestionRun.create({
     data: { sourceId: source.id, status: 'RUNNING', parserVersion, startedAt: now, metadata: baseMetadata },
   });
@@ -85,7 +87,7 @@ export async function syncNews(db: PrismaClient, client: Pick<ApifyClient, 'runA
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // The run may have started and charged before the error, so count the most it could have cost.
-    const costUsd = runCostUsd(budget.maxItems, limits.pricePer1000Usd, null);
+    const costUsd = maxCostUsd;
     await db.ingestionRun.update({
       where: { id: run.id },
       data: { status: 'FAILED', completedAt: new Date(), errorSummary: message.slice(0, 2000), metadata: { ...baseMetadata, costUsd, costIsUpperBound: true } },
@@ -95,16 +97,30 @@ export async function syncNews(db: PrismaClient, client: Pick<ApifyClient, 'runA
     return { status: 'FAILED', reason: message, ingestionRunId: run.id, fetched: 0, inserted: 0, updated: 0, rejected: {}, costUsd };
   }
 
-  const rejected: Partial<Record<Rejection, number>> = {};
-  const accepted = [];
-  for (const item of adapter.parseItems(result.items, plan)) {
-    const normalized = normalizeItem(item, now);
-    if (normalized.ok) accepted.push(normalized.article);
-    else rejected[normalized.rejection] = (rejected[normalized.rejection] ?? 0) + 1;
-  }
-  const merged = mergeBatch(accepted);
-  const { inserted, updated } = await storeArticles(db, source.id, run.id, merged, now);
+  // Apify has charged by now, so the cost is recorded even if storing the articles fails.
   const costUsd = runCostUsd(result.items.length, limits.pricePer1000Usd, result.run.usageTotalUsd);
+  const apifyMetadata = { ...baseMetadata, apifyRunId: result.run.id, apifyStatus: result.run.status, datasetId: result.run.defaultDatasetId, usageTotalUsd: result.run.usageTotalUsd, costUsd };
+  const rejected: Partial<Record<Rejection, number>> = {};
+  let inserted: number;
+  let updated: number;
+  try {
+    const accepted = [];
+    for (const item of adapter.parseItems(result.items, plan)) {
+      const normalized = normalizeItem(item, now);
+      if (normalized.ok) accepted.push(normalized.article);
+      else rejected[normalized.rejection] = (rejected[normalized.rejection] ?? 0) + 1;
+    }
+    ({ inserted, updated } = await storeArticles(db, source.id, run.id, mergeBatch(accepted), now));
+  } catch (error) {
+    const message = `Storing articles failed: ${error instanceof Error ? error.message : String(error)}`;
+    await db.ingestionRun.update({
+      where: { id: run.id },
+      data: { status: 'FAILED', completedAt: new Date(), recordsFetched: result.items.length, errorSummary: message.slice(0, 2000), metadata: apifyMetadata as Prisma.InputJsonValue },
+    });
+    await db.dataSource.update({ where: { id: source.id }, data: { healthStatus: 'DEGRADED' } });
+    log(`❌ News run failed: ${message}`);
+    return { status: 'FAILED', reason: message, ingestionRunId: run.id, apifyRunId: result.run.id, fetched: result.items.length, inserted: 0, updated: 0, rejected, costUsd };
+  }
   const status: NewsSyncStats['status'] = result.run.status === 'SUCCEEDED' && !result.aborted
     ? 'SUCCEEDED'
     : result.items.length > 0 ? 'PARTIAL' : 'FAILED';
@@ -118,15 +134,7 @@ export async function syncNews(db: PrismaClient, client: Pick<ApifyClient, 'runA
       recordsAccepted: inserted + updated,
       recordsRejected: rejectedCount,
       errorSummary: status === 'SUCCEEDED' ? null : `Apify run ended ${result.run.status}${result.aborted ? ' after being aborted' : ''}`,
-      metadata: {
-        ...baseMetadata,
-        apifyRunId: result.run.id,
-        apifyStatus: result.run.status,
-        datasetId: result.run.defaultDatasetId,
-        usageTotalUsd: result.run.usageTotalUsd,
-        costUsd,
-        rejected,
-      } as Prisma.InputJsonValue,
+      metadata: { ...apifyMetadata, rejected } as Prisma.InputJsonValue,
     },
   });
   await db.dataSource.update({

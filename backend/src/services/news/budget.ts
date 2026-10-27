@@ -51,9 +51,15 @@ export function runCostUsd(items: number, pricePer1000Usd: number, reportedUsd: 
   return Math.round(Math.max(estimate, reportedUsd ?? 0) * 10_000) / 10_000;
 }
 
+const finite = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/**
+ * A finished run's recorded cost. A run with none, such as one still running or one
+ * whose process died, counts at the most it could cost (maxCostUsd), never at zero.
+ */
 function costOf(metadata: unknown): number {
-  const value = (metadata as { costUsd?: unknown } | null)?.costUsd;
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  const fields = (metadata ?? {}) as { costUsd?: unknown; maxCostUsd?: unknown };
+  return finite(fields.costUsd) ?? finite(fields.maxCostUsd) ?? 0;
 }
 
 /** Spend recorded on this source's runs: the past 24 hours, and all time. */
