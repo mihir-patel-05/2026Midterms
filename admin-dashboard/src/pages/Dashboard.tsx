@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { adminAPI, AdminStats, SyncStatus, SyncLog, Deadline, DeadlineInput } from '../lib/api';
 import { formatCalendarDate } from '../lib/calendarDate';
+import { NewsPanel } from '../components/NewsPanel';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -707,6 +708,10 @@ export default function Dashboard({ onLogout }: DashboardProps) {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="mt-8">
+          <NewsPanel />
         </div>
       </main>
 

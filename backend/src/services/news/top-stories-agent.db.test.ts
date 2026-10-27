@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { getTopStories } from './news-read.js';
 import { ensureNewsSource } from './news-sync.js';
+import { getNewsStatus } from './news-status.js';
 import { runTopStoriesAgent, type ModelResult, type PickerModel, type TopStoriesPayload } from './top-stories-agent.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -118,6 +119,18 @@ test('the top stories agent publishes checked picks, supersedes old ones, and th
     const off = await getTopStories(db, { limit: 3, agentsEnabled: false, sourceKey: SOURCE_KEY, now: new Date('2026-10-28T13:30:00Z') });
     assert.equal(off.mode, 'trending');
     assert.equal(off.reason, null);
+
+    const status = await getNewsStatus(db, {
+      sourceKey: SOURCE_KEY,
+      now: new Date('2026-10-28T13:30:00Z'),
+      limits: { dailyUsd: 8, totalUsd: 100, pricePer1000Usd: 2, maxItemsPerRun: 200 },
+      settings: { ingestEnabled: true, agentsEnabled: true, schedulerInProcess: false, actorId: 'tacps126/google-news', pickerModel: 'claude-test' },
+    });
+    assert.equal(status.audit.length, 8);
+    assert.deepEqual(status.audit.filter((row) => row.aiRank !== null).map((row) => [row.trendingRank, row.aiRank, row.aiReason]), [[1, 4, 'CANDIDATE_NEWS'], [2, 3, 'NATIONAL_EVENT'], [3, 2, 'DEBATE'], [4, 1, 'POLL']]);
+    assert.equal(status.audit[5].excludedWhy, 'OPINION');
+    assert.equal(status.agentRuns[0].status, 'FAILED');
+    assert.equal(status.latestPicks?.droppedIds, 1);
   } finally {
     await cleanup(db);
     await db.$disconnect();

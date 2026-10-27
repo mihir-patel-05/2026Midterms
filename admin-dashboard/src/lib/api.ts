@@ -37,6 +37,30 @@ interface SyncStatus {
   recentLogs: SyncLog[];
 }
 
+interface NewsAuditRow {
+  trendingRank: number;
+  articleId: string;
+  headline: string;
+  outlet: string;
+  url: string;
+  outletCount: number;
+  googlePosition: number | null;
+  score: number;
+  aiRank: number | null;
+  aiReason: string | null;
+  raceKeys: string[];
+  excludedWhy: string | null;
+}
+
+interface NewsStatus {
+  settings: { ingestEnabled: boolean; agentsEnabled: boolean; schedulerInProcess: boolean; actorId: string | null; pickerModel: string };
+  budget: { dailyUsd: number; totalUsd: number; pricePer1000Usd: number; maxItemsPerRun: number; spentLast24hUsd: number; spentTotalUsd: number };
+  runs: Array<{ id: string; startedAt: string | null; status: string; fetched: number; accepted: number; rejected: number; costUsd: number | null; error: string | null }>;
+  agentRuns: Array<{ id: string; createdAt: string; status: string; model: string; inputTokens: number | null; outputTokens: number | null; error: string | null }>;
+  latestPicks: { createdAt: string; model: string; droppedIds: number; droppedRaceKeys: number } | null;
+  audit: NewsAuditRow[];
+}
+
 interface SyncResult {
   message: string;
   syncId: string;
@@ -169,6 +193,10 @@ class AdminAPI {
     return this.fetch<SyncStatus>('/sync-status');
   }
 
+  async getNewsStatus(): Promise<NewsStatus> {
+    return this.fetch<NewsStatus>('/news-status');
+  }
+
   async triggerSync(): Promise<SyncResult> {
     return this.fetch<SyncResult>('/sync', { method: 'POST' });
   }
@@ -204,5 +232,5 @@ class AdminAPI {
 }
 
 export const adminAPI = new AdminAPI();
-export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult, Deadline, DeadlineInput, DeadlinesResponse };
+export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult, Deadline, DeadlineInput, DeadlinesResponse, NewsStatus, NewsAuditRow };
 

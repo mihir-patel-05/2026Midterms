@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { adminController, verifyAdminAuth } from '../controllers/admin.controller.js';
 import { deadlineController } from '../controllers/deadline.controller.js';
 import rateLimit from 'express-rate-limit';
+import { prisma } from '../config/database.js';
+import { env } from '../config/env.js';
+import { getNewsStatus } from '../services/news/news-status.js';
+import { newsBudgetLimits } from '../services/news/run-news-cycle.js';
 
 const router = Router();
 
@@ -20,6 +24,25 @@ router.post('/verify', loginLimiter, (req, res) => adminController.verifyPasswor
 router.post('/logout', verifyAdminAuth, (req, res) => adminController.logout(req, res));
 router.get('/stats', verifyAdminAuth, (req, res) => adminController.getStats(req, res));
 router.get('/sync-status', verifyAdminAuth, (req, res) => adminController.getSyncStatus(req, res));
+// News job: spend against the caps, recent runs, and the AI picks next to the trending order.
+router.get('/news-status', verifyAdminAuth, async (_req, res) => {
+  try {
+    const data = await getNewsStatus(prisma, {
+      limits: newsBudgetLimits(),
+      settings: {
+        ingestEnabled: env.NEWS_INGEST_ENABLED,
+        agentsEnabled: env.NEWS_AGENTS_ENABLED,
+        schedulerInProcess: env.NEWS_SCHEDULER_IN_PROCESS,
+        actorId: env.APIFY_NEWS_ACTOR_ID ?? null,
+        pickerModel: env.NEWS_PICKER_MODEL,
+      },
+    });
+    res.json(data);
+  } catch (error) {
+    console.error('News status failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'News status is unavailable' });
+  }
+});
 router.post('/sync', verifyAdminAuth, (req, res) => adminController.triggerSync(req, res));
 router.post('/generate-elections', verifyAdminAuth, (req, res) => adminController.triggerGenerateElections(req, res));
 
