@@ -14,6 +14,20 @@ What "Apify ranks" means in practice: Apify doesn't judge importance. Its Google
 
 **Timing.** The feature freeze was Oct 24, and the code freeze is Oct 30. Everything here is behind flags that are off by default, on branch `feat/news-trending`.
 
+## Status
+Built Oct 27 on `feat/news-trending`, which is not pushed or merged yet. All flags are off.
+
+- [x] Schema: `articles`, `agent_outputs`, `agent_output_citations`
+- [x] Apify client, actor adapters, schedule, and budget guard
+- [x] Normalizing, story clusters, trending score, and `npm run sync:news`
+- [x] Fixes from the security review: http(s)-only related links, and a charged run never counted as free
+- [x] `GET /api/news/top` and the monitor card
+- [x] Agent 10 re-ranks with Claude
+- [x] Admin spend and audit panel
+- [ ] Push the branch and merge it
+- [ ] Live Apify run (the bake-off) and a live Claude call
+- [ ] Rollout steps 1–5 below
+
 ## How it works
 
 ```
@@ -122,15 +136,18 @@ cron (every 30 min) ─► run due? budget left? ─► one Apify actor run over
 - **On Railway,** a `cron-news` service runs `node dist/scripts/sync-news.js` every 30 minutes. Until it exists, set `NEWS_SCHEDULER_IN_PROCESS=true` on `api`.
 
 ## Rollout
-1. **Bake-off (about $1).**
-   - Set `APIFY_TOKEN` and `APIFY_PRICE_PER_1000_USD=2` on Testing.
-   - Run `npm run sync:news -- --force --actor=tacps126/google-news`, then the same with `cirkit/google-news-scraper`.
-   - Compare on the admin panel and in `ingestion_runs`: articles kept versus dropped, the share with decoded publisher URLs, whether top stories and ranks came back, related-coverage counts, and cost per run.
-   - Set `APIFY_NEWS_ACTOR_ID` to the winner and `APIFY_PRICE_PER_1000_USD` to its real all-in price.
-2. **Elections topic ID.** Find the Google News Elections topic ID in the US edition and set `NEWS_ELECTION_TOPIC_IDS`.
-3. **Trending only.** Turn on `NEWS_INGEST_ENABLED`, `NEWS_SCHEDULER_IN_PROCESS`, and `VITE_FEATURE_NEWS` (rebuild `web`). Watch spend for a day on the admin panel.
-4. **AI picks.** Set `ANTHROPIC_API_KEY` and run `npm run sync:news -- --agent` a few times. Review the picks and exclusions against the trending order on the admin panel. Then turn on `NEWS_AGENTS_ENABLED`.
-5. **Election night.** Check spend at 9 PM and midnight ET.
+None of these steps are done yet.
+
+- [ ] **1. Bake-off (about $1).**
+  - Set `APIFY_TOKEN` and `APIFY_PRICE_PER_1000_USD=2` on Testing.
+  - Run `npm run sync:news -- --force --actor=tacps126/google-news`, then the same with `cirkit/google-news-scraper`.
+  - Compare on the admin panel and in `ingestion_runs`: articles kept versus dropped, the share with decoded publisher URLs, whether top stories and ranks came back, related-coverage counts, and cost per run.
+  - Set `APIFY_NEWS_ACTOR_ID` to the winner and `APIFY_PRICE_PER_1000_USD` to its real all-in price.
+- [ ] **2. Elections topic ID.** Find the Google News Elections topic ID in the US edition and set `NEWS_ELECTION_TOPIC_IDS`.
+- [ ] **Apify backstop.** Set the $110 hard monthly limit in the Apify console.
+- [ ] **3. Trending only.** Turn on `NEWS_INGEST_ENABLED`, `NEWS_SCHEDULER_IN_PROCESS`, and `VITE_FEATURE_NEWS` (rebuild `web`). Watch spend for a day on the admin panel.
+- [ ] **4. AI picks.** Set `ANTHROPIC_API_KEY` and run `npm run sync:news -- --agent` a few times. Review the picks and exclusions against the trending order on the admin panel. Then turn on `NEWS_AGENTS_ENABLED`.
+- [ ] **5. Election night.** Check spend at 9 PM and midnight ET.
 
 ## Costs
 Apify at $1.50–2 per 1,000 articles, about 160 new articles per run:
@@ -149,18 +166,20 @@ The caps sit above these estimates. About $105 is left for later per-race work.
 Claude on Opus 5.5 costs about $0.05 a call at most and about 30 calls a day, so about $1.50 a day. That is billed to Anthropic, not Apify.
 
 ## Verified
-- **Backend tests** (`npm run test:results`) cover the Apify client lifecycle, both adapters, the schedule, the budget, normalizing, clustering and scoring, the route, the agent's checks and run rules, and the Claude request shape and parsing. The Claude tests use a fake `fetch`, so no live calls are made.
-- **Database tests** (`TEST_DATABASE_URL`) cover storing and refreshing articles, budget skips, upper-bound spend, publishing and superseding picks, the 3-hour fallback, and the admin audit.
-- **The migration** applied cleanly to an empty Postgres 16, with no drift against the schema.
-- **Both card modes and the admin panel** were checked in a browser against seeded sample data.
-- **Not verified:** a live Apify run (the bake-off) and a live Claude call. No Anthropic key was available while building.
+- [x] **Backend tests** (`npm run test:results`) cover the Apify client lifecycle, both adapters, the schedule, the budget, normalizing, clustering and scoring, the route, the agent's checks and run rules, and the Claude request shape and parsing. The Claude tests use a fake `fetch`, so no live calls are made.
+- [x] **Database tests** (`TEST_DATABASE_URL`) cover storing and refreshing articles, budget skips, upper-bound spend, publishing and superseding picks, the 3-hour fallback, and the admin audit.
+- [x] **The migration** applied cleanly to an empty Postgres 16, with no drift against the schema.
+- [x] **Both card modes and the admin panel** were checked in a browser against seeded sample data.
+- [ ] **Not verified:** a live Apify run (the bake-off) and a live Claude call. No Anthropic key was available while building.
 
 ## Later
-- **A per-race News tab.** Add race searches using nominee names from `loadNomineeRoster()` (`services/primary-pruning.service.ts`), and race-scoped outputs (`scope_type = RACE`).
-- **Agent 1 (triage)**, which Agent 3 "why it moved" will need after Nov 3.
-- **A Google Trends search-interest signal** in the score.
-- **NYT and AP** as additional sources once licensed (§4.6).
+Not started.
+
+- [ ] **A per-race News tab.** Add race searches using nominee names from `loadNomineeRoster()` (`services/primary-pruning.service.ts`), and race-scoped outputs (`scope_type = RACE`).
+- [ ] **Agent 1 (triage)**, which Agent 3 "why it moved" will need after Nov 3.
+- [ ] **A Google Trends search-interest signal** in the score.
+- [ ] **NYT and AP** as additional sources once licensed (§4.6).
 
 ## To confirm
-- **Apify's and each actor's terms** on storing and showing headlines and snippets. We store no article text and always link out.
-- **An Anthropic key and budget** for the `api` service.
+- [ ] **Apify's and each actor's terms** on storing and showing headlines and snippets. We store no article text and always link out.
+- [ ] **An Anthropic key and budget** for the `api` service.

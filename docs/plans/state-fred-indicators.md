@@ -1,5 +1,16 @@
 # State-level FRED indicators + history chart dialog
 
+## Status
+Shipped Oct 16 and merged to `main`. Every planned commit landed:
+
+- [x] Plan (`c786fd6c`)
+- [x] 1. Pace FRED requests under the 120/min limit (`198a893f`)
+- [x] 2. State unemployment, jobs, claims, GDP, and home price series (`8d80efe5`)
+- [x] 3. `GET /api/indicators?state=CA` (`06b14492`)
+- [x] 4. Economy strip follows the selected state (`39f6e1c5`)
+- [x] 5. History chart dialog for each indicator (`29e7249d`)
+- [x] 6. PLAN.md section 4.11 (`1d9ae78c`)
+
 ## Context
 The economy strip (shipped Oct 15, PLAN.md §4.11) only shows national FRED series. When a user picks a state on the monitor, the strip should narrow to that state, and any tile should open a larger history chart, comparing the state against the U.S. when a state is selected.
 

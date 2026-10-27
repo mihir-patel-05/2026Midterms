@@ -1,5 +1,17 @@
 # Kalshi odds map: colour every Senate state and House district by its market
 
+## Status
+Shipped Oct 22 and merged to `main` in PR #98. Every planned commit landed:
+
+- [x] 0. Plan (`8ae2a143`)
+- [x] 1. Generic overlay for the map colours (`b8f77e0f`)
+- [x] 2. Colour bins from Kalshi race markets (`1cfbc01b`)
+- [x] 3. Market odds map mode for the Senate and House (`1686e635`)
+- [x] 4. Hatching for races whose leader would flip the seat (`c2e05660`)
+- [x] 5. State labels with the leader's price on the Senate map (`18341972`)
+- [x] 6. PLAN.md "Shipped" entry (`f7d584e3`)
+- [x] Added after the plan: today's seat holders from congress-legislators (`029209ad`, `0367d1b8`, `160a4dff`) and the full list of states with new 2026 House maps (`6169e704`, `497eb55c`)
+
 ## Context
 The monitor map can show the 2026 readiness view or Past results, but it can't show where the markets think each race is heading. Users want a Kalshi-style overlay (see the two screenshots): pick **Senate** (by state) or **House** (by district), and colour each race blue or red. A paler shade means a close race and a saturated shade means the market is near certain. Hatching marks a race whose leader differs from the party holding the seat.
 
