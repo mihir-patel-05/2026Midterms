@@ -389,7 +389,9 @@ export function ElectionMonitor() {
           </MapCard>
           <StatStrip stats={stats} />
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
-            {newsEnabled && <TopStoriesCard />}
+            {newsEnabled && (
+              <TopStoriesCard onSelect={(state, district) => update({ state, district, districts: [], counties: [], contest: null })} />
+            )}
             {moversEnabled && (
               <MoversCard
                 stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}

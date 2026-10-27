@@ -58,6 +58,10 @@ const envSchema = z.object({
   NEWS_TOTAL_BUDGET_USD: z.string().regex(/^\d+(\.\d+)?$/).default('100'),
   // Google News topic IDs (CAAq…) whose articles count as election news, comma-separated.
   NEWS_ELECTION_TOPIC_IDS: z.string().default(''),
+  // Agent 10 re-ranks the trending stories with Claude. Off by default; needs ANTHROPIC_API_KEY.
+  NEWS_AGENTS_ENABLED: z.enum(['true', 'false']).default('false'),
+  ANTHROPIC_API_KEY: z.string().trim().optional(),
+  NEWS_PICKER_MODEL: z.string().trim().default('claude-opus-5-5'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -138,6 +142,7 @@ export const env = {
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   APIFY_PRICE_PER_1000_USD: Number(parsed.data.APIFY_PRICE_PER_1000_USD),
   NEWS_INGEST_ENABLED: parsed.data.NEWS_INGEST_ENABLED === 'true',
+  NEWS_AGENTS_ENABLED: parsed.data.NEWS_AGENTS_ENABLED === 'true',
   NEWS_SCHEDULER_IN_PROCESS: parsed.data.NEWS_SCHEDULER_IN_PROCESS === 'true',
   NEWS_DAILY_BUDGET_USD: Number(parsed.data.NEWS_DAILY_BUDGET_USD),
   NEWS_TOTAL_BUDGET_USD: Number(parsed.data.NEWS_TOTAL_BUDGET_USD),

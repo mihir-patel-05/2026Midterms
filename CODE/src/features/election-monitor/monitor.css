@@ -679,3 +679,11 @@
 .em-news-link { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; color: inherit; font-size: 0.78rem; line-height: 1.35; text-decoration: none; }
 .em-news-link:hover .em-news-headline { text-decoration: underline; }
 .em-news-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 3px 0 0; color: hsl(var(--muted-foreground)); font-size: 0.68rem; }
+.em-news-reason { padding: 0 6px; border-radius: 999px; background: hsl(var(--signal-teal) / 0.12); color: hsl(var(--foreground)); font-weight: 600; }
+.em-news-ai { padding: 1px 7px; border: 1px solid hsl(var(--signal-teal) / 0.4); border-radius: 999px; color: hsl(var(--foreground)) !important; }
+.em-news-races { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.em-news-races button {
+  padding: 0 6px; border: 1px solid hsl(var(--line)); border-radius: 6px; background: transparent;
+  color: hsl(var(--signal-teal)); font: inherit; font-size: 0.66rem; cursor: pointer;
+}
+.em-news-races button:hover { border-color: hsl(var(--signal-teal) / 0.5); }

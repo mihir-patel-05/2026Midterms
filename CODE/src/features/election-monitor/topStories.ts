@@ -48,3 +48,23 @@ export function safeHref(url: string): string | null {
     return null;
   }
 }
+
+/** Plain words for the agent's reason codes. */
+export const REASON_LABELS: Record<string, string> = {
+  CANDIDATE_NEWS: "Candidate news",
+  DEBATE: "Debate",
+  POLL: "Poll",
+  MONEY_OR_ADS: "Money and ads",
+  LEGAL_OR_ETHICS: "Legal or ethics",
+  VOTING_RULES: "Voting rules",
+  POLICY_OR_ECONOMY: "Policy or economy",
+  NATIONAL_EVENT: "National event",
+  RESULTS: "Results",
+};
+
+/** "PA-SEN" → { state: "PA", district: null }; "AZ-06" → { state: "AZ", district: "06" }. */
+export function parseRaceKey(key: string): { state: string; district: string | null } | null {
+  const match = /^([A-Z]{2})-(SEN|\d{2})$/.exec(key);
+  if (!match) return null;
+  return { state: match[1], district: match[2] === "SEN" ? null : match[2] };
+}

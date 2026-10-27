@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
-import { getTrendingStories, type TopStoriesData } from '../services/news/news-read.js';
+import { getTopStories, type TopStoriesData } from '../services/news/news-read.js';
 
 const router = Router();
 
@@ -17,9 +17,11 @@ const cache = new Map<number, { at: number; data: TopStoriesData }>();
 
 /**
  * GET /api/news/top?limit=10
- * National election stories from Google News, ranked by a published trending score
- * (outlets covering the story, Google's placement, recency). Each item links to its
- * publisher. See docs/plans/news-agents.md.
+ * National election stories from Google News. Ranked by a published trending score
+ * (outlets covering the story, Google's placement, recency), then, when the top
+ * stories agent is on, re-ranked by Claude for likely midterm impact ("top" mode,
+ * reason codes and race keys only). Each item links to its publisher.
+ * See docs/plans/news-agents.md.
  */
 router.get('/top', async (req, res) => {
   if (!env.NEWS_INGEST_ENABLED) {
@@ -34,7 +36,7 @@ router.get('/top', async (req, res) => {
   try {
     const { limit } = parsed.data;
     const cached = cache.get(limit);
-    const data = cached && Date.now() - cached.at < CACHE_MS ? cached.data : await getTrendingStories(prisma, { limit });
+    const data = cached && Date.now() - cached.at < CACHE_MS ? cached.data : await getTopStories(prisma, { limit, agentsEnabled: env.NEWS_AGENTS_ENABLED });
     if (!cached || cached.data !== data) cache.set(limit, { at: Date.now(), data });
     res.set('Cache-Control', 'public, max-age=300');
     res.json({ data });

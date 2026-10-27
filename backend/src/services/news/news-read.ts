@@ -1,10 +1,13 @@
 /**
  * What GET /api/news/top serves: the national list of election stories.
  *
- * Mode "trending" ranks stored articles with the deterministic trending score
- * (trending.ts). Mode "none" says why there is nothing to show, never an empty box.
+ * Mode "top" is the top stories agent's latest picks, while they are under 3 hours
+ * old and the agent is on. Otherwise mode "trending" ranks stored articles with the
+ * deterministic trending score (trending.ts), and says why the AI picks aren't shown.
+ * Mode "none" says why there is nothing to show, never an empty box.
  */
 import type { PrismaClient } from '@prisma/client';
+import type { TopStoriesPayload } from './top-stories-agent.js';
 import { loadStoryArticles } from './news-store.js';
 import { NEWS_SOURCE_KEY } from './news-sync.js';
 import { rankStories, TRENDING_VERSION, type TrendingStory } from './trending.js';
@@ -75,4 +78,46 @@ export async function getTrendingStories(
     return { ...base, mode: 'none', reason: collectedAt ? 'No election stories in the past 48 hours.' : 'News has not been collected yet.', items: [] };
   }
   return { ...base, mode: 'trending', reason: options.reason ?? null, items: stories.slice(0, limit).map(storyItem) };
+}
+
+/** AI picks older than this are not shown. */
+export const TOP_PICKS_MAX_AGE_HOURS = 3;
+
+export async function getTopStories(
+  db: PrismaClient,
+  options: { limit: number; agentsEnabled: boolean; now?: Date; sourceKey?: string },
+): Promise<TopStoriesData> {
+  const { limit, agentsEnabled, now = new Date(), sourceKey } = options;
+  if (!agentsEnabled) return getTrendingStories(db, { limit, now, sourceKey });
+  const latest = await db.agentOutput.findFirst({
+    where: { agent: 'TOP_STORIES', scopeType: 'NATIONAL', scopeKey: 'US', status: 'PUBLISHED' },
+    orderBy: { createdAt: 'desc' },
+  });
+  const payload = latest?.payload as TopStoriesPayload | undefined;
+  const fresh = latest && now.getTime() - latest.createdAt.getTime() < TOP_PICKS_MAX_AGE_HOURS * 3_600_000;
+  if (latest && fresh && payload?.picks?.length) {
+    return {
+      mode: 'top',
+      reason: null,
+      updatedAt: latest.createdAt.toISOString(),
+      consideredCount: payload.consideredCount,
+      trendingVersion: payload.trendingVersion,
+      items: payload.picks.slice(0, limit).map((pick) => ({
+        articleId: pick.articleId,
+        headline: pick.headline,
+        outlet: pick.outlet,
+        url: pick.url,
+        publishedAt: pick.publishedAt,
+        outletCount: pick.outletCount,
+        googlePosition: pick.googlePosition,
+        reason: pick.reason,
+        raceKeys: pick.raceKeys,
+        alsoCoveredBy: pick.alsoCoveredBy,
+      })),
+    };
+  }
+  const reason = latest
+    ? `The AI picks are more than ${TOP_PICKS_MAX_AGE_HOURS} hours old, so this list is ranked by trending score alone.`
+    : 'AI picks are not available yet, so this list is ranked by trending score alone.';
+  return getTrendingStories(db, { limit, now, sourceKey, reason });
 }

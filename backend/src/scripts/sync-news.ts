@@ -11,6 +11,7 @@
  *   npm run sync:news -- --force          # run now
  *   npm run sync:news -- --actor=cirkit/google-news-scraper --force   # bake-off
  *   npm run sync:news -- --dry-run        # print the actor input and budget, call nothing
+ *   npm run sync:news -- --agent          # skip Apify; run the top stories agent now
  *   node dist/scripts/sync-news.js        # cron-news Railway service, every 30 minutes
  */
 
@@ -38,6 +39,16 @@ async function dryRun(actorId: string): Promise<void> {
 
 async function main(): Promise<number> {
   const actorId = value('actor') ?? env.APIFY_NEWS_ACTOR_ID;
+  if (flag('agent')) {
+    try {
+      const { agent } = await runNewsCycle({ agentOnly: true });
+      console.log('🤖 Top stories agent:', agent);
+      return agent.status === 'FAILED' ? 1 : 0;
+    } catch (error) {
+      console.error('❌ Top stories agent failed:', error instanceof Error ? error.message : error);
+      return 1;
+    }
+  }
   if (!actorId) {
     console.error(`❌ Set APIFY_NEWS_ACTOR_ID or pass --actor=. Supported: ${Object.keys(ACTOR_ADAPTERS).join(', ')}`);
     return 1;
@@ -51,12 +62,12 @@ async function main(): Promise<number> {
     return 1;
   }
   try {
-    const result = await runNewsCycle({ force: flag('force'), actorId });
-    const { ingest } = result;
+    const { ingest, agent } = await runNewsCycle({ force: flag('force'), actorId });
     if (ingest.status === 'NOT_DUE') {
       console.log(`📰 No news run due; the next one is in about ${ingest.nextInMinutes} minutes. Pass --force to run now.`);
       return 0;
     }
+    if (agent.status === 'OFF') console.log(`🤖 Top stories agent not run: ${agent.reason}`);
     return ingest.status === 'FAILED' ? 1 : 0;
   } catch (error) {
     if (error instanceof SyncAlreadyRunningError) {
