@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 26, 2026
+Last updated: October 27, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -89,6 +89,11 @@ Differentiators:
   - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
   - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
   - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
+- News (built Oct 27, all flags off): national election stories from Google News through Apify, ranked in code by a published trending score, then optionally re-ranked by Claude (Agent 10). Plan and rollout: `docs/plans/news-agents.md`.
+  - **Data:** one Apify actor run every 2 hours (every 30 minutes on election night) reads US top stories, the U.S. section, and 7 national election searches into `articles`. Spend is capped at $8 per 24 hours and $100 in total.
+  - **Ranking:** stories are scored by outlets covering them, Google placement, and a 12-hour half-life. Agent 10 picks up to 10 of the top 30 by likely midterm impact and returns only story IDs, reason codes, and race keys.
+  - **API and UI:** `GET /api/news/top`, a "Top election stories" card in the monitor's lower rail, and an admin panel with spend and a picks-versus-trending audit.
+  - **Flags:** `NEWS_INGEST_ENABLED`, `NEWS_AGENTS_ENABLED` (backend), `VITE_FEATURE_NEWS` (frontend). Still to do: the actor bake-off and a live Claude check.
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -98,7 +103,7 @@ Differentiators:
 **Known gaps**
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
-- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`.
+- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Apify news is built but off (section 2); it needs the actor bake-off and keys before it is turned on. See `docs/plans/news-agents.md`.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
@@ -155,7 +160,7 @@ Agents are the analyst layer, not the data layer. Each agent is a job made of a 
 | 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
 | 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
 | 9 | Election night | Live race notes and call summaries | Nov 3 |
-| 10 | Top stories | Up to 5 top stories per race and 10 nationally, chosen from tagged articles. Returns article IDs and fixed reason codes only, so it publishes without review. Plan: `docs/plans/news-agents.md` | When a race's shortlist changes, at most every 4 hours |
+| 10 | Top stories | Re-ranks the 30 highest trending election stories and picks up to 10 nationally by likely midterm impact. Returns story IDs, reason codes, and race keys only, so it publishes without review. Built Oct 27: `docs/plans/news-agents.md` | After a news run, at most hourly (every 30 min on election night) |
 
 Rules:
 
@@ -213,7 +218,7 @@ Shared requirements for all of these:
 
 ### 4.6 News: New York Times and AP
 
-**Oct 26: Apify comes first.** Google News search results through our Apify account ($205 of credits) feed the same `articles` table, with tiered per-race searches, spend caps, and Agents 1 and 10. See `docs/plans/news-agents.md`. NYT and AP become additional sources once licensed, and the rules below apply to every source.
+**Oct 27: Apify comes first, built and off.** Google News top stories, the U.S. section, and national election searches through our Apify account ($205 of credits) feed the `articles` table. Code ranks them by a trending score, and Agent 10 re-ranks the top 30 with Claude. Version 1 is one national list; per-race news comes later. See `docs/plans/news-agents.md`. NYT and AP become additional sources once licensed, and the rules below apply to every source.
 
 NYT and AP articles are the source material for news on race pages and for Agents 1, 3, and 5. **Neither is built yet.** There is no client code, and no `NYT_*` or `AP_*` keys exist in the repo or in Railway.
 
@@ -934,12 +939,12 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | Census International Trade API (`intltrade/imports/statehs`, `exports/statehs`) | Imports and exports by state, product, and country (section 4.8) | `CENSUS_API_KEY` (existing) |
 | NTUF State Tariffs Tracker (tariffs.org JSON) | Extra tariffs paid by state, quarterly (section 4.8) | No key; attribution required; check the terms |
 | Federal Reserve FEDS Note (Sep 3, 2026) | Imported share of consumer spending, 31 states (section 4.8) | Static dataset, loaded once |
-| Apify (Google News search actor, chosen by bake-off) | News headlines, outlets, and links per race; Agent 1 and 10 input (`docs/plans/news-agents.md`) | `APIFY_TOKEN`, `APIFY_NEWS_ACTOR_ID`, `APIFY_PRICE_PER_1000_USD`; spend caps `NEWS_DAILY_BUDGET_USD`, `NEWS_TOTAL_BUDGET_USD` |
+| Apify (Google News actor: `tacps126/google-news` or `cirkit/google-news-scraper`, chosen by bake-off) | National election headlines, outlets, links, Google ranks, and related coverage; Agent 10 input (`docs/plans/news-agents.md`) | `APIFY_TOKEN`, `APIFY_NEWS_ACTOR_ID`, `APIFY_PRICE_PER_1000_USD`; spend caps `NEWS_DAILY_BUDGET_USD`, `NEWS_TOTAL_BUDGET_USD`; `NEWS_ELECTION_TOPIC_IDS` |
 | New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
 | AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
-| Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
+| Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT`; `NEWS_PICKER_MODEL` for Agent 10 |
 | Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
 | Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
 
@@ -959,7 +964,7 @@ Conventions:
 | Batch | When | Tables |
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
-| 2 | Oct 8–14 (news tables Oct 27, `docs/plans/news-agents.md`) | `articles` (Apify, then NYT and AP; unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
+| 2 | Oct 8–14 (news tables done Oct 27) | Done: `articles` (Apify, then NYT and AP; unique on source and external ID), `agent_outputs` (with review status), `agent_output_citations`. Still to do: `article_tags` (with Agent 1), `race_signal_events`, `win_probability_values` |
 | 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
