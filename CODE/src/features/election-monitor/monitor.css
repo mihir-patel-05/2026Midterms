@@ -664,3 +664,18 @@
   .em-detail[data-collapsed] { padding: 14px 10px 24px; }
   .em-detail[data-collapsed] .em-detail-inner { display: block; }
 }
+
+/* Top election stories card (news). */
+.em-news { margin-bottom: 12px; }
+.em-news-list { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; counter-reset: em-news; }
+.em-news-list li {
+  position: relative; padding: 7px 10px 7px 30px; border: 1px solid hsl(var(--line-soft)); border-radius: 8px;
+  background: hsl(var(--surface) / 0.6); counter-increment: em-news;
+}
+.em-news-list li::before {
+  content: counter(em-news); position: absolute; top: 8px; left: 10px;
+  color: hsl(var(--quiet)); font-size: 0.72rem; font-variant-numeric: tabular-nums;
+}
+.em-news-link { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; color: inherit; font-size: 0.78rem; line-height: 1.35; text-decoration: none; }
+.em-news-link:hover .em-news-headline { text-decoration: underline; }
+.em-news-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 3px 0 0; color: hsl(var(--muted-foreground)); font-size: 0.68rem; }

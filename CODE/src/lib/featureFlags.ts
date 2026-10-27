@@ -19,3 +19,5 @@ export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== 
 export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
 /** Market odds map mode (each Senate state or House district coloured by its Kalshi market). On unless set to "false". */
 export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
+/** National "Top election stories" card (Google News through Apify, ranked by trending score). Off unless set to "true"; it needs the backend's NEWS_INGEST_ENABLED. */
+export const newsEnabled = flag(import.meta.env.VITE_FEATURE_NEWS);

@@ -1,10 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, oddsMapEnabled, pastResultsEnabled, newsEnabled } from "@/lib/featureFlags";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
+import { TopStoriesCard } from "./TopStoriesCard";
 import { OddsControls, OddsLegend } from "./OddsControls";
 import { CALLOUT_STATES, describeOddsRace, HATCH_BACKGROUND, ODDS_COLORS, ODDS_STATUS_COLORS, oddsLabels, useOddsView } from "./oddsMap";
 import { PastResultsControls, PastResultsLegend } from "./PastResultsControls";
@@ -388,6 +389,7 @@ export function ElectionMonitor() {
           </MapCard>
           <StatStrip stats={stats} />
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
+            {newsEnabled && <TopStoriesCard />}
             {moversEnabled && (
               <MoversCard
                 stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}

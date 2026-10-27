@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import type { ApifyClient, ApifyRunResult } from './apify-client.js';
 import { loadSpend } from './budget.js';
+import { getTrendingStories } from './news-read.js';
 import { loadStoryArticles } from './news-store.js';
 import { syncNews } from './news-sync.js';
 import { rankStories } from './trending.js';
@@ -70,6 +71,12 @@ test('news sync stores articles once, refreshes repeats, ranks stories, and stop
     assert.equal(stories.length, 1, 'the celebrity story is not election news');
     assert.equal(stories[0].members.length, 2, 'the Fox article joins the AP story through related coverage');
     assert.equal(stories[0].outletCount, 2);
+    const served = await getTrendingStories(db, { limit: 5, sourceKey: SOURCE_KEY, now: new Date('2026-10-28T14:00:00Z') });
+    assert.equal(served.mode, 'trending');
+    assert.equal(served.consideredCount, 1);
+    assert.equal(served.items[0].headline, 'Georgia Senate debate turns on the economy');
+    assert.equal(served.items[0].googlePosition, 5);
+    assert.ok(served.updatedAt);
 
     // Each run recorded Apify's $0.05, more than its articles at $2 per 1,000, so $0.10 is spent.
     // A $0.13 total cap leaves $0.03, under 20 articles, so the next run is skipped.
