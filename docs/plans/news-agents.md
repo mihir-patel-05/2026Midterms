@@ -1,5 +1,19 @@
 # News agents: Apify news ingestion and AI-picked top stories per race
 
+## Scope change (Oct 28): national top stories from the past 24 hours only
+The database is already running into size limits, so v1 is cut down to one feed and stores almost nothing. **This section overrides the rest of the plan where they disagree.**
+
+- **One national feed, no per-race searches.** Each run sends about 8 national politics queries to Apify, each limited to the past day (`when:1d`). Tier A, tier B, and the per-race roster are dropped for now.
+- **Articles are never stored.** Apify results are normalized, deduplicated, and grouped into stories in memory. `articles`, `article_tags`, `agent_outputs`, and `agent_output_citations` are not created. Raw datasets are not saved as `RawArtifact`s.
+- **Only the published list is stored:** at most `NEWS_TOP_STORIES_LIMIT` rows (default 12) in a new `news_stories` table. Each run replaces the whole list in one transaction. The API only serves stories published in the past 24 hours, so a stalled job shows nothing old.
+- **One agent, not two.** Agent 10 (`TOP_STORIES`) gets the grouped candidates (headline, outlet, time, snippet, and how many outlets ran the story). It drops anything that is not U.S. political news and picks up to 12 stories by impact. It returns candidate IDs and fixed codes only (topic and, when the story is about one state, its postal code). There is no free text, so picks publish automatically. Agent 1 (triage) is folded into this call.
+- **Fallback without AI.** If the model is off, over budget, or fails, code ranks the groups by how many outlets covered the story, with a 12-hour recency decay. The page says which method picked the list.
+- **Small logs.** Each run writes one `ingestion_runs` row (cost, counts) and, when the model runs, one `agent_runs` row with a summary of the input, not the articles. Agent runs older than 30 days are deleted.
+- **Cadence:** every 2 hours by default (`NEWS_SYNC_CRON`). About 8 queries x 25 results x 12 runs is about 2,400 results a day, $2.50 to $7.50 at $1 to $3 per 1,000, inside the $10 daily cap.
+- **Frontend:** a "Top stories" page at `/news` (lead story, ranked list, topic filter, "How we pick" note) and a compact Top stories card in the monitor's lower rail. Both sit behind `VITE_FEATURE_NEWS`.
+
+Per-race news, triage tags, and the admin balance audit can come back later on top of the same Apify client once storage allows.
+
 ## Context
 No news source is connected yet (PLAN.md §2, "Known gaps"). The NYT and AP integrations in §4.6 have no keys and no code. We do have an **Apify** account with **$205 of credits**. Apify runs third-party "actors" that scrape Google News by keyword and return headline, outlet, link, and publish time.
 
