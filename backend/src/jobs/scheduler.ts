@@ -15,6 +15,7 @@ import { financeService } from '../services/finance.service.js';
 import { runScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { runFredSync } from '../services/fred/run-fred-sync.js';
 import { runPollSync } from '../services/polls/run-poll-sync.js';
+import { newsConfigProblem, runNewsSync } from '../services/news/run-news-sync.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
 import { fecApiService, type FECCommittee } from '../services/fec-api.service.js';
@@ -393,6 +394,29 @@ export function initializeScheduler(): void {
     console.log('🗳️  Poll sync: every 3 hours at 20 past\n');
   } else {
     console.log('Poll sync scheduler disabled: POLLS_DATABASE_URL is not set or POLLS_ENABLED is off');
+  }
+
+  // Top political stories of the past 24 hours. In production a cron-news service
+  // runs `node dist/scripts/sync-news.js`; this in-process copy is for Testing.
+  const newsProblem = newsConfigProblem();
+  if (env.NEWS_ENABLED && env.NEWS_SCHEDULER_IN_PROCESS && !newsProblem && cron.validate(env.NEWS_SYNC_CRON)) {
+    cron.schedule(
+      env.NEWS_SYNC_CRON,
+      async () => {
+        console.log('\n⏰ Scheduled news sync triggered');
+        try {
+          const stats = await runNewsSync();
+          console.log(`📰 News sync ${stats.status}: ${stats.stories} stories, $${stats.costUsd.toFixed(4)}`);
+        } catch (error) {
+          if (error instanceof SyncAlreadyRunningError) console.log('📰 News sync skipped: another run holds the lease');
+          else console.error('❌ Scheduled news sync failed:', error instanceof Error ? error.message : error);
+        }
+      },
+      { timezone: 'America/New_York' },
+    );
+    console.log(`📰 News sync: in process, cron "${env.NEWS_SYNC_CRON}" ET\n`);
+  } else if (env.NEWS_ENABLED && env.NEWS_SCHEDULER_IN_PROCESS) {
+    console.log(`News sync scheduler disabled: ${newsProblem ?? `NEWS_SYNC_CRON "${env.NEWS_SYNC_CRON}" is not a valid cron expression`}`);
   }
 }
 

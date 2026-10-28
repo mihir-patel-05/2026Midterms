@@ -21,3 +21,5 @@ export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATU
 export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
 /** Polls and polling averages (VoteHub) on race pages and the monitor's Polls tab. On unless set to "false"; shows a notice until the backend's polls database is connected and synced. */
 export const pollsEnabled = import.meta.env.VITE_FEATURE_POLLS !== "false";
+/** Top political stories of the past 24 hours: the /news page and the monitor's Top stories card. Off unless set to "true"; needs NEWS_ENABLED on the backend. */
+export const newsEnabled = flag(import.meta.env.VITE_FEATURE_NEWS);
