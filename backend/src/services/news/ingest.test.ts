@@ -115,6 +115,7 @@ test('stories group the same event across outlets and rank by coverage and age',
   assert.deepEqual(stories.filter(looksPolitical).map((story) => story.lead.outlet), ['one', 'four']);
   assert.equal(guessTopic(court.lead.headline), 'COURTS');
   assert.equal(guessTopic('New poll shows tight Senate race'), 'POLLS');
+  assert.equal(guessTopic('Candidates clash in final Senate debate'), 'CAMPAIGN', 'campaign words win over the chamber name');
   assert.equal(guessTopic('Something else entirely'), 'OTHER');
 });
 

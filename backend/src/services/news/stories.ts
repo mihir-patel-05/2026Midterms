@@ -103,9 +103,9 @@ const TOPIC_RULES: Array<[NewsTopic, RegExp]> = [
   ['COURTS', /\b(court|judge|justices?|ruling|rules|lawsuit|sued|indict\w*|charged|investigation|probe|ethics)\b/i],
   ['VOTING', /\b(early voting|mail[- ]in|absentee|voter (id|rolls?|registration)|polling places?|ballot (access|counting)|turnout)\b/i],
   ['MONEY', /\b(fundrais\w*|raised|donors?|super pac|spending|ad buy|millions?)\b/i],
+  ['CAMPAIGN', /\b(campaign\w*|debates?|rall(y|ies)|endorse\w*|ads?|candidates?|race)\b/i],
   ['WHITE_HOUSE', /\b(white house|president\w*|administration|executive order|cabinet)\b/i],
   ['CONGRESS', /\b(congress|senate|house|lawmakers?|bill|shutdown|speaker|filibuster)\b/i],
-  ['CAMPAIGN', /\b(campaign\w*|debates?|rall(y|ies)|endorse\w*|ads?|candidates?|race)\b/i],
   ['POLICY', /\b(tax\w*|tariffs?|immigration|health care|economy|inflation|abortion|budget)\b/i],
 ];
 
