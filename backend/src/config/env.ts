@@ -61,6 +61,9 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().trim().optional(),
   NEWS_PICKER_MODEL: z.string().trim().default('claude-opus-5-5'),
   NEWS_TOP_STORIES_LIMIT: z.string().regex(/^[1-9]\d*$/).default('12'),
+  // Run the news sync inside the API process with node-cron (Testing, until the cron-news service exists).
+  NEWS_SCHEDULER_IN_PROCESS: z.enum(['true', 'false']).default('false'),
+  NEWS_SYNC_CRON: z.string().default('7 */2 * * *'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -141,6 +144,7 @@ export const env = {
   NEWS_DAILY_BUDGET_USD: parseFloat(parsed.data.NEWS_DAILY_BUDGET_USD),
   NEWS_TOTAL_BUDGET_USD: parseFloat(parsed.data.NEWS_TOTAL_BUDGET_USD),
   NEWS_AGENTS_ENABLED: parsed.data.NEWS_AGENTS_ENABLED === 'true',
+  NEWS_SCHEDULER_IN_PROCESS: parsed.data.NEWS_SCHEDULER_IN_PROCESS === 'true',
   NEWS_TOP_STORIES_LIMIT: Math.min(parseInt(parsed.data.NEWS_TOP_STORIES_LIMIT, 10), 25),
   ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
