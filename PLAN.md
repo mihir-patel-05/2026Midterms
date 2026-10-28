@@ -985,6 +985,7 @@ If no provider is licensed in time, the site links to official state results and
 
 ## 7. Working agreements
 
+- **All work merges into `2026Midterm_intel_v2`.** Branch from it, open every PR against it (never `main`), and merge it into your branch to resolve conflicts.
 - **Verify before merging.** In `CODE/`, run `npm run lint -- --max-warnings 0 && npm run typecheck && npm run build`. In `backend/`, run `npm run typecheck && npm run build && npm run test:results`.
 - **Feature flags** gate every new module. `VITE_*` flags need a rebuild of `web`.
 - **No secrets in frontend bundles.** All keys live in Railway service variables.
