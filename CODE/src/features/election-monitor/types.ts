@@ -13,7 +13,7 @@ import type {
  */
 export type OfficeFilter = "ALL" | "US_SENATE" | "US_HOUSE";
 export type MapLayer = "states" | "districts" | "counties";
-export type DetailTab = "overview" | "counties" | "finance" | "demographics" | "history";
+export type DetailTab = "overview" | "counties" | "finance" | "polls" | "demographics" | "history";
 /** "races" is the 2026 view; "past" colours the map with MIT Election Lab results; "odds" with Kalshi prices. */
 export type MapMode = "races" | "past" | "odds";
 /** Map readiness: ready = contests and finance; partial = contests only; pending = nothing loaded. */

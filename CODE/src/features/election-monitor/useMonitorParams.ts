@@ -6,7 +6,7 @@ import { PAST_OFFICES, type PastMetric, type PastOffice } from "./pastResults";
 
 const offices: OfficeFilter[] = ["ALL", "US_SENATE", "US_HOUSE"];
 const layers: MapLayer[] = ["states", "districts", "counties"];
-const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics", "history"];
+const tabs: DetailTab[] = ["overview", "counties", "finance", "polls", "demographics", "history"];
 const modes: MapMode[] = ["races", "past", "odds"];
 const metrics: PastMetric[] = ["winner", "shift"];
 
