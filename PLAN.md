@@ -99,6 +99,7 @@ Differentiators:
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet.
+- No polling source. We don't have AP access, and AP never covered opinion polls anyway. The plan is VoteHub's free polling API (CC BY 4.0) with manual entry as a fallback: `docs/plans/polling-data.md`.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
@@ -932,7 +933,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | NTUF State Tariffs Tracker (tariffs.org JSON) | Extra tariffs paid by state, quarterly (section 4.8) | No key; attribution required; check the terms |
 | Federal Reserve FEDS Note (Sep 3, 2026) | Imported share of consumer spending, 31 states (section 4.8) | Static dataset, loaded once |
 | New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
-| AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
+| AP Media API | News on race pages; Agent 1, 3, and 5 input | **No access**; news runs on NYT alone (`docs/plans/polling-data.md`) |
+| VoteHub Polling API (`api.votehub.com/polls`) | Race polls and the polling average | No key; CC BY 4.0, attribution required; beta (`docs/plans/polling-data.md`) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
