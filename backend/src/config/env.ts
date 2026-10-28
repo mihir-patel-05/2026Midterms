@@ -44,6 +44,13 @@ const envSchema = z.object({
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Polls live in their own PostgreSQL database, separate from DATABASE_URL. Without it
+  // the poll sync is off and GET /api/polls answers 503; the rest of the API is unaffected.
+  POLLS_DATABASE_URL: z.string().trim().optional(),
+  // The VoteHub poll sync (every 3 hours) and GET /api/polls. Needs POLLS_DATABASE_URL too.
+  POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // VoteHub's polling API: free, no key, CC BY 4.0 (credit VoteHub wherever polls are shown).
+  VOTEHUB_API_BASE_URL: z.string().url().default('https://api.votehub.com'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -117,6 +124,8 @@ export const env = {
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
   ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
+  POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
+  POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
