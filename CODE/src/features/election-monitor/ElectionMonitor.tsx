@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, newsEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { TopStoriesCard } from "@/features/news/TopStoriesCard";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
 import { MoversCard } from "./MoversCard";
@@ -388,6 +389,7 @@ export function ElectionMonitor() {
           </MapCard>
           <StatStrip stats={stats} />
           <ActivityRail activity={activity} coverage={coverage} coverageScope={selectedState && !isFictionalSelection ? `National · ${selectedState.code}` : "National"}>
+            {newsEnabled && <TopStoriesCard onSelectState={selectState} />}
             {moversEnabled && (
               <MoversCard
                 stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}

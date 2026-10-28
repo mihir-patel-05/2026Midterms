@@ -1,5 +1,5 @@
-import { Calculator, FileText, Info, LayoutDashboard, MapPin, Users, type LucideIcon } from "lucide-react";
-import { simulatorEnabled } from "@/lib/featureFlags";
+import { Calculator, FileText, Info, LayoutDashboard, MapPin, Newspaper, Users, type LucideIcon } from "lucide-react";
+import { newsEnabled, simulatorEnabled } from "@/lib/featureFlags";
 
 export interface ShellNavLink {
   to: string;
@@ -14,6 +14,7 @@ export const MIDTERM_SIMULATOR_PATH = "/simulator/midterms";
 
 export const shellNavLinks: ShellNavLink[] = [
   { to: DASHBOARD_PATH, label: "Dashboard", icon: LayoutDashboard },
+  ...(newsEnabled ? [{ to: "/news", label: "News", icon: Newspaper }] : []),
   { to: "/elections", label: "Elections", icon: MapPin },
   { to: "/candidates", label: "Candidates", icon: Users },
   ...(simulatorEnabled ? [{ to: SIMULATOR_PATH, label: "Simulator", icon: Calculator }] : []),

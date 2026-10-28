@@ -884,6 +884,7 @@ model IngestionRun {
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
   areaDemographics    AreaDemographics[]
+  newsStories         NewsStory[]
 
   @@index([sourceId, startedAt])
   @@index([status, createdAt])
@@ -1085,6 +1086,7 @@ enum AgentKind {
   DATA_QA
   ASK_THE_RACE
   ELECTION_NIGHT
+  TOP_STORIES
 }
 
 // Hourly prediction-market price per provider market outcome. Prices are
@@ -1202,6 +1204,8 @@ model AgentRun {
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
 
+  newsStories NewsStory[]
+
   @@unique([agent, promptVersion, inputSha256])
   @@index([agent, createdAt])
   @@index([status, createdAt])
@@ -1308,4 +1312,54 @@ model ScheduleESyncState {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   @@map("schedule_e_sync_state")
+}
+
+// News top stories (docs/plans/news-agents.md, "Scope change"). Only the
+// published list is stored: each news sync replaces every row, so the table
+// never holds more than NEWS_TOP_STORIES_LIMIT rows. Apify's raw articles are
+// grouped in memory and never written.
+
+enum NewsTopic {
+  CAMPAIGN // Debates, ads, endorsements, rallies
+  POLLS
+  CONGRESS
+  WHITE_HOUSE
+  COURTS // Lawsuits, rulings, investigations, ethics
+  MONEY // Fundraising and outside spending
+  VOTING // Voting rules, access, early voting, administration
+  RESULTS
+  POLICY
+  OTHER
+}
+
+enum NewsSelectionMethod {
+  AI // Picked by Agent 10 (TOP_STORIES)
+  RANKED // Ranked by code: outlets covering the story, decayed by age
+}
+
+model NewsStory {
+  id             String              @id @default(uuid())
+  rank           Int // 1 is the most important
+  headline       String // The publisher's own headline
+  snippet        String?             @db.Text // Search snippet, capped at 300 characters
+  outlet         String
+  outletDomain   String              @map("outlet_domain")
+  url            String // Canonical publisher URL
+  publishedAt    DateTime            @map("published_at")
+  topic          NewsTopic
+  stateCode      String?             @map("state_code") // Set when the story is about one state
+  outletCount    Int                 @map("outlet_count") // Outlets that ran this story in the window
+  alsoCoveredBy  Json                @default("[]") @map("also_covered_by") // [{ outlet, url }], at most 4
+  selectedBy     NewsSelectionMethod @map("selected_by")
+  ingestionRunId String              @map("ingestion_run_id")
+  agentRunId     String?             @map("agent_run_id")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  ingestionRun IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Cascade)
+  agentRun     AgentRun?    @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+
+  @@index([rank])
+  @@index([publishedAt])
+  @@index([ingestionRunId])
+  @@map("news_stories")
 }
