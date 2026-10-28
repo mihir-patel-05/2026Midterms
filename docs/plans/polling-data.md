@@ -61,28 +61,47 @@ A pure function in `backend/src/services/polls/average.ts`, unit-tested like `in
 - Every number shows its source and date, as FEC and Kalshi figures already do.
 - Never mix polls and Kalshi prices into one unlabeled number. The win probability index stays its own, versioned, published formula.
 
-## Commits
+## Built (Oct 28)
 
-### 0. `docs(plans): polling data without AP`
-This file, plus PLAN.md updates (the source table, the known gaps).
+**Separate database.** Polls live in their own PostgreSQL database (`POLLS_DATABASE_URL`), because the main one is nearly full.
+- **Schema:** `backend/prisma/polls/schema.prisma` generates `@prisma-polls/client`. Its tables are `polls`, `poll_answers`, `poll_sync_runs`, and `poll_sync_leases`.
+- **Isolation:** nothing references a main-database table, and candidates are linked by FEC ID only. The sync reads candidates from the main database and writes only to the polls database, its lease included.
+- **Commands:** `npm run build` and `prisma:generate` generate both clients. `prisma:deploy` (Railway's pre-deploy step) also migrates the polls database, and skips it when `POLLS_DATABASE_URL` is unset.
 
-### 1. `feat(polls): tables and VoteHub client`
-The migration, a client with fixtures from real responses, and a matching test (name matching, the primary filter, the review queue).
+**Backend** (`backend/src/services/polls/`)
+- **Client** (`votehub-client.ts`): calls `/poll-types` and `/polls?poll_type=`, about one request a second. The parser accepts the variations VoteHub's beta shows and skips, with a reason, any record it can't read.
+- **Race matching** (`race-match.ts`): a poll is published only when two or more answers are FEC candidates in one race, no other race matches as many, and they come from at least two parties. Otherwise it waits for review with `no_race_match`, `ambiguous_race`, or `likely_primary`.
+- **Sync** (`poll-sync.ts`): runs every 3 hours from the scheduler, or by hand with `npm run sync:polls`. A row is rewritten only when its content hash changes. An admin's decision is never overridden. A poll that disappears from VoteHub is hidden, unless the response came back less than half full.
+- **Average** (`average.ts`, `polls-avg-v1`): as described above, with one addition: a candidate is counted once per poll.
+- **API:**
+  - `GET /api/polls?race=PA-SEN` and `GET /api/polls/averages?races=PA-SEN,PA-07`.
+  - Both answer 503 `NOT_CONFIGURED` without the database, and 404 `NOT_LOADED` before the first sync.
+  - Admin review is under `/api/admin/polls`: `review`, `status`, `:id/accept` (optionally with a corrected `raceCode`), and `:id/reject`.
 
-### 2. `feat(polls): sync job and polling average`
-The `cron-polls` job, `average.ts` with edge-case tests (0, 1, and 2+ pollsters; a missing sample size; LV and RV in one poll), and `npm run sync:polls` to run it by hand.
+**Frontend** (`CODE/src/features/polls/`, flag `VITE_FEATURE_POLLS`)
+- **Race page:** a Polls section replaces the placeholder. It shows the average's lead, one bar per candidate, and a table of recent polls.
+- **Monitor:** a Polls tab, plus one line on the race card with the average and a "See polls" button.
+- **Empty states:** no polling, too few polls, only old polls, not connected, and not loaded each have their own wording.
 
-### 3. `feat(race-page): polls section`
-The API route, and the race page section behind `VITE_FEATURE_POLLS`.
+**Not covered:** governor races (no FEC candidates to match against) and admin dashboard screens for the review queue (the API exists).
 
-**Before Nov 3?** Commits 1–3 land after feature freeze. If they ship before the Oct 30 code freeze, limit them to Senate and governor races plus the House races with a Kalshi market inside 40–60, and default the flags to off in production until the data has been checked by hand against the pollsters' releases. Otherwise ship them after Nov 3, and leave the race page saying "No public polling" in the meantime. Don't leave "Coming soon" up.
+**Not verified against the live API.** This session couldn't reach `api.votehub.com`, so the parser was built from VoteHub's docs and sample records.
+- If `/poll-types` lists no Senate or House type, the sync falls back to `us-senate` and `us-representative`, and records that in the run's `error_summary`.
+- Check the first run's `poll_sync_runs` row, and the review queue, after deploying.
+
+### Railway setup
+
+1. In the Railway project, add a **new PostgreSQL service** for polls (for example `Polls-Postgres`).
+2. On the backend service, set `POLLS_DATABASE_URL=${{Polls-Postgres.DATABASE_URL}}`. VoteHub needs no key.
+3. Redeploy the backend. The pre-deploy `npm run prisma:deploy` creates the polls tables.
+4. Load polls once by hand with `npm run sync:polls` (or `node dist/scripts/sync-polls.js`). After that the scheduler runs every 3 hours, at 20 past.
+5. Look at `GET /api/admin/polls/status` and `/review`, accept or reject what's waiting, and spot-check a few races against the pollsters' releases.
 
 ## The other things AP was going to cover
 - **News (§4.6):** run on NYT alone. The empty state becomes "No recent NYT coverage."
 - **Election-night results (§5.4, §6):** the plan's fallback still holds: link to each state's official results page and show no scraped or partial totals. The paid option is Decision Desk HQ's API (quote on request, so it's probably too late for Nov 3). Scraping state results sites (many run on Clarity/Scytl) is fragile and isn't worth it this close to the election.
 
-## To confirm before building
-- Run `GET https://api.votehub.com/poll-types` and `/subjects` to get the exact Senate, House, and governor `poll_type` values, and check how many 2026 race polls each returns.
+## Still to confirm
+- The live `/poll-types` values and response shape (see "Not verified against the live API" above).
 - Whether VoteHub has a rate limit or wants a contact email in the `User-Agent`.
-- Whether the NYT polling data covers 2026 Senate, House, and governor polls in a downloadable form.
-- Whether to ship before Nov 3 (scoped as above) or after.
+- Whether the NYT polling data covers 2026 Senate and House polls in a downloadable form, as a cross-check.
