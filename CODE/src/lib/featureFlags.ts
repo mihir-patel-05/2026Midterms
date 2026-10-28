@@ -19,3 +19,5 @@ export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== 
 export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
 /** Market odds map mode (each Senate state or House district coloured by its Kalshi market). On unless set to "false". */
 export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
+/** Top political stories of the past 24 hours: the /news page and the monitor's Top stories card. Off unless set to "true"; needs NEWS_ENABLED on the backend. */
+export const newsEnabled = flag(import.meta.env.VITE_FEATURE_NEWS);

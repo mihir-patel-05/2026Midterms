@@ -17,11 +17,12 @@ import ResearchDashboard from "./pages/research/ResearchDashboard";
 import RaceTracker from "./pages/research/RaceTracker";
 import Simulator from "./pages/research/Simulator";
 import { RequireResearcher } from "./components/research/RequireResearcher";
-import { newFrontendEnabled, simulatorEnabled } from "./lib/featureFlags";
+import { newFrontendEnabled, newsEnabled, simulatorEnabled } from "./lib/featureFlags";
 
 const ElectionDashboard = lazy(() => import("./pages/ElectionDashboard"));
 const ElectionSimulator = lazy(() => import("./pages/ElectionSimulator"));
 const MidtermSimulator = lazy(() => import("./pages/MidtermSimulator"));
+const News = lazy(() => import("./pages/News"));
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,16 @@ const App = () => (
                     }
                   />
                 </>
+              )}
+              {newsEnabled && (
+                <Route
+                  path="/news"
+                  element={
+                    <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading top stories…</main>}>
+                      <News />
+                    </Suspense>
+                  }
+                />
               )}
             </>
           ) : (
