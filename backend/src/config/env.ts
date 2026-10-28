@@ -54,6 +54,9 @@ const envSchema = z.object({
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
+  // After the primaries, keep only general election candidates: the scheduled FEC
+  // sync deletes primary losers and stops saving them (see services/primary-pruning).
+  NOMINEES_ONLY: z.enum(['true', 'false']).default('false'),
   ITEMIZED_COMMITTEES_PER_RUN: z.string().default('10'),
   ITEMIZED_MAX_PAGES: z.string().default('5'),
   ITEMIZED_REFRESH_HOURS: z.string().default('72'),
@@ -127,6 +130,7 @@ export const env = {
   POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
   POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
+  NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
     .map((providerId) => providerId.trim())

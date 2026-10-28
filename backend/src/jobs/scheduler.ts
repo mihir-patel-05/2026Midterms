@@ -17,6 +17,8 @@ import { runFredSync } from '../services/fred/run-fred-sync.js';
 import { runPollSync } from '../services/polls/run-poll-sync.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
+import { fecApiService, type FECCommittee } from '../services/fec-api.service.js';
+import { loadNomineeRoster, prunePrimaryLosers } from '../services/primary-pruning.service.js';
 import {
   acquireSyncLease,
   recoverStaleSyncLogs,
@@ -46,6 +48,7 @@ interface SyncStats {
   electionsCreated: number;
   candidateLinksCreated: number;
   electionErrors: number;
+  primaryLosersDeleted: number;
   duration: number;
 }
 
@@ -108,6 +111,7 @@ async function executeSync(leaseToken: string): Promise<void> {
     electionsCreated: 0,
     candidateLinksCreated: 0,
     electionErrors: 0,
+    primaryLosersDeleted: 0,
     duration: 0,
   };
 
@@ -118,6 +122,18 @@ async function executeSync(leaseToken: string): Promise<void> {
       data: { status: 'running' },
     });
 
+    // Step 0: With NOMINEES_ONLY, find who is on the general election ballot so
+    // primary losers are neither saved nor kept. Step 3 reuses the committee list.
+    let committeeList: FECCommittee[] | undefined;
+    let nominees: Set<string> | undefined;
+    const primaryLosers = new Set<string>();
+    if (env.NOMINEES_ONLY) {
+      committeeList = await fecApiService.getHouseSenateCommittees(SYNC_CONFIG.cycle);
+      const roster = await loadNomineeRoster(SYNC_CONFIG.cycle, committeeList);
+      if (roster.ok) nominees = roster.nominees;
+      else console.log(`🗳️  Keeping primary losers for now: ${roster.reason}\n`);
+    }
+
     // Step 1: Every active candidate with headline totals, in bulk. A failed
     // fetch aborts the run rather than publishing a partial candidate list.
     console.log('📥 STEP 1: Syncing Candidates + Headline Totals\n');
@@ -126,9 +142,22 @@ async function executeSync(leaseToken: string): Promise<void> {
       const result = await candidateService.syncCandidatesWithTotals({
         office,
         cycle: SYNC_CONFIG.cycle,
+        nominees,
       });
       stats.candidatesSynced += result.synced;
       stats.candidatesErrors += result.errors;
+      for (const candidateId of result.primaryLosers) primaryLosers.add(candidateId);
+    }
+
+    // Primary losers saved by earlier runs, with their committees and itemized rows.
+    if (nominees) {
+      const pruned = await prunePrimaryLosers(SYNC_CONFIG.cycle, nominees, { apply: true });
+      stats.primaryLosersDeleted = pruned.deleted.candidates;
+      for (const candidate of pruned.dropped) primaryLosers.add(candidate.candidateId);
+      console.log(
+        `🗳️  Deleted ${pruned.deleted.candidates} primary losers, ${pruned.deleted.committees} committees, ` +
+        `${pruned.deleted.receipts} receipts, ${pruned.deleted.disbursements} disbursements\n`
+      );
     }
 
     console.log(
@@ -148,7 +177,10 @@ async function executeSync(leaseToken: string): Promise<void> {
     // rather than two per candidate).
     console.log('📥 STEP 3: Syncing Committees + Detailed Totals\n');
 
-    const committees = await candidateService.syncHouseSenateCommittees(SYNC_CONFIG.cycle);
+    const committees = await candidateService.syncHouseSenateCommittees(SYNC_CONFIG.cycle, {
+      committees: committeeList,
+      skipCandidateIds: primaryLosers,
+    });
     stats.committeesSynced = committees.synced;
     stats.committeesErrors = committees.errors;
 
