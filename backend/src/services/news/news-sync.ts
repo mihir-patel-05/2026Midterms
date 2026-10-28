@@ -149,6 +149,7 @@ export async function syncNews(db: PrismaClient, options: NewsSyncOptions): Prom
       costUsd,
       costEstimated,
       rejected: rejected as Record<string, number>,
+      articles: articles.length,
       candidates: candidates.length,
     };
 
