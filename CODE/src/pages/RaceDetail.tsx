@@ -16,6 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Candidate } from "@/types/candidate";
 import { formatCalendarDate } from "@/lib/calendarDate";
+import { pollsEnabled } from "@/lib/featureFlags";
+import { displayName } from "@/features/election-monitor/constants";
+import { RacePolls } from "@/features/polls/RacePolls";
+import { raceCodeFor } from "@/features/polls/polls";
 
 const stateCodeToName: Record<string, string> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
@@ -227,26 +231,21 @@ export default function RaceDetail() {
                 cycle={election.cycle}
               />
 
-              {/* Polling Placeholder */}
-              <div>
-                <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Polling Data
-                </h2>
-                <div
-                  className="rounded-lg border border-border bg-card p-8 text-center"
-                  aria-label="Polling data is not yet available for this race"
-                >
-                  <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="font-heading text-lg font-semibold text-foreground mb-2">
-                    Polling Data Coming Soon
-                  </h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    We're working on integrating polling data for this race.
-                    Check back soon for the latest survey results and trend analysis.
-                  </p>
+              {/* Polls */}
+              {pollsEnabled && (
+                <div>
+                  <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Polls
+                  </h2>
+                  <div className="rounded-lg border border-border bg-card p-6">
+                    <RacePolls
+                      race={raceCodeFor(election.officeType, election.state, election.district)}
+                      candidateNames={Object.fromEntries(candidates.map((candidate) => [candidate.candidateId, displayName(candidate.name)]))}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>

@@ -99,6 +99,7 @@ Differentiators:
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
+- Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
@@ -936,7 +937,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | Federal Reserve FEDS Note (Sep 3, 2026) | Imported share of consumer spending, 31 states (section 4.8) | Static dataset, loaded once |
 | Apify (Google News search actor, chosen by bake-off) | News headlines, outlets, and links per race; Agent 1 and 10 input (`docs/plans/news-agents.md`) | `APIFY_TOKEN`, `APIFY_NEWS_ACTOR_ID`, `APIFY_PRICE_PER_1000_USD`; spend caps `NEWS_DAILY_BUDGET_USD`, `NEWS_TOTAL_BUDGET_USD` |
 | New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
-| AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
+| AP Media API | News on race pages; Agent 1, 3, and 5 input | **No access**; news runs on NYT alone (`docs/plans/polling-data.md`) |
+| VoteHub Polling API (`api.votehub.com/polls`) | Race polls and the polling average, stored in a separate polls database | No key; CC BY 4.0, attribution required; beta. `POLLS_DATABASE_URL`, `POLLS_ENABLED`, `VOTEHUB_API_BASE_URL` (`docs/plans/polling-data.md`) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
 | AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
@@ -983,6 +985,7 @@ If no provider is licensed in time, the site links to official state results and
 
 ## 7. Working agreements
 
+- **All work merges into `2026Midterm_intel_v2`.** Branch from it, open every PR against it (never `main`), and merge it into your branch to resolve conflicts.
 - **Verify before merging.** In `CODE/`, run `npm run lint -- --max-warnings 0 && npm run typecheck && npm run build`. In `backend/`, run `npm run typecheck && npm run build && npm run test:results`.
 - **Feature flags** gate every new module. `VITE_*` flags need a rebuild of `web`.
 - **No secrets in frontend bundles.** All keys live in Railway service variables.

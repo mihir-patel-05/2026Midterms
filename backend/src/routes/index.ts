@@ -13,6 +13,8 @@ import districtsRoutes from './districts.routes.js';
 import demographicsRoutes from './demographics.routes.js';
 import outsideSpendingRoutes from './outside-spending.routes.js';
 import indicatorsRoutes from './indicators.routes.js';
+import pollsRoutes from './polls.routes.js';
+import adminPollsRoutes from './admin-polls.routes.js';
 import newsRoutes from './news.routes.js';
 import { candidateController } from '../controllers/candidate.controller.js';
 import { prisma } from '../config/database.js';
@@ -23,6 +25,7 @@ const router = Router();
 router.use('/candidates', candidatesRoutes);
 router.use('/sync', syncRoutes);
 router.use('/elections', electionsRoutes);
+router.use('/admin/polls', adminPollsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/deadlines', deadlinesRoutes);
 router.use('/chat', chatRoutes);
@@ -34,6 +37,7 @@ router.use('/districts', districtsRoutes);
 router.use('/demographics', demographicsRoutes);
 router.use('/outside-spending', outsideSpendingRoutes);
 router.use('/indicators', indicatorsRoutes);
+router.use('/polls', pollsRoutes);
 router.use('/news', newsRoutes);
 
 // Static catalog of supported lobbies (for UI legends/filters)

@@ -1,0 +1,147 @@
+// Prisma schema for the polls database.
+//
+// Polls live in their own PostgreSQL database (POLLS_DATABASE_URL), separate
+// from the main database (DATABASE_URL), so they never use its storage. Nothing
+// here references a main-database table: candidates are linked by FEC ID only.
+//
+// Generate with `npm run prisma:generate:polls`; migrate with
+// `npm run prisma:migrate:polls` (dev) or `npm run prisma:deploy:polls`.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/@prisma-polls/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POLLS_DATABASE_URL")
+}
+
+enum PollStatus {
+  // Shown on race pages and counted in the polling average.
+  PUBLISHED
+  // Kept but never shown until an admin accepts it (no race match, a likely primary, ...).
+  NEEDS_REVIEW
+  REJECTED
+}
+
+enum PollOffice {
+  SENATE
+  HOUSE
+}
+
+enum PollPopulation {
+  LV // likely voters
+  RV // registered voters
+  A // adults
+  V // voters (unspecified)
+  UNKNOWN
+}
+
+enum PollSyncStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+model Poll {
+  id         String  @id @default(uuid())
+  // "votehub" for synced polls, "manual" for polls an admin typed in.
+  source     String
+  externalId String  @map("external_id")
+  // PA-SEN, PA-07, or AK-00 (at-large). Null until the poll is matched to a race.
+  raceCode   String? @map("race_code")
+  office     PollOffice?
+  state      String? @db.Char(2)
+  district   String? @db.Char(2)
+
+  pollType   String         @map("poll_type")
+  subject    String?
+  pollster   String
+  sponsors   String[]
+  startDate  DateTime?      @map("start_date") @db.Date
+  endDate    DateTime       @map("end_date") @db.Date
+  sampleSize Int?           @map("sample_size")
+  population PollPopulation
+  // Released by a campaign or party. Listed, but left out of the average.
+  isInternal Boolean        @default(false) @map("is_internal")
+  url        String?
+
+  status       PollStatus
+  reviewReason String?    @map("review_reason")
+  // Set when an admin accepts or rejects a poll. A sync never overrides that decision.
+  reviewedAt   DateTime?  @map("reviewed_at")
+  reviewedBy   String?    @map("reviewed_by")
+
+  // The source record as received, so a parser fix can reprocess it.
+  raw         Json
+  // SHA-256 of the normalized record; a re-sync only writes when it changes.
+  contentHash String   @map("content_hash")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  lastSyncRunId String?      @map("last_sync_run_id")
+  lastSyncRun   PollSyncRun? @relation(fields: [lastSyncRunId], references: [id], onDelete: SetNull)
+  answers       PollAnswer[]
+
+  @@unique([source, externalId])
+  @@index([raceCode, status, endDate(sort: Desc)])
+  @@index([status, lastSeenAt])
+  @@map("polls")
+}
+
+model PollAnswer {
+  id             String  @id @default(uuid())
+  pollId         String  @map("poll_id")
+  // The answer as the pollster reported it: a candidate name, "Undecided", "Other", ...
+  choice         String
+  pct            Decimal @db.Decimal(5, 2)
+  // From our FEC candidate record when the choice matched one, otherwise from the source.
+  party          String?
+  candidateFecId String? @map("candidate_fec_id")
+  sortOrder      Int     @map("sort_order")
+
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, choice])
+  @@index([candidateFecId])
+  @@map("poll_answers")
+}
+
+model PollSyncRun {
+  id            String         @id @default(uuid())
+  source        String
+  status        PollSyncStatus @default(RUNNING)
+  parserVersion String         @map("parser_version")
+  startedAt     DateTime       @default(now()) @map("started_at")
+  completedAt   DateTime?      @map("completed_at")
+  requestCount  Int            @default(0) @map("request_count")
+  fetched       Int            @default(0)
+  inserted      Int            @default(0)
+  updated       Int            @default(0)
+  unchanged     Int            @default(0)
+  // Rows parked for review in this run (new, or changed back to unmatched).
+  needsReview   Int            @default(0) @map("needs_review")
+  skipped       Int            @default(0)
+  errorSummary  String?        @map("error_summary")
+  metadata      Json?
+
+  polls Poll[]
+
+  @@index([source, startedAt(sort: Desc)])
+  @@map("poll_sync_runs")
+}
+
+// Cross-process lease so two poll syncs never overlap. Kept in this database so
+// the poll sync never writes to the main one.
+model PollSyncLease {
+  name      String   @id
+  token     String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("poll_sync_leases")
+}

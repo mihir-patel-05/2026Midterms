@@ -1,7 +1,10 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { CloudOff, Loader2, Vote } from "lucide-react";
-import { districtLabel, formatEtTime, formatShortDate, initials, numberFormat, officeLabels, partyTone, priceTypeLabel } from "./constants";
+import { PollSummary } from "@/features/polls/PollSummary";
+import { raceCodeFor } from "@/features/polls/polls";
+import { pollsEnabled } from "@/lib/featureFlags";
+import { candidateNamesOf, districtLabel, formatEtTime, formatShortDate, initials, numberFormat, officeLabels, partyTone, priceTypeLabel } from "./constants";
 import { historyByTicker, historyStart, useMarketHistory } from "./marketHistory";
 import { Sparkline } from "./Sparkline";
 import type { MonitorContest, MonitorResults } from "./types";
@@ -85,6 +88,7 @@ export function RaceCard({
   error,
   hasState,
   onSelectContest,
+  onShowPolls,
 }: {
   contests: MonitorContest[];
   contest: MonitorContest | undefined;
@@ -95,6 +99,8 @@ export function RaceCard({
   error: boolean;
   hasState: boolean;
   onSelectContest: (id: string) => void;
+  /** Opens the Polls tab; omitted when polls are off. */
+  onShowPolls?: () => void;
 }) {
   if (!contest) {
     const [Icon, title, copy] = loading
@@ -142,6 +148,10 @@ export function RaceCard({
       </div>
 
       <MarketOdds contest={contest} />
+
+      {pollsEnabled && !contest.isFictional && (
+        <PollSummary race={raceCodeFor(contest.office, contest.stateCode, contest.district)} candidateNames={candidateNamesOf(contest)} onShowPolls={onShowPolls} />
+      )}
 
       {ordered.length === 0 ? (
         <p className="em-empty">No candidates are on file for this contest yet.</p>

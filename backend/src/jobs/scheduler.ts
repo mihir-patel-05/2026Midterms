@@ -14,6 +14,7 @@ import { candidateService } from '../services/candidate.service.js';
 import { financeService } from '../services/finance.service.js';
 import { runScheduleESync } from '../services/outside-spending/run-schedule-e-sync.js';
 import { runFredSync } from '../services/fred/run-fred-sync.js';
+import { runPollSync } from '../services/polls/run-poll-sync.js';
 import { newsConfigProblem, runNewsSync } from '../services/news/run-news-sync.js';
 import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
@@ -372,6 +373,27 @@ export function initializeScheduler(): void {
     console.log('📈 FRED sync: daily at 9:15 AM and 6:15 PM ET\n');
   } else {
     console.log('FRED sync scheduler disabled: FRED_API_KEY is not set or ECON_INDICATORS_ENABLED is off');
+  }
+
+  // VoteHub polls: every 3 hours, since pollsters release through the day before the election.
+  if (env.POLLS_ENABLED && env.POLLS_DATABASE_URL) {
+    cron.schedule(
+      '20 */3 * * *',
+      async () => {
+        console.log('\n⏰ Scheduled poll sync triggered');
+        try {
+          const stats = await runPollSync();
+          console.log(`🗳️  Poll sync ${stats.status}: ${stats.inserted} new, ${stats.updated} changed, ${stats.needsReview} waiting for review`);
+        } catch (error) {
+          if (error instanceof SyncAlreadyRunningError) console.log('🗳️  Poll sync skipped: another run holds the lease');
+          else console.error('❌ Scheduled poll sync failed:', error instanceof Error ? error.message : error);
+        }
+      },
+      { timezone: 'America/New_York' },
+    );
+    console.log('🗳️  Poll sync: every 3 hours at 20 past\n');
+  } else {
+    console.log('Poll sync scheduler disabled: POLLS_DATABASE_URL is not set or POLLS_ENABLED is off');
   }
 
   // Top political stories of the past 24 hours. In production a cron-news service

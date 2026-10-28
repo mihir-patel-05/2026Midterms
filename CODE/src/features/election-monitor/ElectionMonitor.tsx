@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { stateMapItems } from "@/features/election-dashboard/map";
-import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, newsEnabled, oddsMapEnabled, pastResultsEnabled } from "@/lib/featureFlags";
+import { demographicsEnabled, mockResultsProviderEnabled, moversEnabled, newsEnabled, oddsMapEnabled, pastResultsEnabled, pollsEnabled } from "@/lib/featureFlags";
 import { TopStoriesCard } from "@/features/news/TopStoriesCard";
 import { PredictionMarketsPanel } from "@/features/election-dashboard/PredictionMarketsPanel";
 import { ActivityRail, type ActivityItem, type CoverageItem } from "./ActivityRail";
@@ -21,6 +21,7 @@ import { DetailPanel } from "./DetailPanel";
 import { MapCard } from "./MapCard";
 import { MapQuickControls } from "./MapQuickControls";
 import { FinanceTab } from "./FinanceTab";
+import { PollsTab } from "./PollsTab";
 import { HistoryCard } from "./HistoryCard";
 import { useMockResultsFeed, useResultsSourceStatus } from "./mockResults";
 import { RaceCard } from "./RaceCard";
@@ -410,7 +411,7 @@ export function ElectionMonitor() {
           title={selectedState?.name ?? "United States"}
           meta={!selectedState ? "Select a state to begin" : contestsLoading ? "Loading contests…" : contestsError ? "Contests unavailable" : `${officeCounts.US_HOUSE} House · ${officeCounts.US_SENATE} Senate ${officeCounts.US_SENATE === 1 ? "contest" : "contests"}`}
           badge={results ? <span className="em-pill" data-tone={results.meta.isMockData ? "amber" : "teal"}>{results.meta.isMockData ? "Mock" : results.meta.freshness.toLowerCase()}</span> : null}
-          tab={(params.tab === "demographics" && !demographicsEnabled) || (params.tab === "history" && !pastActive) ? "overview" : params.tab}
+          tab={(params.tab === "demographics" && !demographicsEnabled) || (params.tab === "history" && !pastActive) || (params.tab === "polls" && !pollsEnabled) ? "overview" : params.tab}
           onTabChange={(tab) => update({ tab })}
           overview={
             <>
@@ -419,7 +420,7 @@ export function ElectionMonitor() {
                   {selectedState!.name} adopted a new congressional map for 2026. District outlines on the map show the 2024 lines, so search your address to find your 2026 district.
                 </p>
               )}
-              <RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} />
+              <RaceCard contests={visibleContests} contest={contest} results={results} resultsAvailable={mockResultsProviderEnabled} loading={contestsLoading} error={contestsError} hasState={Boolean(selectedState)} onSelectContest={(id) => update({ contest: id })} onShowPolls={pollsEnabled ? () => update({ tab: "polls" }) : undefined} />
               {selectedState && haveContests && stateContests.length > 0 && <SnapshotCard stateName={selectedState.name} contests={stateContests} />}
               {results && <HistoryCard results={results} sources={sourceStatus.data} />}
             </>
@@ -431,6 +432,7 @@ export function ElectionMonitor() {
             </>
           }
           finance={<FinanceTab key={contest?.id ?? "none"} contest={contest} />}
+          polls={pollsEnabled ? <PollsTab key={contest?.id ?? "none"} contest={contest} /> : undefined}
           demographics={demographicsEnabled ? (
             <DemographicsTab
               stateCode={selectedState && !selectedState.isFictional ? selectedState.code : null}
