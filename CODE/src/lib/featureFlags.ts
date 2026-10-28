@@ -19,3 +19,5 @@ export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== 
 export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
 /** Market odds map mode (each Senate state or House district coloured by its Kalshi market). On unless set to "false". */
 export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
+/** Polls and polling averages (VoteHub) on race pages and the monitor's Polls tab. On unless set to "false"; shows a notice until the backend's polls database is connected and synced. */
+export const pollsEnabled = import.meta.env.VITE_FEATURE_POLLS !== "false";
