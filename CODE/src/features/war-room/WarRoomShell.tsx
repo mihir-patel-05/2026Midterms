@@ -60,6 +60,7 @@ const RAIL: RailItem[] = [
     ? [{ label: "PAST", icon: "past" as const, pathname: "/", search: (current: URLSearchParams) => { current.set("mode", "past"); return current; } }]
     : []),
   ...(newFrontendEnabled && simulatorEnabled ? [{ label: "SIM", icon: "sim" as const, pathname: "/simulator/midterms", search: () => new URLSearchParams() }] : []),
+  { label: "NIGHT", icon: "night", pathname: "/war-room/night", current: (path) => path === "/war-room/night" },
 ];
 
 function Rail() {

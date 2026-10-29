@@ -60,6 +60,7 @@ export function CommandView() {
         <div className="wr-head-actions">
           <div className="wr-seg" data-size="lg" role="group" aria-label="Phase">
             <Link to={{ pathname: "/war-room", search: location.search }} aria-current="page">Pre-election</Link>
+            <Link to={{ pathname: "/war-room/night", search: location.search }}>Election night</Link>
           </div>
           <a className="wr-btn" data-tone="solid" href="#watchlist">Watchlist · {watch.list.length}</a>
         </div>

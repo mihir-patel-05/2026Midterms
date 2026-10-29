@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { CommandView } from "@/features/war-room/command/CommandView";
 import { RaceDossier } from "@/features/war-room/dossier/RaceDossier";
+import { NightOps } from "@/features/war-room/night/NightOps";
 import { SignalsView } from "@/features/war-room/signals/SignalsView";
 import { WarRoomShell } from "@/features/war-room/WarRoomShell";
 
@@ -40,6 +41,7 @@ export default function WarRoom() {
         <Route index element={<CommandView />} />
         <Route path="race/:code" element={<RaceDossier />} />
         <Route path="signals" element={<SignalsView />} />
+        <Route path="night" element={<NightOps />} />
         <Route path="*" element={<UnknownScreen />} />
       </Routes>
     </WarRoomShell>
