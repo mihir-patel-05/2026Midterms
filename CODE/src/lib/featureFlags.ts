@@ -1,4 +1,8 @@
-/** Build-time feature flags. Vite inlines these, so changing one needs a rebuild. */
+/**
+ * Build-time feature flags. Vite inlines these, so changing one needs a rebuild.
+ * A new VITE_* name also needs an `ARG` line in CODE/Dockerfile, or the Railway
+ * value never reaches the build; `npm run check:build-args` catches a missing one.
+ */
 const flag = (value: string | undefined) => value === "true";
 
 /** On by default; set VITE_FEATURE_NEW_FRONTEND=false at build time to roll back to the legacy frontend. */

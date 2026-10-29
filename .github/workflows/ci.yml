@@ -70,6 +70,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Dockerfile build args
+        # Every VITE_* name read in src needs an ARG in CODE/Dockerfile.
+        run: npm run check:build-args
+
       - name: Lint
         run: npm run lint -- --max-warnings 0
 
