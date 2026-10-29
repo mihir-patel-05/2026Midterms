@@ -189,7 +189,11 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
     if (state !== params.state) return update({ state, district: null, districts: [], counties: [fips], contest: null });
     update({ counties: additive ? toggleItem(params.counties, fips) : [fips] });
   }, [params, update]);
-  const onViewChange = useCallback((next: MapView) => update({ view: next }), [update]);
+  // MapLibre can report one last camera move while the page is torn down (its resize observer sees the container
+  // go). By then the address belongs to the next page, and writing the camera would navigate back to this one.
+  const onViewChange = useCallback((next: MapView) => {
+    if (window.location.pathname.replace(/\/+$/, "") === "/war-room") update({ view: next });
+  }, [update]);
 
   const closest = view
     ? [...view.races.values()].filter((race) => race.leader && race.bin !== "no_race").sort((a, b) => a.leader!.price - b.leader!.price || a.code.localeCompare(b.code)).slice(0, CLOSEST)

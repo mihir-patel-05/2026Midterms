@@ -540,8 +540,8 @@
 .wr-night-figures dt { font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.14em; color: var(--wr-text-3); text-transform: uppercase; }
 .wr-night-figures dd { margin: 0; font-family: var(--wr-mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .wr-night-figures dd span { font-size: 13px; color: var(--wr-text-3); }
-.wr-timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--wr-line); border: 1px solid var(--wr-line); }
-.wr-timeline li { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--wr-panel); }
+.wr-timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px; margin: 0; padding: 1px; list-style: none; }
+.wr-timeline li { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--wr-panel); box-shadow: 0 0 0 1px var(--wr-line); }
 .wr-timeline li[data-closed] { background: var(--wr-raised); }
 .wr-timeline li[data-next] { box-shadow: inset 0 2px 0 var(--wr-accent); }
 .wr-timeline-time { font-family: var(--wr-mono); font-size: 13px; font-weight: 600; color: var(--wr-text); }
