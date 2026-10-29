@@ -1,0 +1,201 @@
+/* War Room. Vite keeps a lazy chunk's CSS in the page after navigating away, so every rule here is either a
+   .wr- class or scoped under :root[data-skin="warroom"], which WarRoomShell sets on <html> only while mounted.
+   The IBM Plex fonts are loaded here and nowhere else. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+:root[data-skin="warroom"] {
+  color-scheme: dark;
+
+  --wr-ground: #06080b;
+  --wr-panel: #0b0f14;
+  --wr-raised: #0e131a;
+  --wr-field: #0f141b;
+  --wr-hover: #111821;
+  --wr-line: #1c2530;
+  --wr-line-strong: #263241;
+  --wr-line-soft: #141b23;
+  --wr-text: #dce3ea;
+  --wr-text-2: #a3afbc;
+  --wr-text-3: #8593a3;
+  --wr-text-4: #c9d2dc;
+  --wr-accent: #ffb020;
+  --wr-accent-ink: #ffd27a;
+  --wr-accent-soft: rgb(255 176 32 / 0.12);
+  --wr-accent-line: #4a3b17;
+  --wr-accent-ground: #1e1708;
+  --wr-live: #3dd6d0;
+  --wr-live-ink: #a6f5ef;
+  --wr-live-line: #1e4a47;
+  --wr-live-ground: #0b1e1e;
+  --wr-fred: #d9c8ff;
+  --wr-fred-line: #3b3160;
+  --wr-fred-trace: #b49cff;
+  --wr-dem: #5aa9ff;
+  --wr-rep: #f2554a;
+  --wr-ind: #b49cff;
+  --wr-dem-soft: rgb(90 169 255 / 0.16);
+  --wr-rep-soft: rgb(242 85 74 / 0.16);
+  --wr-dem-deep: rgb(90 169 255 / 0.38);
+  --wr-rep-deep: rgb(242 85 74 / 0.38);
+  --wr-neutral: #5a6675;
+  --wr-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --wr-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --wr-cond: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
+  --wr-grid: linear-gradient(rgb(120 150 180 / 0.045) 1px, transparent 1px), linear-gradient(90deg, rgb(120 150 180 / 0.045) 1px, transparent 1px);
+
+  /* Shared tokens, so shared components (tooltips, dialogs, polls, sparklines) and Radix portals rendered into
+     <body> pick up the War Room palette while it is mounted. Party colours follow partyTone(). */
+  --background: 216 29% 3%;
+  --foreground: 210 25% 89%;
+  --card: 213 29% 6%;
+  --card-foreground: 210 25% 89%;
+  --popover: 215 30% 8%;
+  --popover-foreground: 210 25% 89%;
+  --primary: 39 100% 56%;
+  --primary-foreground: 216 29% 3%;
+  --muted: 213 26% 11%;
+  --muted-foreground: 211 16% 69%;
+  --accent: 213 26% 11%;
+  --accent-foreground: 210 25% 89%;
+  --border: 213 26% 20%;
+  --input: 213 26% 20%;
+  --ring: 39 100% 56%;
+  --radius: 2px;
+  --surface: 213 29% 6%;
+  --surface-2: 215 30% 8%;
+  --surface-3: 213 26% 11%;
+  --line: 213 26% 15%;
+  --quiet: 212 14% 58%;
+  --signal-blue: 211 100% 68%;
+  --signal-blue-deep: 213 51% 20%;
+  --signal-coral: 4 87% 62%;
+  --signal-coral-deep: 4 45% 18%;
+  --signal-amber: 39 100% 56%;
+  --signal-teal: 178 65% 54%;
+  --signal-teal-deep: 178 40% 12%;
+}
+
+:root[data-skin="warroom"] body {
+  background: var(--wr-ground);
+  font-family: var(--wr-sans);
+}
+
+/* index.css styles headings by element; inside the War Room they take the class styles below. */
+/* index.css sets a heading font by element at this specificity; War Room heading classes that set a font are
+   written as :root[data-skin="warroom"] .class so they win. */
+:root[data-skin="warroom"] :is(h1, h2, h3, h4, h5, h6) {
+  font-family: inherit;
+}
+
+.wr-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--wr-ground);
+  background-image: var(--wr-grid);
+  background-size: 32px 32px;
+  color: var(--wr-text);
+  font-family: var(--wr-sans);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.wr-app a { color: var(--wr-accent); }
+.wr-app a:hover { color: var(--wr-accent-ink); }
+.wr-app :focus-visible { outline: 2px solid var(--wr-accent); outline-offset: 2px; }
+.wr-mono { font-family: var(--wr-mono); }
+.wr-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.wr-skip { position: absolute; left: 12px; top: -48px; z-index: 60; padding: 8px 12px; background: var(--wr-accent); color: #0a0d12 !important; font-family: var(--wr-mono); font-size: 12px; text-decoration: none; }
+.wr-skip:focus { top: 8px; }
+
+/* Source band */
+.wr-band {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 4px 16px;
+  background: #0e3b3a; color: var(--wr-live-ink);
+  font-family: var(--wr-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+
+/* Top bar */
+.wr-top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 10px 16px; background: #0a0d12; border-bottom: 1px solid var(--wr-line); }
+.wr-app .wr-brand { display: flex; align-items: center; gap: 10px; color: var(--wr-text); text-decoration: none; }
+.wr-app .wr-brand:hover { color: var(--wr-text); }
+.wr-brand-text { display: flex; flex-direction: column; line-height: 1.05; }
+.wr-brand-text strong { font-family: var(--wr-cond); font-size: 18px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.wr-brand-text span { font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.16em; color: var(--wr-text-3); }
+
+.wr-search { position: relative; flex: 1 1 220px; max-width: 520px; }
+.wr-search-box { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; background: var(--wr-field); border: 1px solid var(--wr-line-strong); }
+.wr-search-box:focus-within { border-color: var(--wr-accent); }
+.wr-search-box svg { flex: 0 0 auto; color: var(--wr-text-3); }
+.wr-search-box input { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: none; color: var(--wr-text); font-family: var(--wr-mono); font-size: 12px; }
+.wr-search-box input::placeholder { color: var(--wr-text-3); }
+.wr-search-msg { position: absolute; left: 0; top: calc(100% + 4px); z-index: 20; padding: 4px 8px; background: var(--wr-accent-ground); border: 1px solid var(--wr-accent-line); color: var(--wr-accent-ink); font-family: var(--wr-mono); font-size: 11px; }
+.wr-search-msg:empty { display: none; }
+
+.wr-top-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-left: auto; }
+.wr-readout { display: flex; flex-direction: column; line-height: 1.15; font-family: var(--wr-mono); }
+.wr-readout span { font-size: 10px; letter-spacing: 0.16em; color: var(--wr-text-3); }
+.wr-readout strong { font-size: 18px; font-weight: 600; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.wr-readout[data-tone="accent"] strong { color: var(--wr-accent); }
+
+.wr-chips { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.1em; }
+.wr-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--wr-line-strong); color: var(--wr-text-4); background: var(--wr-raised); text-transform: uppercase; white-space: nowrap; }
+.wr-chip[data-tone="live"] { border-color: var(--wr-live-line); color: var(--wr-live-ink); background: var(--wr-live-ground); }
+.wr-chip[data-tone="accent"] { border-color: var(--wr-accent-line); color: var(--wr-accent-ink); background: var(--wr-accent-ground); }
+.wr-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.wr-chip[data-tone="live"] .wr-dot { background: var(--wr-live); }
+.wr-dot[data-hollow] { background: transparent; border: 1.5px solid var(--wr-accent); box-sizing: border-box; }
+@keyframes wr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.wr-pulse { animation: wr-pulse 1.6s ease-in-out infinite; }
+
+/* Body: icon rail and main column */
+.wr-body { flex: 1 1 auto; display: flex; flex-wrap: wrap; min-height: 0; }
+.wr-rail { flex: 0 0 72px; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: #080b0f; border-right: 1px solid var(--wr-line); }
+.wr-app .wr-nav {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 56px; min-height: 52px;
+  border-left: 2px solid transparent; color: var(--wr-text-3); text-decoration: none;
+  font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.08em;
+}
+.wr-app .wr-nav:hover { background: #121922; color: var(--wr-text); }
+.wr-app .wr-nav[aria-current="page"] { background: #121922; color: var(--wr-text); border-left-color: var(--wr-accent); }
+.wr-main { flex: 999 1 560px; min-width: 0; max-width: 1680px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+
+@media (max-width: 760px) {
+  .wr-rail { flex-direction: row; flex-basis: 100%; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--wr-line); }
+  .wr-app .wr-nav { border-left: 0; border-bottom: 2px solid transparent; }
+  .wr-app .wr-nav[aria-current="page"] { border-bottom-color: var(--wr-accent); }
+  .wr-chips { display: none; }
+  .wr-main { padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wr-pulse { animation: none; }
+}
+
+/* Page heading row */
+.wr-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.wr-eyebrow { font-family: var(--wr-mono); font-size: 11px; letter-spacing: 0.18em; color: var(--wr-text-3); text-transform: uppercase; }
+:root[data-skin="warroom"] .wr-page-title { margin-top: 2px; font-family: var(--wr-cond); font-size: 30px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.15; text-transform: uppercase; }
+.wr-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Buttons and segmented controls */
+.wr-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  background: var(--wr-field); border: 1px solid var(--wr-line-strong); color: var(--wr-text);
+  font-family: var(--wr-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; cursor: pointer;
+}
+.wr-btn:hover { border-color: var(--wr-text-3); }
+.wr-app .wr-btn[data-tone="accent"], .wr-btn[aria-pressed="true"] { background: var(--wr-accent-soft); border-color: var(--wr-accent); color: var(--wr-accent); }
+.wr-app .wr-btn[data-tone="solid"] { background: var(--wr-accent); border-color: var(--wr-accent); color: #0a0d12; font-weight: 600; }
+.wr-btn:disabled { color: var(--wr-text-3); cursor: not-allowed; }
+.wr-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--wr-line-strong); font-family: var(--wr-mono); font-size: 11px; letter-spacing: 0.12em; }
+.wr-seg > :is(button, a) {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border: 0; background: transparent;
+  color: var(--wr-text-2); font: inherit; letter-spacing: inherit; text-decoration: none; text-transform: uppercase; cursor: pointer;
+}
+.wr-seg > :is(button, a) + :is(button, a) { border-left: 1px solid var(--wr-line-strong); }
+.wr-app .wr-seg > :is([aria-pressed="true"], [aria-current="page"]) { background: var(--wr-accent-soft); color: var(--wr-accent); }
+.wr-seg[data-size="lg"] > :is(button, a) { min-height: 44px; padding: 0 14px; }
+.wr-seg > button:disabled { color: var(--wr-text-3); cursor: not-allowed; }
+
+.wr-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 4px 2px 8px; font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--wr-text-3); text-transform: uppercase; }
+.wr-main:focus { outline: none; }

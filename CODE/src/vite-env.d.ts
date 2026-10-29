@@ -13,6 +13,7 @@ interface ImportMetaEnv {
   readonly VITE_FEATURE_ODDS_MAP?: string;
   readonly VITE_FEATURE_POLLS?: string;
   readonly VITE_FEATURE_NEWS?: string;
+  readonly VITE_FEATURE_WAR_ROOM?: string;
   readonly VITE_API_URL?: string;
 }
 
