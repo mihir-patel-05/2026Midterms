@@ -182,7 +182,7 @@ CODE/src/features/war-room/
 ### Phase 1: scaffold, invisible in production
 1. `feat(war-room): flag, lazy route and shell`
    - `lib/featureFlags.ts`: `warRoomEnabled = import.meta.env.VITE_FEATURE_WAR_ROOM === "true"`, with a comment saying why it defaults off.
-   - `CODE/Dockerfile`: add `ARG VITE_FEATURE_WAR_ROOM`. Without it, the Railway build arg never reaches `vite build`; the existing on-by-default flags don't need one, but an off-by-default flag does.
+   - `CODE/Dockerfile`: add `ARG VITE_FEATURE_WAR_ROOM`. Without it, the Railway build arg never reaches `vite build`; every `VITE_*` flag needs one, and `npm run check:build-args` fails without it.
    - `.github/workflows/frontend-deploy.yml`: pass `VITE_FEATURE_WAR_ROOM: ${{ vars.VITE_FEATURE_WAR_ROOM || 'false' }}`, if that workflow is still used alongside Railway.
    - `App.tsx`: `<Route path="/war-room/*">` only when the flag is on, in a `Suspense` like the simulator routes. nginx already falls back to `index.html` for unknown paths, so no server change.
    - `WarRoomShell.tsx` and `warRoom.css` (tokens, band, top bar, rail).
