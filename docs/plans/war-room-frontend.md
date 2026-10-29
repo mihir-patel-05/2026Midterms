@@ -22,6 +22,12 @@ Every number in the mockups is illustrative. The build uses only real data, or s
 - Never merge War Room work into `2026Midterm_intel_v2` or `main`, directly or through another branch. For War Room work, this replaces the §7 rule that all work merges into `2026Midterm_intel_v2`.
 - This applies to every phase below, the Phase 5 cut-over included.
 
+## Decisions (Oct 29)
+- **Build the Election night screen now**, before a results provider is chosen; AP hasn't replied yet. The screen reads the provider-neutral results read model, so connecting a provider later changes only the backend's ingestion (§6), not the screen. See [Phase 4](#phase-4-election-night-build-now-results-stay-not-connected-in-production-until-a-provider-is-live).
+- **Watchlist:** it starts with swing-state races, and each viewer can change their own list. See [Watchlist](#watchlist).
+- **No inset boxes.** Alaska and Hawaii keep today's behaviour on the War Room map: the full MapLibre map, with the existing Alaska and Hawaii jump buttons in `ElectionMap.tsx`. The mockup's insets were only a stand-in for the design canvas.
+- **Branches:** War Room work merges only into `Frontend_testing` (above).
+
 ## Ground rules: how nothing breaks
 
 1. **A new route, not a rewrite.** The War Room lives at `/war-room/*`, lazy-loaded and gated by `VITE_FEATURE_WAR_ROOM`. `/` keeps rendering `ElectionMonitor` until the cut-over. With the flag off, the route doesn't exist and the War Room code is never downloaded.
@@ -53,7 +59,7 @@ No panel ever shows mock numbers in the build. Each panel without data shows one
 **Not connected in v1:**
 - Live results and race calls (no licensed provider; see Known gaps in §2).
 - Per-race news. National top stories exist behind `VITE_FEATURE_NEWS`, but per-race NYT coverage doesn't, and AP has no access.
-- Live-stream video IDs until they are loaded Oct 31–Nov 2 (§4.7).
+- Live streams, until §4.7's `GET /api/live-streams` endpoint and admin form exist.
 - Polls wherever the polls database isn't connected yet. `RacePolls` already shows its own notice in that case.
 
 ## What each mockup panel uses
@@ -75,7 +81,7 @@ Status key: **Real** means an existing hook or endpoint already serves it. **Der
 | States / Districts layers | Existing `states` and `districts` sources and the `layer` URL param | Real |
 | Counties layer | Existing `counties` source | Real (the mockup only greys it out) |
 | Target card | `oddsView.lookup`, `useRaceOdds`, `useMarketHistory` (14-day line), `races2026.ts`, `house-2024.json` margin | Real |
-| Watchlist | New. Race codes kept in `localStorage` (wrapped in try/catch), with a default list. Per viewer; no backend. | Derived |
+| Watchlist | New; see [Watchlist](#watchlist). Swing-state races by default, editable by each viewer, saved per browser; no backend. | Derived |
 | Biggest movers | `useMarketMovers` (`MoversCard`) | Real |
 | Intel feed | The `activity` items `ElectionMonitor` builds for `ActivityRail`, plus movers, plus `useTopStories()` (`features/news/topStories.ts`) when `newsEnabled` | Real. FEC 24-hour filings in the feed need a national recent-filings route, so they come later. |
 | Polling average on the target card | `PollSummary` (`features/polls/`) | Real when `pollsEnabled` and the polls database is connected; otherwise its existing notice |
@@ -100,9 +106,10 @@ The dossier opens at `/war-room/race/:code` (`NC-SEN`, `PA-07`). It does not rep
 ### Election night
 | Mockup panel | Source today | Status |
 |---|---|---|
-| Called seats, key-races board, call log | Results read model (`/api/v1`). Only fictional fixtures today (`VITE_RESULTS_PROVIDER_MOCK_ENABLED`). | **Not connected** in production. Built and tested in staging against the mock provider only. |
+| Called seats, key-races board, call log | Results read model (`/api/v1`). Only fictional fixtures today (`VITE_RESULTS_PROVIDER_MOCK_ENABLED`). | Built now. Staging runs on the fixtures, labelled as mock. Production shows **Not connected** plus official state results links until a provider is licensed. |
+| Official results links | New constant list of each state election office's results page | Real once sourced. This is the §3 and §6 fallback: link out, never show scraped or partial totals. |
 | Poll-closing timeline | New constant file of closing times, sourced from state election offices | Real once sourced |
-| Live coverage | YouTube stream IDs (§4.7) | Not connected until the IDs are loaded |
+| Live coverage | §4.7's `GET /api/live-streams` and its admin form, neither built yet | Needs endpoint; **Not connected** until then |
 | System health | Feed statuses we already have (Kalshi, results source) | Real (partial) |
 
 ### Signals
@@ -114,6 +121,23 @@ The dossier opens at `/war-room/race/:code` (`NC-SEN`, `PA-07`). It does not rep
 | Outside spending by race, 7 days | Per-race route only. Watchlist races (8 at most) can use `/api/outside-spending/race`; a national leaderboard needs an aggregate route. | Real for the watchlist; Needs endpoint for national |
 | FRED tiles with history | `useEconIndicators`, `IndicatorHistoryDialog` | Real |
 | Data coverage | The `coverage` items from `ActivityRail` | Real |
+
+## Watchlist
+- **Default: swing-state races.** The 2026 races in the seven presidential swing states (Arizona, Georgia, Michigan, Nevada, North Carolina, Pennsylvania, Wisconsin):
+  - the Senate races in Georgia, Michigan, and North Carolina (the other four have no Senate race this year), then
+  - House districts in those seven states whose Kalshi leader is under 65¢, closest first,
+  - 12 races at most.
+
+  A pure function builds the default from the live markets, so it follows the races as they tighten or open up instead of being a hand-kept list.
+- **Each viewer chooses their own.**
+  - A star on the target card and on the dossier header adds or removes a race.
+  - The panel has an "Add race" box (race codes and state names), a remove button on each row, and "Reset to default".
+- **Saved per browser.**
+  - The list is kept in `localStorage` (`warRoom.watchlist.v1`). Every read and write is wrapped in try/catch, codes are checked against `SENATE_RACE_CODES` and `HOUSE_DISTRICT_CODES`, and the list holds 30 races at most.
+  - A viewer who has never changed the list keeps getting the current default, so the default can improve without overwriting anyone's choices.
+  - If storage is blocked (some private windows), the list still works for that visit and starts from the default next time.
+- **Not in v1:** saving the list to an account once chatbot sign-in exists (§4.12). That needs a backend table.
+- **Tests (`watchlist.test.ts`):** the default rule (state filter, the 65¢ line, closest first, the cap), unknown or stale codes dropped, the 30-race cap, and reset.
 
 ## Architecture
 
@@ -139,7 +163,7 @@ CODE/src/features/war-room/
 - **A `theme` prop** on `ElectionMap`. Selection and line colours are hard-coded JS constants today (`COLORS` near the top of `ElectionMap.tsx`), and MapLibre paint can't read CSS variables. The prop's default is exactly today's `COLORS`, so `/` doesn't change.
 - **Two overlays**, Seat holder and Flip watch, as pure functions returning the same `MapOverlay` shape the odds and past-results overlays use.
 - **Targeting brackets** around the selected race, drawn as an HTML overlay positioned with `map.project()` on the feature's bounding box and updated on `move`. No new map layer is needed.
-- **Alaska and Hawaii** stay as today. The mockup's inset boxes are optional, for later.
+- **Alaska and Hawaii: no inset boxes** (decided). They stay as on today's map, reached with the existing Alaska and Hawaii jump buttons.
 
 **Theme tokens** (all under `:root[data-skin="warroom"]`):
 - Ground `#06080B`, panel `#0B0F14`, line `#1C2530`.
@@ -173,8 +197,15 @@ CODE/src/features/war-room/
 6. `feat(war-room): race dossier`. Route `/war-room/race/:code`; "Why it moved" is `ComingSoonPanel`.
 7. `feat(war-room): signals`. Chamber control over 30 days, 7-day movers, outside spending for watchlist races, FRED tiles, coverage, and the House tipping point as `ComingSoonPanel`.
 
-### Phase 4: election night (staging only until a results provider is live)
-8. `feat(war-room): election night view`. Poll-closing constants with sources, and the key-races board and call log on the results read model. Production shows `NotConnectedPanel` until a provider is licensed. Before embedding streams, check `nginx.conf` and any CSP for `frame-src` (use `youtube-nocookie.com`).
+### Phase 4: election night (build now; results stay Not connected in production until a provider is live)
+Phase 4 needs only Phase 1, so it can start right after it, alongside Phases 2 and 3.
+
+8. `feat(war-room): election night view`
+   - Called seats per chamber, the key-races board, and the call log read the provider-neutral results read model (`/api/v1`). Connecting AP or another provider later changes only ingestion (§6), not this screen.
+   - **Staging** builds with `VITE_RESULTS_PROVIDER_MOCK_ENABLED=true` and runs on the fictional fixtures, labelled as mock everywhere, as the monitor does today. After the Oct 29 database move, run `ingest-day0-fixture` again first (§5.5).
+   - **Production**, until a provider is licensed: the results panels show `NotConnectedPanel` with each state's official results link (`stateResultsLinks.ts`, sourced from the state election offices). Never scraped or partial totals.
+   - The poll-closing timeline comes from a constant file with its sources.
+   - The live-coverage panel is `NotConnectedPanel` until §4.7's endpoint exists. Before embedding streams then, check `nginx.conf` and any CSP for `frame-src` (use `youtube-nocookie.com`).
 
 ### Phase 5: cut-over, after the election
 Like every phase, this merges into `Frontend_testing` only.
@@ -200,6 +231,13 @@ Like every phase, this merges into `Frontend_testing` only.
 - **Portals:** open a tooltip and `IndicatorHistoryDialog` inside the War Room; they use War Room tokens.
 - **Empty states:** with the API stopped in dev, every panel shows unavailable or loading, never a zero. Coming soon panels show no figures at all. Testing's main database was replaced with an empty one on Oct 29 (§5.5), so staging will show many empty panels until the syncs refill it. That is a useful check of the empty states, not a bug in the War Room.
 - **Map:** `/` still uses the default theme (teal selection). The War Room map uses amber selection and brackets. Shift-click multi-select and the URL camera state work on both.
+- **Watchlist:**
+  - A first visit shows the swing-state default.
+  - Starring and unstarring on the target card and dossier, "Add race", remove, and reset all work, and a reload keeps the list.
+  - With storage blocked, the page still works.
+- **Election night:**
+  - The staging build with the mock flag labels every result as mock.
+  - A build with the mock flag off shows Not connected and the official results links, and no totals.
 
 ## Rollback
 - **Before the cut-over:** nothing to roll back. Production has the flag off.
@@ -214,8 +252,5 @@ Like every phase, this merges into `Frontend_testing` only.
 - `CODE/src/index.css` (unchanged; the War Room's tokens live in `warRoom.css`)
 
 ## Open questions
-- **Default watchlist.** Which races, and should it become per account once chatbot sign-in exists (§4.12)?
 - **Seat tally.** Ship the "D 49 · R 51 by market leader" count on the Command screen, or only the control prices? It counts market leaders and must never be presented as a forecast.
-- **Alaska and Hawaii insets** on the MapLibre map, or keep today's behaviour?
-- **Election night view.** Worth building before a results provider is chosen, or wait until then?
 - **How `Frontend_testing` reaches production.** War Room work merges only into `Frontend_testing`. Who merges `Frontend_testing` onward, when, and which Railway environment builds from it are still to decide.
