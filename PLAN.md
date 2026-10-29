@@ -100,6 +100,7 @@ Differentiators:
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
+- Testing's main database is nearly full (Oct 29). Everything except polls moves to the new `Third_database` service, with the old rows copied over, once two `Backend` variables change. Steps are in section 5.5.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
@@ -944,6 +945,25 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
 | Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
 | Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
+
+### 5.5 Moving the main database (Oct 29)
+
+Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Everything except polls moves to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
+
+- **One variable moves it.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on the new database, so its tables match the old one's exactly.
+- **The old rows come too.** The API reads from the database it writes to, so an empty new database would show no candidates, finance, price history, or admin accounts until the syncs refill it, and price history and accounts never come back. With `COPY_FROM_DATABASE_URL` set, `prisma:deploy` copies every row from that database into the new one right after the migrations (`backend/src/scripts/copy-database.ts`).
+  - It writes only into an empty database, in one transaction, so it copies everything or nothing. Once the new database has rows it skips without connecting to the old one.
+  - The old database is only read.
+  - `sync_leases` is left out, and copied syncs still marked running are marked failed, so neither blocks the new deployment's syncs.
+  - Preview with `npm run db:copy -- --dry-run`.
+
+**Railway steps (Testing)**
+1. On `Backend`, set `COPY_FROM_DATABASE_URL` to `${{Testing_database.DATABASE_URL}}` and change `DATABASE_URL` to `${{Third_database.DATABASE_URL}}`. Leave `POLLS_DATABASE_URL` as it is.
+2. Deploy. The pre-deploy log ends with `✅ Copied N rows in M tables`. If the copy fails, the deploy stops, the old deployment keeps running on the old database, and the new database stays empty for the next try.
+3. Check the site and the admin dashboard. Removing `COPY_FROM_DATABASE_URL` afterwards is optional.
+4. Keep `Testing_database`: the copy never changes it, so it stays a full backup.
+
+Writes the old deployment makes during the copy, a few minutes' worth, stay only in the old database. Production's pre-deploy command is `npx prisma migrate deploy`, which skips the copy: change it to `npm run prisma:deploy` before moving production's database the same way.
 
 ---
 
