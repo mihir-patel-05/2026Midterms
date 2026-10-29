@@ -203,6 +203,7 @@ Shared requirements for all of these:
 
 - **Indexes, each with a published methodology:** a polarization index (DW-NOMINATE gap, party-line votes, affective polarization, split-ticket districts) and a democratic-institutions tracker (V-Dem, Freedom House, Bright Line Watch).
 - **Phase 2: Elections Monitor.** 2027 governor races, the 2028 primaries, and a global calendar of major foreign elections. We are not expanding into general geopolitics.
+- **War Room frontend.** A redesign of the monitor as an operations dashboard (Command, Race dossier, Election night, and Signals screens). It is built at `/war-room` behind `VITE_FEATURE_WAR_ROOM` (off by default) and becomes the home page only after the election. Tipping-point panels stay "Coming soon" until the simulation exists. Plan: `docs/plans/war-room-frontend.md`.
 - **Business model:** core voter information stays free. Institutional embeds and research exports come only after we validate partner demand. We will never monetize vote intentions or reading profiles.
 
 ### 4.5 Demographics (ACS 5-year)
