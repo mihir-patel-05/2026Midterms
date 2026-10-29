@@ -914,7 +914,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 - [ ] Create `staging` and `production` environments in the Railway project. Use Railway private networking (`api.railway.internal`) between services. *Oct 10: the project has `Testing` and `production`. Only `Testing` is wired up; production's backend has no domain and its frontend has no variables.*
 - [ ] Deploy `web` and `admin` from their Dockerfiles. Set `VITE_API_URL` to the Railway `api` domain.
-- [ ] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deploy to Vercel, with Railway deploys (`railway up --service web|admin`, like `backend-deploy.yml`) or with Railway's GitHub autodeploy. Then remove the Vercel secrets.
+- [x] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deployed to Vercel, with Railway's GitHub autodeploy. *Oct 29: both workflows are deleted; neither ever succeeded, because `VERCEL_TOKEN` was never set. Railway builds `web` from `/CODE` and `admin` from `/admin-dashboard`: `Testing` from `2026Midterm_intel_v2`, `main-prod` from `main`.*
+- [ ] Remove the Vercel secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_FRONTEND`, `VERCEL_PROJECT_ID_ADMIN`) from the repository's GitHub settings, if any are set.
 - [ ] Move `sync-fec-data.yml` and the in-process `node-cron` schedules to Railway cron services.
 - [ ] Split the Kalshi live feed into `market-feed` and add Redis fan-out.
 - [ ] Add a Railway Bucket and point `RawArtifact` storage at it instead of the local filesystem.
