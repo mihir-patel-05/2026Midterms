@@ -16,7 +16,7 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import { pickTopStories, type PickerClient, type TopStory } from '../../agents/top-stories.js';
 import { NewsSearchError, type NewsSearchClient } from './apify-client.js';
 import { loadSpend, planRun, type BudgetLimits, type RunPlan } from './budget.js';
-import { normalizeItems } from './normalize.js';
+import { describeItemShape, describeRejected, normalizeItems } from './normalize.js';
 import { buildNewsQueries, NEWS_QUERY_VERSION, plainQuery } from './queries.js';
 import { groupStories } from './stories.js';
 
@@ -141,7 +141,8 @@ export async function syncNews(db: PrismaClient, options: NewsSyncOptions): Prom
     const { articles, rejected } = normalizeItems(result.items, { now });
     const rejectedCount = Object.values(rejected).reduce((total, count) => total + (count ?? 0), 0);
     const candidates = groupStories(articles);
-    log(`  ${result.items.length} results, ${articles.length} usable articles, ${candidates.length} stories, $${costUsd.toFixed(4)}`);
+    log(`  Apify run ${result.runId} ${result.status}: ${result.items.length} of up to ${plan.maxItems} results, ${articles.length} usable articles, ${candidates.length} stories, $${costUsd.toFixed(4)}`);
+    if (rejectedCount > 0) log(`  Rejected: ${describeRejected(rejected)}`);
     const metadata = {
       ...baseMetadata,
       apifyRunId: result.runId,
@@ -154,7 +155,9 @@ export async function syncNews(db: PrismaClient, options: NewsSyncOptions): Prom
     };
 
     if (articles.length === 0) {
-      const reason = 'No usable articles from the past 24 hours; the previous list stays up';
+      const found = result.items.length === 0 ? 'Apify returned no results' : `rejected ${describeRejected(rejected)}`;
+      const reason = `No usable articles from the past 24 hours (${found}); the previous list stays up`;
+      if (result.items.length > 0) log(`  First result: ${describeItemShape(result.items[0])}`);
       await db.ingestionRun.update({
         where: { id: run.id },
         data: { status: 'FAILED', completedAt: new Date(), recordsFetched: result.items.length, recordsRejected: rejectedCount, errorSummary: reason, metadata },

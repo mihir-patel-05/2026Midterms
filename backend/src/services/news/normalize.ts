@@ -151,6 +151,36 @@ function prettyDomain(domain: string): string {
   return domain.replace(/^www\./, '');
 }
 
+/** Rejection counts for logs, largest first: "google_redirect 8, too_old 2". */
+export function describeRejected(rejected: NormalizeResult['rejected']): string {
+  return Object.entries(rejected)
+    .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+    .map(([reason, count]) => `${reason} ${count}`)
+    .join(', ');
+}
+
+/**
+ * One raw result's shape for logs when a run has nothing usable: its field
+ * names, the host each link field points at, and its publish time. That is
+ * enough to tell an actor that ignored the input or returned undecoded Google
+ * links from one whose fields we don't read.
+ */
+export function describeItemShape(item: unknown): string {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return `not an object (${Array.isArray(item) ? 'array' : typeof item})`;
+  const record = item as Record<string, unknown>;
+  const links = URL_FIELDS.flatMap((field) => {
+    const value = record[field];
+    if (typeof value !== 'string' || value.trim() === '') return [];
+    const canonical = canonicalizeUrl(value);
+    if (!canonical) return [`${field}=unparseable`];
+    const note = isGoogleNewsLink(canonical) ? ' (Google link)' : isHomepage(canonical) ? ' (homepage)' : '';
+    return [`${field}=${new URL(canonical).hostname}${note}`];
+  });
+  const timeField = TIME_FIELDS.find((field) => record[field] !== undefined && record[field] !== null && record[field] !== '');
+  const time = timeField ? `${timeField}=${JSON.stringify(record[timeField]).slice(0, 40)}` : '(none)';
+  return `fields ${Object.keys(record).join(', ') || '(none)'}; links ${links.join(', ') || '(none)'}; time ${time}`;
+}
+
 export function normalizeItems(items: unknown[], options: NormalizeOptions = {}): NormalizeResult {
   const now = options.now ?? new Date();
   const oldest = now.getTime() - (options.windowHours ?? 24) * HOUR_MS;

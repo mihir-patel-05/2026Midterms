@@ -406,7 +406,7 @@ export function initializeScheduler(): void {
         console.log('\n⏰ Scheduled news sync triggered');
         try {
           const stats = await runNewsSync();
-          console.log(`📰 News sync ${stats.status}: ${stats.stories} stories, $${stats.costUsd.toFixed(4)}`);
+          console.log(`📰 News sync ${stats.status}: ${stats.stories} stories, $${stats.costUsd.toFixed(4)}${stats.reason ? ` (${stats.reason})` : ''}`);
         } catch (error) {
           if (error instanceof SyncAlreadyRunningError) console.log('📰 News sync skipped: another run holds the lease');
           else console.error('❌ Scheduled news sync failed:', error instanceof Error ? error.message : error);

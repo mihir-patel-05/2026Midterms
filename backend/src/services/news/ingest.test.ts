@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { buildActorInput, parseInputOverrides } from './apify-client.js';
 import { MIN_ITEMS_PER_RUN, planRun, remainingUsd } from './budget.js';
 import { isExcludedDomain } from './domain-rules.js';
-import { canonicalizeUrl, cleanHeadline, normalizeItems, parsePublishedAt } from './normalize.js';
+import { canonicalizeUrl, cleanHeadline, describeItemShape, describeRejected, normalizeItems, parsePublishedAt } from './normalize.js';
 import { buildNewsQueries, plainQuery } from './queries.js';
 import { groupStories, guessTopic, looksPolitical, rankStories } from './stories.js';
 
@@ -105,6 +105,17 @@ test('an outlet homepage is never used as the article link', () => {
   const { articles, rejected } = normalizeItems(items, { now: NOW });
   assert.deepEqual(articles.map((article) => article.url), ['https://thetimes.com/politics/ballot-case', 'https://paper.com/?p=123']);
   assert.deepEqual(rejected, { google_redirect: 2, no_url: 1 });
+});
+
+test('a run with nothing usable logs why: rejection counts and the shape of a result', () => {
+  assert.equal(describeRejected({ no_url: 1, google_redirect: 8, too_old: 2 }), 'google_redirect 8, too_old 2, no_url 1');
+  assert.equal(describeRejected({}), '');
+  assert.equal(
+    describeItemShape({ title: 'A - The Times', link: 'https://news.google.com/rss/articles/CBMiAAA', source: 'The Times', sourceUrl: 'https://www.thetimes.com', pubDate: 'Wed, 28 Oct 2026 12:00:00 GMT' }),
+    'fields title, link, source, sourceUrl, pubDate; links link=news.google.com (Google link), sourceUrl=thetimes.com (homepage); time pubDate="Wed, 28 Oct 2026 12:00:00 GMT"',
+  );
+  assert.equal(describeItemShape({ headline: 'B', articleLink: 'https://x.com/b' }), 'fields headline, articleLink; links (none); time (none)');
+  assert.equal(describeItemShape('text'), 'not an object (string)');
 });
 
 test('stories group the same event across outlets and rank by coverage and age', () => {
