@@ -92,6 +92,21 @@ test('normalize keeps the past 24 hours, rejects by reason, and merges duplicate
   });
 });
 
+test('an outlet homepage is never used as the article link', () => {
+  // Google News feed rows: an undecoded link, and the outlet's homepage in sourceUrl.
+  const items = [
+    { title: 'Senate control hinges on three races - The Times', link: 'https://news.google.com/rss/articles/CBMiAAA', source: 'The Times', sourceUrl: 'https://www.thetimes.com', publishedAt: hoursAgo(2) },
+    { title: 'Early voting sets a record - The Times', link: 'https://news.google.com/rss/articles/CBMiBBB', source: 'The Times', sourceUrl: 'https://www.thetimes.com/?utm_source=rss', publishedAt: hoursAgo(3) },
+    // Decoded: the article link wins over the homepage.
+    { title: 'Court hears ballot case - The Times', link: 'https://www.thetimes.com/politics/ballot-case', source: 'The Times', sourceUrl: 'https://www.thetimes.com', publishedAt: hoursAgo(1) },
+    { title: 'Homepage only', publisherUrl: 'https://paper.com/', publishedAt: hoursAgo(1) },
+    { title: 'Query-string article', url: 'https://paper.com/?p=123', publishedAt: hoursAgo(1) },
+  ];
+  const { articles, rejected } = normalizeItems(items, { now: NOW });
+  assert.deepEqual(articles.map((article) => article.url), ['https://thetimes.com/politics/ballot-case', 'https://paper.com/?p=123']);
+  assert.deepEqual(rejected, { google_redirect: 2, no_url: 1 });
+});
+
 test('stories group the same event across outlets and rank by coverage and age', () => {
   const article = (outlet: string, headline: string, hours: number, query = 'q') => ({
     id: `${outlet}-${hours}`, url: `https://${outlet}.com/${hours}`, headline, snippet: null, outlet, outletDomain: `${outlet}.com`,

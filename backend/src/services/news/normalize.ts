@@ -72,6 +72,15 @@ export function canonicalizeUrl(raw: string): string | null {
   return url.toString();
 }
 
+/**
+ * The outlet's front page rather than an article, such as https://nytimes.com/.
+ * Google News feeds put it in `sourceUrl` next to the undecoded article link.
+ */
+export function isHomepage(canonicalUrl: string): boolean {
+  const { pathname, search } = new URL(canonicalUrl);
+  return pathname === '/' && search === '';
+}
+
 /** A news.google.com or google.com/url redirect rather than the publisher's own page. */
 export function isGoogleNewsLink(url: string): boolean {
   try {
@@ -163,14 +172,14 @@ export function normalizeItems(items: unknown[], options: NormalizeOptions = {})
       reject('no_url');
       continue;
     }
-    const publisherLink = links.find((link) => !isGoogleNewsLink(link));
-    if (!publisherLink) {
-      reject('google_redirect');
-      continue;
-    }
-    const canonical = canonicalizeUrl(publisherLink);
+    // The first link to an article on the publisher's site. Without one, an
+    // undecoded Google link counts as a redirect, not as the outlet's homepage.
+    const canonical = links
+      .filter((link) => !isGoogleNewsLink(link))
+      .map((link) => canonicalizeUrl(link))
+      .find((url): url is string => url !== null && !isHomepage(url));
     if (!canonical) {
-      reject('no_url');
+      reject(links.some(isGoogleNewsLink) ? 'google_redirect' : 'no_url');
       continue;
     }
     const domain = prettyDomain(new URL(canonical).hostname);
