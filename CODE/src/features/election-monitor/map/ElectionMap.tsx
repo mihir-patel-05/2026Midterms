@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./electionMap.css";
@@ -85,11 +85,41 @@ export interface ElectionMapProps {
   labels?: MapLabel[] | null;
   /** Small states listed beside the map; clicking one selects it. */
   callouts?: MapCallout[] | null;
+  /** Line and selection colours, for a page with its own palette. Keys left out keep the default theme. */
+  theme?: Partial<MapTheme>;
+  /** The MapLibre map once its style has loaded, and null when it is removed, for overlays drawn over it. */
+  onMap?: (map: MapLibreMap | null) => void;
+}
+
+/** The map's own colours. MapLibre paints on a canvas and cannot read CSS variables, so they are passed in. */
+export interface MapTheme {
+  /** Readiness "ready", the House district fill and outline, and the selection ring with no overlay. */
+  primary: string;
+  /** County fill and the selected county outline. */
+  county: string;
+  /** Readiness "partial" and the dashed outline of districts redrawn for 2026. */
+  warning: string;
+  /** Readiness "pending". */
+  quiet: string;
+  /** State outlines, and district outlines under an overlay. */
+  line: string;
+  /** County outlines. */
+  soft: string;
+  /** The selection ring with no overlay. */
+  selection: string;
+  /** The selection ring over an overlay's party colours. */
+  overlaySelection: string;
+  /** State outlines over an overlay on the states layer. */
+  overlayLine: string;
 }
 
 // MapLibre paints on a canvas and cannot read CSS variables; these mirror the theme tokens.
 const COLORS = { teal: "#5ce1c0", blue: "#6eb6ff", amber: "#f4c769", quiet: "#607089", line: "#3a4a63", soft: "#93a4bd" };
-const readinessColor = ["match", ["coalesce", ["feature-state", "readiness"], "pending"], "ready", COLORS.teal, "partial", COLORS.amber, COLORS.quiet];
+const DEFAULT_THEME: MapTheme = {
+  primary: COLORS.teal, county: COLORS.blue, warning: COLORS.amber, quiet: COLORS.quiet, line: COLORS.line, soft: COLORS.soft,
+  selection: COLORS.teal, overlaySelection: "#ffffff", overlayLine: "#0b0f16",
+};
+const readinessColor = (theme: MapTheme) => ["match", ["coalesce", ["feature-state", "readiness"], "pending"], "ready", theme.primary, "partial", theme.warning, theme.quiet];
 const hovered = ["boolean", ["feature-state", "hover"], false];
 const selectedState = ["boolean", ["feature-state", "selected"], false];
 /** Overlay: every bin key to its colour; features with no bin (no shape match, nothing reported) get the fallback. */
@@ -141,7 +171,12 @@ const redistrictedFilter = ["in", ["get", "state"], ["literal", [...REDISTRICTED
 type LayerStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
 export default function ElectionMap(props: ElectionMapProps) {
-  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, overlay = null, expanded = false, labels = null, callouts = null } = props;
+  const { layer, readiness, selectedState, selectedDistrict, selectedDistricts, selectedCounties, initialView, overlay = null, expanded = false, labels = null, callouts = null, theme: themeOverrides } = props;
+  // Keyed on the values, so a caller passing a new object literal each render doesn't repaint the map.
+  const themeKey = JSON.stringify(themeOverrides ?? {});
+  const theme = useMemo<MapTheme>(() => ({ ...DEFAULT_THEME, ...(JSON.parse(themeKey) as Partial<MapTheme>) }), [themeKey]);
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const overlayOn = overlay !== null;
   // An overlay with nothing to colour yet (loading, or House lines that don't match): outlines only.
   const overlayPainted = overlayOn && Boolean(overlay?.bins);
@@ -223,8 +258,9 @@ export default function ElectionMap(props: ElectionMapProps) {
         map.addSource("districts", { type: "geojson", data: empty, promoteId: "code" });
         map.addSource("counties", { type: "geojson", data: empty, promoteId: "fips" });
 
+        const colors = themeRef.current;
         map.addLayer({ id: "states-fill", type: "fill", source: "states", paint: {
-          "fill-color": readinessColor as never,
+          "fill-color": readinessColor(colors) as never,
           "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.34, hovered, 0.28, 0.16] as never,
         } }, beforeId);
         const hatch = hatchImage();
@@ -233,32 +269,32 @@ export default function ElectionMap(props: ElectionMapProps) {
           "fill-pattern": "overlay-hatch", "fill-opacity": hatchOpacity as never,
         } }, beforeId);
         map.addLayer({ id: "counties-fill", type: "fill", source: "counties", layout: { visibility: "none" }, paint: {
-          "fill-color": COLORS.blue, "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.02] as never,
+          "fill-color": colors.county, "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.02] as never,
         } }, beforeId);
         map.addLayer({ id: "counties-line", type: "line", source: "counties", layout: { visibility: "none" }, paint: {
-          "line-color": ["case", ["boolean", ["feature-state", "selected"], false], COLORS.blue, COLORS.soft] as never,
+          "line-color": ["case", ["boolean", ["feature-state", "selected"], false], colors.county, colors.soft] as never,
           "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.95, 0.45] as never,
           "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.2, 8, 0.9] as never,
         } }, beforeId);
         map.addLayer({ id: "districts-fill", type: "fill", source: "districts", layout: { visibility: "none" }, paint: {
-          "fill-color": COLORS.teal,
+          "fill-color": colors.primary,
           "fill-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 0.42, hovered, 0.3, 0.06] as never,
         } }, beforeId);
         map.addLayer({ id: "districts-hatch", type: "fill", source: "districts", layout: { visibility: "none" }, paint: {
           "fill-pattern": "overlay-hatch", "fill-opacity": hatchOpacity as never,
         } }, beforeId);
         map.addLayer({ id: "districts-line", type: "line", source: "districts", layout: { visibility: "none" }, paint: {
-          "line-color": COLORS.teal, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.4, 8, 1.4] as never,
+          "line-color": colors.primary, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.4, 8, 1.4] as never,
         } }, beforeId);
         map.addLayer({ id: "districts-outdated-line", type: "line", source: "districts", layout: { visibility: "none" }, filter: redistrictedFilter as never, paint: {
-          "line-color": COLORS.amber, "line-opacity": 0.85, "line-dasharray": [2, 2],
+          "line-color": colors.warning, "line-opacity": 0.85, "line-dasharray": [2, 2],
           "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.6, 8, 1.6] as never,
         } }, beforeId);
         map.addLayer({ id: "states-line", type: "line", source: "states", paint: {
-          "line-color": COLORS.line, "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 7, 1.4] as never,
+          "line-color": colors.line, "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 7, 1.4] as never,
         } }, beforeId);
         map.addLayer({ id: "states-selected", type: "line", source: "states", filter: ["==", ["get", "code"], ""], paint: {
-          "line-color": COLORS.teal, "line-width": 2.4,
+          "line-color": colors.selection, "line-width": 2.4,
         } }, beforeId);
 
         // Labels need the basemap's glyphs; the fallback style has none, so it shows colours only.
@@ -276,6 +312,7 @@ export default function ElectionMap(props: ElectionMapProps) {
 
         setStatus(isFallback ? "basemap-fallback" : "ready");
         setReady(true);
+        callbacks.current.onMap?.(map);
       });
 
       map.on("error", (event) => {
@@ -346,6 +383,7 @@ export default function ElectionMap(props: ElectionMapProps) {
     return () => {
       controller.abort();
       resizeObserver?.disconnect();
+      if (map) callbacks.current.onMap?.(null);
       map?.remove();
       mapRef.current = null;
     };
@@ -405,25 +443,27 @@ export default function ElectionMap(props: ElectionMapProps) {
     show(["districts-outdated-line"], layer === "districts" && outdatedLines);
     show(["counties-fill", "counties-line"], layer === "counties");
     const fillColor = overlayColors && overlayFallback !== null ? binColor(overlayColors, overlayFallback) : null;
-    map.setPaintProperty("states-fill", "fill-color", (fillColor && layer === "states" ? fillColor : readinessColor) as never);
+    map.setPaintProperty("states-fill", "fill-color", (fillColor && layer === "states" ? fillColor : readinessColor(theme)) as never);
     map.setPaintProperty("states-fill", "fill-opacity", (layer === "states"
       ? overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.states
       : overlayOn ? 0 : ["case", hovered, 0.12, 0.05]) as never);
-    map.setPaintProperty("counties-fill", "fill-color", (fillColor ?? COLORS.blue) as never);
+    map.setPaintProperty("counties-fill", "fill-color", (fillColor ?? theme.county) as never);
     map.setPaintProperty("counties-fill", "fill-opacity", (overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.counties) as never);
-    map.setPaintProperty("districts-fill", "fill-color", (fillColor ?? COLORS.teal) as never);
+    map.setPaintProperty("districts-fill", "fill-color", (fillColor ?? theme.primary) as never);
     map.setPaintProperty("districts-fill", "fill-opacity", (overlayOn ? (overlayPainted ? overlayOpacity : 0) : DEFAULT_FILL.districts) as never);
     // Party colours fill the shapes under an overlay, so outlines and the selection ring turn neutral.
-    map.setPaintProperty("districts-line", "line-color", overlayOn ? COLORS.line : COLORS.teal);
-    map.setPaintProperty("states-selected", "line-color", overlayOn ? "#ffffff" : COLORS.teal);
-    map.setPaintProperty("states-line", "line-color", overlayOn && layer === "states" ? "#0b0f16" : COLORS.line);
+    map.setPaintProperty("districts-line", "line-color", overlayOn ? theme.line : theme.primary);
+    map.setPaintProperty("states-selected", "line-color", overlayOn ? theme.overlaySelection : theme.selection);
+    map.setPaintProperty("states-line", "line-color", overlayOn && layer === "states" ? theme.overlayLine : theme.line);
+    map.setPaintProperty("districts-outdated-line", "line-color", theme.warning);
+    map.setPaintProperty("counties-line", "line-color", ["case", ["boolean", ["feature-state", "selected"], false], theme.county, theme.soft] as never);
     const stateFilter = selectedState ? ["==", ["get", "state"], selectedState] : null;
     for (const id of ["districts-fill", "districts-hatch", "counties-fill", "counties-line"]) map.setFilter(id, stateFilter as never);
     // Redistricted states get a dashed outline; line-dasharray cannot vary per feature.
     const both = (filter: unknown[]) => (stateFilter ? ["all", stateFilter, filter] : filter) as never;
     map.setFilter("districts-line", outdatedLines ? both(["!", redistrictedFilter]) : stateFilter as never);
     map.setFilter("districts-outdated-line", both(redistrictedFilter));
-  }, [layer, ready, selectedState, overlayOn, overlayPainted, overlayColors, overlayFallback, outdatedLines]);
+  }, [layer, ready, selectedState, overlayOn, overlayPainted, overlayColors, overlayFallback, outdatedLines, theme]);
 
   // Overlay colour bins, as feature state on the layer's source (over 3,000 counties). Live odds
   // change a few bins at a time, so only codes whose bin changed are touched.
