@@ -13,8 +13,14 @@ The War Room mockups ([design canvas](https://claude.ai/artifact/5RXPDbBB9FFNQWE
 Every number in the mockups is illustrative. The build uses only real data, or shows an honest empty state (see [Empty states](#empty-states-coming-soon-not-connected-unavailable)).
 
 **Timing.** Today is Oct 29. Code freeze is **Oct 30**, and Oct 31 to Nov 2 is monitoring and reviewed data fixes only (§3). The current monitor is what voters will use on election night, so this plan **does not change it before Nov 3**:
-- **Recommended:** build on a branch now and merge after the election. The War Room ships behind a flag that is off in production, at its own route. The home page becomes the War Room only at an explicit cut-over (Phase 5).
-- **If you want it reachable on election night anyway:** only Phase 1 and the Command view, merged before the freeze, flag on in **staging only**. Production keeps the flag off.
+- **Recommended:** build now on branches that merge into `Frontend_testing` (see [Branches](#branches)), and reach the live site only after the election. The War Room ships behind a flag that is off in production, at its own route. The home page becomes the War Room only at an explicit cut-over (Phase 5).
+- **If you want it reachable on election night anyway:** only Phase 1 and the Command view, merged into `Frontend_testing` before the freeze, flag on in **staging only**. Production keeps the flag off.
+
+## Branches
+**Every branch created to implement this frontend merges only into `Frontend_testing`.**
+- Create War Room branches from `Frontend_testing`, and open every War Room pull request against `Frontend_testing`.
+- Never merge War Room work into `2026Midterm_intel_v2` or `main`, directly or through another branch. For War Room work, this replaces the §7 rule that all work merges into `2026Midterm_intel_v2`.
+- This applies to every phase below, the Phase 5 cut-over included.
 
 ## Ground rules: how nothing breaks
 
@@ -144,7 +150,7 @@ CODE/src/features/war-room/
 
 **Mobile:** the icon rail becomes a top row, panels stack, and wide tables scroll inside their panel. Check at 390 px.
 
-## Commits (each passes `npm run lint -- --max-warnings 0`, `npm run typecheck`, `npm test`, `npm run build` in `CODE/`)
+## Commits (each on a branch that merges only into `Frontend_testing`; each passes `npm run lint -- --max-warnings 0`, `npm run typecheck`, `npm test`, `npm run build` in `CODE/`)
 
 ### Phase 0: plan
 0. `docs(plans): War Room frontend`. This file, plus a row in PLAN.md §4.1.
@@ -171,6 +177,8 @@ CODE/src/features/war-room/
 8. `feat(war-room): election night view`. Poll-closing constants with sources, and the key-races board and call log on the results read model. Production shows `NotConnectedPanel` until a provider is licensed. Before embedding streams, check `nginx.conf` and any CSP for `frame-src` (use `youtube-nocookie.com`).
 
 ### Phase 5: cut-over, after the election
+Like every phase, this merges into `Frontend_testing` only.
+
 9. `feat: make the War Room the home page`
    - With the flag on, `/` renders the War Room.
    - The current monitor moves to `/monitor` for one release, as the fallback. The existing `/election-dashboard` redirect keeps working.
@@ -182,7 +190,7 @@ CODE/src/features/war-room/
 - **Flag off (the production default):**
   - `/war-room` shows the 404 page.
   - `/` behaves exactly as before.
-  - In `npm run build` output, the War Room code is its own chunk, and the entry chunk's size is within a few KB of the base branch's (`2026Midterm_intel_v2`; every PR targets it, never `main`, per §7).
+  - In `npm run build` output, the War Room code is its own chunk, and the entry chunk's size is within a few KB of `Frontend_testing`'s before the change.
 - **Flag on, in staging:**
   - Each screen at 1440 px and 390 px wide.
   - Keyboard navigation and visible focus.
@@ -210,3 +218,4 @@ CODE/src/features/war-room/
 - **Seat tally.** Ship the "D 49 · R 51 by market leader" count on the Command screen, or only the control prices? It counts market leaders and must never be presented as a forecast.
 - **Alaska and Hawaii insets** on the MapLibre map, or keep today's behaviour?
 - **Election night view.** Worth building before a results provider is chosen, or wait until then?
+- **How `Frontend_testing` reaches production.** War Room work merges only into `Frontend_testing`. Who merges `Frontend_testing` onward, when, and which Railway environment builds from it are still to decide.
