@@ -100,7 +100,7 @@ Differentiators:
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
-- Testing's main database is nearly full (Oct 29). Everything except polls moves to the new `Third_database` service, with the old rows copied over, once two `Backend` variables change. Steps are in section 5.5.
+- Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
@@ -948,22 +948,21 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 ### 5.5 Moving the main database (Oct 29)
 
-Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Everything except polls moves to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
+Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. From Oct 29, everything except polls goes to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
 
-- **One variable moves it.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on the new database, so its tables match the old one's exactly.
-- **The old rows come too.** The API reads from the database it writes to, so an empty new database would show no candidates, finance, price history, or admin accounts until the syncs refill it, and price history and accounts never come back. With `COPY_FROM_DATABASE_URL` set, `prisma:deploy` copies every row from that database into the new one right after the migrations (`backend/src/scripts/copy-database.ts`).
-  - It writes only into an empty database, in one transaction, so it copies everything or nothing. Once the new database has rows it skips without connecting to the old one.
-  - The old database is only read.
-  - `sync_leases` is left out, and copied syncs still marked running are marked failed, so neither blocks the new deployment's syncs.
-  - Preview with `npm run db:copy -- --dry-run`.
+- **Same tables, new data only.** The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on `Third_database`, so its schema and tables match `Testing_database`'s. Nothing is copied over: it holds only what the API pulls after the switch.
+- **One variable.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). On `Backend`, it is `${{Third_database.DATABASE_URL}}`.
+- **The old data stays in `Testing_database`,** unchanged. The API no longer reads it, so the site shows only data pulled since the switch.
 
-**Railway steps (Testing)**
-1. On `Backend`, set `COPY_FROM_DATABASE_URL` to `${{Testing_database.DATABASE_URL}}` and change `DATABASE_URL` to `${{Third_database.DATABASE_URL}}`. Leave `POLLS_DATABASE_URL` as it is.
-2. Deploy. The pre-deploy log ends with `✅ Copied N rows in M tables`. If the copy fails, the deploy stops, the old deployment keeps running on the old database, and the new database stays empty for the next try.
-3. Check the site and the admin dashboard. Removing `COPY_FROM_DATABASE_URL` afterwards is optional.
-4. Keep `Testing_database`: the copy never changes it, so it stays a full backup.
+**Refills on its own:** Kalshi hourly snapshots (while the live feed is connected), FRED (9:15 AM and 6:15 PM ET), outside spending (5:00 AM ET; its backfill starts over), the FEC sync (Sunday, Tuesday, and Thursday at 2:00 AM ET, about 4 hours), and ideology (the 1st of the month).
 
-Writes the old deployment makes during the copy, a few minutes' worth, stay only in the old database. Production's pre-deploy command is `npx prisma migrate deploy`, which skips the copy: change it to `npm run prisma:deploy` before moving production's database the same way.
+**Needs a manual run** (inside the `Backend` container, `node dist/scripts/<name>.js`):
+- **The FEC sync, to get candidates and finance back before Sunday:** `POST /api/sync/all` with the `x-sync-key` header. New polls match races only once candidates are back.
+- **Accounts:** `create-admin` and `create-researcher`. Until then, nobody can log in to the admin dashboard or the researcher tools.
+- **Demographics and ideology:** `sync-acs` and `sync-ideology`.
+- **County results:** `seed-counties` and `import-mit-results`, from the MIT files kept outside git.
+- **Results fixtures:** `ingest-day0-fixture` (the fictional `/api/v1` results).
+- **Deadlines:** enter them again in the admin dashboard.
 
 ---
 

@@ -5,10 +5,6 @@ config();
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
-  // The old main database, when DATABASE_URL moves to a new one because the old one is full.
-  // `npm run prisma:deploy` then copies its rows into the new database once, while that one
-  // is still empty (scripts/copy-database.ts). The API itself never reads it.
-  COPY_FROM_DATABASE_URL: z.string().trim().optional(),
   // The mock election dashboard must boot before external credentials exist.
   FEC_API_KEY: z.string().trim().optional(),
   GEMINI_API_KEY: z.string().trim().optional(),
@@ -159,7 +155,6 @@ export const env = {
   NEWS_TOP_STORIES_LIMIT: Math.min(parseInt(parsed.data.NEWS_TOP_STORIES_LIMIT, 10), 25),
   ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
-  COPY_FROM_DATABASE_URL: parsed.data.COPY_FROM_DATABASE_URL || undefined,
   POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
   POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
