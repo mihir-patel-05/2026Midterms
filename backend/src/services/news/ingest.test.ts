@@ -30,6 +30,12 @@ test('actor input defaults can be renamed or removed by the overrides', () => {
   assert.equal('queries' in renamed, false);
   assert.deepEqual(renamed.searchTerms, request.queries);
   assert.equal(renamed.timeframe, '24h');
+
+  // An actor with its own time filter gets the queries without `when:1d`.
+  const plain = buildActorInput(request, parseInputOverrides('{"queries": "$PLAIN_QUERIES", "timeframe": null, "timeRange": "day"}'));
+  assert.deepEqual(plain.queries, ['a', 'b']);
+  assert.equal(plain.timeRange, 'day');
+  assert.equal('timeframe' in plain, false);
   assert.deepEqual(parseInputOverrides(undefined), {});
   assert.throws(() => parseInputOverrides('[1]'), /JSON object/);
 });

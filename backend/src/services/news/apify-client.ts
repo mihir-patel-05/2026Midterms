@@ -11,6 +11,7 @@
  * maxTotalChargeUsd (pay per event), so a bug here cannot spend past the budget.
  */
 import { ApifyClient } from 'apify-client';
+import { plainQuery } from './queries.js';
 
 export interface NewsSearchRequest {
   queries: string[];
@@ -45,6 +46,8 @@ export class NewsSearchError extends Error {
 
 /** Placeholder in APIFY_NEWS_INPUT_JSON that becomes the query list. */
 export const QUERIES_PLACEHOLDER = '$QUERIES';
+/** The query list without the `when:1d` operator, for actors that take their own time filter. */
+export const PLAIN_QUERIES_PLACEHOLDER = '$PLAIN_QUERIES';
 
 /**
  * The actor input. The default fields match the common Google News actors
@@ -52,6 +55,9 @@ export const QUERIES_PLACEHOLDER = '$QUERIES';
  * `overrides` is merged on top: a null value removes a field, and the string
  * "$QUERIES" is replaced by the query list, so an actor that calls the field
  * `searchTerms` takes `{"queries": null, "searchTerms": "$QUERIES"}`.
+ * "$PLAIN_QUERIES" is the same list without `when:1d`: some actors search the
+ * operator as text and return few, old results, so they need their own time
+ * filter instead (stevenkramp/google-news-scraper takes `"timeRange": "day"`).
  */
 export function buildActorInput(request: NewsSearchRequest, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const input: Record<string, unknown> = {
@@ -65,7 +71,9 @@ export function buildActorInput(request: NewsSearchRequest, overrides: Record<st
   };
   for (const [key, value] of Object.entries(overrides)) {
     if (value === null) delete input[key];
-    else input[key] = value === QUERIES_PLACEHOLDER ? request.queries : value;
+    else if (value === QUERIES_PLACEHOLDER) input[key] = request.queries;
+    else if (value === PLAIN_QUERIES_PLACEHOLDER) input[key] = request.queries.map(plainQuery);
+    else input[key] = value;
   }
   return input;
 }
