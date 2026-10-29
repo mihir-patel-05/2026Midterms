@@ -22,6 +22,43 @@ Every number in the mockups is illustrative. The build uses only real data, or s
 - Never merge War Room work into `2026Midterm_intel_v2` or `main`, directly or through another branch. For War Room work, this replaces the §7 rule that all work merges into `2026Midterm_intel_v2`.
 - This applies to every phase below, the Phase 5 cut-over included.
 
+## Status (Oct 29)
+Phases 1 to 4 are built on `Frontend_testing`, behind `VITE_FEATURE_WAR_ROOM` (off by default). Phase 5, the cut-over, is not started.
+
+- **Screens:** Command at `/war-room`, the dossier at `/war-room/race/:code`, Signals at `/war-room/signals`, and election night at `/war-room/night`.
+- **Shared code:** `ElectionMap` gained two optional props, `theme` and `onMap`. With neither set, `/` is unchanged; a before-and-after screenshot of the districts layer is pixel-identical. Nothing else shared was edited.
+- **Checked in a browser** with the flag on, against a local mock API:
+  - every screen at 1440 px and 390 px;
+  - no style leaks after leaving for `/`, `/elections`, `/candidates` or the simulator;
+  - one Kalshi EventSource across those moves;
+  - the FRED history dialog in War Room tokens;
+  - visible keyboard focus;
+  - reduced motion stops the ticker and pulses;
+  - with the API stopped, no panel shows a zero.
+- **Checked with the flag off:** `/war-room` is the 404 page, no War Room chunk is built, and the entry chunk is unchanged (697.93 kB).
+- **Before Nov 3, if the flag goes on in staging:** confirm `night/pollClosings.ts` against each state's election office. It was compiled from published schedules. North Dakota sets hours by county, and New Hampshire by town.
+
+Open questions, answered with defaults that are easy to change:
+- **Default watchlist:** the swing states' Senate races (GA, MI, NC), then swing-state House seats whose leader is under 65¢, closest first, 12 at most. It is worked out once from the first House prices so it doesn't reshuffle, and is kept per browser.
+- **Seat tally:** shipped, labelled "Seats by market leader, not a forecast". Unpriced races count by holder.
+- **Alaska and Hawaii:** today's jump buttons, no insets.
+- **Election night:** built. Production shows Not connected; staging adds the mock results board.
+
+Where the build differs from the mockups:
+- **Command:**
+  - The map has a working Counties layer with no overlay.
+  - "Moved ≥1 pt · 24h" became "Last tick", because the movers route returns 8 races.
+  - "Export brief" is left out.
+- **Dossier:**
+  - Sections are anchor links, not tabs.
+  - "Compare" is left out.
+- **Signals:**
+  - The scope toggle is left out.
+  - Outside spending covers cycle totals for the first eight watchlist races, not 7 days.
+- **Election night:**
+  - Key races have no official-results links yet, because none are sourced.
+  - System health leaves out API p95 and replicas, which the browser can't see.
+
 ## Ground rules: how nothing breaks
 
 1. **A new route, not a rewrite.** The War Room lives at `/war-room/*`, lazy-loaded and gated by `VITE_FEATURE_WAR_ROOM`. `/` keeps rendering `ElectionMonitor` until the cut-over. With the flag off, the route doesn't exist and the War Room code is never downloaded.

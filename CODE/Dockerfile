@@ -16,6 +16,8 @@ ARG VITE_RESULTS_PROVIDER_MOCK_ENABLED
 ARG VITE_FEATURE_NEW_FRONTEND
 ARG VITE_MAP_STYLE_URL
 ARG VITE_FEATURE_DEMOGRAPHICS
+# Off-by-default flags must be declared here, or the Railway variable never reaches vite build.
+ARG VITE_FEATURE_WAR_ROOM
 RUN npm run build
 
 # Serve with nginx
