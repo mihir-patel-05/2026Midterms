@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 26, 2026
+Last updated: October 29, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -101,7 +101,7 @@ Differentiators:
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
-- No live election-results provider is licensed. Election night depends on getting one; see section 6.
+- No live election-results provider is licensed. Election night depends on getting one; see section 6. Plan (Oct 29): AP has not answered, so election night uses **civicAPI** (free, attribution required, no SLA) through the existing results pipeline, with official state results links as the fallback. See `docs/plans/civicapi-results.md`.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 
@@ -905,7 +905,7 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | `market-feed` | `backend/` worker entrypoint, **1 replica** | Holds the single Kalshi WebSocket and writes hourly `market_snapshots`. It must be separated from `api` before `api` scales past one replica (see the Redis row). |
 | `redis` | Railway Redis | Pub/sub that fans Kalshi quotes from `market-feed` out to every `api` replica's SSE clients. It also provides locks for jobs. It is a cache only, never the source of truth. |
 | `cron-*` | Railway cron services running `backend/` jobs | FEC sync, ideology sync, FRED, ACS, NYT and AP news ingestion (`cron-news`), and the agent jobs. Each is a one-off run that exits when done, so jobs never run inside API replicas. `SyncLease` prevents overlapping runs. |
-| `results-ingestor` | `backend/` worker, **exactly 1 replica** | Election night only. Polls the licensed provider, writes append-only `ResultSnapshot`s, and calls `publishSnapshot()`. Voter requests never trigger a call to the provider. |
+| `results-ingestor` | `backend/` worker, **exactly 1 replica** | Election night only. Polls the results provider (civicAPI, `docs/plans/civicapi-results.md`), with raw payloads on a Railway Volume until the Bucket exists. Writes append-only `ResultSnapshot`s, and calls `publishSnapshot()`. Voter requests never trigger a call to the provider. |
 | `bucket` | Railway Bucket (S3-compatible) | Raw provider payloads (`RawArtifact`, keyed by content hash) and large geo assets. |
 
 **Election-night scaling:** `api` scales horizontally because it only reads, and public reads are cached. `market-feed` and `results-ingestor` stay at one replica each.
@@ -942,7 +942,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | AP Media API | News on race pages; Agent 1, 3, and 5 input | **No access**; news runs on NYT alone (`docs/plans/polling-data.md`) |
 | VoteHub Polling API (`api.votehub.com/polls`) | Race polls and the polling average, stored in a separate polls database | No key; CC BY 4.0, attribution required; beta. `POLLS_DATABASE_URL`, `POLLS_ENABLED`, `VOTEHUB_API_BASE_URL` (`docs/plans/polling-data.md`) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
-| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
+| civicAPI (`civicapi.org/api/v2`) | Election-night results for Senate and House races, county detail for close races (`docs/plans/civicapi-results.md`) | No key; attribution required; no SLA. `CIVICAPI_*`, `RESULTS_INGESTOR_ENABLED`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi` |
+| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; AP has not answered (Oct 29); DDHQ is sales-only |
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
 | Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
 | Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
@@ -999,7 +1000,7 @@ Schema cleanup to do after the election:
 3. Ingest into `ResultSnapshot`, `CandidateVote`, and `ContestMetric`, then call `publishSnapshot()` in the same transaction.
 4. Set `isEnabled` and add the source's key to `RESULTS_PROVIDER_ENABLED_IDS`.
 
-If no provider is licensed in time, the site links to official state results and does not show scraped or partial totals.
+If no provider is licensed in time, the site links to official state results and does not show scraped or partial totals. **Oct 29 exception:** civicAPI is used without a signed contract, under its published terms (free, attribution required). Step 1 does not apply to it; the official state results links stay as the fallback. See `docs/plans/civicapi-results.md`.
 
 ---
 
