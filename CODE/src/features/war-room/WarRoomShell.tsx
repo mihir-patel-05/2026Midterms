@@ -8,7 +8,8 @@ import { useKalshiStatus, type KalshiFeedStatus } from "@/features/election-moni
 import { countdown, etClock, zuluClock } from "./countdown";
 import { Icon, Mark, type IconName } from "./icons";
 import { targetSearch } from "./links";
-import { parseRace } from "./raceCodes";
+import { parseRace, raceForSelection } from "./raceCodes";
+import { useWatchlist } from "./watchlist";
 import { useNow } from "./useNow";
 import "./warRoom.css";
 
@@ -33,7 +34,8 @@ function useWarRoomSkin() {
 interface RailItem {
   label: string;
   icon: IconName;
-  pathname: string;
+  /** A path, or one worked out from the current URL and watchlist. */
+  pathname: string | ((context: { search: URLSearchParams; firstWatched: string | null }) => string);
   hash?: string;
   /** Leaves the War Room for another page, with the same query parameters. */
   search?: (current: URLSearchParams) => URLSearchParams;
@@ -43,6 +45,14 @@ interface RailItem {
 const RAIL: RailItem[] = [
   { label: "CMD", icon: "command", pathname: "/war-room", current: (path, hash) => path === "/war-room" && hash !== "#theater" },
   { label: "MAP", icon: "map", pathname: "/war-room", hash: "#theater", current: (path, hash) => path === "/war-room" && hash === "#theater" },
+  {
+    label: "RACES", icon: "races", current: (path) => path.startsWith("/war-room/race/"),
+    // The race targeted on the map, else the first on the watchlist.
+    pathname: ({ search, firstWatched }) => {
+      const code = raceForSelection(search.get("state"), search.get("district"), search.get("layer") === "districts" || search.get("ooffice") === "house") ?? firstWatched;
+      return code ? `/war-room/race/${code}` : "/war-room";
+    },
+  },
   ...(newFrontendEnabled && pastResultsEnabled
     ? [{ label: "PAST", icon: "past" as const, pathname: "/", search: (current: URLSearchParams) => { current.set("mode", "past"); return current; } }]
     : []),
@@ -51,13 +61,15 @@ const RAIL: RailItem[] = [
 
 function Rail() {
   const { pathname, search, hash } = useLocation();
+  const firstWatched = useWatchlist(null, null).list[0] ?? null;
   return (
     <nav className="wr-rail" aria-label="War Room modules">
       {RAIL.map((item) => {
         const query = item.search ? item.search(new URLSearchParams(search)).toString() : search.slice(1);
         const current = item.current?.(pathname.replace(/\/+$/, "") || "/", hash) ?? false;
+        const to = typeof item.pathname === "string" ? item.pathname : item.pathname({ search: new URLSearchParams(search), firstWatched });
         return (
-          <Link key={item.label} className="wr-nav" to={{ pathname: item.pathname, search: query ? `?${query}` : "", hash: item.hash ?? "" }} aria-current={current ? "page" : undefined}>
+          <Link key={item.label} className="wr-nav" to={{ pathname: to, search: query ? `?${query}` : "", hash: item.hash ?? "" }} aria-current={current ? "page" : undefined}>
             <Icon name={item.icon} />
             {item.label}
           </Link>
@@ -67,7 +79,7 @@ function Rail() {
   );
 }
 
-/** Race search: a race code or state name targets it on the Command map. */
+/** Race search: a race opens its dossier; a state with no Senate race is targeted on the Command map. */
 function Search() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -82,7 +94,8 @@ function Search() {
     }
     setMessage("");
     setText("");
-    navigate({ pathname: "/war-room", search: targetSearch(search, parsed.state, parsed.code), hash: "#theater" });
+    if (parsed.code) navigate({ pathname: `/war-room/race/${parsed.code}`, search });
+    else navigate({ pathname: "/war-room", search: targetSearch(search, parsed.state, null), hash: "#theater" });
   };
   return (
     <form className="wr-search" role="search" onSubmit={submit}>

@@ -34,6 +34,9 @@ export function changeOver(points: HistoryPoint[], hours: number, toleranceHours
   return best ? last[1] - best[1] : null;
 }
 
+/** ▲, ▼, or nothing for a change that rounds to zero. */
+export const moveArrow = (value: number) => (Number(value.toFixed(1)) > 0 ? "▲" : Number(value.toFixed(1)) < 0 ? "▼" : "");
+
 /** "+3.1", "−2.0", "0.0". */
 export function signedPoints(value: number) {
   const rounded = Number(value.toFixed(1));

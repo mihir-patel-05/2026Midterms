@@ -6,7 +6,7 @@ import { Panel, StatusLine } from "../panels/Panel";
 import { partyColor } from "../party";
 import { cents, houseTally, senateTally, type ChamberTally, type SideTally } from "../seatTally";
 import { CONTROL_DAYS, CONTROL_RACES } from "../queries";
-import { changeOver, signedPoints } from "../trace";
+import { changeOver, moveArrow, signedPoints } from "../trace";
 
 function parts(side: SideTally) {
   const out: string[] = [];
@@ -57,7 +57,7 @@ function ControlCard({ chamber, markets, view, history, offline }: {
           <strong style={{ color: partyColor("D") }}>D {cents(dem!.pricePercent!)}</strong>
           <strong style={{ color: partyColor("R") }}>R {cents(rep!.pricePercent!)}</strong>
           <span style={{ color: move === null ? undefined : partyColor(leader!.party) }}>
-            {move === null ? "24H —" : `${move >= 0 ? "▲" : "▼"} ${leader!.party} ${signedPoints(move)} / 24H`}
+            {move === null ? "24H —" : `${moveArrow(move)} ${leader!.party} ${signedPoints(move)} / 24H`.trim()}
           </span>
         </div>
       ) : (

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { CommandView } from "@/features/war-room/command/CommandView";
+import { RaceDossier } from "@/features/war-room/dossier/RaceDossier";
 import { WarRoomShell } from "@/features/war-room/WarRoomShell";
 
 /** In-page links (#theater, #money) scroll to their panel once it has rendered. */
@@ -32,6 +33,7 @@ export default function WarRoom() {
     <WarRoomShell>
       <Routes>
         <Route index element={<CommandView />} />
+        <Route path="race/:code" element={<RaceDossier />} />
         <Route path="*" element={<UnknownScreen />} />
       </Routes>
     </WarRoomShell>

@@ -74,7 +74,8 @@ export function CommandView() {
         <Theater params={params} update={update} lens={lens} onLens={onLens} onLayer={onLayer} layer={layer} board={board} target={target} />
         <aside className="wr-aside" aria-label="Target and watchlist">
           <TargetCard code={target} state={params.state} board={board}
-            watching={target ? watch.list.includes(target) : false} onToggleWatch={watch.toggle} onShowDistricts={() => onLayer("districts")} />
+            watching={target ? watch.list.includes(target) : false} onToggleWatch={watch.toggle} onShowDistricts={() => onLayer("districts")}
+            dossier={target && <Link className="wr-btn" data-tone="accent" to={{ pathname: `/war-room/race/${target}`, search: location.search }}>Open race dossier →</Link>} />
           <WatchlistPanel watch={watch} board={board} onPick={focusRace} />
         </aside>
       </div>
