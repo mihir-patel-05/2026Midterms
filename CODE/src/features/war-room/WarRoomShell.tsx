@@ -53,6 +53,9 @@ const RAIL: RailItem[] = [
       return code ? `/war-room/race/${code}` : "/war-room";
     },
   },
+  { label: "MKTS", icon: "markets", pathname: "/war-room/signals", current: (path, hash) => path === "/war-room/signals" && hash !== "#money" && hash !== "#econ" },
+  { label: "MONEY", icon: "money", pathname: "/war-room/signals", hash: "#money", current: (path, hash) => path === "/war-room/signals" && hash === "#money" },
+  { label: "ECON", icon: "econ", pathname: "/war-room/signals", hash: "#econ", current: (path, hash) => path === "/war-room/signals" && hash === "#econ" },
   ...(newFrontendEnabled && pastResultsEnabled
     ? [{ label: "PAST", icon: "past" as const, pathname: "/", search: (current: URLSearchParams) => { current.set("mode", "past"); return current; } }]
     : []),

@@ -2,15 +2,20 @@ import { useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { CommandView } from "@/features/war-room/command/CommandView";
 import { RaceDossier } from "@/features/war-room/dossier/RaceDossier";
+import { SignalsView } from "@/features/war-room/signals/SignalsView";
 import { WarRoomShell } from "@/features/war-room/WarRoomShell";
 
-/** In-page links (#theater, #money) scroll to their panel once it has rendered. */
+/**
+ * In-page links (#theater, #money) scroll to their panel once it has rendered, and once more after the first data
+ * has loaded above it and moved it down.
+ */
 function useHashScroll() {
   const { hash, pathname } = useLocation();
   useEffect(() => {
     if (!hash) return;
-    const id = window.setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: "start" }), 0);
-    return () => window.clearTimeout(id);
+    const scroll = () => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: "start" });
+    const ids = [0, 900].map((delay) => window.setTimeout(scroll, delay));
+    return () => ids.forEach((id) => window.clearTimeout(id));
   }, [hash, pathname]);
 }
 
@@ -34,6 +39,7 @@ export default function WarRoom() {
       <Routes>
         <Route index element={<CommandView />} />
         <Route path="race/:code" element={<RaceDossier />} />
+        <Route path="signals" element={<SignalsView />} />
         <Route path="*" element={<UnknownScreen />} />
       </Routes>
     </WarRoomShell>

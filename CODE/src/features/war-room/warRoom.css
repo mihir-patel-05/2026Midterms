@@ -485,3 +485,49 @@
 .wr-log-dot { width: 9px; height: 9px; margin-top: 4px; background: var(--wr-neutral); }
 .wr-log-dot[data-tone="live"] { background: var(--wr-live); }
 .wr-log-dot[data-tone="accent"] { background: var(--wr-accent); }
+
+/* Signals */
+.wr-signals-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.wr-signals-top > .wr-chambers { flex: 2 1 640px; }
+.wr-signals-top > .wr-panel:not(.wr-chambers) { flex: 1 1 320px; }
+.wr-signals-mid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.wr-signals-mid > .wr-panel:first-child { flex: 2 1 640px; }
+.wr-signals-mid > .wr-panel:last-child { flex: 1 1 320px; }
+.wr-signals-low { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 760px) { .wr-signals-low { grid-template-columns: minmax(0, 1fr); } }
+.wr-chambers { --wr-brk: 12px; }
+.wr-chamber-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.wr-chamber-chart { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wr-chamber-head { display: flex; justify-content: space-between; gap: 8px; font-family: var(--wr-mono); font-size: 12px; color: var(--wr-text-2); text-transform: uppercase; }
+.wr-chamber-head strong { font-size: 14px; }
+
+.wr-coverage { display: grid; gap: 10px; font-size: 13px; }
+.wr-coverage > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 120px) 40px; align-items: center; gap: 10px; }
+.wr-coverage em { grid-column: span 2; font-family: var(--wr-mono); font-size: 10px; font-style: normal; letter-spacing: 0.1em; color: var(--wr-text-3); text-align: right; text-transform: uppercase; }
+.wr-coverage em[data-off] { color: var(--wr-accent-ink); }
+.wr-coverage strong { font-family: var(--wr-mono); font-size: 12px; text-align: right; }
+.wr-meter { display: block; height: 6px; background: var(--wr-line-soft); }
+.wr-meter > span { display: block; height: 100%; background: var(--wr-live); }
+
+.wr-spend-axis { display: flex; justify-content: space-between; gap: 8px; font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--wr-text-3); text-transform: uppercase; }
+.wr-spend { display: grid; gap: 6px; font-family: var(--wr-mono); font-size: 11px; }
+.wr-spend-row { display: grid; grid-template-columns: 1fr 68px 1fr; align-items: center; gap: 8px; }
+.wr-spend-race { text-align: center; font-weight: 600; }
+.wr-spend-side { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.wr-spend-side[data-side="d"] { justify-content: flex-end; }
+.wr-spend-side > span { padding: 0 4px; }
+.wr-spend-side i { display: block; height: 14px; }
+.wr-spend-side[data-side="d"] i[data-style="solid"] { background: var(--wr-dem); }
+.wr-spend-side[data-side="d"] i[data-style="hatch"] { background: repeating-linear-gradient(135deg, var(--wr-dem) 0 3px, var(--wr-panel) 3px 6px); }
+.wr-spend-side[data-side="r"] i[data-style="solid"] { background: var(--wr-rep); }
+.wr-spend-side[data-side="r"] i[data-style="hatch"] { background: repeating-linear-gradient(135deg, var(--wr-rep) 0 3px, var(--wr-panel) 3px 6px); }
+
+.wr-fred-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1px; }
+.wr-fred { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px 14px; background: var(--wr-panel); border: 0; box-shadow: 0 0 0 1px var(--wr-line); color: var(--wr-text); text-align: left; cursor: pointer; }
+.wr-fred:hover { background: var(--wr-hover); }
+.wr-fred[data-missing] { color: var(--wr-text-3); }
+.wr-fred-head { display: flex; justify-content: space-between; gap: 6px; font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--wr-text-3); text-transform: uppercase; }
+.wr-fred-figures { display: flex; align-items: baseline; gap: 8px; font-family: var(--wr-mono); }
+.wr-fred-figures strong { font-size: 20px; font-weight: 600; }
+.wr-fred-figures span { font-size: 11px; color: var(--wr-text-2); }
+.wr-fred-basis { font-family: var(--wr-mono); font-size: 10px; color: var(--wr-text-3); }

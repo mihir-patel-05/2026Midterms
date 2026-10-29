@@ -58,12 +58,12 @@ export function priceRange(series: HistoryPoint[][], minSpan = 20): [number, num
   return [Math.max(0, low), Math.min(100, high)];
 }
 
-/** SVG polyline `points` for each segment, in a `width` × `height` box. */
-export function tracePolylines(points: HistoryPoint[], domain: [number, number], range: [number, number], width: number, height: number) {
+/** SVG polyline `points` for each segment, in a `width` × `height` box. `gapMs` defaults to the hourly rule. */
+export function tracePolylines(points: HistoryPoint[], domain: [number, number], range: [number, number], width: number, height: number, gapMs = GAP_MS) {
   const [start, end] = domain;
   const [low, high] = range;
   const x = (t: number) => ((t - start) / (end - start || 1)) * width;
   const y = (value: number) => (1 - (value - low) / (high - low || 1)) * height;
-  return traceSegments(points.filter(([t]) => t >= start && t <= end))
+  return traceSegments(points.filter(([t]) => t >= start && t <= end), gapMs)
     .map((segment) => segment.map(([t, value]) => `${x(t).toFixed(1)},${y(value).toFixed(1)}`).join(" "));
 }
