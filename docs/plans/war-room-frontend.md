@@ -45,6 +45,12 @@ Phases 1 to 4 are built and merged into `2026Midterm_intel_v2` (from `Frontend_t
   - reduced motion stops the ticker and pulses;
   - with the API stopped, no panel shows a zero.
 - **Checked with the flag off:** `/war-room` is the 404 page, no War Room chunk is built, and the entry chunk is unchanged (697.93 kB).
+- **Installable as an app (Oct 30):**
+  - `public/war-room.webmanifest` gives the name, icons, start page (`/war-room`), the election night and Signals shortcuts, and the dark title bar.
+  - The War Room shell links the manifest only while it is open, alongside a `theme-color` and its own iPhone home-screen icon. On the way out it removes them and restores the site's icon, so no other page, and no build with the flag off, offers an install.
+  - Chromium reports no installability errors, including when the manifest is served as `application/octet-stream`, as nginx may do.
+  - There is no service worker and no offline mode, on purpose: live prices shouldn't be served stale.
+  - The icon source is `scripts/war-room-icon.svg`.
 - **Before Nov 3, if the flag goes on in staging:** confirm `night/pollClosings.ts` against each state's election office. It was compiled from published schedules. North Dakota sets hours by county, and New Hampshire by town.
 
 Against the Decisions above:
