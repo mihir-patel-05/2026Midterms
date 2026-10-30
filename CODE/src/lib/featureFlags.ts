@@ -27,3 +27,9 @@ export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
 export const pollsEnabled = import.meta.env.VITE_FEATURE_POLLS !== "false";
 /** Top political stories of the past 24 hours: the /news page and the monitor's Top stories card. Off unless set to "true"; needs NEWS_ENABLED on the backend. */
 export const newsEnabled = flag(import.meta.env.VITE_FEATURE_NEWS);
+/**
+ * The War Room dashboard at /war-room. Off unless set to "true", unlike the flags above: the current monitor is what
+ * voters use on election night, so the War Room stays out of production builds (and its code is never downloaded)
+ * until the cut-over. See docs/plans/war-room-frontend.md.
+ */
+export const warRoomEnabled = import.meta.env.VITE_FEATURE_WAR_ROOM === "true";
