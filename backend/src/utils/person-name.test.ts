@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { majorParty, matchName, nameParts } from './person-name.js';
+import { majorParty, matchName, nameParts, sameFirstName } from './person-name.js';
 
 test('ballot and FEC names reduce to the same surname and first name', () => {
   assert.deepEqual(nameParts('Doris Matsui'), { last: 'MATSUI', first: 'DORIS' });
@@ -25,4 +25,13 @@ test('only Democrats and Republicans get a major party', () => {
   for (const party of ['DEM', 'D', 'Democratic', 'Democratic Party', 'Democratic-Farmer-Labor', 'DFL']) assert.equal(majorParty(party), 'D', party);
   for (const party of ['REP', 'R', 'Republican', 'GOP']) assert.equal(majorParty(party), 'R', party);
   for (const party of ['IND', 'Libertarian', 'No Party Preference', '', null]) assert.equal(majorParty(party), null, String(party));
+});
+
+test('first names match through nicknames and short forms, not just initials', () => {
+  for (const [a, b] of [['BOB', 'ROBERT'], ['ROB', 'ROBERT'], ['TOM', 'THOMAS'], ['NICK', 'NICHOLAS'], ['MITCH', 'MITCHELL'], ['DAN', 'DANIEL'], ['STEVE', 'STEPHEN'], ['JIM', 'JIMMY']]) {
+    assert.ok(sameFirstName(a, b), `${a} ${b}`);
+  }
+  for (const [a, b] of [['JIM', 'JOHN'], ['ANN', 'JANE'], ['MAX', 'MAHESH'], ['AL', 'ALAN'], ['', 'ROBERT']]) {
+    assert.ok(!sameFirstName(a, b), `${a} ${b}`);
+  }
 });

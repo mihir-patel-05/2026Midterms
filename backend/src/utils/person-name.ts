@@ -54,3 +54,29 @@ export function majorParty(party: string | null | undefined): 'D' | 'R' | null {
   if (value === 'R' || value === 'REP' || value === 'GOP' || value.startsWith('REPUBLICAN')) return 'R';
   return null;
 }
+
+// Common nicknames, to the name FEC usually files under. Prefixes (DAN/DANIEL, MATT/MATTHEW)
+// need no entry.
+const NICKNAMES: Record<string, string> = {
+  BOB: 'ROBERT', BOBBY: 'ROBERT', ROBBIE: 'ROBERT', BILL: 'WILLIAM', BILLY: 'WILLIAM', WILL: 'WILLIAM', WILLIE: 'WILLIAM',
+  JIM: 'JAMES', JIMMY: 'JAMES', JAMIE: 'JAMES', TOM: 'THOMAS', TOMMY: 'THOMAS', MIKE: 'MICHAEL', MICKEY: 'MICHAEL',
+  DICK: 'RICHARD', RICK: 'RICHARD', RICKY: 'RICHARD', RICH: 'RICHARD', CHUCK: 'CHARLES', CHARLIE: 'CHARLES',
+  DANNY: 'DANIEL', DAVE: 'DAVID', STEVE: 'STEVEN', STEPHEN: 'STEVEN', JOE: 'JOSEPH', JOEY: 'JOSEPH', JACK: 'JOHN',
+  JOHNNY: 'JOHN', ED: 'EDWARD', EDDIE: 'EDWARD', TED: 'EDWARD', KATE: 'KATHERINE', KATIE: 'KATHERINE', KATHY: 'KATHERINE',
+  CATHY: 'KATHERINE', CATHERINE: 'KATHERINE', LIZ: 'ELIZABETH', BETH: 'ELIZABETH', BETSY: 'ELIZABETH',
+  PEGGY: 'MARGARET', MAGGIE: 'MARGARET', PATTY: 'PATRICIA', TRISH: 'PATRICIA', SUE: 'SUSAN', SUSIE: 'SUSAN',
+  DEB: 'DEBORAH', DEBBIE: 'DEBORAH', NICK: 'NICHOLAS', NICKY: 'NICHOLAS', TONY: 'ANTHONY', ANDY: 'ANDREW', DREW: 'ANDREW',
+  HANK: 'HENRY', LARRY: 'LAWRENCE', JERRY: 'GERALD', GENE: 'EUGENE', WALT: 'WALTER', FRED: 'FREDERICK', ZACK: 'ZACHARY',
+};
+
+/**
+ * Whether two upper-case first names can be one person: equal, a nickname of the other
+ * (BOB/ROBERT), or a prefix of at least three letters (ROB/ROBERT, MITCH/MITCHELL).
+ */
+export function sameFirstName(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const [x, y] = [NICKNAMES[a] ?? a, NICKNAMES[b] ?? b];
+  if (x === y) return true;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return short.length >= 3 && long.startsWith(short);
+}
