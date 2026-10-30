@@ -20,6 +20,9 @@ Decisions this plan makes (change them before building if you disagree):
 - **The picker returns article IDs and fixed reason codes, never free text.** No AI sentences about named people means picks can publish automatically (PLAN.md §4.2, rule 5).
 - **Governor races are out of scope for v1.** We have no candidate data for them (FEC covers federal races only).
 
+## Interim source (Oct 30)
+The war room's News tab ships ahead of this plan on a keyless source: `GET /api/news/races/:raceKey` and `GET /api/news/top` return `mode: "latest"` from Google News RSS search (`backend/src/services/news/latest-coverage.ts`), cached in memory for ten minutes, with nothing stored. Commit 4 below replaces the source with the `articles` table and keeps the response shape, so the tab does not change. Turn it off with `NEWS_RSS_ENABLED=false`.
+
 ## What already exists
 - `agent_runs` (`AgentRun`) with the unique key `(agent, prompt_version, input_sha256)`. A rerun on identical input can be skipped for free. `AgentKind` already has `NEWS_TRIAGE`.
 - `DataSource`, `IngestionRun`, and `RawArtifact` for provenance. Every externally sourced row links to them (PLAN.md §6).

@@ -44,6 +44,9 @@ const envSchema = z.object({
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
+  // /api/news "latest coverage" from Google News RSS search, until Apify ingestion (docs/plans/news-agents.md) replaces it.
+  NEWS_RSS_ENABLED: z.enum(['true', 'false']).default('true'),
+  NEWS_RSS_BASE_URL: z.string().url().default('https://news.google.com/rss/search'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
@@ -120,6 +123,7 @@ export const env = {
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
   ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
+  NEWS_RSS_ENABLED: parsed.data.NEWS_RSS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
