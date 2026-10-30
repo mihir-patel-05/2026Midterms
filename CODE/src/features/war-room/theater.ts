@@ -7,16 +7,21 @@ import type { MapLayer } from "@/features/election-monitor/types";
  * changed. Market leader is the monitor's `mode=odds`, by `ooffice`. Seat holder and flip watch are War Room
  * lenses on that same map, in `lens`, which the monitor ignores.
  */
-export type Lens = "leader" | "holder" | "flip";
-export const LENSES: Array<{ id: Lens; label: string; senate: string; house: string }> = [
+export type Lens = "leader" | "holder" | "flip" | "past" | "census";
+export const LENSES: Array<{ id: Lens; label: string; senate: string; house: string; counties?: string }> = [
   { id: "leader", label: "Market leader", senate: "Market leader by state", house: "Market leader by district" },
   { id: "holder", label: "Seat holder", senate: "Who holds the seat today", house: "Who holds the seat today" },
   { id: "flip", label: "Flip watch", senate: "Flip watch · leader vs holder", house: "Flip watch · leader vs holder" },
+  { id: "past", label: "Past results", senate: "Presidential result by state", house: "2024 House result by district", counties: "Presidential result by county" },
+  { id: "census", label: "Census", senate: "Census profile by state", house: "Census profile by district", counties: "Census profile by county" },
 ];
+/** Lenses that colour counties; the market lenses have no county races. */
+export const COUNTY_LENSES: Lens[] = ["past", "census"];
+const LENS_IDS = LENSES.map((item) => item.id);
 
 export function readLens(search: URLSearchParams): Lens {
   const value = search.get("lens");
-  return value === "holder" || value === "flip" ? value : "leader";
+  return LENS_IDS.includes(value as Lens) ? (value as Lens) : "leader";
 }
 
 type TheaterParams = Pick<MonitorParams, "mode" | "oddsOffice" | "layer">;

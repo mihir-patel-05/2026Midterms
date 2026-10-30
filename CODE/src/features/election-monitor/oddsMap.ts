@@ -236,7 +236,7 @@ export function describeOddsRace(race: OddsRace | undefined, office: OddsOffice)
 const SEAT_HOLDERS_URL = `${import.meta.env.BASE_URL}data/seat-holders-2026.json`;
 
 /** Who holds each seat; the file changes only when someone reruns the script and redeploys. */
-function useSeatHolders(enabled: boolean) {
+export function useSeatHolders(enabled: boolean) {
   return useQuery<SeatHoldersFile, Error>({
     queryKey: ["seat-holders-2026"],
     queryFn: async ({ signal }) => {

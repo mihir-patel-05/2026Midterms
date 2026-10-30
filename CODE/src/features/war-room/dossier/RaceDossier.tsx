@@ -25,6 +25,7 @@ import { Candidates } from "./Candidates";
 import { MarketPanel } from "./MarketPanel";
 import { MoneyPanel } from "./MoneyPanel";
 import { ProfilePanel } from "./ProfilePanel";
+import { MAP_SCREEN } from "../screens";
 import { RaceLogPanel } from "./RaceLogPanel";
 import { TerrainPanel } from "./TerrainPanel";
 
@@ -127,7 +128,7 @@ function Dossier({ code }: { code: string }) {
         <div className="wr-head-actions">
           <button type="button" className="wr-btn" aria-pressed={index >= 0} onClick={() => watch.toggle(code)}>{index >= 0 ? "★ Watching" : "☆ Watch"}</button>
           <Link className="wr-btn" to={{ pathname: "/war-room", search: targetSearch(search, state, code), hash: "#theater" }}>Show on map</Link>
-          {contest && <Link className="wr-btn" to={`/elections/${state}/${contest.id}`}>Race page ↗</Link>}
+          <Link className="wr-btn" to={{ pathname: MAP_SCREEN, search: targetSearch(search, state, code) }}>Area intel</Link>
         </div>
       </section>
 

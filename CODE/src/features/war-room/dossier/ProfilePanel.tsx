@@ -1,6 +1,9 @@
+import { Link } from "react-router-dom";
+import { RaceMixBar } from "@/features/election-monitor/AreaBrief";
 import { DemographicsError, useDemographics, type DemographicMetric } from "@/features/election-monitor/demographics";
 import { demographicsEnabled } from "@/lib/featureFlags";
 import { Panel, StatusLine } from "../panels/Panel";
+import { MAP_SCREEN } from "../screens";
 import { money } from "./dossier";
 
 const NO_COUNTIES: string[] = [];
@@ -14,7 +17,18 @@ const TILES: Array<{ key: string; label: string; format: (metric: DemographicMet
   { key: "unemployment_rate", label: "Unemployment", format: (metric) => `${(metric.value! * 100).toFixed(1)}%` },
 ];
 
-/** Six ACS 5-year figures for the state or the district. Shows the monitor's notice until the ACS sync has run. */
+/** The War Room map with this area selected and its full Census profile open. */
+function profileLink(state: string, district: string | null) {
+  const query = new URLSearchParams({ state, intel: "people", mode: "odds" });
+  if (district) {
+    query.set("district", district);
+    query.set("layer", "districts");
+    query.set("ooffice", "house");
+  }
+  return { pathname: MAP_SCREEN, search: `?${query}` };
+}
+
+/** Six ACS 5-year figures and the race and ethnicity mix for the state or the district. Shows the monitor's notice until the ACS sync has run. */
 export function ProfilePanel({ id, state, district }: { id: string; state: string; district: string | null }) {
   const districts = district ? [district] : NO_COUNTIES;
   const query = useDemographics(demographicsEnabled ? state : null, NO_COUNTIES, districts);
@@ -30,6 +44,7 @@ export function ProfilePanel({ id, state, district }: { id: string; state: strin
             : query.isError ? <StatusLine tone="warn">Demographics unavailable</StatusLine>
               : !data?.combined ? <StatusLine>No Census figures for this area</StatusLine>
                 : (
+                  <>
                   <dl className="wr-profile">
                     {TILES.map((tile) => {
                       const metric = byKey.get(tile.key);
@@ -41,6 +56,11 @@ export function ProfilePanel({ id, state, district }: { id: string; state: strin
                       );
                     })}
                   </dl>
+                  <div className="wr-profile-more">
+                    <RaceMixBar metrics={byKey} />
+                    <Link className="wr-btn" to={profileLink(state, district)}>Full profile, economy and CSV on the map →</Link>
+                  </div>
+                  </>
                 )}
     </Panel>
   );

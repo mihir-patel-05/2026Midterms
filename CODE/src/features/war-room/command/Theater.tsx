@@ -1,10 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import { useSearchParams } from "react-router-dom";
+import { CENSUS_COLORS, CENSUS_METRICS, CENSUS_NO_DATA, describeCensus, DEFAULT_CENSUS_METRIC, censusMetricOption, formatCensusValue, useCensusMap } from "@/features/election-monitor/censusMap";
 import { districtLabel } from "@/features/election-monitor/constants";
 import { featureBounds, loadDistricts, loadStates, type Bounds } from "@/features/election-monitor/map/geo";
 import type { MapCallout, MapLabel, MapOverlay, MapTarget, MapTheme, MapView } from "@/features/election-monitor/map/ElectionMap";
 import { CALLOUT_STATES, describeOddsRace, HATCH_BACKGROUND, ODDS_COLORS, ODDS_STATUS_COLORS, oddsLabels, type OddsView } from "@/features/election-monitor/oddsMap";
+import { BIN_COLORS, describeResult, STATUS_COLORS } from "@/features/election-monitor/pastResults";
 import { districtSelectionPatch, selectedDistricts, toggleItem } from "@/features/election-monitor/selection";
+import { usePastResultsView } from "@/features/election-monitor/usePastResultsView";
 import type { MapLayer, Readiness } from "@/features/election-monitor/types";
 import type { MonitorParams } from "@/features/election-monitor/useMonitorParams";
 import { HOUSE_SEATS, SENATE_RACE_CODES } from "@/features/simulator/midterms/races2026";
@@ -13,7 +17,7 @@ import { CLOSE_BELOW, FLIP_COLORS, flipCounts, flipOverlay, HOLDER_COLORS, holde
 import { Brackets } from "../panels/Panel";
 import { STATE_NAMES, raceLabel } from "../raceCodes";
 import { cents } from "../seatTally";
-import { LENSES, type Lens } from "../theater";
+import { COUNTY_LENSES, LENSES, type Lens } from "../theater";
 import type { Board } from "../useBoard";
 // Eager, so the placeholder is sized before the lazy map chunk arrives.
 import "@/features/election-monitor/map/electionMap.css";
@@ -91,8 +95,46 @@ function Swatch({ color, hatch, outline }: { color: string; hatch?: boolean; out
   return <span className="wr-swatch" style={{ background: hatch ? `${HATCH_BACKGROUND}, ${color}` : color, borderColor: outline }} aria-hidden="true" />;
 }
 
-function Legend({ lens, layer, view, house }: { lens: Lens; layer: MapLayer; view: OddsView | null; house: boolean }) {
-  if (layer === "counties") return <div className="wr-legend"><span>Counties have no 2026 race. Pick States or Districts to colour the map.</span></div>;
+const MARGIN_LABELS = ["<1", "1–5", "5–10", "10–20", "20+"];
+
+function Legend({ lens, layer, view, house, census, past }: {
+  lens: Lens;
+  layer: MapLayer;
+  view: OddsView | null;
+  house: boolean;
+  census: { view: ReturnType<typeof useCensusMap>["view"]; metric: string; loading: boolean; error: Error | null };
+  past: { year: number | null; loading: boolean; error: boolean; linesMatch: boolean };
+}) {
+  if (lens === "census") {
+    const option = censusMetricOption(census.metric);
+    return (
+      <div className="wr-legend">
+        <span className="wr-legend-key">{option.label}</span>
+        {census.view?.legend.map((step) => <span key={step.bin}><Swatch color={step.color} />{step.label}</span>)}
+        <span><Swatch color={CENSUS_NO_DATA} />No figure</span>
+        {census.view?.data.nation != null && <span className="wr-legend-quiet">U.S. {formatCensusValue(option.kind, census.view.data.nation)}</span>}
+        {census.loading && <span>Loading Census figures…</span>}
+        {census.error && <span>Census figures unavailable</span>}
+        <span className="wr-legend-note">ACS {census.view?.data.acsYear ?? ""} 5-year · equal-count bins · who lives there, not how it votes</span>
+      </div>
+    );
+  }
+  if (lens === "past") {
+    return (
+      <div className="wr-legend">
+        <span className="wr-legend-key">{past.year ?? ""} winner by margin, pts</span>
+        <span>{[4, 3, 2, 1, 0].map((i) => <Swatch key={i} color={BIN_COLORS[`D${i}`]} />)}D</span>
+        <span>{[4, 3, 2, 1, 0].map((i) => <Swatch key={i} color={BIN_COLORS[`R${i}`]} />)}R</span>
+        <span className="wr-legend-quiet">Shade {MARGIN_LABELS.slice().reverse().join(" · ")}</span>
+        <span><Swatch color={STATUS_COLORS.not_reported} />Not reported</span>
+        {past.loading && <span>Loading past results…</span>}
+        {past.error && <span>Past results unavailable</span>}
+        {house && !past.linesMatch && <span>District lines differ from the map for this year</span>}
+        <span className="wr-legend-note">MIT Election Lab · not 2026 results</span>
+      </div>
+    );
+  }
+  if (layer === "counties") return <div className="wr-legend"><span>Counties have no 2026 race. Use the Census or Past results lens, or pick States or Districts.</span></div>;
   const counts = lens === "flip" && view ? flipCounts(view) : null;
   return (
     <div className="wr-legend">
@@ -139,22 +181,40 @@ export interface TheaterProps {
   board: Board;
   /** The race on the target card, or null. */
   target: string | null;
+  /** The full-screen map: a taller frame and no closest-races column. */
+  full?: boolean;
 }
 
 /** The Command map: the shared MapLibre ElectionMap, coloured by one of three lenses, with the target bracketed. */
-export function Theater({ params, update, lens, onLens, onLayer, layer, board, target }: TheaterProps) {
+export function Theater({ params, update, lens, onLens, onLayer, layer, board, target, full = false }: TheaterProps) {
   const house = layer === "districts";
+  const [search, setSearch] = useSearchParams();
+  const censusMetric = censusMetricOption(search.get("cmetric") ?? DEFAULT_CENSUS_METRIC).key;
+  const census = useCensusMap(lens === "census", layer, censusMetric);
+  const requestedYear = Number(search.get("pyear")) || null;
+  // Districts show the 2024 House race, the only one held on the lines the map draws; otherwise the presidential vote.
+  const past = usePastResultsView(lens === "past", { office: house ? "house" : "president", year: house ? 2024 : requestedYear, metric: "winner", from: null }, layer === "counties");
+  const setParam = useCallback((key: string, value: string | null) => setSearch((current) => {
+    const next = new URLSearchParams(current);
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+    return next;
+  }, { replace: true }), [setSearch]);
   const view = house ? board.house : layer === "states" ? board.senate : null;
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const bounds = useTargetBounds(params.state, params.district, layer);
 
+  const pastBins = past.bins;
+  const censusBins = census.view?.bins ?? null;
   const overlay = useMemo<MapOverlay | null>(() => {
+    if (lens === "census") return { bins: censusBins, colors: CENSUS_COLORS, fallback: CENSUS_NO_DATA };
+    if (lens === "past") return { bins: pastBins, colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
     if (layer === "counties") return null;
     if (lens === "holder") return holderOverlay(house ? "house" : "senate", board.holders);
     if (lens === "flip") return flipOverlay(view);
     return { bins: view?.bins ?? null, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true, hatch: view?.flips };
-  }, [layer, lens, house, board.holders, view]);
+  }, [layer, lens, house, board.holders, view, censusBins, pastBins]);
 
   // Senate prices label each state; the small Northeast states are listed beside the map, as on the monitor.
   const senateLabels = useMemo(() => {
@@ -170,14 +230,20 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
   }, [layer, lens, view]);
 
   const describe = useCallback((item: MapTarget) => {
-    if (item.kind === "county") return { title: `${item.name}, ${item.state}`, lines: ["No 2026 race by county"] };
     const isHouse = item.kind === "district";
-    const code = isHouse ? `${item.state}-${item.district}` : item.state;
-    const title = isHouse ? districtLabel(item.state, item.district) : STATE_NAMES[item.state] ?? item.state;
+    const code = item.kind === "county" ? item.fips : isHouse ? `${item.state}-${item.district}` : item.state;
+    const title = item.kind === "county" ? `${item.name}, ${item.state}` : isHouse ? districtLabel(item.state, item.district) : STATE_NAMES[item.state] ?? item.state;
+    if (lens === "census") return { title, lines: describeCensus(census.view, code, census.isLoading) };
+    if (lens === "past") {
+      if (!past.lookup || past.year === null || !past.data) return { title, lines: [past.error ? "Past results unavailable" : "Loading past results…"] };
+      const level: MapLayer = item.kind === "county" ? "counties" : isHouse ? "districts" : "states";
+      return { title, lines: [`${past.year} ${past.data.office === "president" ? "presidential" : "House"}`, ...describeResult(past.lookup.result(code, level), past.data.office, past.year)] };
+    }
+    if (item.kind === "county") return { title, lines: ["No 2026 race by county · try the Census or Past results lens"] };
     const source = isHouse ? board.house : board.senate;
     if (!source) return { title, lines: ["Waiting for Kalshi prices…"] };
     return { title, lines: [`2026 ${isHouse ? "House" : "Senate"} · Kalshi`, ...describeOddsRace(source.races.get(code), isHouse ? "house" : "senate")] };
-  }, [board.house, board.senate]);
+  }, [board.house, board.senate, lens, census.view, census.isLoading, past.lookup, past.year, past.data, past.error]);
 
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
@@ -195,27 +261,55 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
     if (window.location.pathname.replace(/\/+$/, "") === "/war-room") update({ view: next });
   }, [update]);
 
-  const closest = view
+  const closest = view && !full && (lens === "leader" || lens === "holder" || lens === "flip")
     ? [...view.races.values()].filter((race) => race.leader && race.bin !== "no_race").sort((a, b) => a.leader!.price - b.leader!.price || a.code.localeCompare(b.code)).slice(0, CLOSEST)
     : [];
-  const tag = house
+  const tag = lens === "census" || lens === "past"
+    ? `Theater // ${lens === "census" ? "Census ACS 5-year" : "MIT Election Lab"} · ${layer}`
+    : house
     ? `Theater // U.S. House 2026 · ${HOUSE_SEATS} seats${view ? ` · ${view.priced} priced` : ""}`
     : layer === "states" ? `Theater // U.S. Senate 2026 · ${SENATE_RACE_CODES.length} races` : "Theater // Counties";
   const lensInfo = LENSES.find((item) => item.id === lens)!;
+  const lensDisabled = (id: Lens) => layer === "counties" && !COUNTY_LENSES.includes(id);
+  const heading = lens === "census"
+    ? `${censusMetricOption(censusMetric).label} by ${layer === "counties" ? "county" : house ? "district" : "state"}`
+    : layer === "counties" ? lensInfo.counties ?? "Counties" : house ? lensInfo.house : lensInfo.senate;
   const lastTick = [board.senate?.lastChange, board.house?.lastChange].filter((at): at is string => Boolean(at)).sort().pop();
 
   return (
-    <section id="theater" className="wr-panel wr-theater" aria-labelledby="wr-theater-title">
+    <section id="theater" className="wr-panel wr-theater" data-full={full || undefined} aria-labelledby="wr-theater-title">
       <Brackets />
       <div className="wr-theater-head">
         <div>
           <div className="wr-eyebrow">{tag}</div>
-          <h2 id="wr-theater-title" className="wr-section-title">{layer === "counties" ? "Counties" : house ? lensInfo.house : lensInfo.senate}</h2>
+          <h2 id="wr-theater-title" className="wr-section-title">{heading}</h2>
         </div>
-        <div className="wr-seg" role="group" aria-label="Map lens">
-          {LENSES.map((item) => (
-            <button key={item.id} type="button" aria-pressed={item.id === lens} disabled={layer === "counties"} onClick={() => onLens(item.id)}>{item.label}</button>
-          ))}
+        <div className="wr-theater-controls">
+          {lens === "census" && (
+            <label className="wr-select">
+              <span className="wr-sr-only">Colour the map by</span>
+              <select value={censusMetric} onChange={(event) => setParam("cmetric", event.target.value === DEFAULT_CENSUS_METRIC ? null : event.target.value)}>
+                {[...new Set(CENSUS_METRICS.map((item) => item.group))].map((group) => (
+                  <optgroup key={group} label={group}>
+                    {CENSUS_METRICS.filter((item) => item.group === group).map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
+          {lens === "past" && !house && past.years.length > 0 && (
+            <label className="wr-select">
+              <span className="wr-sr-only">Presidential election year</span>
+              <select value={past.year ?? ""} onChange={(event) => setParam("pyear", event.target.value)}>
+                {[...past.years].reverse().map((year) => <option key={year} value={year}>{year} president</option>)}
+              </select>
+            </label>
+          )}
+          <div className="wr-seg" role="group" aria-label="Map lens">
+            {LENSES.map((item) => (
+              <button key={item.id} type="button" aria-pressed={item.id === lens} disabled={lensDisabled(item.id)} onClick={() => onLens(item.id)}>{item.label}</button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -267,9 +361,11 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
         )}
       </div>
 
-      <Legend lens={lens} layer={layer} view={view} house={house} />
+      <Legend lens={lens} layer={layer} view={view} house={house}
+        census={{ view: census.view, metric: censusMetric, loading: census.isLoading, error: census.error }}
+        past={{ year: past.year, loading: past.loading, error: past.error, linesMatch: past.houseLinesMatch }} />
       <div className="wr-theater-foot">
-        <span>Layer: {layer} · Src Kalshi {board.status === "live" ? "live" : board.status}{view?.priceType ? ` · ${view.priceType}` : ""}</span>
+        <span>Layer: {layer} · Src {lens === "census" ? "Census ACS" : lens === "past" ? "MIT Election Lab" : `Kalshi ${board.status === "live" ? "live" : board.status}${view?.priceType ? ` · ${view.priceType}` : ""}`}</span>
         <span>Sel: {target ? raceLabel(target) : params.state ?? "none"} · Last tick {lastTick ? `${etClock(Date.parse(lastTick))} ET` : "—"}</span>
       </div>
     </section>
