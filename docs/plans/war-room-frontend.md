@@ -13,20 +13,60 @@ The War Room mockups ([design canvas](https://claude.ai/artifact/5RXPDbBB9FFNQWE
 Every number in the mockups is illustrative. The build uses only real data, or shows an honest empty state (see [Empty states](#empty-states-coming-soon-not-connected-unavailable)).
 
 **Timing.** Today is Oct 29. Code freeze is **Oct 30**, and Oct 31 to Nov 2 is monitoring and reviewed data fixes only (§3). The current monitor is what voters will use on election night, so this plan **does not change it before Nov 3**:
-- **Recommended:** build now on branches that merge into `Frontend_testing` (see [Branches](#branches)), and reach the live site only after the election. The War Room ships behind a flag that is off in production, at its own route. The home page becomes the War Room only at an explicit cut-over (Phase 5).
+- **Recommended:** build now on its own branches (see [Branches](#branches)), and reach the live site only after the election. The War Room ships behind a flag that is off in production, at its own route. The home page becomes the War Room only at an explicit cut-over (Phase 5).
 - **If you want it reachable on election night anyway:** only Phase 1 and the Command view, merged into `Frontend_testing` before the freeze, flag on in **staging only**. Production keeps the flag off.
 
 ## Branches
-**Every branch created to implement this frontend merges only into `Frontend_testing`.**
-- Create War Room branches from `Frontend_testing`, and open every War Room pull request against `Frontend_testing`.
-- Never merge War Room work into `2026Midterm_intel_v2` or `main`, directly or through another branch. For War Room work, this replaces the §7 rule that all work merges into `2026Midterm_intel_v2`.
-- This applies to every phase below, the Phase 5 cut-over included.
+**Changed Oct 30: War Room work now follows §7 and merges into `2026Midterm_intel_v2`.**
+- **Phases 1 to 4** were built on `Frontend_testing` (PR #109), then merged into `2026Midterm_intel_v2` so that the main testing dashboard can show them. That dashboard is Railway's `Frontend` service in Testing, which deploys `2026Midterm_intel_v2`.
+- **From now on,** branch from `2026Midterm_intel_v2` and open War Room pull requests against it, like any other work. `Frontend_testing` and its `2026Midterms_new_frotnend` preview service are no longer needed for the War Room.
+- **The flag decides where it shows:**
+  - `VITE_FEATURE_WAR_ROOM=true` is set on `Frontend` in **Testing** only.
+  - `main-prod` leaves it unset. When `2026Midterm_intel_v2` reaches `main`, the War Room code goes with it, but no War Room chunk is built and `/war-room` is the 404 page.
+- **Phase 5,** the cut-over, still waits until after the election.
 
 ## Decisions (Oct 29)
 - **Build the Election night screen now**, before a results provider is chosen; AP hasn't replied yet. The screen reads the provider-neutral results read model, so connecting a provider later changes only the backend's ingestion (§6), not the screen. See [Phase 4](#phase-4-election-night-build-now-results-stay-not-connected-in-production-until-a-provider-is-live).
 - **Watchlist:** it starts with swing-state races, and each viewer can change their own list. See [Watchlist](#watchlist).
 - **No inset boxes.** Alaska and Hawaii keep today's behaviour on the War Room map: the full MapLibre map, with the existing Alaska and Hawaii jump buttons in `ElectionMap.tsx`. The mockup's insets were only a stand-in for the design canvas.
-- **Branches:** War Room work merges only into `Frontend_testing` (above).
+- **Branches:** changed Oct 30; War Room work merges into `2026Midterm_intel_v2` (above).
+
+## Status (Oct 29)
+Phases 1 to 4 are built and merged into `2026Midterm_intel_v2` (from `Frontend_testing`), behind `VITE_FEATURE_WAR_ROOM`, which is off by default. Phase 5, the cut-over, is not started.
+
+- **Screens:** Command at `/war-room`, the dossier at `/war-room/race/:code`, Signals at `/war-room/signals`, and election night at `/war-room/night`.
+- **Shared code:** `ElectionMap` gained two optional props, `theme` and `onMap`. With neither set, `/` is unchanged; a before-and-after screenshot of the districts layer is pixel-identical. Nothing else shared was edited.
+- **Checked in a browser** with the flag on, against a local mock API:
+  - every screen at 1440 px and 390 px;
+  - no style leaks after leaving for `/`, `/elections`, `/candidates` or the simulator;
+  - one Kalshi EventSource across those moves;
+  - the FRED history dialog in War Room tokens;
+  - visible keyboard focus;
+  - reduced motion stops the ticker and pulses;
+  - with the API stopped, no panel shows a zero.
+- **Checked with the flag off:** `/war-room` is the 404 page, no War Room chunk is built, and the entry chunk is unchanged (697.93 kB).
+- **Before Nov 3, if the flag goes on in staging:** confirm `night/pollClosings.ts` against each state's election office. It was compiled from published schedules. North Dakota sets hours by county, and New Hampshire by town.
+
+Against the Decisions above:
+- **Watchlist:** built as decided: the swing-state default, the star on the target card and dossier, "Add race", remove, "Reset to default", `warRoom.watchlist.v1`, and 30 races at most. A viewer who never changed the list gets the default worked out from the live markets on each visit. Within one visit it is fixed after the first House prices, so rows don't reshuffle as prices tick.
+- **Alaska and Hawaii:** as decided, the jump buttons and no insets.
+- **Election night:** built. Production shows Not connected, but **without the official state results links** yet: `stateResultsLinks.ts` still needs each state election office's results page sourced. Staging adds the mock results board when `VITE_RESULTS_PROVIDER_MOCK_ENABLED` is on.
+- **Seat tally:** shipped, labelled "Seats by market leader, not a forecast". Unpriced races count by holder.
+
+Where the build differs from the mockups:
+- **Command:**
+  - The map has a working Counties layer with no overlay.
+  - "Moved ≥1 pt · 24h" became "Last tick", because the movers route returns 8 races.
+  - "Export brief" is left out.
+- **Dossier:**
+  - Sections are anchor links, not tabs.
+  - "Compare" is left out.
+- **Signals:**
+  - The scope toggle is left out.
+  - Outside spending covers cycle totals for the first eight watchlist races, not 7 days.
+- **Election night:**
+  - Key races have no official-results links yet (see above).
+  - System health leaves out API p95 and replicas, which the browser can't see.
 
 ## Ground rules: how nothing breaks
 
@@ -174,7 +214,7 @@ CODE/src/features/war-room/
 
 **Mobile:** the icon rail becomes a top row, panels stack, and wide tables scroll inside their panel. Check at 390 px.
 
-## Commits (each on a branch that merges only into `Frontend_testing`; each passes `npm run lint -- --max-warnings 0`, `npm run typecheck`, `npm test`, `npm run build` in `CODE/`)
+## Commits (phases 1 to 4 went through `Frontend_testing`, later work merges into `2026Midterm_intel_v2`; each passes `npm run lint -- --max-warnings 0`, `npm run typecheck`, `npm test`, `npm run build` in `CODE/`)
 
 ### Phase 0: plan
 0. `docs(plans): War Room frontend`. This file, plus a row in PLAN.md §4.1.
@@ -208,7 +248,7 @@ Phase 4 needs only Phase 1, so it can start right after it, alongside Phases 2 a
    - The live-coverage panel is `NotConnectedPanel` until §4.7's endpoint exists. Before embedding streams then, check `nginx.conf` and any CSP for `frame-src` (use `youtube-nocookie.com`).
 
 ### Phase 5: cut-over, after the election
-Like every phase, this merges into `Frontend_testing` only.
+Like other work, this merges into `2026Midterm_intel_v2` (§7).
 
 9. `feat: make the War Room the home page`
    - With the flag on, `/` renders the War Room.
@@ -252,5 +292,5 @@ Like every phase, this merges into `Frontend_testing` only.
 - `CODE/src/index.css` (unchanged; the War Room's tokens live in `warRoom.css`)
 
 ## Open questions
-- **Seat tally.** Ship the "D 49 · R 51 by market leader" count on the Command screen, or only the control prices? It counts market leaders and must never be presented as a forecast.
-- **How `Frontend_testing` reaches production.** War Room work merges only into `Frontend_testing`. Who merges `Frontend_testing` onward, when, and which Railway environment builds from it are still to decide.
+- **Seat tally.** Shipped on Command, labelled "Seats by market leader, not a forecast" (see Status). Keep it, or show only the control prices?
+- ~~How `Frontend_testing` reaches production.~~ Decided Oct 30: War Room work merges into `2026Midterm_intel_v2` and reaches `main` with it, flag off in production (see [Branches](#branches)).
