@@ -92,3 +92,8 @@ export function initials(name: string) {
   const parts = name.split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
+
+/** FEC ID → the name shown on the race card, so polls that give surnames read the same. */
+export function candidateNamesOf(contest: { candidates: Array<{ fecId?: string; name: string }> } | undefined): Record<string, string> {
+  return Object.fromEntries((contest?.candidates ?? []).flatMap((candidate) => (candidate.fecId ? [[candidate.fecId, candidate.name]] : [])));
+}

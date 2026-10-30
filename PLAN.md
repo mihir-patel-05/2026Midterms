@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 22, 2026
+Last updated: October 29, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -98,8 +98,10 @@ Differentiators:
 **Known gaps**
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
-- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet.
-- No live election-results provider is licensed. Election night depends on getting one; see section 6.
+- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
+- Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
+- Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
+- No live election-results provider is licensed. Election night depends on getting one; see section 6. Plan (Oct 29): AP has not answered, so election night uses **civicAPI** (free, attribution required, no SLA) through the existing results pipeline, with official state results links as the fallback. See `docs/plans/civicapi-results.md`.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 
@@ -155,6 +157,7 @@ Agents are the analyst layer, not the data layer. Each agent is a job made of a 
 | 7 | Data QA | Flags duplicates, broken links, and odd prices | Each sync |
 | 8 | Ask the race | Answers grounded only in stored data, with citations | On demand, through the chatbot (section 4.12) |
 | 9 | Election night | Live race notes and call summaries | Nov 3 |
+| 10 | Top stories | Up to 5 top stories per race and 10 nationally, chosen from tagged articles. Returns article IDs and fixed reason codes only, so it publishes without review. Plan: `docs/plans/news-agents.md` | When a race's shortlist changes, at most every 4 hours |
 
 Rules:
 
@@ -200,6 +203,7 @@ Shared requirements for all of these:
 
 - **Indexes, each with a published methodology:** a polarization index (DW-NOMINATE gap, party-line votes, affective polarization, split-ticket districts) and a democratic-institutions tracker (V-Dem, Freedom House, Bright Line Watch).
 - **Phase 2: Elections Monitor.** 2027 governor races, the 2028 primaries, and a global calendar of major foreign elections. We are not expanding into general geopolitics.
+- **War Room frontend.** A redesign of the monitor as an operations dashboard (Command, Race dossier, Election night, and Signals screens). It is built at `/war-room` behind `VITE_FEATURE_WAR_ROOM` (off by default) and becomes the home page only after the election. Tipping-point panels stay "Coming soon" until the simulation exists. Plan: `docs/plans/war-room-frontend.md`.
 - **Business model:** core voter information stays free. Institutional embeds and research exports come only after we validate partner demand. We will never monetize vote intentions or reading profiles.
 
 ### 4.5 Demographics (ACS 5-year)
@@ -211,6 +215,8 @@ Shared requirements for all of these:
 - **Nonpartisan.** Demographics are shown as facts about an area, never as a prediction of how it votes.
 
 ### 4.6 News: New York Times and AP
+
+**Oct 26: Apify comes first.** Google News search results through our Apify account ($205 of credits) feed the same `articles` table, with tiered per-race searches, spend caps, and Agents 1 and 10. See `docs/plans/news-agents.md`. NYT and AP become additional sources once licensed, and the rules below apply to every source.
 
 NYT and AP articles are the source material for news on race pages and for Agents 1, 3, and 5. **Neither is built yet.** There is no client code, and no `NYT_*` or `AP_*` keys exist in the repo or in Railway.
 
@@ -899,7 +905,7 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | `market-feed` | `backend/` worker entrypoint, **1 replica** | Holds the single Kalshi WebSocket and writes hourly `market_snapshots`. It must be separated from `api` before `api` scales past one replica (see the Redis row). |
 | `redis` | Railway Redis | Pub/sub that fans Kalshi quotes from `market-feed` out to every `api` replica's SSE clients. It also provides locks for jobs. It is a cache only, never the source of truth. |
 | `cron-*` | Railway cron services running `backend/` jobs | FEC sync, ideology sync, FRED, ACS, NYT and AP news ingestion (`cron-news`), and the agent jobs. Each is a one-off run that exits when done, so jobs never run inside API replicas. `SyncLease` prevents overlapping runs. |
-| `results-ingestor` | `backend/` worker, **exactly 1 replica** | Election night only. Polls the licensed provider, writes append-only `ResultSnapshot`s, and calls `publishSnapshot()`. Voter requests never trigger a call to the provider. |
+| `results-ingestor` | `backend/` worker, **exactly 1 replica** | Election night only. Polls the results provider (civicAPI, `docs/plans/civicapi-results.md`), with raw payloads on a Railway Volume until the Bucket exists. Writes append-only `ResultSnapshot`s, and calls `publishSnapshot()`. Voter requests never trigger a call to the provider. |
 | `bucket` | Railway Bucket (S3-compatible) | Raw provider payloads (`RawArtifact`, keyed by content hash) and large geo assets. |
 
 **Election-night scaling:** `api` scales horizontally because it only reads, and public reads are cached. `market-feed` and `results-ingestor` stay at one replica each.
@@ -908,7 +914,8 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 
 - [ ] Create `staging` and `production` environments in the Railway project. Use Railway private networking (`api.railway.internal`) between services. *Oct 10: the project has `Testing` and `production`. Only `Testing` is wired up; production's backend has no domain and its frontend has no variables.*
 - [ ] Deploy `web` and `admin` from their Dockerfiles. Set `VITE_API_URL` to the Railway `api` domain.
-- [ ] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deploy to Vercel, with Railway deploys (`railway up --service web|admin`, like `backend-deploy.yml`) or with Railway's GitHub autodeploy. Then remove the Vercel secrets.
+- [x] Replace `.github/workflows/frontend-deploy.yml` and `admin-deploy.yml`, which deployed to Vercel, with Railway's GitHub autodeploy. *Oct 29: both workflows are deleted; neither ever succeeded, because `VERCEL_TOKEN` was never set. Railway builds `web` from `/CODE` and `admin` from `/admin-dashboard`: `Testing` from `2026Midterm_intel_v2`, `main-prod` from `main`.*
+- [ ] Remove the Vercel secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_FRONTEND`, `VERCEL_PROJECT_ID_ADMIN`) from the repository's GitHub settings, if any are set.
 - [ ] Move `sync-fec-data.yml` and the in-process `node-cron` schedules to Railway cron services.
 - [ ] Split the Kalshi live feed into `market-feed` and add Redis fan-out.
 - [ ] Add a Railway Bucket and point `RawArtifact` storage at it instead of the local filesystem.
@@ -931,13 +938,34 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 | Census International Trade API (`intltrade/imports/statehs`, `exports/statehs`) | Imports and exports by state, product, and country (section 4.8) | `CENSUS_API_KEY` (existing) |
 | NTUF State Tariffs Tracker (tariffs.org JSON) | Extra tariffs paid by state, quarterly (section 4.8) | No key; attribution required; check the terms |
 | Federal Reserve FEDS Note (Sep 3, 2026) | Imported share of consumer spending, 31 states (section 4.8) | Static dataset, loaded once |
+| Apify (Google News search actor, chosen by bake-off) | News headlines, outlets, and links per race; Agent 1 and 10 input (`docs/plans/news-agents.md`) | `APIFY_TOKEN`, `APIFY_NEWS_ACTOR_ID`, `APIFY_PRICE_PER_1000_USD`; spend caps `NEWS_DAILY_BUDGET_USD`, `NEWS_TOTAL_BUDGET_USD` |
 | New York Times APIs (Times Newswire, Article Search) | News on race pages; Agent 1, 3, and 5 input | `NYT_API_KEY`, to add (section 4.6) |
-| AP Media API | News on race pages; Agent 1, 3, and 5 input | `AP_API_KEY`, to add (section 4.6) |
+| AP Media API | News on race pages; Agent 1, 3, and 5 input | **No access**; news runs on NYT alone (`docs/plans/polling-data.md`) |
+| VoteHub Polling API (`api.votehub.com/polls`) | Race polls and the polling average, stored in a separate polls database | No key; CC BY 4.0, attribution required; beta. `POLLS_DATABASE_URL`, `POLLS_ENABLED`, `VOTEHUB_API_BASE_URL` (`docs/plans/polling-data.md`) |
 | YouTube IFrame player (`youtube-nocookie.com`) | Network election-night live streams (section 4.7) | No key; video IDs set by admins on election day |
-| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; check whether our AP account includes it (section 4.6) |
+| civicAPI (`civicapi.org/api/v2`) | Election-night results for Senate and House races, county detail for close races (`docs/plans/civicapi-results.md`) | No key; attribution required; no SLA. `CIVICAPI_*`, `RESULTS_INGESTOR_ENABLED`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi` |
+| AP Elections API or Decision Desk HQ | Election-night results | **not licensed yet**; AP has not answered (Oct 29); DDHQ is sales-only |
 | Anthropic (Claude) | Research chatbot (section 4.12) and agents | `ANTHROPIC_API_KEY` (chat returns 503 when blank), `CHAT_MODEL`, `CHAT_DAILY_MESSAGE_LIMIT` |
 | Google Identity Services (Sign in with Google) | Chatbot login (section 4.12) | `GOOGLE_CLIENT_ID` (`api`), `VITE_GOOGLE_CLIENT_ID` (`web`); public client ID, no secret |
 | Gemini | Today's anonymous chat; retired when section 4.12 ships | `GEMINI_API_KEY` |
+
+### 5.5 Moving the main database (Oct 29)
+
+Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. From Oct 29, everything except polls goes to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
+
+- **Same tables, new data only.** The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on `Third_database`, so its schema and tables match `Testing_database`'s. Nothing is copied over: it holds only what the API pulls after the switch.
+- **One variable.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). On `Backend`, it is `${{Third_database.DATABASE_URL}}`.
+- **The old data stays in `Testing_database`,** unchanged. The API no longer reads it, so the site shows only data pulled since the switch.
+
+**Refills on its own:** Kalshi hourly snapshots (while the live feed is connected), FRED (9:15 AM and 6:15 PM ET), outside spending (5:00 AM ET; its backfill starts over), the FEC sync (Sunday, Tuesday, and Thursday at 2:00 AM ET, about 4 hours), and ideology (the 1st of the month).
+
+**Needs a manual run** (inside the `Backend` container, `node dist/scripts/<name>.js`):
+- **The FEC sync, to get candidates and finance back before Sunday:** `POST /api/sync/all` with the `x-sync-key` header. New polls match races only once candidates are back.
+- **Accounts:** `create-admin` and `create-researcher`. Until then, nobody can log in to the admin dashboard or the researcher tools.
+- **Demographics and ideology:** `sync-acs` and `sync-ideology`.
+- **County results:** `seed-counties` and `import-mit-results`, from the MIT files kept outside git.
+- **Results fixtures:** `ingest-day0-fixture` (the fictional `/api/v1` results).
+- **Deadlines:** enter them again in the admin dashboard.
 
 ---
 
@@ -955,7 +983,7 @@ Conventions:
 | Batch | When | Tables |
 |---|---|---|
 | 1 | Done | `market_snapshots`, `indicator_series`, `indicator_observations`, `district_profiles`, `agent_runs` |
-| 2 | Oct 8–14 | `articles` (NYT and AP, unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
+| 2 | Oct 8–14 (news tables Oct 27, `docs/plans/news-agents.md`) | `articles` (Apify, then NYT and AP; unique on source and external ID), `article_tags`, `agent_outputs` (with review status), `agent_output_citations`, `race_signal_events`, `win_probability_values` |
 | 3 | Oct 15–24 | `polls`, `poll_results`, `early_vote_reports`, `control_simulations`, `historical_results` (with `PRESIDENT` rows and new columns on `county_results`, section 4.9), `users`, `user_sessions`, `chat_conversations`, `chat_messages`, `chat_usage_daily` (section 4.12) |
 | 4 | Oct 25–30 | `race_calls` (a media projection, kept separate from `certification_events`), then a schema freeze |
 
@@ -973,13 +1001,14 @@ Schema cleanup to do after the election:
 3. Ingest into `ResultSnapshot`, `CandidateVote`, and `ContestMetric`, then call `publishSnapshot()` in the same transaction.
 4. Set `isEnabled` and add the source's key to `RESULTS_PROVIDER_ENABLED_IDS`.
 
-If no provider is licensed in time, the site links to official state results and does not show scraped or partial totals.
+If no provider is licensed in time, the site links to official state results and does not show scraped or partial totals. **Oct 29 exception:** civicAPI is used without a signed contract, under its published terms (free, attribution required). Step 1 does not apply to it; the official state results links stay as the fallback. See `docs/plans/civicapi-results.md`.
 
 ---
 
 ## 7. Working agreements
 
-- **Verify before merging.** In `CODE/`, run `npm run lint -- --max-warnings 0 && npm run typecheck && npm run build`. In `backend/`, run `npm run typecheck && npm run build && npm run test:results`.
-- **Feature flags** gate every new module. `VITE_*` flags need a rebuild of `web`.
+- **All work merges into `2026Midterm_intel_v2`.** Branch from it, open every PR against it (never `main`), and merge it into your branch to resolve conflicts.
+- **Verify before merging.** In `CODE/`, run `npm run lint -- --max-warnings 0 && npm run typecheck && npm run check:build-args && npm run build`. In `backend/`, run `npm run typecheck && npm run build && npm run test:results`.
+- **Feature flags** gate every new module. `VITE_*` flags need a rebuild of `web`, and each one needs an `ARG` line in `CODE/Dockerfile` or its Railway value never reaches the build.
 - **No secrets in frontend bundles.** All keys live in Railway service variables.
 - **This file is the plan.** Update it here instead of adding new planning docs.

@@ -1,0 +1,47 @@
+/* The area brief (seat holders, margins, key Census figures) and the full demographics table. Only em- classes,
+   shared by the monitor's components wherever they render. */
+/* Area brief: the selection's profile. */
+.em-brief { display: grid; gap: 7px; font-size: 0.72rem; }
+.em-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.em-brief-head strong { color: hsl(var(--foreground)); font-size: 0.86rem; }
+.em-brief-more { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: hsl(var(--signal-teal)); font-size: 0.7rem; font-weight: 700; }
+.em-brief-more svg { width: 13px; height: 13px; }
+.em-brief-hint { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: hsl(var(--muted-foreground)); line-height: 1.45; }
+.em-brief-hint svg { flex: 0 0 auto; width: 15px; height: 15px; margin-top: 1px; color: hsl(var(--signal-teal)); }
+.em-brief-line { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 0; color: hsl(var(--muted-foreground)); line-height: 1.45; }
+.em-brief-line > span { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
+.em-brief-line b { color: hsl(var(--quiet)); font: 800 0.6rem/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.em-brief-lean { color: hsl(var(--foreground)); font-variant-numeric: tabular-nums; font-weight: 650; }
+.em-brief-lean[data-tone="d"] { color: hsl(var(--signal-blue)); }
+.em-brief-lean[data-tone="r"] { color: hsl(var(--signal-coral)); }
+.em-brief-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; margin: 2px 0 0; }
+.em-brief-figures dt { overflow: hidden; color: hsl(var(--quiet)); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.em-brief-figures dd { margin: 1px 0 0; color: hsl(var(--foreground)); font-size: 0.9rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.em-brief-figures span { color: hsl(var(--quiet)); font-size: 0.62rem; font-variant-numeric: tabular-nums; }
+@container (max-width: 420px) { .em-brief-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.em-brief-race { display: grid; gap: 5px; margin: 2px 0 9px; }
+.em-brief-race-bar { display: flex; height: 9px; overflow: hidden; border-radius: 3px; background: hsl(var(--line)); }
+.em-brief-race-bar span { height: 100%; }
+.em-brief-race-bar span + span { box-shadow: inset 1px 0 0 hsl(var(--surface)); }
+.em-brief-race-legend { display: flex; flex-wrap: wrap; gap: 2px 11px; margin: 0; padding: 0; color: hsl(var(--muted-foreground)); font-size: 0.66rem; list-style: none; }
+.em-brief-race-legend li { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.em-brief-race-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.em-brief .em-brief-race { margin-bottom: 0; }
+.em-brief-card { margin: 0 0 9px; padding: 12px 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface) / 0.72); container-type: inline-size; }
+
+/* Full data table and export under the demographics charts. */
+.em-demo-data { margin-top: 12px; }
+.em-demo-data summary { cursor: pointer; color: hsl(var(--signal-teal)); font-size: 0.74rem; font-weight: 700; }
+.em-demo-export { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.em-demo-export button {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid hsl(var(--line)); border-radius: 7px;
+  background: hsl(var(--surface-2)); color: hsl(var(--foreground)); font-size: 0.7rem; font-weight: 650;
+}
+.em-demo-export button:hover { border-color: hsl(var(--signal-teal) / 0.4); }
+.em-demo-export svg { width: 13px; height: 13px; }
+.em-demo-scroll { max-height: 420px; overflow: auto; border: 1px solid hsl(var(--line-soft)); border-radius: 8px; }
+.em-demo-table { font-size: 0.68rem; }
+.em-demo-table thead th { position: sticky; top: 0; z-index: 1; background: hsl(var(--surface-2)); white-space: nowrap; }
+.em-demo-table tbody th { position: sticky; left: 0; background: hsl(var(--surface-2)); min-width: 150px; }
+.em-demo-table td { white-space: nowrap; }
+

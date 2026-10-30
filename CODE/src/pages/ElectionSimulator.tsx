@@ -12,7 +12,7 @@ import { CountyEditor } from "@/features/simulator/CountyEditor";
 import { formatMargin, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
-import { SimulatorTabs } from "@/features/simulator/SimulatorTabs";
+import { SimulatorTabs, type SimulatorPaths } from "@/features/simulator/SimulatorTabs";
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
 import { StateEditor } from "@/features/simulator/StateEditor";
 import { StateTable } from "@/features/simulator/StateTable";
@@ -27,7 +27,8 @@ const noop = () => {};
 const NO_READINESS = {};
 const NONE: string[] = [];
 
-export default function ElectionSimulator() {
+/** The simulator without site chrome; `paths` points its tabs at the page it is embedded in (the War Room). */
+export function ElectionSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
   const [params, update] = useSimulatorParams();
   const { scenario } = params;
   // Counties need a baseline's returns to start from; a blank map is states only.
@@ -125,11 +126,10 @@ export default function ElectionSimulator() {
   }, []);
 
   return (
-    <AppShell variant="app">
-      <div className="sim-shell">
+    <div className="sim-shell">
         <section className="sim-main" aria-labelledby="sim-title">
           <header className="sim-head">
-            <SimulatorTabs />
+            <SimulatorTabs paths={paths} />
             <div>
               <h1 id="sim-title">Electoral college simulator</h1>
               <p>Start from a past presidential election, swing it, and call states yourself.</p>
@@ -241,7 +241,14 @@ export default function ElectionSimulator() {
             margin by the same number of points; turnout stays as it was. A simulation, not a forecast.
           </p>
         </aside>
-      </div>
+    </div>
+  );
+}
+
+export default function ElectionSimulator() {
+  return (
+    <AppShell variant="app">
+      <ElectionSimulatorContent />
     </AppShell>
   );
 }

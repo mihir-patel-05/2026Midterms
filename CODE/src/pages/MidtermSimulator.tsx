@@ -17,7 +17,7 @@ import { SenateTable } from "@/features/simulator/midterms/SenateTable";
 import { useMidtermParams, type Chamber } from "@/features/simulator/midterms/useMidtermParams";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
-import { SimulatorTabs } from "@/features/simulator/SimulatorTabs";
+import { SimulatorTabs, type SimulatorPaths } from "@/features/simulator/SimulatorTabs";
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
 import { StateEditor } from "@/features/simulator/StateEditor";
 import { useCountyNames } from "@/features/simulator/useCountyNames";
@@ -36,7 +36,8 @@ function raceLine(race: SenateRace) {
   return [`${race.incumbent} (${race.holder})${race.open ? ", not running" : ""}`, race.special ? "special election" : ""].filter(Boolean).join(" · ");
 }
 
-export default function MidtermSimulator() {
+/** The simulator without site chrome; `paths` points its tabs at the page it is embedded in (the War Room). */
+export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
   const [params, update] = useMidtermParams();
   const { chamber, senate, house } = params;
   // Counties need a baseline's returns to start from; a blank Senate map is states only.
@@ -236,11 +237,10 @@ export default function MidtermSimulator() {
         : params.state ? "Click a county to set its margin." : "Click a county to set its margin and zoom to its state.";
 
   return (
-    <AppShell variant="app">
-      <div className="sim-shell">
+    <div className="sim-shell">
         <section className="sim-main" aria-labelledby="sim-title">
           <header className="sim-head">
-            <SimulatorTabs />
+            <SimulatorTabs paths={paths} />
             <div>
               <h1 id="sim-title">Midterm simulator</h1>
               <p>Swing the 2026 Senate races county by county, call House districts, and see who controls each chamber.</p>
@@ -330,7 +330,14 @@ export default function MidtermSimulator() {
             A simulation, not a forecast.
           </p>
         </aside>
-      </div>
+    </div>
+  );
+}
+
+export default function MidtermSimulator() {
+  return (
+    <AppShell variant="app">
+      <MidtermSimulatorContent />
     </AppShell>
   );
 }

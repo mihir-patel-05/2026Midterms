@@ -56,6 +56,8 @@ export async function verifyAdminAuth(req: Request, res: Response, next: Functio
       where: { id: session.id },
       data: { lastUsedAt: new Date() },
     });
+    // Routes that record who did something (poll reviews) read this.
+    res.locals.adminUsername = session.adminUser.username;
     next();
   } catch (error) {
     console.error('Error verifying admin session:', error);

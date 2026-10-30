@@ -1,0 +1,79 @@
+/* Polls and the polling average. Shared by the monitor's Polls tab and the race page,
+   so it uses only the global tokens both frontends define (index.css). */
+
+.polls { display: grid; gap: 14px; min-width: 0; font-variant-numeric: tabular-nums; }
+.polls-eyebrow { color: hsl(var(--quiet)); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* Average headline and bars, kept to a readable width on wide pages */
+.polls-average { display: grid; gap: 10px; max-width: 40rem; }
+.polls-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+.polls-head-main { display: grid; gap: 2px; }
+.polls-headline { color: hsl(var(--foreground)); font-size: 1.35rem; font-weight: 700; line-height: 1.15; }
+.polls-sub { color: hsl(var(--muted-foreground)); font-size: 0.72rem; }
+
+/* Average bars: one baseline, 12px marks with a 4px rounded data end, value at the tip. */
+.polls-bars { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.polls-bar-row {
+  display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 3.2rem; align-items: center; gap: 10px;
+  padding: 2px 0; border-radius: 6px; color: hsl(var(--muted-foreground)); font-size: 0.75rem; outline: none;
+}
+.polls-bar-row:focus-visible { box-shadow: 0 0 0 2px hsl(var(--ring)); }
+.polls-bar-name { display: flex; align-items: center; gap: 6px; min-width: 0; color: hsl(var(--foreground)); font-weight: 600; }
+.polls-bar-name span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.polls-party { flex: none; color: hsl(var(--muted-foreground)); font-weight: 500; }
+.polls-swatch { flex: none; width: 8px; height: 8px; border-radius: 99px; background: var(--party); }
+.polls-track { position: relative; height: 12px; border-left: 1px solid hsl(var(--line-soft)); }
+.polls-fill { display: block; height: 100%; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--party); }
+.polls-bar-value { color: hsl(var(--foreground)); font-weight: 700; text-align: right; }
+
+/* Poll list */
+.polls-table-wrap { min-width: 0; }
+.polls-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; table-layout: fixed; }
+.polls-table caption { margin-bottom: 6px; text-align: left; }
+.polls-table th, .polls-table td { padding: 6px 4px; border-top: 1px solid hsl(var(--line-soft)); text-align: right; vertical-align: top; }
+.polls-table thead th { border-top: 0; color: hsl(var(--quiet)); font-size: 0.65rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.polls-table th:first-child, .polls-table td:first-child { text-align: left; }
+.polls-table .polls-col-poll { width: auto; }
+.polls-table .polls-col-share { width: 3.6rem; }
+.polls-table .polls-col-margin { width: 5.4rem; }
+.polls-table td { color: hsl(var(--foreground)); }
+.polls-pollster { display: block; overflow: hidden; color: hsl(var(--foreground)); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+a.polls-pollster:hover { text-decoration: underline; }
+.polls-meta { display: block; margin-top: 1px; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 0.66rem; text-overflow: ellipsis; white-space: nowrap; }
+.polls-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.polls-tag { padding: 0 5px; border: 1px solid hsl(var(--line-soft)); border-radius: 99px; color: hsl(var(--muted-foreground)); font-size: 0.6rem; line-height: 1.5; }
+.polls-row-out td { color: hsl(var(--muted-foreground)); }
+.polls-margin { font-weight: 600; white-space: nowrap; }
+
+.polls-more {
+  justify-self: start; padding: 4px 10px; border: 1px solid hsl(var(--line-soft)); border-radius: 99px;
+  background: transparent; color: hsl(var(--foreground)); font-size: 0.7rem; font-weight: 600; cursor: pointer;
+}
+.polls-more:hover { background: hsl(var(--foreground) / 0.06); }
+.polls-more:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+/* Empty, loading, and error states */
+.polls-empty { display: grid; justify-items: center; gap: 6px; padding: 18px 8px; color: hsl(var(--muted-foreground)); font-size: 0.76rem; text-align: center; }
+.polls-empty svg { width: 26px; height: 26px; color: hsl(var(--quiet)); }
+.polls-empty strong { color: hsl(var(--foreground)); font-size: 0.86rem; }
+
+.polls-source { margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.66rem; line-height: 1.5; }
+.polls-source a { color: hsl(var(--signal-teal)); font-weight: 600; }
+.polls-source a:hover { text-decoration: underline; }
+
+@media (max-width: 420px) {
+  .polls-bar-row { grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr) 2.9rem; }
+  .polls-table { font-size: 0.68rem; }
+  .polls-table .polls-col-share { width: 2.6rem; }
+  .polls-table .polls-col-margin { width: 4.6rem; }
+}
+
+/* One-line summary on the monitor's race card */
+.polls-summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 10px 0 2px; padding: 8px 10px;
+  border: 1px solid hsl(var(--line-soft)); border-radius: 8px; font-size: 0.72rem;
+}
+.polls-summary-text { flex: 1 1 12rem; min-width: 0; color: hsl(var(--foreground)); }
+.polls-summary-link { padding: 0; border: 0; background: none; color: hsl(var(--signal-teal)); font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+.polls-summary-link:hover { text-decoration: underline; }
+.polls-summary-link:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; border-radius: 2px; }

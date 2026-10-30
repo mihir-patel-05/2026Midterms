@@ -44,9 +44,39 @@ const envSchema = z.object({
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Polls live in their own PostgreSQL database, separate from DATABASE_URL. Without it
+  // the poll sync is off and GET /api/polls answers 503; the rest of the API is unaffected.
+  POLLS_DATABASE_URL: z.string().trim().optional(),
+  // The VoteHub poll sync (every 3 hours) and GET /api/polls. Needs POLLS_DATABASE_URL too.
+  POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // VoteHub's polling API: free, no key, CC BY 4.0 (credit VoteHub wherever polls are shown).
+  VOTEHUB_API_BASE_URL: z.string().url().default('https://api.votehub.com'),
+  // News top stories (docs/plans/news-agents.md, "Scope change"): the Apify sync and GET /api/news/top.
+  NEWS_ENABLED: z.enum(['true', 'false']).default('false'),
+  APIFY_TOKEN: z.string().trim().optional(),
+  // Google News actor chosen by the bake-off, e.g. "someone/google-news-scraper".
+  APIFY_NEWS_ACTOR_ID: z.string().trim().optional(),
+  // JSON object merged over the default actor input; null removes a field and "$QUERIES" is the query list.
+  APIFY_NEWS_INPUT_JSON: z.string().optional(),
+  // All-in price per 1,000 results, for the estimate that caps each run.
+  APIFY_PRICE_PER_1000_USD: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
+  NEWS_RESULTS_PER_QUERY: z.string().regex(/^[1-9]\d*$/).default('25'),
+  NEWS_DAILY_BUDGET_USD: z.string().regex(/^\d+(\.\d+)?$/).default('10'),
+  NEWS_TOTAL_BUDGET_USD: z.string().regex(/^\d+(\.\d+)?$/).default('180'),
+  // Agent 10 picks the top stories; without it (or without a key) code ranks them by coverage.
+  NEWS_AGENTS_ENABLED: z.enum(['true', 'false']).default('false'),
+  ANTHROPIC_API_KEY: z.string().trim().optional(),
+  NEWS_PICKER_MODEL: z.string().trim().default('claude-opus-5-5'),
+  NEWS_TOP_STORIES_LIMIT: z.string().regex(/^[1-9]\d*$/).default('12'),
+  // Run the news sync inside the API process with node-cron (Testing, until the cron-news service exists).
+  NEWS_SCHEDULER_IN_PROCESS: z.enum(['true', 'false']).default('false'),
+  NEWS_SYNC_CRON: z.string().default('7 */2 * * *'),
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FEC_API_MAX_REQUESTS_PER_HOUR: z.string().default('1000'),
+  // After the primaries, keep only general election candidates: the scheduled FEC
+  // sync deletes primary losers and stops saving them (see services/primary-pruning).
+  NOMINEES_ONLY: z.enum(['true', 'false']).default('false'),
   ITEMIZED_COMMITTEES_PER_RUN: z.string().default('10'),
   ITEMIZED_MAX_PAGES: z.string().default('5'),
   ITEMIZED_REFRESH_HOURS: z.string().default('72'),
@@ -115,9 +145,20 @@ export const env = {
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
+  NEWS_ENABLED: parsed.data.NEWS_ENABLED === 'true',
+  APIFY_PRICE_PER_1000_USD: parseFloat(parsed.data.APIFY_PRICE_PER_1000_USD),
+  NEWS_RESULTS_PER_QUERY: parseInt(parsed.data.NEWS_RESULTS_PER_QUERY, 10),
+  NEWS_DAILY_BUDGET_USD: parseFloat(parsed.data.NEWS_DAILY_BUDGET_USD),
+  NEWS_TOTAL_BUDGET_USD: parseFloat(parsed.data.NEWS_TOTAL_BUDGET_USD),
+  NEWS_AGENTS_ENABLED: parsed.data.NEWS_AGENTS_ENABLED === 'true',
+  NEWS_SCHEDULER_IN_PROCESS: parsed.data.NEWS_SCHEDULER_IN_PROCESS === 'true',
+  NEWS_TOP_STORIES_LIMIT: Math.min(parseInt(parsed.data.NEWS_TOP_STORIES_LIMIT, 10), 25),
   ECON_INDICATORS_ENABLED: parsed.data.ECON_INDICATORS_ENABLED === 'true',
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
+  POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
+  POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
+  NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
     .map((providerId) => providerId.trim())

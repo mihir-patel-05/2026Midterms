@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "@/lib/apiBase";
+import { numberFormat } from "./constants";
 import { loadCounties } from "./map/geo";
 
 /** Mirrors the backend's /api/demographics response; see backend/src/services/demographics.service.ts. */
@@ -98,3 +99,98 @@ export function useCountyNames(state: string | null) {
   }, [state]);
   return names;
 }
+
+export interface DemographicsColumn {
+  id: string;
+  /** Short heading, e.g. "TX-07", "Harris County", "Selection", "Texas", "United States". */
+  label: string;
+  name: string;
+  metrics: Map<string, DemographicMetric>;
+}
+
+export interface DemographicsTable {
+  acsYear: number;
+  metrics: Array<{ key: string; label: string; topic: DemographicMetric["topic"]; kind: DemographicMetric["kind"] }>;
+  columns: DemographicsColumn[];
+}
+
+const metricMap = (metrics: DemographicMetric[] | null | undefined) => new Map((metrics ?? []).map((metric) => [metric.key, metric]));
+
+/**
+ * The response as one table: a column per selected area (when there are several),
+ * the selection combined, the state (when the selection is part of it), and the U.S.
+ */
+export function demographicsTable(data: DemographicsData): DemographicsTable {
+  const statewide = data.selection.mode === "state";
+  const columns: DemographicsColumn[] = [];
+  if (data.areas.length > 1) {
+    for (const area of data.areas) columns.push({ id: area.geoid, label: area.label, name: area.name, metrics: metricMap(area.metrics) });
+  }
+  if (!statewide) columns.push({ id: "selection", label: data.areas.length > 1 ? "Selection" : data.areas[0]?.label ?? "Selection", name: "Selection combined", metrics: metricMap(data.combined) });
+  if (data.benchmarks.state) columns.push({ id: "state", label: data.benchmarks.state.name, name: data.benchmarks.state.name, metrics: metricMap(data.benchmarks.state.metrics) });
+  if (data.benchmarks.nation) columns.push({ id: "nation", label: "United States", name: data.benchmarks.nation.name, metrics: metricMap(data.benchmarks.nation.metrics) });
+  const source = data.combined ?? data.benchmarks.state?.metrics ?? [];
+  return {
+    acsYear: data.acsYear,
+    metrics: source.map(({ key, label, topic, kind }) => ({ key, label, topic, kind })),
+    columns,
+  };
+}
+
+const csvCell = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\n\t]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+/** Raw values: shares as fractions, medians in dollars, counts as people; MOE is the 90% margin. */
+function rows(table: DemographicsTable) {
+  const header = ["measure", "key", "topic", "unit", ...table.columns.flatMap((column) => [column.label, `${column.label} MOE`])];
+  const body = table.metrics.map((row) => [
+    row.label,
+    row.key,
+    row.topic,
+    row.kind === "share" ? "share (0-1)" : row.kind === "median" ? "dollars" : "count",
+    ...table.columns.flatMap((column) => {
+      const metric = column.metrics.get(row.key);
+      return [metric?.value ?? null, metric?.moe ?? null];
+    }),
+  ]);
+  return [header, ...body];
+}
+
+export function toCsv(table: DemographicsTable) {
+  return `${rows(table).map((row) => row.map(csvCell).join(",")).join("\n")}\n`;
+}
+
+/** Tab-separated, which spreadsheets split into cells on paste. */
+export function toTsv(table: DemographicsTable) {
+  return rows(table).map((row) => row.map((value) => (value === null || value === undefined ? "" : String(value).replace(/[\t\n]/g, " "))).join("\t")).join("\n");
+}
+
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+
+export function formatValue(metric: Pick<DemographicMetric, "kind" | "value" | "topCoded">) {
+  if (metric.value === null) return "—";
+  if (metric.kind === "share") return percent(metric.value);
+  if (metric.kind === "median") return `${money.format(metric.value)}${metric.topCoded ? "+" : ""}`;
+  return numberFormat.format(metric.value);
+}
+
+export function formatMoe(metric: DemographicMetric) {
+  if (metric.value === null || metric.moe === null || metric.moe === 0) return null;
+  if (metric.kind === "share") return `±${(metric.moe * 100).toFixed(1)} pts`;
+  if (metric.kind === "median") return `±${money.format(metric.moe)}`;
+  return `±${numberFormat.format(metric.moe)}`;
+}
+
+export interface Comparison {
+  label: string;
+  short: string;
+  metrics: DemographicMetric[] | undefined;
+}
+
+export const comparisonFor = (data: DemographicsData, stateName: string | null, stateCode: string): Comparison => (data.selection.mode === "state"
+  ? { label: "United States", short: "US", metrics: data.benchmarks.nation?.metrics }
+  : { label: stateName ?? stateCode, short: stateCode, metrics: data.benchmarks.state?.metrics });

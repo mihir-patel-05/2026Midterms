@@ -17,11 +17,14 @@ import ResearchDashboard from "./pages/research/ResearchDashboard";
 import RaceTracker from "./pages/research/RaceTracker";
 import Simulator from "./pages/research/Simulator";
 import { RequireResearcher } from "./components/research/RequireResearcher";
-import { newFrontendEnabled, simulatorEnabled } from "./lib/featureFlags";
+import { newFrontendEnabled, newsEnabled, simulatorEnabled, warRoomEnabled } from "./lib/featureFlags";
 
 const ElectionDashboard = lazy(() => import("./pages/ElectionDashboard"));
 const ElectionSimulator = lazy(() => import("./pages/ElectionSimulator"));
 const MidtermSimulator = lazy(() => import("./pages/MidtermSimulator"));
+const News = lazy(() => import("./pages/News"));
+// Null with the flag off, so the War Room chunk is never requested.
+const WarRoom = warRoomEnabled ? lazy(() => import("./pages/WarRoom")) : null;
 
 const queryClient = new QueryClient();
 
@@ -70,12 +73,32 @@ const App = () => (
                   />
                 </>
               )}
+              {newsEnabled && (
+                <Route
+                  path="/news"
+                  element={
+                    <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading top stories…</main>}>
+                      <News />
+                    </Suspense>
+                  }
+                />
+              )}
             </>
           ) : (
             <>
               <Route path="/" element={<Index />} />
               <Route path="/election-dashboard" element={dashboard} />
             </>
+          )}
+          {WarRoom && (
+            <Route
+              path="/war-room/*"
+              element={
+                <Suspense fallback={<main style={{ minHeight: "100vh", padding: "2rem", background: "#06080b", color: "#8593a3", fontFamily: "ui-monospace, monospace" }}>Loading War Room…</main>}>
+                  <WarRoom />
+                </Suspense>
+              }
+            />
           )}
           <Route path="/elections" element={<Elections />} />
           <Route path="/elections/:state" element={<Elections />} />

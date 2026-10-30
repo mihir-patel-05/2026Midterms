@@ -27,13 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
+      - name: Generate Prisma clients
+        # Both the main client and the polls database's (prisma/polls).
+        run: npm run prisma:generate
 
-      - name: Validate Prisma schema
-        run: npx prisma validate
+      - name: Validate Prisma schemas
+        run: npx prisma validate && npx prisma validate --schema prisma/polls/schema.prisma
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          POLLS_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_polls
 
       - name: Type-check
         run: npm run typecheck
@@ -67,6 +69,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Dockerfile build args
+        # Every VITE_* name read in src needs an ARG in CODE/Dockerfile.
+        run: npm run check:build-args
 
       - name: Lint
         run: npm run lint -- --max-warnings 0

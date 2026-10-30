@@ -15,6 +15,7 @@
     "build:past-results": "node scripts/build-past-results.mjs",
     "build:redistricting": "node scripts/build-redistricting.mjs",
     "build:seat-holders": "node scripts/build-seat-holders.mjs",
+    "check:build-args": "node scripts/check-build-args.mjs",
     "test": "vitest run"
   },
   "dependencies": {

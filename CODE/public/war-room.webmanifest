@@ -1,0 +1,20 @@
+{
+  "id": "/war-room",
+  "name": "VoteInformed War Room",
+  "short_name": "War Room",
+  "description": "The 2026 midterms from public data: Kalshi prices, FEC money, FRED economics and poll closing times.",
+  "start_url": "/war-room",
+  "scope": "/war-room",
+  "display": "standalone",
+  "background_color": "#06080b",
+  "theme_color": "#06080b",
+  "icons": [
+    { "src": "/war-room-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/war-room-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/war-room-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Election night", "url": "/war-room/night" },
+    { "name": "Signals", "url": "/war-room/signals" }
+  ]
+}
