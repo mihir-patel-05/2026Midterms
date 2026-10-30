@@ -24,11 +24,41 @@ function useWarRoomSkin() {
     const title = document.title;
     root.dataset.skin = "warroom";
     document.title = "War Room · VoteInformed";
+    const undoHead = addAppHead();
     return () => {
       delete root.dataset.skin;
       document.title = title;
+      undoHead();
     };
   }, []);
+}
+
+/**
+ * Offers the War Room as an installable app while it is open: its manifest (name, icons, start page), a dark browser
+ * bar, and its own home-screen icon and name on iPhone and iPad. The rest of the site links no manifest, so it is
+ * never offered for install, and a build with the War Room off never points one at a page it doesn't have.
+ * Returns the undo.
+ */
+function addAppHead() {
+  const added = [
+    headTag("link", { rel: "manifest", href: "/war-room.webmanifest" }),
+    headTag("meta", { name: "theme-color", content: "#06080b" }),
+    headTag("meta", { name: "apple-mobile-web-app-title", content: "War Room" }),
+  ];
+  const touchIcon = document.head.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+  const touchHref = touchIcon?.getAttribute("href");
+  if (touchIcon) touchIcon.setAttribute("href", "/war-room-apple-touch-icon.png");
+  else added.push(headTag("link", { rel: "apple-touch-icon", href: "/war-room-apple-touch-icon.png" }));
+  return () => {
+    added.forEach((element) => element.remove());
+    if (touchIcon && touchHref) touchIcon.setAttribute("href", touchHref);
+  };
+}
+
+function headTag(name: "link" | "meta", attributes: Record<string, string>) {
+  const element = document.createElement(name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  return document.head.appendChild(element);
 }
 
 interface RailItem {

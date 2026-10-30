@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The War Room app icon: the shell's mark on the War Room ground. public/war-room-icon-192.png and
+       war-room-icon-512.png are renders of this file. war-room-icon-maskable-512.png and
+       war-room-apple-touch-icon.png (180px) drop the rounded tile and its edge for a square ground,
+       because the device crops those to its own shape. The mark stays inside the maskable safe zone. -->
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="#06080b" stroke="#1c2530" stroke-width="8"/>
+  <g fill="none" stroke="#ffb020" stroke-width="22">
+    <circle cx="256" cy="256" r="117"/>
+    <path d="M256 87v78M256 347v78M87 256h78M347 256h78"/>
+  </g>
+  <circle cx="256" cy="256" r="34" fill="#ffb020"/>
+</svg>
