@@ -9,6 +9,7 @@
  */
 import type { AreaDemographics, PrismaClient } from '@prisma/client';
 import { computeMetrics, type AreaValues, type MetricValue } from './census/acs-metrics.js';
+import { ACS_METRICS, type AcsMetric } from './census/acs-variables.js';
 import { STATE_FIPS_TO_POSTAL } from './census/census-client.js';
 import { ACS_SOURCE_KEY } from './census/acs-sync.js';
 
@@ -72,7 +73,7 @@ export function districtLabel(state: string, district: string): string {
 /** "Harris County, Texas" → "Harris County". */
 const countyName = (row: Pick<AreaDemographics, 'name'>) => row.name.split(',')[0].trim();
 
-const values = (row: AreaDemographics): AreaValues => ({
+const areaValues = (row: Pick<AreaDemographics, 'estimates' | 'moes'>): AreaValues => ({
   estimates: row.estimates as Record<string, number | null>,
   moes: row.moes as Record<string, number | null>,
 });
@@ -134,7 +135,7 @@ export async function getDemographics(db: Db, query: DemographicsQuery): Promise
     selection: { state, counties, districts, mode },
     acsYear: year,
     congress: districtRows[0]?.congress ?? areaRows.find((row) => row.congress)?.congress ?? null,
-    combined: areaRows.length ? computeMetrics(areaRows.map(values)) : null,
+    combined: areaRows.length ? computeMetrics(areaRows.map(areaValues)) : null,
     areas: areaRows.map((row) => ({
       geoType: row.geoType,
       geoid: row.geoid,
@@ -142,13 +143,13 @@ export async function getDemographics(db: Db, query: DemographicsQuery): Promise
       label: label(row),
       countyFips: row.countyFips,
       districtCode: row.districtCode,
-      metrics: computeMetrics([values(row)]),
+      metrics: computeMetrics([areaValues(row)]),
     })),
     missing,
     noOverlap,
     benchmarks: {
-      state: { name: stateRow.name, metrics: computeMetrics([values(stateRow)]) },
-      nation: nationRow ? { name: nationRow.name, metrics: computeMetrics([values(nationRow)]) } : null,
+      state: { name: stateRow.name, metrics: computeMetrics([areaValues(stateRow)]) },
+      nation: nationRow ? { name: nationRow.name, metrics: computeMetrics([areaValues(nationRow)]) } : null,
     },
     source: {
       name: source?.name ?? 'U.S. Census Bureau, American Community Survey 5-year estimates',
@@ -157,5 +158,89 @@ export async function getDemographics(db: Db, query: DemographicsQuery): Promise
       dataset: `ACS ${year - 4}–${year} 5-year estimates`,
       fetchedAt: fetchedAt?.toISOString() ?? null,
     },
+  };
+}
+
+export type MapLevel = 'state' | 'county' | 'district';
+
+export interface DemographicsMapQuery {
+  level: MapLevel;
+  metric: string;
+  /** Limits counties or districts to one state; ignored for states. */
+  state: string | null;
+  year: number;
+}
+
+export interface DemographicsMapResult {
+  level: MapLevel;
+  acsYear: number;
+  congress: number | null;
+  metric: { key: string; label: string; topic: AcsMetric['topic']; kind: AcsMetric['kind'] };
+  /**
+   * One value per area, keyed the way the map names its shapes: postal code for
+   * states, 5-digit FIPS for counties, "TX-07" for districts. Null when Census
+   * published no value.
+   */
+  values: Record<string, number | null>;
+  /** Areas whose estimate has a large margin of error relative to its value. */
+  lowReliability: string[];
+  /** The same metric for the nation, as a reference point for the legend. */
+  nation: number | null;
+  source: { dataset: string; fetchedAt: string | null };
+}
+
+const MAP_GEO_TYPE = { state: 'STATE', county: 'COUNTY', district: 'CONGRESSIONAL_DISTRICT' } as const;
+
+export function mapMetric(key: string): AcsMetric | null {
+  return ACS_METRICS.find((metric) => metric.key === key) ?? null;
+}
+
+const mapCode = (level: MapLevel, row: Pick<AreaDemographics, 'geoid' | 'stateCode' | 'districtCode'>) => {
+  if (level === 'state') return row.stateCode;
+  if (level === 'county') return row.geoid;
+  return row.stateCode && row.districtCode ? `${row.stateCode}-${row.districtCode}` : null;
+};
+
+/**
+ * One ACS metric for every state, county, or House district (optionally in one
+ * state), for colouring the map. Each area's value is computed on its own, so
+ * published medians are used as-is.
+ */
+export async function getDemographicsMap(db: Pick<PrismaClient, 'areaDemographics'>, query: DemographicsMapQuery): Promise<DemographicsMapResult> {
+  const { level, year } = query;
+  const metric = mapMetric(query.metric);
+  if (!metric) throw new Error(`Unknown metric ${query.metric}`);
+  const state = level === 'state' ? null : query.state;
+
+  const [rows, nationRow] = await Promise.all([
+    db.areaDemographics.findMany({
+      where: { geoType: MAP_GEO_TYPE[level], acsYear: year, ...(state ? { stateCode: state } : {}) },
+      orderBy: { geoid: 'asc' },
+    }),
+    db.areaDemographics.findUnique({ where: { geoType_geoid_acsYear: { geoType: 'NATION', geoid: '1', acsYear: year } } }),
+  ]);
+  if (rows.length === 0) throw new DemographicsNotLoadedError(state ?? 'the nation', year);
+
+  const values: Record<string, number | null> = {};
+  const lowReliability: string[] = [];
+  let fetchedAt: Date | null = null;
+  for (const row of rows) {
+    const code = mapCode(level, row);
+    if (!code) continue;
+    const [computed] = computeMetrics([areaValues(row)], [metric]);
+    values[code] = computed.value;
+    if (computed.lowReliability) lowReliability.push(code);
+    if (!fetchedAt || row.fetchedAt > fetchedAt) fetchedAt = row.fetchedAt;
+  }
+
+  return {
+    level,
+    acsYear: year,
+    congress: level === 'district' ? rows[0]?.congress ?? null : null,
+    metric: { key: metric.key, label: metric.label, topic: metric.topic, kind: metric.kind },
+    values,
+    lowReliability,
+    nation: nationRow ? computeMetrics([areaValues(nationRow)], [metric])[0].value : null,
+    source: { dataset: `ACS ${year - 4}–${year} 5-year estimates`, fetchedAt: fetchedAt?.toISOString() ?? null },
   };
 }

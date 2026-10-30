@@ -5,6 +5,8 @@ import { env } from '../config/env.js';
 import {
   DemographicsNotLoadedError,
   getDemographics,
+  getDemographicsMap,
+  mapMetric,
   MAX_SELECTED_COUNTIES,
   MAX_SELECTED_DISTRICTS,
   stateFipsFor,
@@ -29,6 +31,42 @@ export const demographicsQuery = z
   .refine((query) => query.counties.every((fips) => fips.startsWith(stateFipsFor(query.state) ?? '--')), {
     message: 'Counties must be in the selected state',
   });
+
+export const demographicsMapQuery = z
+  .object({
+    level: z.enum(['state', 'county', 'district']),
+    metric: z.string().refine((key) => mapMetric(key) !== null, { message: 'Unknown metric' }),
+    state: z.string().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()).optional(),
+    year: z.coerce.number().int().min(2020).max(2100).optional(),
+  })
+  .refine((query) => !query.state || stateFipsFor(query.state) !== null, { message: 'Unknown state' });
+
+/**
+ * GET /api/demographics/map?level=county&metric=race_hispanic&state=TX
+ * One ACS metric for every state, county, or House district (optionally in one
+ * state), for colouring the map. Counties nationwide are about 3,200 values.
+ */
+router.get('/map', async (req, res) => {
+  const parsed = demographicsMapQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const { level, metric, state = null, year = env.CENSUS_ACS_YEAR } = parsed.data;
+
+  try {
+    const data = await getDemographicsMap(prisma, { level, metric, state, year });
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ data });
+  } catch (error) {
+    if (error instanceof DemographicsNotLoadedError) {
+      res.status(404).json({ error: error.message, code: 'NOT_LOADED' });
+      return;
+    }
+    console.error('Demographics map lookup failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'Demographics are unavailable' });
+  }
+});
 
 /**
  * GET /api/demographics?state=TX&counties=48201,48157&districts=07,09
