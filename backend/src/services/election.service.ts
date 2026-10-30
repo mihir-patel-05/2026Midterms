@@ -1,7 +1,6 @@
 import { prisma } from '../config/database.js';
 import { parseCalendarDate } from '../utils/calendar-date.js';
 import { HOUSE_SEATS } from '../utils/house-seats.js';
-import { ballotRaces, raceKey, raceLabel, type Race } from '../utils/races.js';
 import { normalizePagination } from '../utils/pagination.js';
 
 interface GetElectionsParams {
@@ -250,33 +249,24 @@ export class ElectionService {
   }
 
   /**
-   * Keep one GENERAL election per race on the ballot and link each active FEC
-   * candidate to theirs. Every seat on the ballot gets a race even before (or
-   * without) an FEC filing, so a district never drops off the map because its
-   * candidates are missing or misfiled. For a cycle with no roster in
-   * utils/races.ts, races come from FEC filings alone.
+   * Generate elections from existing candidate data
+   * Creates Election records for each unique (state, office, district) combination
+   * and links candidates to their elections via CandidateElection records
    */
   async generateElections(cycle: number = 2026): Promise<{
     electionsCreated: number;
-    electionsRemoved: number;
     candidateLinksCreated: number;
-    racesWithoutCandidates: string[];
     errors: number;
   }> {
     console.log(`\n🗳️  Generating elections for cycle ${cycle}...`);
 
     const stats = {
       electionsCreated: 0,
-      electionsRemoved: 0,
       candidateLinksCreated: 0,
-      racesWithoutCandidates: [] as string[],
       errors: 0,
     };
 
     try {
-      const ballot = ballotRaces(cycle);
-      const onBallot = ballot ? new Set(ballot.map(raceKey)) : null;
-
       // Get all candidates for this cycle
       const candidates = await prisma.candidate.findMany({
         where: {
@@ -310,10 +300,14 @@ export class ElectionService {
       });
 
       // Group candidates by race (state + office + district)
-      const races: Record<string, Race & { candidates: typeof candidates }> = {};
+      const races: Record<string, {
+        state: string;
+        officeType: string;
+        district: string | null;
+        candidates: typeof candidates;
+      }> = {};
 
       let invalidDistricts = 0;
-      const offBallot = new Set<string>();
       for (const candidate of candidates) {
         // Normalize office to SENATE/HOUSE
         const officeType = candidate.office?.toUpperCase() === 'S' ? 'SENATE' : 'HOUSE';
@@ -322,119 +316,103 @@ export class ElectionService {
           invalidDistricts++;
           continue;
         }
-        const race: Race = { state: candidate.state, officeType, district };
-        const key = raceKey(race);
-        // e.g. a Senate filing in a state with no Senate race this year.
-        if (onBallot && !onBallot.has(key)) {
-          offBallot.add(raceLabel(race));
-          continue;
-        }
+        const key = `${candidate.state}-${officeType}-${district || 'statewide'}`;
 
-        races[key] ??= { ...race, candidates: [] };
+        if (!races[key]) {
+          races[key] = {
+            state: candidate.state,
+            officeType,
+            district,
+            candidates: [],
+          };
+        }
         races[key].candidates.push(candidate);
       }
 
       if (invalidDistricts > 0) {
         console.warn(`  ⚠️  Skipped ${invalidDistricts} House candidate(s) filed under a district that does not exist`);
       }
-      if (offBallot.size > 0) {
-        console.warn(`  ⚠️  Skipped candidates filed for races not on the ${cycle} ballot: ${[...offBallot].sort().join(', ')}`);
-      }
-      console.log(`  🏛️  Found ${Object.keys(races).length} unique races with candidates`);
+      console.log(`  🏛️  Found ${Object.keys(races).length} unique races`);
 
       // General election date: First Tuesday after first Monday in November
       const generalElectionDate = parseCalendarDate(`${cycle}-11-03`);
 
-      const existing = await prisma.election.findMany({
-        where: { cycle, electionType: 'GENERAL' },
-        select: { id: true, state: true, officeType: true, district: true },
-      });
-      const electionIds = new Map(existing.map((election) => [raceKey(election), election.id]));
+      // Create elections and link candidates
+      for (const [raceKey, race] of Object.entries(races)) {
+        try {
+          // Find or create the election
+          let election = await prisma.election.findFirst({
+            where: {
+              state: race.state,
+              officeType: race.officeType,
+              district: race.district,
+              cycle,
+              electionType: 'GENERAL',
+            },
+          });
 
-      // Every race on the ballot, and any other race a candidate filed for.
-      const wanted = new Map<string, Race>([
-        ...(ballot ?? []).map((race): [string, Race] => [raceKey(race), race]),
-        ...Object.entries(races).map(([key, { state, officeType, district }]): [string, Race] => [key, { state, officeType, district }]),
-      ]);
-      const missing = [...wanted].filter(([key]) => !electionIds.has(key)).map(([, race]) => race);
-      if (missing.length > 0) {
-        const created = await prisma.election.createManyAndReturn({
-          data: missing.map((race) => ({
-            ...race,
-            cycle,
-            electionType: 'GENERAL',
-            electionDate: generalElectionDate,
-          })),
-          select: { id: true, state: true, officeType: true, district: true },
-        });
-        for (const election of created) electionIds.set(raceKey(election), election.id);
-        stats.electionsCreated = created.length;
-        console.log(`  ✅ Created ${created.length} election(s): ${missing.map(raceLabel).join(', ')}`);
-      }
-
-      if (onBallot) {
-        stats.electionsRemoved = await this.removeOffBallotElections(cycle, existing.filter((election) => !onBallot.has(raceKey(election))));
-        stats.racesWithoutCandidates = ballot!.filter((race) => !races[raceKey(race)]).map(raceLabel);
-        if (stats.racesWithoutCandidates.length > 0) {
-          console.warn(
-            `  ⚠️  ${stats.racesWithoutCandidates.length} race(s) on the ballot have no active FEC candidate yet: ` +
-            stats.racesWithoutCandidates.join(', ')
-          );
-        }
-      }
-
-      // Link candidates to their elections
-      for (const [raceKeyValue, race] of Object.entries(races)) {
-        const electionId = electionIds.get(raceKeyValue);
-        if (!electionId) {
-          console.error(`  ❌ No election for ${raceLabel(race)}`);
-          stats.errors++;
-          continue;
-        }
-        for (const candidate of race.candidates) {
-          try {
-            const existingLink = await prisma.candidateElection.findUnique({
-              where: {
-                candidateId_electionId: {
-                  candidateId: candidate.candidateId,
-                  electionId,
-                },
-              },
-              select: { id: true },
-            });
-
-            await prisma.candidateElection.upsert({
-              where: {
-                candidateId_electionId: {
-                  candidateId: candidate.candidateId,
-                  electionId,
-                },
-              },
-              update: {
-                isIncumbent: candidate.incumbentStatus === 'I',
-                ballotStatus: 'UNCONFIRMED',
-              },
-              create: {
-                candidateId: candidate.candidateId,
-                electionId,
-                isIncumbent: candidate.incumbentStatus === 'I',
-                ballotStatus: 'UNCONFIRMED',
-                result: 'PENDING',
+          if (!election) {
+            election = await prisma.election.create({
+              data: {
+                state: race.state,
+                officeType: race.officeType,
+                district: race.district,
+                cycle,
+                electionType: 'GENERAL',
+                electionDate: generalElectionDate,
               },
             });
-            if (!existingLink) stats.candidateLinksCreated++;
-          } catch (linkError: any) {
-            console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
-            stats.errors++;
+            stats.electionsCreated++;
+            console.log(`  ✅ Created election: ${race.state} ${race.officeType}${race.district ? ` District ${race.district}` : ''}`);
           }
+
+          // Link candidates to this election
+          for (const candidate of race.candidates) {
+            try {
+              const existingLink = await prisma.candidateElection.findUnique({
+                where: {
+                  candidateId_electionId: {
+                    candidateId: candidate.candidateId,
+                    electionId: election.id,
+                  },
+                },
+                select: { id: true },
+              });
+
+              await prisma.candidateElection.upsert({
+                where: {
+                  candidateId_electionId: {
+                    candidateId: candidate.candidateId,
+                    electionId: election.id,
+                  },
+                },
+                update: {
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                },
+                create: {
+                  candidateId: candidate.candidateId,
+                  electionId: election.id,
+                  isIncumbent: candidate.incumbentStatus === 'I',
+                  ballotStatus: 'UNCONFIRMED',
+                  result: 'PENDING',
+                },
+              });
+              if (!existingLink) stats.candidateLinksCreated++;
+            } catch (linkError: any) {
+              console.error(`  ❌ Error linking ${candidate.name} to election:`, linkError.message);
+              stats.errors++;
+            }
+          }
+        } catch (electionError: any) {
+          console.error(`  ❌ Error creating election for ${raceKey}:`, electionError.message);
+          stats.errors++;
         }
       }
 
       console.log(`\n📊 Election Generation Summary:`);
       console.log(`   Elections created: ${stats.electionsCreated}`);
-      console.log(`   Elections removed (not on the ballot): ${stats.electionsRemoved}`);
       console.log(`   Candidate links created: ${stats.candidateLinksCreated}`);
-      console.log(`   Races with no FEC candidate: ${stats.racesWithoutCandidates.length}`);
       console.log(`   Errors: ${stats.errors}`);
 
       return stats;
@@ -442,39 +420,6 @@ export class ElectionService {
       console.error('❌ Fatal error generating elections:', error.message);
       throw error;
     }
-  }
-
-  /**
-   * Delete GENERAL elections for races that are not on the ballot, such as a
-   * Senate race in a state with no Senate seat up, created from a misfiled FEC
-   * candidate. An election tied to a results contest or to a confirmed or
-   * decided candidacy is kept and reported instead.
-   */
-  private async removeOffBallotElections(
-    cycle: number,
-    elections: Array<{ id: string; state: string; officeType: string; district: string | null }>,
-  ): Promise<number> {
-    let removed = 0;
-    for (const election of elections) {
-      const label = raceLabel(election);
-      const [contest, settled] = await Promise.all([
-        prisma.contest.count({ where: { legacyElectionId: election.id } }),
-        prisma.candidateElection.count({
-          where: { electionId: election.id, NOT: { ballotStatus: 'UNCONFIRMED', result: 'PENDING' } },
-        }),
-      ]);
-      if (contest > 0 || settled > 0) {
-        console.warn(`  ⚠️  ${label} is not on the ${cycle} ballot but has results data; left in place`);
-        continue;
-      }
-      await prisma.$transaction([
-        prisma.candidateElection.deleteMany({ where: { electionId: election.id } }),
-        prisma.election.delete({ where: { id: election.id } }),
-      ]);
-      removed++;
-      console.log(`  🗑️  Removed ${label}: not on the ${cycle} ballot`);
-    }
-    return removed;
   }
 }
 
