@@ -13,7 +13,7 @@ import { candidateService } from '../candidate.service.js';
 import { financeService } from '../finance.service.js';
 import { fecApiService, type FECCandidate } from '../fec-api.service.js';
 import { ballotRaces, raceKey } from '../../utils/races.js';
-import { majorParty, nameParts, sameFirstName } from '../../utils/person-name.js';
+import { majorParty, nameParts, sameFirstName, sharesSurname } from '../../utils/person-name.js';
 import { parseAggregate, type BallotCandidate, type BallotRace } from './civicapi-ballot.js';
 
 export const CIVICAPI_SOURCE_KEY = 'civicapi';
@@ -81,10 +81,7 @@ function partiesAgree(ballot: string | null, fec: string | null): boolean {
   return !(a && b && a !== b);
 }
 
-const sameSurname = (name: string, records: readonly FecCandidate[]) => {
-  const last = nameParts(name)?.last;
-  return records.filter((record) => nameParts(record.name)?.last === last);
-};
+const sameSurname = (name: string, records: readonly FecCandidate[]) => records.filter((record) => sharesSurname(name, record.name));
 
 /**
  * FEC often holds two records for one person (`HARRIS, MARK E` twice, `MENENDEZ, ROBERT` and
@@ -132,11 +129,10 @@ const pickNote = (pick: { record: FecCandidate; of: number }) => (pick.of > 1 ? 
 export function matchBallotToFec(candidates: BallotCandidate[], fec: FecCandidate[]): PlannedCandidate[] {
   const used = new Set<string>();
   const free = () => fec.filter((record) => !used.has(record.candidateId));
-  const surnames = candidates.filter((candidate) => !candidate.writeIn).map((candidate) => nameParts(candidate.name)?.last);
+  const onBallot = candidates.filter((candidate) => !candidate.writeIn);
   const planned: PlannedCandidate[] = candidates.map((candidate, ballotOrder) => {
     if (candidate.writeIn) return { ...candidate, ballotOrder, fec: null, noMatch: 'declared write-in' };
-    const last = nameParts(candidate.name)?.last;
-    const pick = pickBySurname(candidate, free(), surnames.filter((surname) => surname === last).length);
+    const pick = pickBySurname(candidate, free(), onBallot.filter((other) => sharesSurname(other.name, candidate.name)).length);
     if (!pick) return { ...candidate, ballotOrder, fec: null };
     used.add(pick.record.candidateId);
     return { ...candidate, ballotOrder, fec: pick.record, picked: pickNote(pick) };
@@ -224,7 +220,7 @@ export function pickSearchResult(candidate: BallotCandidate, results: readonly F
   ];
   const fits = results.filter((record) => {
     const parts = nameParts(record.name);
-    return parts?.last === target.last && sameFirstName(target.first, parts.first) && partiesAgree(candidate.party, record.party ?? null);
+    return parts && sharesSurname(candidate.name, record.name) && sameFirstName(target.first, parts.first) && partiesAgree(candidate.party, record.party ?? null);
   });
   return fits.sort((a, b) => {
     const [x, y] = [score(a), score(b)];
