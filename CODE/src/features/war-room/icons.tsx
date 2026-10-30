@@ -8,6 +8,7 @@ const paths = {
   econ: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   past: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></>,
   sim: <><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>,
+  news: <><rect x="3" y="4" width="15" height="16" /><path d="M18 8h3v10a2 2 0 0 1-2 2H5M6 8h9M6 12h9M6 16h5" /></>,
   night: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
   search: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
   close: <path d="M6 6l12 12M18 6L6 18" />,

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { economyEnabled, mockResultsProviderEnabled, newFrontendEnabled, pastResultsEnabled, simulatorEnabled } from "@/lib/featureFlags";
+import { economyEnabled, mockResultsProviderEnabled, newsEnabled, pastResultsEnabled, simulatorEnabled } from "@/lib/featureFlags";
 import { formatEtTime } from "@/features/election-monitor/constants";
 import { useEconIndicators } from "@/features/election-monitor/economy";
 import { useStateCounts } from "@/features/election-monitor/realData";
@@ -69,12 +69,12 @@ interface RailItem {
   hash?: string;
   /** Leaves the War Room for another page, with the same query parameters. */
   search?: (current: URLSearchParams) => URLSearchParams;
-  current?: (pathname: string, hash: string) => boolean;
+  current?: (pathname: string, hash: string, search: URLSearchParams) => boolean;
 }
 
 const RAIL: RailItem[] = [
   { label: "CMD", icon: "command", pathname: "/war-room", current: (path, hash) => path === "/war-room" && hash !== "#theater" },
-  { label: "MAP", icon: "map", pathname: "/war-room", hash: "#theater", current: (path, hash) => path === "/war-room" && hash === "#theater" },
+  { label: "MAP", icon: "map", pathname: "/war-room/map", current: (path, _hash, search) => path === "/war-room/map" && search.get("lens") !== "past" },
   {
     label: "RACES", icon: "races", current: (path) => path.startsWith("/war-room/race/"),
     // The race targeted on the map, else the first on the watchlist.
@@ -86,10 +86,16 @@ const RAIL: RailItem[] = [
   { label: "MKTS", icon: "markets", pathname: "/war-room/signals", current: (path, hash) => path === "/war-room/signals" && hash !== "#money" && hash !== "#econ" },
   { label: "MONEY", icon: "money", pathname: "/war-room/signals", hash: "#money", current: (path, hash) => path === "/war-room/signals" && hash === "#money" },
   { label: "ECON", icon: "econ", pathname: "/war-room/signals", hash: "#econ", current: (path, hash) => path === "/war-room/signals" && hash === "#econ" },
-  ...(newFrontendEnabled && pastResultsEnabled
-    ? [{ label: "PAST", icon: "past" as const, pathname: "/", search: (current: URLSearchParams) => { current.set("mode", "past"); return current; } }]
+  // Past results are a lens on the War Room map, so nothing here leaves for the monitor.
+  ...(pastResultsEnabled
+    ? [{ label: "PAST", icon: "past" as const, pathname: "/war-room/map", search: (current: URLSearchParams) => { current.set("lens", "past"); current.set("mode", "odds"); return current; },
+      current: (path: string, _hash: string, search: URLSearchParams) => path === "/war-room/map" && search.get("lens") === "past" }]
     : []),
-  ...(newFrontendEnabled && simulatorEnabled ? [{ label: "SIM", icon: "sim" as const, pathname: "/simulator/midterms", search: () => new URLSearchParams() }] : []),
+  ...(simulatorEnabled ? [{ label: "SIM", icon: "sim" as const, pathname: "/war-room/sim", search: () => new URLSearchParams(), current: (path: string) => path.startsWith("/war-room/sim") }] : []),
+  ...(newsEnabled ? [{ label: "NEWS", icon: "news" as const, pathname: "/war-room/news", search: (current: URLSearchParams) => {
+    const state = current.get("state");
+    return new URLSearchParams(state ? { state } : {});
+  }, current: (path: string) => path === "/war-room/news" }] : []),
   { label: "NIGHT", icon: "night", pathname: "/war-room/night", current: (path) => path === "/war-room/night" },
 ];
 
@@ -100,7 +106,7 @@ function Rail() {
     <nav className="wr-rail" aria-label="War Room modules">
       {RAIL.map((item) => {
         const query = item.search ? item.search(new URLSearchParams(search)).toString() : search.slice(1);
-        const current = item.current?.(pathname.replace(/\/+$/, "") || "/", hash) ?? false;
+        const current = item.current?.(pathname.replace(/\/+$/, "") || "/", hash, new URLSearchParams(search)) ?? false;
         const to = typeof item.pathname === "string" ? item.pathname : item.pathname({ search: new URLSearchParams(search), firstWatched });
         return (
           <Link key={item.label} className="wr-nav" to={{ pathname: to, search: query ? `?${query}` : "", hash: item.hash ?? "" }} aria-current={current ? "page" : undefined}>

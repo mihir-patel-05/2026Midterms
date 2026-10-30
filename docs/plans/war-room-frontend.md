@@ -53,6 +53,14 @@ Phases 1 to 4 are built and merged into `2026Midterm_intel_v2` (from `Frontend_t
   - The icon source is `scripts/war-room-icon.svg`.
 - **Before Nov 3, if the flag goes on in staging:** confirm `night/pollClosings.ts` against each state's election office. It was compiled from published schedules. North Dakota sets hours by county, and New Hampshire by town.
 
+- **Analyst additions (Oct 30):** the War Room no longer sends anyone to the old pages.
+  - **Map** (`/war-room/map`, the MAP rail item): the theater at full height beside an intel panel that follows the selection (state, district, or Shift-clicked counties and districts). Tabs: **Brief** (seat holders, presidential margins, 2024 House result, key Census figures with a race and ethnicity bar, each against the state or U.S.), **Demographics** (every ACS group, the overlap of counties and districts, and a full table with CSV download and copy), **Economy** (the state's FRED series, the U.S. series, and Census household economics for the selection), and **News**.
+  - **Lenses:** Past results (presidential by state or county, any year; 2024 House by district) and Census (any ACS metric, quantile bins, from `GET /api/demographics/map`) join Market leader, Seat holder, and Flip watch, and both colour counties. PAST in the rail opens the map on the Past lens instead of the monitor.
+  - **Simulator** (`/war-room/sim`, `/war-room/sim/ec`): the midterm and electoral college simulators inside the War Room shell. The map's "Simulate this" opens it on the chamber and state in view.
+  - **News** (`/war-room/news`, the NEWS rail item when `VITE_FEATURE_NEWS` is on): the top stories, filtered by topic and state.
+  - **Dossier:** "Race page" (the old `/elections/...` page) became "Area intel" on the map; the Profile panel adds the race and ethnicity bar and a link to the full profile.
+  - Shared code changed additively only: `DemographicsTab` has an opt-in `full` prop, the simulator pages export their content without `AppShell`, and `SimulatorTabs` takes optional paths. `/` and `/simulator` render as before.
+
 Against the Decisions above:
 - **Watchlist:** built as decided: the swing-state default, the star on the target card and dossier, "Add race", remove, "Reset to default", `warRoom.watchlist.v1`, and 30 races at most. A viewer who never changed the list gets the default worked out from the live markets on each visit. Within one visit it is fixed after the first House prices, so rows don't reshuffle as prices tick.
 - **Alaska and Hawaii:** as decided, the jump buttons and no insets.
