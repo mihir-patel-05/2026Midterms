@@ -49,17 +49,25 @@ const SNAPSHOT_CHECK_MS = 5 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Wait before retrying a 429: Kalshi's Retry-After when it sends one, else 2, 4, 8, 16 seconds. */
+export function rateLimitDelay(retryAfter: string | null, attempt: number): number {
+  const seconds = Number(retryAfter);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 60) * 1000 : 2000 * 2 ** attempt;
+}
+
 async function getJson<T>(url: string): Promise<T | null> {
   for (let attempt = 0; ; attempt++) {
+    let delay = 500 * 2 ** attempt;
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } });
       if (response.status === 404) return null;
       if (response.ok) return response.json() as Promise<T>;
-      if ((response.status !== 429 && response.status < 500) || attempt >= 3) throw new Error(`Kalshi REST returned ${response.status}`);
+      if ((response.status !== 429 && response.status < 500) || attempt >= 4) throw new Error(`Kalshi REST returned ${response.status}`);
+      if (response.status === 429) delay = rateLimitDelay(response.headers.get('retry-after'), attempt);
     } catch (error) {
-      if (attempt >= 3 || (error instanceof Error && /returned 4\d\d/.test(error.message))) throw error;
+      if (attempt >= 4 || (error instanceof Error && /returned 4\d\d/.test(error.message))) throw error;
     }
-    await sleep(500 * 2 ** attempt);
+    await sleep(delay);
   }
 }
 

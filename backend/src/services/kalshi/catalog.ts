@@ -9,6 +9,7 @@ import {
 } from './shared.js';
 import { HOUSE_SEATS } from '../../utils/house-seats.js';
 import { majorParty, matchName } from '../../utils/person-name.js';
+import { ballotRaces } from '../../utils/races.js';
 
 export interface CatalogMarket {
   ticker: string;
@@ -37,6 +38,11 @@ const MAX_HOUSE_PAGES = 10;
 const MAX_STATE_SERIES_PAGES = 3;
 const OTHER_OFFICE = /governor|lieutenant|attorney general|secretary of state|treasurer|controller|comptroller|superintendent|commissioner|state senate|assembly|legislat|mayor|proposition|measure|senate/i;
 const stateElectionSeries = (state: string) => `KX${state}ELECTION`;
+/** A state's district codes: `00` at-large, else `01`…`52`. */
+const houseSeats = (state: string) => {
+  const seats = HOUSE_SEATS[state] ?? 0;
+  return seats === 1 ? ['00'] : Array.from({ length: seats }, (_, index) => String(index + 1).padStart(2, '0'));
+};
 
 /**
  * `KXHOUSERACE-PA07-26` → PA/07; `KXHOUSERACE-DEAL-26` (at-large) → DE/00.
@@ -151,8 +157,9 @@ export async function buildCatalog(
     if (body?.event) markets.push(...eventMarkets(body.event, scope, null, null));
   }
 
-  // One regular and one special Senate event per state; most return 404.
-  const senateTickers = Object.keys(stateNames).flatMap((state) => [[state, `SENATE${state}-26`], [state, `SENATE${state}S-26`]]);
+  // A regular and a special Senate event for each state with a race this year; one of the two returns 404.
+  const senateStates = (ballotRaces(2026) ?? []).filter((race) => race.officeType === 'SENATE').map((race) => race.state);
+  const senateTickers = senateStates.flatMap((state) => [[state, `SENATE${state}-26`], [state, `SENATE${state}S-26`]]);
   const senate = await mapLimit(senateTickers, 3, async ([state, ticker]) => {
     const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
     return body?.event?.event_ticker === ticker ? usable(body.event, 'STATE_SENATE', state, null) : [];
@@ -173,10 +180,12 @@ export async function buildCatalog(
     if (!cursor) break;
   }
 
-  // Same-party and top-two races live in per-state series (`KXCAELECTION-2607`); most states have none.
+  // Same-party and top-two races live in per-state series (`KXCAELECTION-2607`). Only states
+  // with a seat KXHOUSERACE left uncovered are searched, to keep each refresh under Kalshi's rate limit.
   const houseCovered = () => new Set(markets.filter((market) => market.scope === 'HOUSE_DISTRICT').map((market) => market.race));
   const fromKxHouse = houseCovered();
-  const stateSeries = await mapLimit(Object.keys(stateNames), 3, async (state) => {
+  const uncoveredStates = Object.keys(stateNames).filter((state) => houseSeats(state).some((seat) => !fromKxHouse.has(`${state}-${seat}`)));
+  const stateSeries = await mapLimit(uncoveredStates, 3, async (state) => {
     const found: CatalogMarket[] = [];
     let seriesCursor = '';
     for (let page = 0; page < MAX_STATE_SERIES_PAGES; page++) {
@@ -201,12 +210,9 @@ export async function buildCatalog(
   // Seats missing from both may have a per-district event (`HOUSECA22-26`); most of
   // these lookups return 404. Probe every state's remaining seats, not only competitive ones.
   const covered = houseCovered();
-  const seatTickers = Object.keys(stateNames).flatMap((state) => {
-    const seats = HOUSE_SEATS[state] ?? 0;
-    return Array.from({ length: seats }, (_, index) => (seats === 1 ? 'AL' : String(index + 1)))
-      .filter((seat) => !covered.has(`${state}-${seat === 'AL' ? '00' : seat.padStart(2, '0')}`))
-      .map((seat) => `HOUSE${state}${seat}-26`);
-  });
+  const seatTickers = Object.keys(stateNames).flatMap((state) => houseSeats(state)
+    .filter((seat) => !covered.has(`${state}-${seat}`))
+    .map((seat) => `HOUSE${state}${seat === '00' ? 'AL' : Number(seat)}-26`));
   const seats = await mapLimit(seatTickers, 3, async (ticker) => {
     const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
     const seat = parseHouseEventTicker(ticker);

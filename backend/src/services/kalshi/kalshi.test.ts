@@ -3,7 +3,7 @@ import { constants, generateKeyPairSync, verify } from 'node:crypto';
 import { test } from 'node:test';
 import { authHeaders, loadPrivateKey, signRequest } from './auth.js';
 import { assignParties, buildCatalog, eventMarkets, parseHouseEventTicker, parseStateElectionEvent, tickersTried, type JsonFetcher } from './catalog.js';
-import { KalshiLiveFeed } from './live-feed.js';
+import { KalshiLiveFeed, rateLimitDelay } from './live-feed.js';
 import { isStateCode, knownStateCode, quotePrice } from './shared.js';
 import { hourStart, snapshotRows, type SnapshotInput } from './snapshots.js';
 
@@ -173,6 +173,11 @@ test('the catalog covers control, regular and special Senate, and every House pa
     'SENATEKY-26 (Kentucky Senate winner?) has no open market (initialized)',
   ]);
   assert.ok(requested.some((url) => url.includes('series_ticker=KXWAELECTION')));
+  // Fewer requests per refresh: no Senate lookups where no seat is up, and no state series
+  // for a state whose seats KXHOUSERACE already covers (DE-00 here).
+  assert.ok(!requested.some((url) => url.includes('/events/SENATECA-26?') || url.includes('/events/SENATECAS-26?')));
+  assert.equal(requested.filter((url) => /\/events\/SENATE[A-Z]{2}S?-26\?/.test(url)).length, 70);
+  assert.ok(!requested.some((url) => url.includes('series_ticker=KXDEELECTION')));
   // CA-07 came from the state series, so its per-district event is not probed.
   assert.ok(!requested.some((url) => url.includes('/events/HOUSECA7-26?')));
   assert.ok(requested.some((url) => url.includes('/events/SENATEGA-26?')));
@@ -247,4 +252,11 @@ test('state codes match only real states, never inherited object keys', () => {
   assert.equal(knownStateCode('PA'), 'PA');
   assert.equal(knownStateCode('ZZ'), null);
   assert.equal(knownStateCode('toString'), null);
+});
+
+test('a rate-limited request waits for Retry-After, or backs off for longer each time', () => {
+  assert.equal(rateLimitDelay('3', 0), 3000);
+  assert.equal(rateLimitDelay('600', 0), 60_000);
+  assert.deepEqual([0, 1, 2, 3].map((attempt) => rateLimitDelay(null, attempt)), [2000, 4000, 8000, 16_000]);
+  assert.equal(rateLimitDelay('soon', 1), 4000);
 });

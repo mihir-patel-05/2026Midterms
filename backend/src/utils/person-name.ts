@@ -3,11 +3,12 @@ const TITLES = new Set(['MR', 'MRS', 'MS', 'DR', 'HON', 'REV']);
 
 /**
  * Upper-case surname and first name from a ballot name ("Doris Matsui", "Alexandria
- * Ocasio-Cortez") or an FEC name ("MATSUI, DORIS O", "VAN HOLLEN, CHRIS JR."). The surname
- * key is its last word, so "Van Hollen" and "HOLLEN" compare equal. Nicknames in quotes or
- * parentheses and accents are dropped.
+ * Ocasio-Cortez") or an FEC name ("MATSUI, DORIS O", "VAN HOLLEN, CHRIS JR."). `last` is the
+ * surname's last word, so "Van Hollen" and "HOLLEN" compare equal; `surname` and `given` keep
+ * every word. Nicknames in quotes or parentheses and accents are dropped. Compare surnames
+ * with `sharesSurname`, which also handles compound and spaced surnames.
  */
-export function nameParts(name: string): { last: string; first: string } | null {
+export function nameParts(name: string): { last: string; first: string; surname: string[]; given: string[] } | null {
   const clean = name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -26,19 +27,50 @@ export function nameParts(name: string): { last: string; first: string } | null 
     surname = all.slice(-1);
     given = all.slice(0, -1);
   }
-  const last = surname.at(-1)?.replace(/[^A-Z'-]/g, '');
+  const letters = (word: string) => word.replace(/[^A-Z'-]/g, '');
+  const last = letters(surname.at(-1) ?? '');
   if (!last) return null;
-  return { last, first: given[0]?.replace(/[^A-Z'-]/g, '') ?? '' };
+  return { last, first: letters(given[0] ?? ''), surname: surname.map(letters).filter(Boolean), given: given.map(letters).filter(Boolean) };
+}
+
+// Surname particles too common to identify anyone on their own.
+const PARTICLES = new Set(['VAN', 'VON', 'DER', 'DEN', 'DEL', 'DELA', 'LOS', 'LAS', 'SAN', 'STE']);
+
+/** Every form of the surname: last word, each word of a multi-word FEC surname, and the words run together ("ST CLAIR" → STCLAIR). */
+function surnameKeys(parts: NonNullable<ReturnType<typeof nameParts>>, filed: boolean): Set<string> {
+  const keys = new Set([parts.last, parts.surname.join('')]);
+  if (filed) {
+    for (const word of parts.surname) if (word.length >= 3 && !PARTICLES.has(word)) keys.add(word);
+  } else if (parts.given.length >= 2) {
+    // "Kevin St Clair", "Taner E. Demirci Lopez": the last two words of a ballot name may be one surname.
+    keys.add(`${parts.given.at(-1)}${parts.last}`);
+  }
+  return keys;
 }
 
 /**
- * The one candidate with this name: same surname, and the same first initial when two
+ * Whether two names share a surname, in any of its forms: "HINSON ARENHOLZ, ASHLEY" and
+ * "Ashley Hinson", "ST CLAIR, KEVIN" and "Kevin StClair", "DEMIRCI LOPEZ, TANER" and "Taner
+ * E. Demirci Lopez". A maiden name kept as a middle name ("ARENHOLZ, ASHLEY HINSON") counts
+ * only when the first names agree too.
+ */
+export function sharesSurname(a: string, b: string): boolean {
+  const [x, y] = [nameParts(a), nameParts(b)];
+  if (!x || !y) return false;
+  const [xKeys, yKeys] = [surnameKeys(x, a.includes(',')), surnameKeys(y, b.includes(','))];
+  if ([...xKeys].some((key) => yKeys.has(key))) return true;
+  const middles = (parts: typeof x) => parts.given.slice(1);
+  return (middles(y).includes(x.last) || middles(x).includes(y.last)) && sameFirstName(x.first, y.first);
+}
+
+/**
+ * The one candidate with this name: a shared surname, and the same first initial when two
  * share a surname. Null when nobody matches or the match is ambiguous.
  */
 export function matchName<T extends { name: string }>(name: string, candidates: readonly T[]): T | null {
   const target = nameParts(name);
   if (!target) return null;
-  const sameLast = candidates.filter((candidate) => nameParts(candidate.name)?.last === target.last);
+  const sameLast = candidates.filter((candidate) => sharesSurname(name, candidate.name));
   if (sameLast.length <= 1) return sameLast[0] ?? null;
   const sameFirst = sameLast.filter((candidate) => {
     const first = nameParts(candidate.name)?.first ?? '';
