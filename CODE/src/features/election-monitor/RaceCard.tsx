@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
 import { CloudOff, Loader2, Vote } from "lucide-react";
 import { districtLabel, formatEtTime, formatShortDate, initials, numberFormat, officeLabels, partyTone, priceTypeLabel } from "./constants";
 import { historyByTicker, historyStart, useMarketHistory } from "./marketHistory";
@@ -85,6 +84,7 @@ export function RaceCard({
   error,
   hasState,
   onSelectContest,
+  onSelectCandidate,
 }: {
   contests: MonitorContest[];
   contest: MonitorContest | undefined;
@@ -95,6 +95,8 @@ export function RaceCard({
   error: boolean;
   hasState: boolean;
   onSelectContest: (id: string) => void;
+  /** Opens a candidate's FEC filings in the Finance tab. */
+  onSelectCandidate: (profileId: string) => void;
 }) {
   if (!contest) {
     const [Icon, title, copy] = loading
@@ -161,7 +163,9 @@ export function RaceCard({
             <div className="em-candidate-line">
               <div className="em-candidate-name">
                 <span className="em-avatar" style={{ "--avatar-bg": tone.bg, "--avatar-fg": tone.fg } as CSSProperties} aria-hidden="true">{initials(candidate.name)}</span>
-                {candidate.profileId ? <Link to={`/candidates/${candidate.profileId}`}>{name}</Link> : name}
+                {candidate.profileId
+                  ? <button type="button" className="em-candidate-link" title="Show campaign finance" onClick={() => onSelectCandidate(candidate.profileId!)}>{name}</button>
+                  : name}
               </div>
               {result && (
                 <div className="em-candidate-total">

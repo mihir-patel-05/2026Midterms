@@ -1,24 +1,9 @@
-import { CloudOff, Database, Loader2, MousePointerClick, Users, X } from "lucide-react";
+import { useState } from "react";
+import { Check, ClipboardCopy, CloudOff, Database, Download, Loader2, MousePointerClick, Users, X } from "lucide-react";
 import { districtLabel, formatShortDate, numberFormat } from "./constants";
-import { useCountyNames, useDemographics, DemographicsError, type DemographicMetric, type DemographicsData } from "./demographics";
+import { RaceMixBar } from "./AreaBrief";
+import { comparisonFor, demographicsTable, formatMoe, formatValue, percent, toCsv, toTsv, useCountyNames, useDemographics, DemographicsError, type Comparison, type DemographicMetric, type DemographicsData } from "./demographics";
 import { isRedistricted } from "./map/redistricting";
-
-const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
-
-function formatValue(metric: Pick<DemographicMetric, "kind" | "value" | "topCoded">) {
-  if (metric.value === null) return "—";
-  if (metric.kind === "share") return percent(metric.value);
-  if (metric.kind === "median") return `${money.format(metric.value)}${metric.topCoded ? "+" : ""}`;
-  return numberFormat.format(metric.value);
-}
-
-function formatMoe(metric: DemographicMetric) {
-  if (metric.value === null || metric.moe === null || metric.moe === 0) return null;
-  if (metric.kind === "share") return `±${(metric.moe * 100).toFixed(1)} pts`;
-  if (metric.kind === "median") return `±${money.format(metric.moe)}`;
-  return `±${numberFormat.format(metric.moe)}`;
-}
 
 const byKey = (metrics: DemographicMetric[] | null | undefined) => new Map((metrics ?? []).map((metric) => [metric.key, metric]));
 
@@ -26,16 +11,16 @@ function Empty({ icon: Icon, title, copy, spin }: { icon: typeof CloudOff; title
   return <div className="em-empty"><Icon aria-hidden="true" className={spin ? "animate-spin" : undefined} /><strong>{title}</strong><span>{copy}</span></div>;
 }
 
-const TILES = ["population", "cvap", "median_household_income", "poverty_rate", "education_ba_plus", "owner_occupied", "unemployment_rate", "median_home_value"];
+const TILES = ["population", "cvap", "households", "median_household_income", "poverty_rate", "education_ba_plus", "unemployment_rate", "median_home_value"];
 
-function Tiles({ data, stateCode }: { data: DemographicsData; stateCode: string }) {
+export function Tiles({ data, stateCode, keys = TILES }: { data: DemographicsData; stateCode: string; keys?: string[] }) {
   const combined = byKey(data.combined);
   const state = byKey(data.benchmarks.state?.metrics);
   const nation = byKey(data.benchmarks.nation?.metrics);
   const statewide = data.selection.mode === "state";
   return (
     <dl className="em-metrics em-demo-tiles">
-      {TILES.map((key) => {
+      {keys.map((key) => {
         const metric = combined.get(key);
         if (!metric) return null;
         // Medians that cannot be combined are left out rather than shown as blank.
@@ -63,28 +48,30 @@ function Tiles({ data, stateCode }: { data: DemographicsData; stateCode: string 
   );
 }
 
-interface Comparison {
-  label: string;
-  short: string;
-  metrics: DemographicMetric[] | undefined;
-}
 
-const GROUPS: Array<{ title: string; topic: DemographicMetric["topic"]; prefix: string }> = [
-  { title: "Race and ethnicity", topic: "race", prefix: "race_" },
-  { title: "Age", topic: "age", prefix: "age_" },
-  { title: "Household income", topic: "income", prefix: "income_" },
+/** Every share the API returns, grouped; together with the tiles this is the full ACS profile. */
+const GROUPS: Array<{ title: string; keys: string[] }> = [
+  { title: "Race and ethnicity", keys: ["race_white", "race_hispanic", "race_black", "race_asian", "race_native", "race_pacific", "race_other", "race_multiracial"] },
+  { title: "Age", keys: ["age_under_18", "age_18_29", "age_30_44", "age_45_64", "age_65_plus"] },
+  { title: "Household income", keys: ["income_under_25k", "income_25k_50k", "income_50k_75k", "income_75k_100k", "income_100k_150k", "income_150k_200k", "income_200k_plus"] },
+  { title: "Education (adults 25+)", keys: ["education_hs_plus", "education_ba_plus"] },
+  { title: "Work and housing", keys: ["unemployment_rate", "poverty_rate", "owner_occupied"] },
+  { title: "Background", keys: ["veterans", "foreign_born"] },
 ];
+
 
 /**
  * One single-hue bar per category, scaled to the largest value in the group so
  * small groups stay visible; each row is labeled with its value, and a tick marks
  * the comparison area's share: the state, or the US for a statewide view.
  */
-function ShareBars({ data, comparison, title, prefix }: { data: DemographicsData; comparison: Comparison; title: string; prefix: string }) {
-  const rows = (data.combined ?? []).filter((metric) => metric.kind === "share" && metric.key.startsWith(prefix));
+export function ShareBars({ data, comparison, title, keys }: { data: DemographicsData; comparison: Comparison; title: string; keys: string[] }) {
+  const combined = byKey(data.combined);
+  const rows = keys.flatMap((key) => combined.get(key) ?? []).filter((metric) => metric.kind === "share");
   const reference = byKey(comparison.metrics);
   const max = Math.max(0.0001, ...rows.flatMap((metric) => [metric.value ?? 0, reference.get(metric.key)?.value ?? 0]));
-  const id = `em-demo-${prefix.replace(/_$/, "")}`;
+  if (rows.length === 0) return null;
+  const id = `em-demo-${keys[0]}`;
   return (
     <figure className="em-demo-group" aria-labelledby={id}>
       <figcaption id={id}>{title}</figcaption>
@@ -107,6 +94,55 @@ function ShareBars({ data, comparison, title, prefix }: { data: DemographicsData
         );
       })}
     </figure>
+  );
+}
+
+/**
+ * Every figure for the selection, each selected area, the state, and the U.S., with
+ * margins of error, ready to download as CSV or paste into a spreadsheet.
+ */
+function DataTable({ data, stateCode, title }: { data: DemographicsData; stateCode: string; title: string }) {
+  const table = demographicsTable(data);
+  const [copied, setCopied] = useState(false);
+  const fileName = `voteinformed-acs${data.acsYear}-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.csv`;
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([toCsv(table)], { type: "text/csv;charset=utf-8" }));
+    const link = Object.assign(document.createElement("a"), { href: url, download: fileName });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  const copy = () => {
+    void navigator.clipboard?.writeText(toTsv(table)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+  return (
+    <details className="em-demo-data">
+      <summary>All figures ({table.metrics.length} measures × {table.columns.length} areas)</summary>
+      <div className="em-demo-export">
+        <button type="button" onClick={download}><Download aria-hidden="true" />Download CSV</button>
+        <button type="button" onClick={copy}>{copied ? <Check aria-hidden="true" /> : <ClipboardCopy aria-hidden="true" />}{copied ? "Copied" : "Copy for spreadsheet"}</button>
+      </div>
+      <div className="em-demo-scroll">
+        <table className="em-past-table em-demo-table">
+          <caption className="sr-only">ACS {data.acsYear} figures for {title}, {stateCode}, and the U.S.</caption>
+          <thead><tr><th scope="col">Measure</th>{table.columns.map((column) => <th key={column.id} scope="col" title={column.name}>{column.label}</th>)}</tr></thead>
+          <tbody>
+            {table.metrics.map((row) => (
+              <tr key={row.key}>
+                <th scope="row">{row.label}</th>
+                {table.columns.map((column) => {
+                  const metric = column.metrics.get(row.key);
+                  const moe = metric ? formatMoe(metric) : null;
+                  return <td key={column.id} title={moe ?? undefined}>{metric ? formatValue(metric) : "—"}{metric?.lowReliability ? "*" : ""}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 
@@ -166,6 +202,11 @@ export function DemographicsTab({
     overlap: "Only the parts of the selected counties that lie inside the selected districts.",
   }[mode];
 
+  const removable = [
+    ...counties.map((fips) => ({ key: `c${fips}`, label: countyLabel(fips), remove: () => onCountiesChange(counties.filter((item) => item !== fips)) })),
+    ...districts.map((code) => ({ key: `d${code}`, label: stateCode ? districtLabel(stateCode, code) : code, remove: () => onDistrictsChange(districts.filter((item) => item !== code)) })),
+  ];
+
   let body;
   if (!stateCode) body = <Empty icon={MousePointerClick} title="Select a state" copy="Pick a state, then select counties or House districts on the map." />;
   else if (demographics.isError && !data) {
@@ -182,18 +223,19 @@ export function DemographicsTab({
   } else {
     const unmatchedCounties = [...data.noOverlap.counties, ...data.missing.counties];
     const unmatchedDistricts = [...data.noOverlap.districts, ...data.missing.districts];
-    const comparison: Comparison = data.selection.mode === "state"
-      ? { label: "United States", short: "US", metrics: data.benchmarks.nation?.metrics }
-      : { label: stateName ?? stateCode, short: stateCode, metrics: data.benchmarks.state?.metrics };
+    const comparison = comparisonFor(data, stateName, stateCode);
+    const title = mode === "state" ? stateName ?? stateCode : removable.map((item) => item.label).join(", ");
     body = (
       <>
         <Tiles data={data} stateCode={stateCode} />
+        <RaceMixBar metrics={byKey(data.combined)} />
         <div className="em-demo-legend" aria-hidden="true">
           <span><i data-swatch="bar" />{data.selection.mode === "state" ? stateName ?? stateCode : "Selection"}</span>
           <span><i data-swatch="tick" />{comparison.label}</span>
         </div>
-        {GROUPS.map((group) => <ShareBars key={group.prefix} data={data} comparison={comparison} title={group.title} prefix={group.prefix} />)}
+        {GROUPS.map((group) => <ShareBars key={group.title} data={data} comparison={comparison} title={group.title} keys={group.keys} />)}
         {(data.areas.length > 1 || data.selection.mode === "overlap") && <Pieces data={data} />}
+        <DataTable data={data} stateCode={stateCode} title={title} />
         {(unmatchedCounties.length > 0 || unmatchedDistricts.length > 0) && (
           <div className="em-note" role="note">
             Not included: {[...unmatchedCounties.map(countyLabel), ...unmatchedDistricts.map((code) => districtLabel(stateCode, code))].join(", ")}
@@ -204,10 +246,6 @@ export function DemographicsTab({
     );
   }
 
-  const removable = [
-    ...counties.map((fips) => ({ key: `c${fips}`, label: countyLabel(fips), remove: () => onCountiesChange(counties.filter((item) => item !== fips)) })),
-    ...districts.map((code) => ({ key: `d${code}`, label: stateCode ? districtLabel(stateCode, code) : code, remove: () => onDistrictsChange(districts.filter((item) => item !== code)) })),
-  ];
 
   return (
     <section className="em-card" aria-labelledby="em-demo-heading" aria-busy={demographics.isFetching}>

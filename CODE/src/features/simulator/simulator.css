@@ -20,6 +20,8 @@
 .sim-tabs a { padding: 6px 12px; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.8rem; font-weight: 700; }
 .sim-tabs a:hover { color: hsl(var(--foreground)); }
 .sim-tabs a[aria-current="page"] { background: hsl(var(--signal-teal) / 0.12); color: hsl(var(--foreground)); }
+.sim-tabs a.sim-tabs-back { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; border-right: 1px solid hsl(var(--line)); border-radius: 7px 0 0 7px; color: hsl(var(--signal-teal)); }
+.sim-tabs-back svg { width: 14px; height: 14px; }
 
 /* Controls */
 .sim-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px; margin-bottom: 14px; }

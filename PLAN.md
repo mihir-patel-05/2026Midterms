@@ -94,11 +94,16 @@ Differentiators:
 
 - District race pages with ACS demographics and partisan lean.
 - Agent foundation: shared job runner, Zod output schemas, and `AgentRun` logging.
+- War room (Oct 30): the monitor opens as a full-screen map; `?map=dashboard` brings back the scrolling dashboard.
+  - **Area brief** over the map for whatever is selected (state, district, counties): seat holders, presidential and 2024 House margins, and key Census figures with a race and ethnicity bar, each against the state or the U.S.
+  - **Census map mode:** states, districts, or counties coloured by any ACS metric (quantile bins), from `GET /api/demographics/map`.
+  - **Panel:** Demographics shows every ACS group plus a full table with CSV download and copy; a new Economy tab has the state's FRED series, the U.S. series, and Census household economics for the selection; a new News tab lists race, state, and national headlines.
+  - **Self-contained:** the shell links only to the war room and the simulator; candidate clicks and search open the race's Finance tab instead of the legacy candidate page; a Simulate button opens `/simulator/midterms` on the chamber, state, and district in view.
 
 **Known gaps**
 
 - **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
-- No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`.
+- News comes only from an interim keyless source: `/api/news` serves time-ordered "latest coverage" from Google News RSS search (`NEWS_RSS_ENABLED`, on by default), cached for ten minutes and stored nowhere. The NYT and AP integrations (section 4.6) have no code or keys yet. Plan (Oct 26): ingest news through our Apify account, then tag and pick top stories per race with Agents 1 and 10, behind the same response shape. See `docs/plans/news-agents.md`.
 - No live election-results provider is licensed. Election night depends on getting one; see section 6.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.

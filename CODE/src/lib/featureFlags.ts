@@ -19,3 +19,5 @@ export const pastResultsEnabled = import.meta.env.VITE_FEATURE_PAST_RESULTS !== 
 export const simulatorEnabled = pastResultsEnabled && import.meta.env.VITE_FEATURE_SIMULATOR !== "false";
 /** Market odds map mode (each Senate state or House district coloured by its Kalshi market). On unless set to "false". */
 export const oddsMapEnabled = import.meta.env.VITE_FEATURE_ODDS_MAP !== "false";
+/** News tab in the war room's detail panel (latest coverage from /api/news). On unless set to "false". */
+export const newsEnabled = import.meta.env.VITE_FEATURE_NEWS !== "false";

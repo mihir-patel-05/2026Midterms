@@ -3,11 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import type { DetailTab, MapLayer, MapMode, OfficeFilter } from "./types";
 import { ODDS_OFFICES, type OddsOffice } from "./oddsMap";
 import { PAST_OFFICES, type PastMetric, type PastOffice } from "./pastResults";
+import { CENSUS_METRIC_KEYS, DEFAULT_CENSUS_METRIC } from "./censusMap";
 
 const offices: OfficeFilter[] = ["ALL", "US_SENATE", "US_HOUSE"];
 const layers: MapLayer[] = ["states", "districts", "counties"];
-const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics", "history"];
-const modes: MapMode[] = ["races", "past", "odds"];
+const tabs: DetailTab[] = ["overview", "counties", "finance", "demographics", "economy", "news", "history"];
+const modes: MapMode[] = ["races", "past", "odds", "census"];
 const metrics: PastMetric[] = ["winner", "shift"];
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
@@ -43,7 +44,14 @@ export interface MonitorParams {
   pastFrom: number | null;
   /** Market odds: the chamber whose races colour the map. */
   oddsOffice: OddsOffice;
-  /** The map fills the window, with the detail panel docked beside it (`?map=full`). */
+  /** Census mode: the ACS metric that colours the map. */
+  censusMetric: string;
+  /** VoteInformed candidate id whose race and finance the panel shows (from search or a candidate click). */
+  candidate: string | null;
+  /**
+   * The war room map fills the window, with the detail panel docked beside it. This is the default;
+   * `?map=dashboard` opts into the scrolling dashboard with the sidebar and rails.
+   */
   expanded: boolean;
 }
 
@@ -91,24 +99,27 @@ export function useMonitorParams() {
       pastMetric: pick(searchParams.get("pmetric"), metrics, "winner"),
       pastFrom: parseYear(searchParams.get("pfrom")),
       oddsOffice: pick(searchParams.get("ooffice"), ODDS_OFFICES, "senate"),
-      expanded: searchParams.get("map") === "full",
+      censusMetric: pick(searchParams.get("cmetric"), CENSUS_METRIC_KEYS, DEFAULT_CENSUS_METRIC),
+      candidate: /^[\w-]{1,64}$/.test(searchParams.get("cand") ?? "") ? searchParams.get("cand") : null,
+      // `?map=full` links from before the war room became the default still open it.
+      expanded: searchParams.get("map") !== "dashboard",
     };
   }, [searchParams]);
 
   const update = useCallback((patch: Partial<MonitorParams>) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, oddsOffice, expanded, ...rest } = patch;
+      const { view, mode, pastOffice, pastYear, pastMetric, pastFrom, oddsOffice, censusMetric, candidate, expanded, ...rest } = patch;
       // Past results and market odds keep short URL names; defaults are left out so ordinary links stay clean.
-      const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null], ooffice: [oddsOffice, "senate"] } as const;
+      const past = { mode: [mode, "races"], poffice: [pastOffice, "president"], pyear: [pastYear, null], pmetric: [pastMetric, "winner"], pfrom: [pastFrom, null], ooffice: [oddsOffice, "senate"], cmetric: [censusMetric, DEFAULT_CENSUS_METRIC], cand: [candidate, null] } as const;
       for (const [key, [value, fallback]] of Object.entries(past)) {
         if (value === undefined) continue;
         if (value === null || value === fallback) next.delete(key);
         else next.set(key, String(value));
       }
       if (expanded !== undefined) {
-        if (expanded) next.set("map", "full");
-        else next.delete("map");
+        if (expanded) next.delete("map");
+        else next.set("map", "dashboard");
       }
       if (view !== undefined) {
         for (const key of ["lat", "lon", "zoom"] as const) {

@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { BadgeDollarSign, CloudOff, Loader2 } from "lucide-react";
 import { getCandidateDetailedFinances } from "@/lib/api";
 import { formatShortDate } from "./constants";
@@ -21,10 +19,14 @@ function reportTypeLabel(type: string) {
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
-export function FinanceTab({ contest }: { contest: MonitorContest | undefined }) {
+/** `candidate` is a VoteInformed profile id from the URL (search or a candidate click); the first FEC-linked candidate otherwise. */
+export function FinanceTab({ contest, candidate: chosen, onCandidateChange }: {
+  contest: MonitorContest | undefined;
+  candidate: string | null;
+  onCandidateChange: (profileId: string) => void;
+}) {
   const candidates = contest?.candidates.filter((candidate) => candidate.profileId) ?? [];
-  const [chosen, setChosen] = useState<string | null>(null);
-  const selected = candidates.find((candidate) => candidate.id === chosen) ?? candidates[0];
+  const selected = candidates.find((candidate) => candidate.profileId === chosen) ?? candidates[0];
 
   const finance = useQuery({
     queryKey: ["election-monitor", "finance", selected?.profileId, MONITOR_CYCLE],
@@ -95,14 +97,13 @@ export function FinanceTab({ contest }: { contest: MonitorContest | undefined })
         {candidates.length > 1 && (
           <div className="em-finance-candidates" role="group" aria-label="Choose a candidate">
             {candidates.map((candidate) => (
-              <button key={candidate.id} type="button" aria-pressed={candidate.id === selected?.id} onClick={() => setChosen(candidate.id)}>
+              <button key={candidate.id} type="button" aria-pressed={candidate.id === selected?.id} onClick={() => onCandidateChange(candidate.profileId!)}>
                 {candidate.name}
               </button>
             ))}
           </div>
         )}
         {body}
-        {selected?.profileId && <Link className="em-link mt-3 inline-block" to={`/candidates/${selected.profileId}`}>Full finance profile, donors and industry breakdown →</Link>}
       </section>
 
       <OutsideSpendingCard contest={contest} />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Info, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { cn } from "@/lib/utils";
@@ -43,13 +43,6 @@ export function TopBar() {
             <i className={cn("h-2 w-2 rounded-full", mockResultsProviderEnabled ? "bg-signal-amber" : "bg-signal-teal")} aria-hidden="true" />
             {mockResultsProviderEnabled ? "Mock results" : "FEC data"}
           </span>
-          <Link
-            to="/about"
-            aria-label="About VoteInformed data"
-            className="hidden h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-line bg-surface-2 text-muted-foreground hover:text-foreground sm:inline-flex"
-          >
-            <Info className="h-[17px] w-[17px]" aria-hidden="true" />
-          </Link>
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>

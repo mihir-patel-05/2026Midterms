@@ -146,8 +146,8 @@
 .em-pill[data-tone="amber"] { background: hsl(var(--signal-amber) / 0.1); color: hsl(var(--signal-amber)); }
 .em-pill[data-tone="muted"] { background: rgb(255 255 255 / 0.05); color: hsl(var(--muted-foreground)); }
 /* Tabs size to their labels and share any spare width; with five tabs on a narrow panel the row scrolls rather than clipping. */
-.em-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-bottom: 15px; padding: 4px; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
-.em-tab { flex: 1 0 auto; min-height: 35px; padding: 0 6px; white-space: nowrap; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.76rem; font-weight: 750; }
+.em-tabs { display: flex; flex-wrap: wrap; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-bottom: 15px; padding: 4px; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--background)); }
+.em-tab { flex: 1 0 auto; min-height: 32px; padding: 0 6px; white-space: nowrap; border-radius: 7px; color: hsl(var(--muted-foreground)); font-size: 0.76rem; font-weight: 750; }
 .em-tab[data-state="active"] { background: hsl(var(--surface-3)); color: hsl(var(--foreground)); box-shadow: 0 5px 15px rgb(0 0 0 / 0.22); }
 .em-card { padding: 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface-2) / 0.8); }
 .em-card + .em-card { margin-top: 11px; }
@@ -172,7 +172,8 @@
 }
 .em-candidate-name strong, .em-candidate-name span { display: block; }
 .em-candidate-name strong { overflow: hidden; color: hsl(var(--foreground)); font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
-.em-candidate-name a:hover strong { text-decoration: underline; }
+.em-candidate-link { min-width: 0; padding: 0; text-align: left; }
+.em-candidate-link:hover strong { text-decoration: underline; }
 .em-candidate-name span { color: hsl(var(--quiet)); font-size: 0.67rem; }
 .em-candidate-total { text-align: right; }
 .em-candidate-total strong, .em-candidate-total span { display: block; font-variant-numeric: tabular-nums; }
@@ -664,3 +665,79 @@
   .em-detail[data-collapsed] { padding: 14px 10px 24px; }
   .em-detail[data-collapsed] .em-detail-inner { display: block; }
 }
+
+/* War room toolbar: brand, search, and Simulate live on the full-screen map, which covers the top bar. */
+.em-shell[data-map="expanded"] .em-map-toolbar > a:first-of-type strong { font-size: 0.9rem; }
+.em-quick-search { flex: 0 1 280px; min-width: 180px; }
+.em-quick-search input { height: 34px; }
+.em-map-action[data-tone="accent"] { border-color: hsl(var(--signal-teal) / 0.4); background: hsl(var(--signal-teal) / 0.1); color: hsl(var(--signal-teal)); }
+.em-map-action[data-tone="accent"]:hover { background: hsl(var(--signal-teal) / 0.18); }
+@media (max-width: 720px) {
+  .em-quick-search { flex: 1 1 100%; order: 5; }
+}
+
+/* Area brief: the selection's profile, floating over the map or under it on the dashboard. */
+.em-brief { display: grid; gap: 7px; font-size: 0.72rem; }
+.em-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.em-brief-head strong { color: hsl(var(--foreground)); font-size: 0.86rem; }
+.em-brief-more { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: hsl(var(--signal-teal)); font-size: 0.7rem; font-weight: 700; }
+.em-brief-more svg { width: 13px; height: 13px; }
+.em-brief-hint { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: hsl(var(--muted-foreground)); line-height: 1.45; }
+.em-brief-hint svg { flex: 0 0 auto; width: 15px; height: 15px; margin-top: 1px; color: hsl(var(--signal-teal)); }
+.em-brief-line { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 0; color: hsl(var(--muted-foreground)); line-height: 1.45; }
+.em-brief-line > span { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
+.em-brief-line b { color: hsl(var(--quiet)); font: 800 0.6rem/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.em-brief-lean { color: hsl(var(--foreground)); font-variant-numeric: tabular-nums; font-weight: 650; }
+.em-brief-lean[data-tone="d"] { color: hsl(var(--signal-blue)); }
+.em-brief-lean[data-tone="r"] { color: hsl(var(--signal-coral)); }
+.em-brief-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; margin: 2px 0 0; }
+.em-brief-figures dt { overflow: hidden; color: hsl(var(--quiet)); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.em-brief-figures dd { margin: 1px 0 0; color: hsl(var(--foreground)); font-size: 0.9rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.em-brief-figures span { color: hsl(var(--quiet)); font-size: 0.62rem; font-variant-numeric: tabular-nums; }
+@container (max-width: 420px) { .em-brief-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.em-brief-race { display: grid; gap: 5px; margin: 2px 0 9px; }
+.em-brief-race-bar { display: flex; height: 9px; overflow: hidden; border-radius: 3px; background: hsl(var(--line)); }
+.em-brief-race-bar span { height: 100%; }
+.em-brief-race-bar span + span { box-shadow: inset 1px 0 0 hsl(var(--surface)); }
+.em-brief-race-legend { display: flex; flex-wrap: wrap; gap: 2px 11px; margin: 0; padding: 0; color: hsl(var(--muted-foreground)); font-size: 0.66rem; list-style: none; }
+.em-brief-race-legend li { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.em-brief-race-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.em-brief .em-brief-race { margin-bottom: 0; }
+.em-brief-card { margin: 0 0 9px; padding: 12px 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface) / 0.72); container-type: inline-size; }
+
+/* Census legend steps, each labelled with its range. */
+.em-census-step { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; font-size: 0.6rem; font-variant-numeric: tabular-nums; }
+.em-census-step .em-past-swatch { width: 38px; }
+
+/* Full data table and export under the demographics charts. */
+.em-demo-data { margin-top: 12px; }
+.em-demo-data summary { cursor: pointer; color: hsl(var(--signal-teal)); font-size: 0.74rem; font-weight: 700; }
+.em-demo-export { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.em-demo-export button {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid hsl(var(--line)); border-radius: 7px;
+  background: hsl(var(--surface-2)); color: hsl(var(--foreground)); font-size: 0.7rem; font-weight: 650;
+}
+.em-demo-export button:hover { border-color: hsl(var(--signal-teal) / 0.4); }
+.em-demo-export svg { width: 13px; height: 13px; }
+.em-demo-scroll { max-height: 420px; overflow: auto; border: 1px solid hsl(var(--line-soft)); border-radius: 8px; }
+.em-demo-table { font-size: 0.68rem; }
+.em-demo-table thead th { position: sticky; top: 0; z-index: 1; background: hsl(var(--surface-2)); white-space: nowrap; }
+.em-demo-table tbody th { position: sticky; left: 0; background: hsl(var(--surface-2)); min-width: 150px; }
+.em-demo-table td { white-space: nowrap; }
+
+/* Economy tab: tiles wrap inside the panel instead of scrolling sideways. */
+.em-detail .em-econ { margin: 8px 0 0; padding: 0; border: 0; background: none; }
+.em-detail .em-econ-row { flex-wrap: wrap; overflow: visible; }
+.em-detail .em-econ-item { flex: 1 1 140px; }
+.em-detail .em-econ-tile { width: 100%; }
+.em-detail .em-econ-scope { display: none; }
+
+/* News tab: headline list linking out to publishers. */
+.em-news-list { display: grid; gap: 2px; margin: 10px 0 0; padding: 0; list-style: none; }
+.em-news-list a { display: grid; gap: 3px; padding: 8px 6px; border-radius: 8px; }
+.em-news-list a:hover { background: hsl(var(--surface-3) / 0.6); }
+.em-news-list li + li a { border-top: 1px solid hsl(var(--line-soft)); border-radius: 0; }
+.em-news-list strong { color: hsl(var(--foreground)); font-size: 0.8rem; font-weight: 650; line-height: 1.35; }
+.em-news-list span { display: inline-flex; align-items: center; gap: 4px; color: hsl(var(--quiet)); font-size: 0.68rem; }
+.em-news-list svg { width: 11px; height: 11px; }
+.em-news-meta { margin: 8px 0 0; color: hsl(var(--quiet)); font-size: 0.66rem; }

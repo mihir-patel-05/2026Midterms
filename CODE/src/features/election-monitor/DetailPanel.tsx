@@ -14,6 +14,8 @@ export function DetailPanel({
   counties,
   finance,
   demographics,
+  economy,
+  news,
   history,
   footer,
   collapsed = false,
@@ -30,6 +32,10 @@ export function DetailPanel({
   finance: ReactNode;
   /** Omitted when the demographics feature flag is off. */
   demographics?: ReactNode;
+  /** State and national economy plus Census household economics. */
+  economy?: ReactNode;
+  /** Race, state, and national headlines; omitted when the news flag is off. */
+  news?: ReactNode;
   /** Past results; omitted outside Past results mode. */
   history?: ReactNode;
   footer: ReactNode;
@@ -79,7 +85,9 @@ export function DetailPanel({
             <TabsPrimitive.Trigger className="em-tab" value="overview">Overview</TabsPrimitive.Trigger>
             <TabsPrimitive.Trigger className="em-tab" value="counties">Counties</TabsPrimitive.Trigger>
             <TabsPrimitive.Trigger className="em-tab" value="finance">Finance</TabsPrimitive.Trigger>
+            {news && <TabsPrimitive.Trigger className="em-tab" value="news">News</TabsPrimitive.Trigger>}
             {demographics && <TabsPrimitive.Trigger className="em-tab" value="demographics">Demographics</TabsPrimitive.Trigger>}
+            {economy && <TabsPrimitive.Trigger className="em-tab" value="economy">Economy</TabsPrimitive.Trigger>}
             {history && <TabsPrimitive.Trigger className="em-tab" value="history">Past</TabsPrimitive.Trigger>}
           </TabsPrimitive.List>
         </div>
@@ -87,7 +95,9 @@ export function DetailPanel({
           <TabsPrimitive.Content value="overview">{overview}</TabsPrimitive.Content>
           <TabsPrimitive.Content value="counties">{counties}</TabsPrimitive.Content>
           <TabsPrimitive.Content value="finance">{finance}</TabsPrimitive.Content>
+          {news && <TabsPrimitive.Content value="news">{news}</TabsPrimitive.Content>}
           {demographics && <TabsPrimitive.Content value="demographics">{demographics}</TabsPrimitive.Content>}
+          {economy && <TabsPrimitive.Content value="economy">{economy}</TabsPrimitive.Content>}
           {history && <TabsPrimitive.Content value="history">{history}</TabsPrimitive.Content>}
           <div className="em-detail-footer">{footer}</div>
         </div>

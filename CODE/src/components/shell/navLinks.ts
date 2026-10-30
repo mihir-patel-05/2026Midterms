@@ -1,4 +1,4 @@
-import { Calculator, FileText, Info, LayoutDashboard, MapPin, Users, type LucideIcon } from "lucide-react";
+import { Calculator, Map, type LucideIcon } from "lucide-react";
 import { simulatorEnabled } from "@/lib/featureFlags";
 
 export interface ShellNavLink {
@@ -12,13 +12,13 @@ export const DASHBOARD_PATH = "/";
 export const SIMULATOR_PATH = "/simulator";
 export const MIDTERM_SIMULATOR_PATH = "/simulator/midterms";
 
+/**
+ * The war room's own pages only. The legacy pages (/elections, /candidates, /voter-resources,
+ * /about) keep their routes for old links but are never linked from the new shell.
+ */
 export const shellNavLinks: ShellNavLink[] = [
-  { to: DASHBOARD_PATH, label: "Dashboard", icon: LayoutDashboard },
-  { to: "/elections", label: "Elections", icon: MapPin },
-  { to: "/candidates", label: "Candidates", icon: Users },
+  { to: DASHBOARD_PATH, label: "War room", icon: Map },
   ...(simulatorEnabled ? [{ to: SIMULATOR_PATH, label: "Simulator", icon: Calculator }] : []),
-  { to: "/voter-resources", label: "Voter Resources", icon: FileText },
-  { to: "/about", label: "About", icon: Info },
 ];
 
 export function isNavLinkActive(pathname: string, to: string) {

@@ -31,6 +31,22 @@ function districtTo(state: string, district: string) {
   return `${DASHBOARD_PATH}?state=${state}&district=${district}&layer=districts`;
 }
 
+/** A candidate opens their race in the war room, with their FEC filings in the Finance tab. */
+function candidateTo(candidate: { id: string; state?: string | null; office?: string | null; district?: string | null }) {
+  const query = new URLSearchParams({ tab: "finance", cand: candidate.id });
+  const state = candidate.state?.toUpperCase();
+  if (state && statesByCode.has(state)) {
+    query.set("state", state);
+    const senate = candidate.office === "S" || candidate.office === "SENATE";
+    if (senate) query.set("office", "US_SENATE");
+    else if (candidate.district && /^\d{1,2}$/.test(candidate.district)) {
+      query.set("office", "US_HOUSE");
+      query.set("district", candidate.district.padStart(2, "0"));
+    }
+  }
+  return `${DASHBOARD_PATH}?${query}`;
+}
+
 const statesByCode = new Map(stateMapItems.map((state) => [state.code, state.name]));
 
 function useDebounced<T>(value: T, delay: number) {
@@ -114,7 +130,7 @@ export function GlobalSearch({ className }: { className?: string }) {
         kind: "Candidate",
         label: titleCaseName(candidate.name),
         detail: [candidate.party, candidate.office === "S" || candidate.office === "SENATE" ? `${candidate.state} Senate` : `${candidate.state}${candidate.district ? `-${candidate.district}` : ""} House`].filter(Boolean).join(" · "),
-        to: `/candidates/${candidate.id}`,
+        to: candidateTo(candidate),
       }));
     },
   });

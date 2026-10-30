@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { ChatButton } from "@/components/chat/ChatButton";
 import { DataBanner } from "./DataBanner";
 import { TopBar } from "./TopBar";
@@ -30,8 +29,6 @@ function ShellFooter() {
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-xs text-quiet sm:flex-row sm:items-center sm:justify-between lg:px-5">
         <p>Non-partisan election data. Candidate and finance records from the Federal Election Commission.</p>
         <nav aria-label="Footer" className="flex flex-wrap gap-4">
-          <Link className="hover:text-foreground" to="/voter-resources">Voter resources</Link>
-          <Link className="hover:text-foreground" to="/about">About &amp; methodology</Link>
           <a className="hover:text-foreground" href="https://vote.gov" target="_blank" rel="noreferrer">Vote.gov</a>
         </nav>
       </div>
