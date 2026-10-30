@@ -52,10 +52,15 @@ export default function RaceDetail() {
     enabled: !!electionId,
   });
 
-  const candidates: Candidate[] =
+  const filers: Candidate[] =
     election?.candidateElections
       ?.map((ce) => ce.candidate)
       .filter((c): c is Candidate => !!c) ?? [];
+  // With the general election ballot on file, show only the filers on it, plus ballot
+  // candidates who have no FEC record.
+  const ballot = election?.normalizedContest?.candidacies ?? [];
+  const candidates = ballot.length > 0 ? filers.filter((c) => ballot.some((b) => b.legacyCandidateId === c.id)) : filers;
+  const ballotOnly = ballot.filter((b) => !candidates.some((c) => c.id === b.legacyCandidateId));
 
   const incumbentCE = election?.candidateElections?.find((ce) => ce.isIncumbent);
   const incumbent = incumbentCE?.candidate;
@@ -166,7 +171,9 @@ export default function RaceDetail() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Candidates</p>
-                    <p className="font-medium text-foreground">{candidates.length} filed</p>
+                    <p className="font-medium text-foreground">
+                      {ballot.length > 0 ? `${ballot.length} on the ballot` : `${candidates.length} filed`}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Incumbent</p>
@@ -191,17 +198,31 @@ export default function RaceDetail() {
               <div className="mb-8">
                 <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  Candidates ({candidates.length})
+                  {ballot.length > 0 ? `On the November ballot (${ballot.length})` : `Candidates (${candidates.length})`}
                 </h2>
 
-                {hasUnconfirmedCandidates && candidates.length > 0 && (
+                {ballot.length === 0 && hasUnconfirmedCandidates && candidates.length > 0 && (
                   <div className="mb-5 rounded-lg border border-secondary/40 bg-amber-soft p-4 text-sm text-foreground">
                     These candidates have active 2026 FEC filings. Their primary result and
                     general-election ballot status have not yet been verified with the state election office.
                   </div>
                 )}
 
-                {candidates.length === 0 ? (
+                {ballotOnly.length > 0 && (
+                  <ul className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {ballotOnly.map((b) => (
+                      <li key={b.id} className="rounded-lg border border-border bg-card p-4">
+                        <p className="font-medium text-foreground">{b.person.displayName || b.ballotName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {b.party?.name ?? "No party listed"}
+                          {b.isIncumbent ? " · incumbent" : ""} · no FEC record on file
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {candidates.length === 0 && ballotOnly.length === 0 && (
                   <div className="text-center py-12">
                     <Users className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                     <h3 className="font-heading text-lg font-semibold text-foreground mb-2">
@@ -211,7 +232,9 @@ export default function RaceDetail() {
                       No candidates have been registered for this race yet.
                     </p>
                   </div>
-                ) : (
+                )}
+
+                {candidates.length > 0 && (
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {candidates.map((candidate) => (
                       <CandidateCard

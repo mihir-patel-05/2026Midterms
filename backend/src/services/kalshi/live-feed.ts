@@ -8,8 +8,10 @@ import type { KeyObject } from 'node:crypto';
 import WebSocket from 'ws';
 import { env } from '../../config/env.js';
 import { authHeaders, loadPrivateKey } from './auth.js';
-import { buildCatalog, type CatalogMarket } from './catalog.js';
+import { assignParties, buildCatalog, type CatalogMarket, type RaceCandidateName } from './catalog.js';
+import { loadRaceCandidates } from './race-candidates.js';
 import { quotePrice, type PriceType } from './shared.js';
+import { ballotRaces } from '../../utils/races.js';
 import { hourStart, writeMarketSnapshots, type SnapshotWriter } from './snapshots.js';
 
 export type FeedStatus = 'disabled' | 'connecting' | 'live' | 'degraded';
@@ -77,7 +79,13 @@ export class KalshiLiveFeed extends EventEmitter {
   private timers = new Set<NodeJS.Timeout>();
   private capturedHour = 0;
 
-  constructor(private readonly writeSnapshots: SnapshotWriter | null = writeMarketSnapshots) {
+  private unmatchedEvents = new Set<string>();
+  private missingSeats = '';
+
+  constructor(
+    private readonly writeSnapshots: SnapshotWriter | null = writeMarketSnapshots,
+    private readonly raceCandidates: () => Promise<Map<string, RaceCandidateName[]>> = loadRaceCandidates,
+  ) {
     super();
     // Every SSE client adds listeners.
     this.setMaxListeners(0);
@@ -198,11 +206,25 @@ export class KalshiLiveFeed extends EventEmitter {
   private async refreshCatalog(): Promise<void> {
     let delay = CATALOG_REFRESH_MS;
     try {
-      const markets = await buildCatalog(env.KALSHI_REST_URL, getJson);
+      const found = await buildCatalog(env.KALSHI_REST_URL, getJson, (event) => {
+        if (this.unmatchedEvents.has(event)) return;
+        this.unmatchedEvents.add(event);
+        console.log(`📈 Kalshi: ${event} is not a House race; skipped`);
+      });
+      const candidates = await this.raceCandidates().catch((error) => {
+        console.warn('⚠️  Could not load candidates for Kalshi party matching:', error instanceof Error ? error.message : error);
+        return new Map<string, RaceCandidateName[]>();
+      });
+      const markets = assignParties(found, candidates);
+      const relabelled = markets.some((market) => {
+        const previous = this.catalog.get(market.ticker);
+        return previous !== undefined && (previous.party !== market.party || previous.race !== market.race);
+      });
       const added = this.setCatalog(markets);
       const races = new Set(markets.map((market) => market.race)).size;
       console.log(`📈 Kalshi catalog: ${markets.length} markets across ${races} races (${added.length} new)`);
-      if (added.length > 0) {
+      this.logMissingSeats(markets);
+      if (added.length > 0 || relabelled) {
         this.subscribe(added);
         this.emit('snapshot');
       }
@@ -212,6 +234,18 @@ export class KalshiLiveFeed extends EventEmitter {
       delay = CATALOG_RETRY_MS;
     }
     if (!this.stopped) this.after(delay, () => void this.refreshCatalog());
+  }
+
+  /** Lists House and Senate races on the ballot with no Kalshi market, whenever that list changes. */
+  private logMissingSeats(markets: CatalogMarket[]): void {
+    const covered = new Set(markets.map((market) => market.race));
+    const missing = (ballotRaces(2026) ?? [])
+      .map((race) => (race.officeType === 'SENATE' ? `${race.state}-SEN` : `${race.state}-${race.district}`))
+      .filter((race) => !covered.has(race));
+    const list = missing.join(', ');
+    if (list === this.missingSeats) return;
+    this.missingSeats = list;
+    console.log(`📈 Kalshi has no open market for ${missing.length} race(s) on the ballot${missing.length ? `: ${list}` : ''}`);
   }
 
   private connect(): void {

@@ -308,9 +308,23 @@ export interface Election {
 
   // Relations (optional)
   candidateElections?: CandidateElection[];
+  /** The general election ballot from the backend's ballot sync; absent or empty until it has run. */
+  normalizedContest?: { candidacies: BallotCandidacy[] } | null;
   _count?: {
     candidateElections: number;
   };
+}
+
+/** A candidate on the general election ballot, linked to their FEC filing when one matched. */
+export interface BallotCandidacy {
+  id: string;
+  ballotName: string | null;
+  isIncumbent: boolean;
+  fecCandidateId: string | null;
+  /** The VoteInformed candidate id of the matched FEC filing. */
+  legacyCandidateId: string | null;
+  person: { displayName: string };
+  party: { name: string; abbreviation: string | null } | null;
 }
 
 /**

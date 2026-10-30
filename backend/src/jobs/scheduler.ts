@@ -20,6 +20,7 @@ import { syncIdeologyScores } from '../services/ideology.service.js';
 import { electionService } from '../services/election.service.js';
 import { fecApiService, type FECCommittee } from '../services/fec-api.service.js';
 import { loadNomineeRoster, prunePrimaryLosers } from '../services/primary-pruning.service.js';
+import { runBallotSync } from '../services/ballot/run-ballot-sync.js';
 import {
   acquireSyncLease,
   recoverStaleSyncLogs,
@@ -173,6 +174,9 @@ async function executeSync(leaseToken: string): Promise<void> {
     stats.candidateLinksCreated = elections.candidateLinksCreated;
     stats.electionErrors = elections.errors;
 
+    // Step 2b: Who is on each race's ballot, now that every race exists.
+    if (env.BALLOT_SYNC_ENABLED) await runBallotJob('after the FEC sync');
+
     // Step 3: Committees and the full source breakdown for every funded
     // candidate, from OpenFEC's bulk committee endpoints (~115 requests in all
     // rather than two per candidate).
@@ -276,6 +280,17 @@ async function executeSync(leaseToken: string): Promise<void> {
   }
 }
 
+/** The civicAPI ballot sync. Never throws: the ballot is refreshed again on the next run. */
+async function runBallotJob(trigger: string): Promise<void> {
+  console.log(`\n🗳️  Ballot sync (${trigger})`);
+  try {
+    await runBallotSync({ apply: true });
+  } catch (error) {
+    if (error instanceof SyncAlreadyRunningError) console.log('🗳️  Ballot sync skipped: another run holds the lease');
+    else console.error('❌ Ballot sync failed:', error instanceof Error ? error.message : error);
+  }
+}
+
 /** Run a full sync to completion (cron and CLI). */
 export async function runScheduledSync(): Promise<void> {
   await executeSync(await claimSyncLease());
@@ -373,6 +388,16 @@ export function initializeScheduler(): void {
     console.log('📈 FRED sync: daily at 9:15 AM and 6:15 PM ET\n');
   } else {
     console.log('FRED sync scheduler disabled: FRED_API_KEY is not set or ECON_INDICATORS_ENABLED is off');
+  }
+
+  // General election ballot from civicAPI: every 6 hours, and once shortly after boot so a
+  // deploy picks it up without waiting.
+  if (env.BALLOT_SYNC_ENABLED) {
+    cron.schedule('40 */6 * * *', () => runBallotJob('scheduled'), { timezone: 'America/New_York' });
+    setTimeout(() => void runBallotJob('startup'), 2 * 60_000).unref();
+    console.log('🗳️  Ballot sync: every 6 hours at 40 past, and 2 minutes after boot\n');
+  } else {
+    console.log('Ballot sync scheduler disabled: BALLOT_SYNC_ENABLED is off');
   }
 
   // VoteHub polls: every 3 hours, since pollsters release through the day before the election.

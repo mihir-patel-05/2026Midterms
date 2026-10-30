@@ -116,6 +116,12 @@ export async function prunePrimaryLosers(
     where: { cycles: { has: cycle }, electionYears: { has: cycle }, office: { in: ['H', 'S'] } },
     select: { candidateId: true, name: true, state: true, office: true, district: true },
   });
+  // A candidate confirmed on the ballot (services/ballot) is a nominee, whatever their FEC reports say.
+  const confirmed = await db.candidateElection.findMany({
+    where: { ballotStatus: 'CONFIRMED', election: { cycle } },
+    select: { candidateId: true },
+  });
+  nominees = new Set([...nominees, ...confirmed.map((link) => link.candidateId)]);
   const losers = findPrimaryLosers(candidates, nominees);
   const withRace = (candidate: (typeof candidates)[number]) => ({
     candidateId: candidate.candidateId,

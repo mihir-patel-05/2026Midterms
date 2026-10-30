@@ -8,6 +8,7 @@ import {
   type KalshiEvent, type KalshiMarket, type MarketScope,
 } from './shared.js';
 import { HOUSE_SEATS } from '../../utils/house-seats.js';
+import { majorParty, matchName } from '../../utils/person-name.js';
 
 export interface CatalogMarket {
   ticker: string;
@@ -33,6 +34,9 @@ const CONTROL_EVENTS: Array<[string, MarketScope, string]> = [
 ];
 const HOUSE_SERIES = 'KXHOUSERACE';
 const MAX_HOUSE_PAGES = 10;
+const MAX_STATE_SERIES_PAGES = 3;
+const OTHER_OFFICE = /governor|lieutenant|attorney general|secretary of state|treasurer|controller|comptroller|superintendent|commissioner|state senate|assembly|legislat|mayor|proposition|measure|senate/i;
+const stateElectionSeries = (state: string) => `KX${state}ELECTION`;
 
 /**
  * `KXHOUSERACE-PA07-26` → PA/07; `KXHOUSERACE-DEAL-26` (at-large) → DE/00.
@@ -42,6 +46,22 @@ export function parseHouseEventTicker(eventTicker: string): { stateCode: string;
   const match = /^KXHOUSERACE-([A-Z]{2})(\d{2}|AL)-26$/.exec(eventTicker) ?? /^HOUSE([A-Z]{2})([1-9]\d?|AL)-26$/.exec(eventTicker);
   if (!match || !isStateCode(match[1])) return null;
   return { stateCode: match[1], district: match[2] === 'AL' ? '00' : match[2].padStart(2, '0') };
+}
+
+/**
+ * Same-party and top-two general elections (both nominees are Democrats in CA-07) are not in
+ * KXHOUSERACE. Kalshi lists them in a per-state series, one event per district:
+ * `KXCAELECTION-2607` → CA/07. The same series can hold statewide races, so only a two-digit
+ * district (or `AL`) that exists in the state counts, and titles naming another office are refused.
+ */
+export function parseStateElectionEvent(eventTicker: string, title = ''): { stateCode: string; district: string } | null {
+  const match = /^KX([A-Z]{2})ELECTION-26(\d{2}|AL)$/.exec(eventTicker);
+  if (!match || !isStateCode(match[1])) return null;
+  if (OTHER_OFFICE.test(title)) return null;
+  const seats = HOUSE_SEATS[match[1]] ?? 0;
+  if (seats === 1) return match[2] === 'AL' || match[2] === '00' || match[2] === '01' ? { stateCode: match[1], district: '00' } : null;
+  const number = Number(match[2]);
+  return number >= 1 && number <= seats ? { stateCode: match[1], district: match[2] } : null;
 }
 
 export function raceKey(scope: MarketScope, stateCode: string | null, district: string | null): string {
@@ -96,7 +116,15 @@ async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promi
   return results;
 }
 
-export async function buildCatalog(restUrl: string, getJson: JsonFetcher): Promise<CatalogMarket[]> {
+/**
+ * Every open market we can tie to a race. `onUnmatched` hears each event in a per-state
+ * election series that is not a House race, so new layouts show up in the logs.
+ */
+export async function buildCatalog(
+  restUrl: string,
+  getJson: JsonFetcher,
+  onUnmatched: (event: string) => void = () => {},
+): Promise<CatalogMarket[]> {
   const markets: CatalogMarket[] = [];
 
   for (const [ticker, scope] of CONTROL_EVENTS) {
@@ -125,9 +153,34 @@ export async function buildCatalog(restUrl: string, getJson: JsonFetcher): Promi
     if (!cursor) break;
   }
 
-  // Seats missing from KXHOUSERACE may have a per-district event (`HOUSECA22-26`); most of
+  // Same-party and top-two races live in per-state series (`KXCAELECTION-2607`); most states have none.
+  const houseCovered = () => new Set(markets.filter((market) => market.scope === 'HOUSE_DISTRICT').map((market) => market.race));
+  const fromKxHouse = houseCovered();
+  const stateSeries = await mapLimit(Object.keys(stateNames), 3, async (state) => {
+    const found: CatalogMarket[] = [];
+    let seriesCursor = '';
+    for (let page = 0; page < MAX_STATE_SERIES_PAGES; page++) {
+      const query = new URLSearchParams({ series_ticker: stateElectionSeries(state), status: 'open', with_nested_markets: 'true', limit: '200' });
+      if (seriesCursor) query.set('cursor', seriesCursor);
+      const body = await getJson<{ events?: KalshiEvent[]; cursor?: string }>(`${restUrl}/events?${query}`);
+      for (const event of body?.events ?? []) {
+        const seat = parseStateElectionEvent(event.event_ticker || '', event.title);
+        if (!seat) {
+          onUnmatched(`${event.event_ticker} (${event.title ?? 'untitled'})`);
+          continue;
+        }
+        if (!fromKxHouse.has(`${seat.stateCode}-${seat.district}`)) found.push(...eventMarkets(event, 'HOUSE_DISTRICT', seat.stateCode, seat.district));
+      }
+      seriesCursor = body?.cursor || '';
+      if (!seriesCursor) break;
+    }
+    return found;
+  });
+  markets.push(...stateSeries.flat());
+
+  // Seats missing from both may have a per-district event (`HOUSECA22-26`); most of
   // these lookups return 404. Probe every state's remaining seats, not only competitive ones.
-  const covered = new Set(markets.filter((market) => market.scope === 'HOUSE_DISTRICT').map((market) => market.race));
+  const covered = houseCovered();
   const seatTickers = Object.keys(stateNames).flatMap((state) => {
     const seats = HOUSE_SEATS[state] ?? 0;
     return Array.from({ length: seats }, (_, index) => (seats === 1 ? 'AL' : String(index + 1)))
@@ -142,4 +195,24 @@ export async function buildCatalog(restUrl: string, getJson: JsonFetcher): Promi
   markets.push(...seats.flat());
 
   return markets;
+}
+
+/** A candidate in a race, from the ballot or an FEC filing, keyed by race (`CA-07`, `GA-SEN`). */
+export interface RaceCandidateName {
+  name: string;
+  party: string | null;
+}
+
+/**
+ * Candidate markets whose tickers carry no `-D`/`-R` (`KXCAELECTION-2607` lists two Democrats by
+ * name) get their party from a "(D)"/"(R)" tag in the name, or else from the race's candidate
+ * with that name. Anyone else, independents included, keeps a null party.
+ */
+export function assignParties(markets: CatalogMarket[], candidates: ReadonlyMap<string, RaceCandidateName[]>): CatalogMarket[] {
+  return markets.map((market) => {
+    if (market.party || (market.scope !== 'HOUSE_DISTRICT' && market.scope !== 'STATE_SENATE')) return market;
+    const tag = /\((D|R)\)/.exec(market.outcome)?.[1] as 'D' | 'R' | undefined;
+    const party = tag ?? majorParty(matchName(market.outcome, candidates.get(market.race) ?? [])?.party);
+    return party ? { ...market, party } : market;
+  });
 }
