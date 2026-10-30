@@ -8,9 +8,9 @@ import type { KeyObject } from 'node:crypto';
 import WebSocket from 'ws';
 import { env } from '../../config/env.js';
 import { authHeaders, loadPrivateKey } from './auth.js';
-import { assignParties, buildCatalog, type CatalogMarket, type RaceCandidateName } from './catalog.js';
+import { assignParties, buildCatalog, tickersTried, type CatalogMarket, type RaceCandidateName } from './catalog.js';
 import { loadRaceCandidates } from './race-candidates.js';
-import { quotePrice, type PriceType } from './shared.js';
+import { isStateCode, quotePrice, type PriceType } from './shared.js';
 import { ballotRaces } from '../../utils/races.js';
 import { hourStart, writeMarketSnapshots, type SnapshotWriter } from './snapshots.js';
 
@@ -79,7 +79,7 @@ export class KalshiLiveFeed extends EventEmitter {
   private timers = new Set<NodeJS.Timeout>();
   private capturedHour = 0;
 
-  private unmatchedEvents = new Set<string>();
+  private catalogNotes = new Set<string>();
   private missingSeats = '';
 
   constructor(
@@ -206,10 +206,10 @@ export class KalshiLiveFeed extends EventEmitter {
   private async refreshCatalog(): Promise<void> {
     let delay = CATALOG_REFRESH_MS;
     try {
-      const found = await buildCatalog(env.KALSHI_REST_URL, getJson, (event) => {
-        if (this.unmatchedEvents.has(event)) return;
-        this.unmatchedEvents.add(event);
-        console.log(`📈 Kalshi: ${event} is not a House race; skipped`);
+      const found = await buildCatalog(env.KALSHI_REST_URL, getJson, (note) => {
+        if (this.catalogNotes.has(note)) return;
+        this.catalogNotes.add(note);
+        console.log(`📈 Kalshi: ${note}; skipped`);
       });
       const candidates = await this.raceCandidates().catch((error) => {
         console.warn('⚠️  Could not load candidates for Kalshi party matching:', error instanceof Error ? error.message : error);
@@ -246,6 +246,10 @@ export class KalshiLiveFeed extends EventEmitter {
     if (list === this.missingSeats) return;
     this.missingSeats = list;
     console.log(`📈 Kalshi has no open market for ${missing.length} race(s) on the ballot${missing.length ? `: ${list}` : ''}`);
+    // Delegates have no markets at all; for the rest, the tickers looked up, to search kalshi.com for.
+    for (const race of missing.filter((code) => isStateCode(code.slice(0, 2)))) {
+      console.log(`📈 Kalshi: no open market for ${race}; looked for ${tickersTried(race).join(', ')}`);
+    }
   }
 
   private connect(): void {

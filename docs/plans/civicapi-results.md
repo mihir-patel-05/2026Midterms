@@ -49,6 +49,11 @@ Decisions this plan makes (change them before building if you disagree):
 The ballot part of the catalog (step 1 below) shipped first, because the monitor showed FEC filers instead of who is on the ballot: CA-07 has two Democrats in the general, and one was missing.
 - **`backend/src/services/ballot/`**: `civicapi-ballot.ts` parses both aggregates; `ballot-sync.ts` writes one `Contest` per race (`legacyElectionId` set) and one `Candidacy` per candidate (`ballotStatus BALLOT_CONFIRMED`, ballot order, party). Candidates are matched to FEC records by surname, then first initial, never across major parties, and each matched FEC filing is marked `CONFIRMED` on its race. Candidates with no FEC record are kept, with no FEC link.
 - **Guards:** nothing is written if either aggregate has under 90% of the races on the ballot (`utils/races.ts`). Placeholder rows such as "Write-ins" are dropped. A candidate who leaves the ballot is deleted, or marked `WITHDRAWN` once votes exist.
+- **After the first Testing run (Oct 30):** 1,248 candidates in 470 races, 1,152 matched to FEC. Follow-ups:
+  - Declared write-ins (party "Write-In") are stored as `WRITE_IN` with no party, kept off the ballot list, and listed separately in the log.
+  - Each unmatched candidate's log line says why: no filer with that surname in the race, filers sharing the surname, a party conflict, or a record already matched.
+  - A candidate with no same-surname filer in their race is matched to a same-state, same-chamber filing under another district number (as after a redraw) when the surname and first initial agree and the major parties don't conflict. These are logged as cross-district matches.
+  - Two names in one race that could be one person ("Dan Sullivan", "Daniel J. Jr. Sullivan" in AK-SEN) are flagged as an issue and both kept.
 - **Schedule:** every 6 hours, 2 minutes after boot, and after each FEC sync (`BALLOT_SYNC_ENABLED`, default on). `npm run sync:ballot` is a dry run; add `-- --apply` to write.
 - **Reads:** `/api/elections/states/:state` and `/api/elections/:id` include `normalizedContest.candidacies`. The monitor, War Room and race pages show exactly the ballot when it is on file, and every FEC filer until then.
 - **Still to confirm against a live response:** the field names below. The sync logs each unexpected region or candidate as an issue.

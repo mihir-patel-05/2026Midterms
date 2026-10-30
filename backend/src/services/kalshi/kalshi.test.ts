@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { constants, generateKeyPairSync, verify } from 'node:crypto';
 import { test } from 'node:test';
 import { authHeaders, loadPrivateKey, signRequest } from './auth.js';
-import { assignParties, buildCatalog, eventMarkets, parseHouseEventTicker, parseStateElectionEvent, type JsonFetcher } from './catalog.js';
+import { assignParties, buildCatalog, eventMarkets, parseHouseEventTicker, parseStateElectionEvent, tickersTried, type JsonFetcher } from './catalog.js';
 import { KalshiLiveFeed } from './live-feed.js';
 import { isStateCode, knownStateCode, quotePrice } from './shared.js';
 import { hourStart, snapshotRows, type SnapshotInput } from './snapshots.js';
@@ -98,6 +98,22 @@ const californiaGovernor = {
   markets: [{ ticker: 'KXCAELECTION-26GOV-A', yes_sub_title: 'Someone', status: 'active', last_price_dollars: '0.5000' }],
 };
 
+// Illustrative, not recorded: the shapes the catalog notes instead of dropping silently.
+const kentuckyNotOpen = {
+  event_ticker: 'SENATEKY-26', title: 'Kentucky Senate winner?',
+  markets: [{ ticker: 'SENATEKY-26-R', yes_sub_title: 'Republican', status: 'initialized' }],
+};
+const texasRedrawn = {
+  event_ticker: 'KXHOUSERACE-TX09N-26', title: 'TX-09 House winner?',
+  markets: [{ ticker: 'KXHOUSERACE-TX09N-26-R', yes_sub_title: 'Republican party', status: 'active' }],
+};
+
+test('the no-market log names every ticker a race was looked for under', () => {
+  assert.deepEqual(tickersTried('KY-SEN'), ['SENATEKY-26', 'SENATEKYS-26']);
+  assert.deepEqual(tickersTried('TX-09'), ['KXHOUSERACE-TX09-26', 'KXTXELECTION-2609', 'HOUSETX9-26']);
+  assert.deepEqual(tickersTried('VT-00'), ['KXHOUSERACE-VTAL-26', 'KXVTELECTION-26AL', 'HOUSEVTAL-26']);
+});
+
 test('per-state election events map to House districts and refuse other offices', () => {
   assert.deepEqual(parseStateElectionEvent('KXCAELECTION-2607', california7.title), { stateCode: 'CA', district: '07' });
   assert.deepEqual(parseStateElectionEvent('KXWAELECTION-2609'), { stateCode: 'WA', district: '09' });
@@ -143,14 +159,19 @@ test('the catalog covers control, regular and special Senate, and every House pa
     const series = new URL(url).searchParams.get('series_ticker');
     if (path.endsWith('/events') && series === 'KXCAELECTION') return { events: [california7, californiaGovernor] } as T;
     if (path.endsWith('/events') && series !== 'KXHOUSERACE') return { events: [] } as T;
-    if (path.endsWith('/events') && !new URL(url).searchParams.get('cursor')) return { events: [alabama1], cursor: 'page2' } as T;
+    if (path.endsWith('/events/SENATEKY-26')) return { event: kentuckyNotOpen } as T;
+    if (path.endsWith('/events') && !new URL(url).searchParams.get('cursor')) return { events: [alabama1, texasRedrawn], cursor: 'page2' } as T;
     if (path.endsWith('/events')) return { events: [delawareAtLarge], cursor: '' } as T;
     return null;
   };
-  const unmatched: string[] = [];
-  const markets = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher, (event) => unmatched.push(event));
+  const notes: string[] = [];
+  const markets = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher, (note) => notes.push(note));
   assert.deepEqual([...new Set(markets.map((market) => market.race))], ['US-HOUSE', 'OH-SEN', 'AL-01', 'DE-00', 'CA-07', 'CA-22']);
-  assert.deepEqual(unmatched, ['KXCAELECTION-26GOV (California Governor general election winner?)']);
+  assert.deepEqual(notes.sort(), [
+    'KXCAELECTION-26GOV (California Governor general election winner?) is not a House race',
+    'KXHOUSERACE-TX09N-26 (TX-09 House winner?) is not a district ticker we read',
+    'SENATEKY-26 (Kentucky Senate winner?) has no open market (initialized)',
+  ]);
   assert.ok(requested.some((url) => url.includes('series_ticker=KXWAELECTION')));
   // CA-07 came from the state series, so its per-district event is not probed.
   assert.ok(!requested.some((url) => url.includes('/events/HOUSECA7-26?')));
