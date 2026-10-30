@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ballotRaces } from '../../utils/races.js';
-import { loadBallot, matchBallotToFec, type FecCandidate } from './ballot-sync.js';
+import { loadBallot, matchAcrossDistricts, matchBallotToFec, type FecCandidate } from './ballot-sync.js';
 import { parseAggregate, partyCode, raceFromRegion } from './civicapi-ballot.js';
 
 // Shaped like civicAPI's House aggregate as docs/plans/civicapi-results.md describes it.
@@ -14,6 +14,7 @@ const house = {
         { candidate_id: 'c1', name: 'Doris Matsui', party: 'Democratic', votes: 0, incumbent: true },
         { name: 'Jane Doe', party: 'Democratic', votes: 0 },
         { name: 'Write-ins', party: '', votes: 0 },
+        { name: 'Pat Writer', party: 'Write-In', votes: 0 },
       ],
     },
     'ak-al': { election_id: 9002, name: 'Alaska At-Large', candidates: [{ name: 'Mary Peltola', party: 'Democratic' }] },
@@ -36,9 +37,11 @@ test('an aggregate becomes races with their ballot candidates, placeholders drop
   assert.deepEqual(parsed.races.map((race) => race.label), ['CA-07', 'AK-00']);
   const ca7 = parsed.races[0];
   assert.equal(ca7.sourceContestId, '9001');
-  assert.deepEqual(ca7.candidates.map((candidate) => [candidate.name, candidate.partyCode, candidate.isIncumbent, candidate.sourceCandidateId]), [
-    ['Doris Matsui', 'D', true, 'c1'],
-    ['Jane Doe', 'D', false, 'name:jane doe|D'],
+  assert.deepEqual(ca7.candidates.map((candidate) => [candidate.name, candidate.party, candidate.isIncumbent, candidate.writeIn, candidate.sourceCandidateId]), [
+    ['Doris Matsui', 'Democratic', true, false, 'c1'],
+    ['Jane Doe', 'Democratic', false, false, 'name:jane doe|D'],
+    // A declared write-in: kept, but with no party and flagged.
+    ['Pat Writer', null, false, true, 'name:pat writer|O'],
   ]);
   assert.equal(parsed.issues.length, 2);
   assert.ok(parsed.issues.some((issue) => issue.includes('"ca-53"')));
@@ -52,16 +55,49 @@ test('party names reduce to short codes', () => {
 
 test('ballot candidates match FEC records by name, once each, and never across major parties', () => {
   const fec: FecCandidate[] = [
-    { id: 'u1', candidateId: 'H4CA05216', name: 'MATSUI, DORIS O', party: 'DEM' },
-    { id: 'u2', candidateId: 'H6CA07001', name: 'DOE, JOHN', party: 'REP' },
+    { id: 'u1', candidateId: 'H4CA05216', name: 'MATSUI, DORIS O', party: 'DEM', race: 'CA-07' },
+    { id: 'u2', candidateId: 'H6CA07001', name: 'DOE, JOHN', party: 'REP', race: 'CA-07' },
   ];
   const ca7 = parseAggregate(house, 'HOUSE', 2026).races[0];
   const planned = matchBallotToFec(ca7.candidates, fec);
-  assert.deepEqual(planned.map((candidate) => [candidate.name, candidate.ballotOrder, candidate.fec?.candidateId ?? null]), [
-    ['Doris Matsui', 0, 'H4CA05216'],
+  assert.deepEqual(planned.map((candidate) => [candidate.name, candidate.ballotOrder, candidate.fec?.candidateId ?? null, candidate.noMatch ?? null]), [
+    ['Doris Matsui', 0, 'H4CA05216', null],
     // Same surname, but a Republican filing is not this Democrat.
-    ['Jane Doe', 1, null],
+    ['Jane Doe', 1, null, 'FEC lists DOE, JOHN as REP'],
+    ['Pat Writer', 2, null, 'declared write-in'],
   ]);
+});
+
+test('unmatched candidates say why, and a same-name filing under another district matches', () => {
+  const candidate = (name: string, party = 'Republican') =>
+    ({ sourceCandidateId: name, name, party, partyCode: 'R', isIncumbent: false, writeIn: false });
+  const record = (candidateId: string, name: string, race: string, party = 'REP'): FecCandidate => ({ id: candidateId, candidateId, name, party, race });
+  const nc8 = [record('A', 'SMITH, JOHN', 'NC-08'), record('B', 'SMITH, JANE', 'NC-08')];
+  const planned = matchBallotToFec([candidate('Mark Harris'), candidate('Jim Smith')], nc8);
+  assert.equal(planned[0].noMatch, 'no FEC filer with that surname in this race');
+  assert.equal(planned[1].noMatch, '2 FEC filers share the surname: SMITH, JOHN / SMITH, JANE');
+
+  // After a redraw FEC can still list the candidate under their old district number.
+  const state = [...nc8, record('H8NC09123', 'HARRIS, MARK E', 'NC-09'), record('S1', 'HARRIS, MARK E', 'NC-SEN')];
+  const used = new Set<string>();
+  const second = matchAcrossDistricts({ state: 'NC', officeType: 'HOUSE' }, planned, state, used);
+  assert.equal(second[0].fec?.candidateId, 'H8NC09123');
+  assert.equal(second[0].noMatch, undefined);
+  assert.ok(used.has('H8NC09123'));
+  // Never across chambers, never with another first initial, and each record once.
+  const again = matchAcrossDistricts({ state: 'NC', officeType: 'HOUSE' }, matchBallotToFec([candidate('Mark Harris')], []), state, used);
+  assert.equal(again[0].fec, null);
+  assert.match(again[0].noMatch!, /FEC has HARRIS, MARK E \(NC-09\), HARRIS, MARK E \(NC-SEN\)/);
+  const other = matchAcrossDistricts({ state: 'NC', officeType: 'HOUSE' }, matchBallotToFec([candidate('Steve Harris')], []), state, new Set());
+  assert.equal(other[0].fec, null);
+});
+
+test('two ballot names that could be one person are flagged, not merged', () => {
+  const parsed = parseAggregate({ region_results: { ak: { name: 'Alaska Senate', candidates: [
+    { name: 'Dan Sullivan', party: 'Republican' }, { name: 'Daniel J. Jr. Sullivan', party: 'Republican' }, { name: 'Sid Hill', party: 'Independent' },
+  ] } } }, 'SENATE', 2026);
+  assert.equal(parsed.races[0].candidates.length, 3);
+  assert.deepEqual(parsed.issues, ['AK-SEN: "Dan Sullivan" and "Daniel J. Jr. Sullivan" may be the same person; both kept']);
 });
 
 test('an aggregate missing most races is refused before anything is written', async () => {

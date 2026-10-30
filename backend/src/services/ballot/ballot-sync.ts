@@ -25,18 +25,26 @@ export interface FecCandidate {
   candidateId: string;
   name: string;
   party: string | null;
+  /** The race FEC files them under (`CA-07`, `GA-SEN`). */
+  race: string;
 }
 
 export interface PlannedCandidate extends BallotCandidate {
   ballotOrder: number;
   fec: FecCandidate | null;
+  /** Why no FEC record is linked, for the log. */
+  noMatch?: string;
 }
 
 export interface BallotSyncReport {
   applied: boolean;
   races: number;
+  /** Candidates printed on the ballot; declared write-ins are counted separately. */
   candidates: number;
   matchedToFec: number;
+  /** Matched to an FEC record filed under another district, usually after a redraw. */
+  crossDistrict: string[];
+  writeIns: string[];
   racesWithoutCandidates: string[];
   unmatched: string[];
   issues: string[];
@@ -51,19 +59,72 @@ async function fetchJson(url: string): Promise<unknown> {
   return response.json();
 }
 
+const NO_SURNAME = 'no FEC filer with that surname in this race';
+
+/** False only when both name a major party and they differ. */
+function partiesAgree(ballot: string | null, fec: string | null): boolean {
+  const a = majorParty(ballot);
+  const b = majorParty(fec);
+  return !(a && b && a !== b);
+}
+
+const sameSurname = (name: string, records: readonly FecCandidate[]) => {
+  const last = nameParts(name)?.last;
+  return records.filter((record) => nameParts(record.name)?.last === last);
+};
+
 /**
  * Each ballot candidate with the FEC candidate of the same name in that race. A match
- * whose major party disagrees is refused, and each FEC record is used once.
+ * whose major party disagrees is refused, each FEC record is used once, and declared
+ * write-ins are not matched. `noMatch` says why a candidate has no FEC record.
  */
 export function matchBallotToFec(candidates: BallotCandidate[], fec: FecCandidate[]): PlannedCandidate[] {
   const used = new Set<string>();
   return candidates.map((candidate, ballotOrder) => {
+    if (candidate.writeIn) return { ...candidate, ballotOrder, fec: null, noMatch: 'declared write-in' };
     const match = matchName(candidate.name, fec.filter((record) => !used.has(record.candidateId)));
-    const ballotParty = majorParty(candidate.party);
-    const fecParty = majorParty(match?.party);
-    const agrees = match && !(ballotParty && fecParty && ballotParty !== fecParty);
-    if (agrees) used.add(match.candidateId);
-    return { ...candidate, ballotOrder, fec: agrees ? match : null };
+    if (match && partiesAgree(candidate.party, match.party)) {
+      used.add(match.candidateId);
+      return { ...candidate, ballotOrder, fec: match };
+    }
+    const same = sameSurname(candidate.name, fec);
+    const noMatch = match
+      ? `FEC lists ${match.name} as ${match.party ?? 'no party'}`
+      : same.length === 0
+        ? NO_SURNAME
+        : same.every((record) => used.has(record.candidateId))
+          ? `${same.map((record) => record.name).join(' / ')} already matched another ballot name`
+          : `${same.length} FEC filers share the surname: ${same.map((record) => record.name).join(' / ')}`;
+    return { ...candidate, ballotOrder, fec: null, noMatch };
+  });
+}
+
+/**
+ * Second pass for candidates with no same-surname filer in their own race: an FEC record in
+ * the same state and chamber, filed under another district (as after a redraw), with the same
+ * surname and first initial and no major-party conflict. Each record is still used once.
+ * Otherwise `noMatch` names where FEC has that surname in the state, if anywhere.
+ */
+export function matchAcrossDistricts(
+  race: { state: string; officeType: string },
+  planned: PlannedCandidate[],
+  stateFilers: readonly FecCandidate[],
+  used: Set<string>,
+): PlannedCandidate[] {
+  const chamber = (record: FecCandidate) => (record.race.endsWith('-SEN') ? 'SENATE' : 'HOUSE');
+  return planned.map((candidate) => {
+    if (candidate.fec || candidate.noMatch !== NO_SURNAME) return candidate;
+    const target = nameParts(candidate.name);
+    const pool = stateFilers.filter((record) => chamber(record) === race.officeType && !used.has(record.candidateId));
+    const match = matchName(candidate.name, pool);
+    if (match && target?.first && nameParts(match.name)?.first[0] === target.first[0] && partiesAgree(candidate.party, match.party)) {
+      used.add(match.candidateId);
+      return { ...candidate, fec: match, noMatch: undefined };
+    }
+    const elsewhere = sameSurname(candidate.name, stateFilers);
+    return elsewhere.length === 0
+      ? candidate
+      : { ...candidate, noMatch: `${NO_SURNAME}; FEC has ${elsewhere.map((record) => `${record.name} (${record.race})`).join(', ')}` };
   });
 }
 
@@ -99,7 +160,7 @@ async function fecCandidatesByRace(db: PrismaClient, cycle: number): Promise<Map
     const district = row.office === 'H' ? houseDistrict(row.state, row.district) : null;
     if (row.office === 'H' && !district) continue;
     const label = row.office === 'S' ? `${row.state}-SEN` : `${row.state}-${district}`;
-    byRace.set(label, [...(byRace.get(label) ?? []), { id: row.id, candidateId: row.candidateId, name: row.name, party: row.party }]);
+    byRace.set(label, [...(byRace.get(label) ?? []), { id: row.id, candidateId: row.candidateId, name: row.name, party: row.party, race: label }]);
   }
   return byRace;
 }
@@ -167,7 +228,7 @@ async function writeRace(
         partyId: await upsertParty(tx, candidate, parties),
         ballotName: candidate.name,
         ballotOrder: candidate.ballotOrder,
-        ballotStatus: 'BALLOT_CONFIRMED' as const,
+        ballotStatus: candidate.writeIn ? ('WRITE_IN' as const) : ('BALLOT_CONFIRMED' as const),
         isIncumbent: candidate.isIncumbent,
         fecCandidateId: candidate.fec?.candidateId ?? null,
         legacyCandidateId: candidate.fec?.id ?? null,
@@ -223,20 +284,34 @@ export async function syncBallot(options: {
   });
   const electionIds = new Map(elections.map((election) => [raceKey(election), election.id]));
 
-  const report: BallotSyncReport = { applied: options.apply, races: 0, candidates: 0, matchedToFec: 0, racesWithoutCandidates: [], unmatched: [], issues };
-  const plans = races.flatMap((race) => {
+  const report: BallotSyncReport = {
+    applied: options.apply, races: 0, candidates: 0, matchedToFec: 0, crossDistrict: [], writeIns: [], racesWithoutCandidates: [], unmatched: [], issues,
+  };
+  const firstPass = races.flatMap((race) => {
     const electionId = electionIds.get(raceKey(race));
     if (!electionId) {
       issues.push(`${race.label}: no election row; run generateElections first`);
       return [];
     }
-    const planned = matchBallotToFec(race.candidates, fecByRace.get(race.label) ?? []);
+    return [{ race, electionId, planned: matchBallotToFec(race.candidates, fecByRace.get(race.label) ?? []) }];
+  });
+  // Records matched in their own race are taken before any cross-district match is tried.
+  const used = new Set(firstPass.flatMap(({ planned }) => planned.flatMap((candidate) => (candidate.fec ? [candidate.fec.candidateId] : []))));
+  const byState = new Map<string, FecCandidate[]>();
+  for (const [label, records] of fecByRace) byState.set(label.slice(0, 2), [...(byState.get(label.slice(0, 2)) ?? []), ...records]);
+  const plans = firstPass.map(({ race, electionId, planned }) => {
+    const matched = matchAcrossDistricts(race, planned, byState.get(race.state) ?? [], used);
+    const onBallot = matched.filter((candidate) => !candidate.writeIn);
     report.races++;
-    report.candidates += planned.length;
-    report.matchedToFec += planned.filter((candidate) => candidate.fec).length;
-    if (planned.length === 0) report.racesWithoutCandidates.push(race.label);
-    for (const candidate of planned) if (!candidate.fec) report.unmatched.push(`${race.label} ${candidate.name} (${candidate.party ?? 'no party'})`);
-    return [{ race, electionId, planned }];
+    report.candidates += onBallot.length;
+    report.matchedToFec += onBallot.filter((candidate) => candidate.fec).length;
+    if (onBallot.length === 0) report.racesWithoutCandidates.push(race.label);
+    for (const candidate of matched) {
+      if (candidate.writeIn) report.writeIns.push(`${race.label} ${candidate.name}`);
+      else if (!candidate.fec) report.unmatched.push(`${race.label} ${candidate.name} (${candidate.party ?? 'no party'}): ${candidate.noMatch}`);
+      else if (candidate.fec.race !== race.label) report.crossDistrict.push(`${race.label} ${candidate.name} = ${candidate.fec.name}, filed under ${candidate.fec.race}`);
+    }
+    return { race, electionId, planned: matched };
   });
   const missing = (ballotRaces(cycle) ?? []).filter((race) => !races.some((found) => raceKey(found) === raceKey(race)));
   for (const race of missing) issues.push(`${race.state}-${race.officeType === 'SENATE' ? 'SEN' : race.district}: not in civicAPI's aggregate`);
@@ -266,6 +341,8 @@ export async function syncBallot(options: {
 export function logBallotReport(report: BallotSyncReport): void {
   const verb = report.applied ? 'Loaded' : 'Would load';
   console.log(`🗳️  ${verb} ${report.candidates} ballot candidates in ${report.races} races; ${report.matchedToFec} matched to an FEC record`);
+  if (report.crossDistrict.length > 0) console.log(`🗳️  ${report.crossDistrict.length} matched to an FEC record filed under another district: ${report.crossDistrict.join('; ')}`);
+  if (report.writeIns.length > 0) console.log(`🗳️  ${report.writeIns.length} declared write-ins kept off the ballot list: ${report.writeIns.join('; ')}`);
   if (report.racesWithoutCandidates.length > 0) console.warn(`⚠️  No ballot candidates listed for: ${report.racesWithoutCandidates.join(', ')}`);
   if (report.unmatched.length > 0) console.log(`🗳️  ${report.unmatched.length} ballot candidates have no FEC record: ${report.unmatched.join('; ')}`);
   if (report.issues.length > 0) console.warn(`⚠️  ${report.issues.length} civicAPI issue(s): ${report.issues.join('; ')}`);

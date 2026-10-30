@@ -5,6 +5,7 @@
  * leave out primary losers. Parsing is pure and tolerant: an unexpected shape becomes an
  * issue in the report, never a crash.
  */
+import { nameParts } from '../../utils/person-name.js';
 import { ballotRaces, raceKey, type Race } from '../../utils/races.js';
 
 export interface BallotCandidate {
@@ -16,6 +17,8 @@ export interface BallotCandidate {
   /** D, R, L, G, I, or O for other parties. */
   partyCode: string;
   isIncumbent: boolean;
+  /** A declared write-in: civicAPI lists them, but they are not printed on the ballot. */
+  writeIn: boolean;
 }
 
 export interface BallotRace extends Race {
@@ -34,6 +37,7 @@ export interface ParsedAggregate {
   issues: string[];
 }
 
+const WRITE_IN = /write[- ]?in/i;
 // Placeholder rows some states report alongside the real candidates.
 const NOT_A_CANDIDATE = /^(write[- ]?ins?|other|others|scattering|none of these candidates|blank|over ?votes?|under ?votes?)$/i;
 
@@ -83,12 +87,26 @@ function parseCandidates(value: unknown, label: string, issues: string[]): Ballo
       continue;
     }
     if (NOT_A_CANDIDATE.test(name)) continue;
-    const party = text(row.party) || null;
+    const listed = text(row.party) || null;
+    // civicAPI gives declared write-ins the party "Write-In"; that is no party.
+    const writeIn = WRITE_IN.test(listed ?? '');
+    const party = writeIn ? null : listed;
     const code = partyCode(party);
     const sourceCandidateId = text(row.candidate_id) || `name:${normalized(name)}|${code}`;
     if (seen.has(sourceCandidateId)) continue;
     seen.add(sourceCandidateId);
-    candidates.push({ sourceCandidateId, name, party, partyCode: code, isIncumbent: row.incumbent === true || row.incumbent === 'true' });
+    candidates.push({ sourceCandidateId, name, party, partyCode: code, isIncumbent: row.incumbent === true || row.incumbent === 'true', writeIn });
+  }
+  // Two names that could be one person ("Dan Sullivan", "Daniel J. Jr. Sullivan"). Both are kept:
+  // they can be two real candidates, so the source has to settle it.
+  const onBallot = candidates.filter((candidate) => !candidate.writeIn);
+  for (const [index, candidate] of onBallot.entries()) {
+    const parts = nameParts(candidate.name);
+    const twin = onBallot.slice(index + 1).find((other) => {
+      const otherParts = nameParts(other.name);
+      return parts && otherParts && parts.last === otherParts.last && parts.first[0] === otherParts.first[0] && candidate.partyCode === other.partyCode;
+    });
+    if (twin) issues.push(`${label}: "${candidate.name}" and "${twin.name}" may be the same person; both kept`);
   }
   return candidates;
 }

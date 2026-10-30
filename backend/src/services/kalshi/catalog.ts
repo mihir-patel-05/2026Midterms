@@ -116,16 +116,35 @@ async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promi
   return results;
 }
 
+/** The event tickers the catalog looks for a race under, for the "no market" log. */
+export function tickersTried(race: string): string[] {
+  const [state, seat] = race.split('-');
+  if (seat === 'SEN') return [`SENATE${state}-26`, `SENATE${state}S-26`];
+  const code = seat === '00' ? 'AL' : seat;
+  return [`KXHOUSERACE-${state}${code}-26`, `KX${state}ELECTION-26${code}`, `HOUSE${state}${seat === '00' ? 'AL' : Number(seat)}-26`];
+}
+
 /**
- * Every open market we can tie to a race. `onUnmatched` hears each event in a per-state
- * election series that is not a House race, so new layouts show up in the logs.
+ * Every open market we can tie to a race. `onNote` hears each event the catalog found but
+ * could not use (a ticker that is not a district, another office, or no open market), so new
+ * layouts show up in the logs.
  */
 export async function buildCatalog(
   restUrl: string,
   getJson: JsonFetcher,
-  onUnmatched: (event: string) => void = () => {},
+  onNote: (note: string) => void = () => {},
 ): Promise<CatalogMarket[]> {
   const markets: CatalogMarket[] = [];
+  const describe = (event: KalshiEvent) => `${event.event_ticker} (${event.title ?? 'untitled'})`;
+  // eventMarkets, noting an event whose markets are all closed or not yet open.
+  const usable = (event: KalshiEvent, scope: MarketScope, stateCode: string | null, district: string | null) => {
+    const found = eventMarkets(event, scope, stateCode, district);
+    if (found.length === 0) {
+      const statuses = [...new Set((event.markets ?? []).map((market) => market.status ?? 'unknown'))].join(', ') || 'no markets';
+      onNote(`${describe(event)} has no open market (${statuses})`);
+    }
+    return found;
+  };
 
   for (const [ticker, scope] of CONTROL_EVENTS) {
     const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
@@ -136,7 +155,7 @@ export async function buildCatalog(
   const senateTickers = Object.keys(stateNames).flatMap((state) => [[state, `SENATE${state}-26`], [state, `SENATE${state}S-26`]]);
   const senate = await mapLimit(senateTickers, 3, async ([state, ticker]) => {
     const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
-    return body?.event?.event_ticker === ticker ? eventMarkets(body.event, 'STATE_SENATE', state, null) : [];
+    return body?.event?.event_ticker === ticker ? usable(body.event, 'STATE_SENATE', state, null) : [];
   });
   markets.push(...senate.flat());
 
@@ -147,7 +166,8 @@ export async function buildCatalog(
     const body = await getJson<{ events?: KalshiEvent[]; cursor?: string }>(`${restUrl}/events?${query}`);
     for (const event of body?.events ?? []) {
       const seat = parseHouseEventTicker(event.event_ticker || '');
-      if (seat) markets.push(...eventMarkets(event, 'HOUSE_DISTRICT', seat.stateCode, seat.district));
+      if (seat) markets.push(...usable(event, 'HOUSE_DISTRICT', seat.stateCode, seat.district));
+      else onNote(`${describe(event)} is not a district ticker we read`);
     }
     cursor = body?.cursor || '';
     if (!cursor) break;
@@ -166,10 +186,10 @@ export async function buildCatalog(
       for (const event of body?.events ?? []) {
         const seat = parseStateElectionEvent(event.event_ticker || '', event.title);
         if (!seat) {
-          onUnmatched(`${event.event_ticker} (${event.title ?? 'untitled'})`);
+          onNote(`${describe(event)} is not a House race`);
           continue;
         }
-        if (!fromKxHouse.has(`${seat.stateCode}-${seat.district}`)) found.push(...eventMarkets(event, 'HOUSE_DISTRICT', seat.stateCode, seat.district));
+        if (!fromKxHouse.has(`${seat.stateCode}-${seat.district}`)) found.push(...usable(event, 'HOUSE_DISTRICT', seat.stateCode, seat.district));
       }
       seriesCursor = body?.cursor || '';
       if (!seriesCursor) break;
@@ -190,7 +210,7 @@ export async function buildCatalog(
   const seats = await mapLimit(seatTickers, 3, async (ticker) => {
     const body = await getJson<{ event?: KalshiEvent }>(`${restUrl}/events/${ticker}?with_nested_markets=true`);
     const seat = parseHouseEventTicker(ticker);
-    return body?.event?.event_ticker === ticker && seat ? eventMarkets(body.event, 'HOUSE_DISTRICT', seat.stateCode, seat.district) : [];
+    return body?.event?.event_ticker === ticker && seat ? usable(body.event, 'HOUSE_DISTRICT', seat.stateCode, seat.district) : [];
   });
   markets.push(...seats.flat());
 
