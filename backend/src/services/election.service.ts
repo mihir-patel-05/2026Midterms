@@ -37,6 +37,30 @@ export function houseDistrict(state: string, district: string | null | undefined
   return number >= 1 && number <= seats ? String(number).padStart(2, '0') : null;
 }
 
+/**
+ * The race's general election ballot from the ballot sync (services/ballot), in ballot order.
+ * Empty until the sync has run; the FEC filings stay the fallback.
+ */
+const ballotInclude = {
+  normalizedContest: {
+    select: {
+      candidacies: {
+        where: { ballotStatus: 'BALLOT_CONFIRMED' as const, source: { key: 'civicapi' } },
+        orderBy: { ballotOrder: 'asc' as const },
+        select: {
+          id: true,
+          ballotName: true,
+          isIncumbent: true,
+          fecCandidateId: true,
+          legacyCandidateId: true,
+          person: { select: { displayName: true } },
+          party: { select: { name: true, abbreviation: true } },
+        },
+      },
+    },
+  },
+};
+
 export class ElectionService {
   /**
    * Get elections with filters and pagination
@@ -151,6 +175,7 @@ export class ElectionService {
             },
           },
         },
+        ...ballotInclude,
         _count: {
           select: {
             candidateElections: true,
@@ -202,6 +227,7 @@ export class ElectionService {
             candidate: true,
           },
         },
+        ...ballotInclude,
       },
     });
 
@@ -410,9 +436,9 @@ export class ElectionService {
                   electionId,
                 },
               },
+              // The ballot sync owns ballotStatus; a filing it confirmed stays confirmed.
               update: {
                 isIncumbent: candidate.incumbentStatus === 'I',
-                ballotStatus: 'UNCONFIRMED',
               },
               create: {
                 candidateId: candidate.candidateId,

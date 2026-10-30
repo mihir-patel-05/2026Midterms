@@ -79,6 +79,8 @@ async function collect(state: string | null, district: string | null): Promise<P
       () => kalshiQuotes(`KXHOUSERACE-${state}${district}-26`, 'HOUSE_DISTRICT', fetchedAt),
       // Some competitive seats are their own series instead, unpadded (HOUSECA22-26, HOUSEPA7-26).
       () => kalshiQuotes(`HOUSE${state}${Number(district)}-26`, 'HOUSE_DISTRICT', fetchedAt),
+      // Same-party and top-two races are in a per-state series (KXCAELECTION-2607).
+      () => kalshiQuotes(`KX${state}ELECTION-26${district}`, 'HOUSE_DISTRICT', fetchedAt),
     );
   }
   const settled = await Promise.allSettled(jobs.map((run) => run()));
