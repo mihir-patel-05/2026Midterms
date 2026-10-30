@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ballotRaces } from '../../utils/races.js';
-import { loadBallot, matchAcrossDistricts, matchBallotToFec, type FecCandidate } from './ballot-sync.js';
+import { loadBallot, matchAcrossDistricts, matchBallotToFec, pickSearchResult, type FecCandidate } from './ballot-sync.js';
 import { parseAggregate, partyCode, raceFromRegion } from './civicapi-ballot.js';
 
 // Shaped like civicAPI's House aggregate as docs/plans/civicapi-results.md describes it.
@@ -55,8 +55,8 @@ test('party names reduce to short codes', () => {
 
 test('ballot candidates match FEC records by name, once each, and never across major parties', () => {
   const fec: FecCandidate[] = [
-    { id: 'u1', candidateId: 'H4CA05216', name: 'MATSUI, DORIS O', party: 'DEM', race: 'CA-07' },
-    { id: 'u2', candidateId: 'H6CA07001', name: 'DOE, JOHN', party: 'REP', race: 'CA-07' },
+    { id: 'u1', candidateId: 'H4CA05216', name: 'MATSUI, DORIS O', party: 'DEM', race: 'CA-07', receipts: 900_000 },
+    { id: 'u2', candidateId: 'H6CA07001', name: 'DOE, JOHN', party: 'REP', race: 'CA-07', receipts: 0 },
   ];
   const ca7 = parseAggregate(house, 'HOUSE', 2026).races[0];
   const planned = matchBallotToFec(ca7.candidates, fec);
@@ -68,10 +68,37 @@ test('ballot candidates match FEC records by name, once each, and never across m
   ]);
 });
 
+const candidate = (name: string, party = 'Republican') =>
+  ({ sourceCandidateId: name, name, party, partyCode: party === 'Democratic' ? 'D' : 'R', isIncumbent: false, writeIn: false });
+const record = (candidateId: string, name: string, race: string, party = 'REP', receipts = 0): FecCandidate =>
+  ({ id: candidateId, candidateId, name, party, race, receipts });
+
+// The duplicates below are the FEC records the Oct 30 Testing run could not choose between.
+test('duplicate FEC records for one person resolve to the best funded', () => {
+  const nc8 = matchBallotToFec([candidate('Mark Harris')], [record('H8NC09123', 'HARRIS, MARK E', 'NC-08', 'REP', 10), record('H4NC08000', 'HARRIS, MARK E', 'NC-08', 'REP', 2_000_000)]);
+  assert.equal(nc8[0].fec?.candidateId, 'H4NC08000');
+  assert.equal(nc8[0].picked, 'the best funded of 2 records');
+  // A nickname or short form: Bob/ROBERT, Rob/ROBERT J.
+  const mo3 = matchBallotToFec([candidate('Bob Onder')], [record('A', 'ONDER JR, ROBERT FRANK', 'MO-03', 'REP', 5), record('B', 'ONDER, ROBERT FOR JR.', 'MO-03', 'REP', 900)]);
+  assert.equal(mo3[0].fec?.candidateId, 'B');
+  const nj8 = matchBallotToFec([candidate('Rob Menendez', 'Democratic')], [record('C', 'MENENDEZ, ROBERT', 'NJ-08', 'DEM', 50), record('D', 'MENENDEZ, ROBERT J.', 'NJ-08', 'DEM', 3_000_000)]);
+  assert.equal(nj8[0].fec?.candidateId, 'D');
+  // One person filed twice under one name, with a ballot name FEC never uses.
+  const nc4 = matchBallotToFec([candidate('Max Ganorkar')], [record('E', 'GANORKAR, MAHESH', 'NC-04'), record('F', 'GANORKAR, MAHESH', 'NC-04', 'REP', 40)]);
+  assert.equal(nc4[0].fec?.candidateId, 'F');
+});
+
+test('two real people with one surname each get their own record', () => {
+  const ak = [record('S4AK00214', 'SULLIVAN, DAN', 'AK-SEN', 'REP', 9_000_000), record('S6AK00999', 'SULLIVAN, DANIEL J', 'AK-SEN', 'REP', 0)];
+  // Listed in the order that would let the best-funded rule steal the senator's record.
+  const planned = matchBallotToFec([candidate('Daniel J. Jr. Sullivan'), candidate('Dan Sullivan')], ak);
+  assert.deepEqual(planned.map((entry) => [entry.name, entry.fec?.candidateId]), [['Daniel J. Jr. Sullivan', 'S6AK00999'], ['Dan Sullivan', 'S4AK00214']]);
+  // Different first names that are not nicknames never match.
+  const smiths = matchBallotToFec([candidate('Jim Smith'), candidate('Ann Smith')], [record('A', 'SMITH, JOHN', 'NC-08'), record('B', 'SMITH, JANE', 'NC-08')]);
+  assert.deepEqual(smiths.map((entry) => entry.fec), [null, null]);
+});
+
 test('unmatched candidates say why, and a same-name filing under another district matches', () => {
-  const candidate = (name: string, party = 'Republican') =>
-    ({ sourceCandidateId: name, name, party, partyCode: 'R', isIncumbent: false, writeIn: false });
-  const record = (candidateId: string, name: string, race: string, party = 'REP'): FecCandidate => ({ id: candidateId, candidateId, name, party, race });
   const nc8 = [record('A', 'SMITH, JOHN', 'NC-08'), record('B', 'SMITH, JANE', 'NC-08')];
   const planned = matchBallotToFec([candidate('Mark Harris'), candidate('Jim Smith')], nc8);
   assert.equal(planned[0].noMatch, 'no FEC filer with that surname in this race');
@@ -84,12 +111,26 @@ test('unmatched candidates say why, and a same-name filing under another distric
   assert.equal(second[0].fec?.candidateId, 'H8NC09123');
   assert.equal(second[0].noMatch, undefined);
   assert.ok(used.has('H8NC09123'));
-  // Never across chambers, never with another first initial, and each record once.
+  // Never across chambers, never with another first name, and each record once.
   const again = matchAcrossDistricts({ state: 'NC', officeType: 'HOUSE' }, matchBallotToFec([candidate('Mark Harris')], []), state, used);
   assert.equal(again[0].fec, null);
   assert.match(again[0].noMatch!, /FEC has HARRIS, MARK E \(NC-09\), HARRIS, MARK E \(NC-SEN\)/);
   const other = matchAcrossDistricts({ state: 'NC', officeType: 'HOUSE' }, matchBallotToFec([candidate('Steve Harris')], []), state, new Set());
   assert.equal(other[0].fec, null);
+});
+
+test('an OpenFEC search result is chosen by name and party, preferring one running this cycle', () => {
+  const result = (candidate_id: string, name: string, party: string, election_years: number[], active_through: number) =>
+    ({ candidate_id, name, party, office: 'H', state: 'NY', district: '01', election_years, active_through });
+  const results = [
+    result('H2NY01190', 'LALOTA, NICHOLAS J', 'REP', [2022, 2024], 2024),
+    result('H6NY01001', 'LALOTA, NICHOLAS J', 'REP', [2026], 2026),
+    result('H6NY01002', 'LALOTA, MARIA', 'REP', [2026], 2026),
+    result('H6NY01003', 'LALOTA, NICK', 'DEM', [2026], 2026),
+  ];
+  assert.equal(pickSearchResult(candidate('Nick LaLota'), results, 2026)?.candidate_id, 'H6NY01001');
+  assert.equal(pickSearchResult(candidate('Nick LaLota'), results.slice(0, 1), 2026)?.candidate_id, 'H2NY01190');
+  assert.equal(pickSearchResult(candidate('Ashley Hinson'), results, 2026), null);
 });
 
 test('two ballot names that could be one person are flagged, not merged', () => {

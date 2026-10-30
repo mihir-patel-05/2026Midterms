@@ -237,6 +237,17 @@ export class FECApiService {
   }
 
   /**
+   * OpenFEC's name search for one state and chamber, any election year. The ballot sync uses
+   * it for nominees the totals sync never loaded.
+   */
+  async searchCandidates(params: { name: string; state: string; office: 'H' | 'S' }): Promise<FECCandidate[]> {
+    const response = await fecClient.get<FECCandidate>('/candidates/', {
+      params: { q: params.name, state: params.state, office: params.office, per_page: 50 },
+    });
+    return response.data.results;
+  }
+
+  /**
    * Get a specific candidate by ID
    */
   async getCandidateById(candidateId: string): Promise<FECCandidate | null> {
