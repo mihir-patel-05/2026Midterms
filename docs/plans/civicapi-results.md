@@ -45,6 +45,14 @@ Decisions this plan makes (change them before building if you disagree):
 5. **The frontend only loads mock results.** `useMockResultsFeed` and `loadMockDashboard` (which rejects any contract other than `"1.0.0"`) are the only loaders. `RaceCard` says "% of precincts reporting".
 6. **Raw artifacts go to the local filesystem** (`.local/raw-artifacts/`). On Railway that storage is wiped on every deploy.
 
+## Built ahead of this plan: the general election ballot (Oct 30)
+The ballot part of the catalog (step 1 below) shipped first, because the monitor showed FEC filers instead of who is on the ballot: CA-07 has two Democrats in the general, and one was missing.
+- **`backend/src/services/ballot/`**: `civicapi-ballot.ts` parses both aggregates; `ballot-sync.ts` writes one `Contest` per race (`legacyElectionId` set) and one `Candidacy` per candidate (`ballotStatus BALLOT_CONFIRMED`, ballot order, party). Candidates are matched to FEC records by surname, then first initial, never across major parties, and each matched FEC filing is marked `CONFIRMED` on its race. Candidates with no FEC record are kept, with no FEC link.
+- **Guards:** nothing is written if either aggregate has under 90% of the races on the ballot (`utils/races.ts`). Placeholder rows such as "Write-ins" are dropped. A candidate who leaves the ballot is deleted, or marked `WITHDRAWN` once votes exist.
+- **Schedule:** every 6 hours, 2 minutes after boot, and after each FEC sync (`BALLOT_SYNC_ENABLED`, default on). `npm run sync:ballot` is a dry run; add `-- --apply` to write.
+- **Reads:** `/api/elections/states/:state` and `/api/elections/:id` include `normalizedContest.candidacies`. The monitor, War Room and race pages show exactly the ballot when it is on file, and every FEC filer until then.
+- **Still to confirm against a live response:** the field names below. The sync logs each unexpected region or candidate as an issue.
+
 ## civicAPI endpoints we use
 The field names below come from the open-source TUTV election-night app ([bentonraymer/electionsmap](https://github.com/bentonraymer/electionsmap), `server/civic.ts`). It polls civicAPI for the 2026 midterms, and its race catalog was generated on Oct 26. **We could not reach civicapi.org while writing this plan.** Confirm every field against a live response on day 1 (see "To confirm").
 

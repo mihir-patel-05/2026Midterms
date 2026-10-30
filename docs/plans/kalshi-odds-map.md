@@ -123,3 +123,10 @@ No behaviour change, so Past results looks the same afterwards.
   - the URL round-trips.
   - `VITE_FEATURE_ODDS_MAP=false` hides the button.
 - With the feed stopped, the legend says the feed is unavailable and the map stays grey, never 50/50.
+
+## Coverage fix (Oct 30)
+The catalog found 449 of the 475 races: same-party and top-two generals (CA-07 has two Democrats) are not in `KXHOUSERACE`, but in a per-state series, one event per district (`KXCAELECTION-2607`).
+- `buildCatalog` now also reads `KX{ST}ELECTION` for every state, after `KXHOUSERACE` and before the per-district `HOUSE{ST}{N}-26` probes. `parseStateElectionEvent` accepts only a district that exists in the state, and refuses titles naming another office. Every other event in those series is logged once as "not a House race".
+- Those markets name candidates, not parties, so `assignParties` sets the party from a "(D)"/"(R)" tag or from the race's candidate with that name (the ballot, else FEC filers). Independents keep a null party.
+- The feed logs the ballot races that still have no open market whenever that list changes.
+

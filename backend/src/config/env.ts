@@ -77,6 +77,14 @@ const envSchema = z.object({
   // After the primaries, keep only general election candidates: the scheduled FEC
   // sync deletes primary losers and stops saving them (see services/primary-pruning).
   NOMINEES_ONLY: z.enum(['true', 'false']).default('false'),
+  // General election ballot for every House and Senate race, from civicAPI's two aggregates
+  // (services/ballot). Runs every 6 hours and after each FEC sync; nothing is written if an
+  // aggregate looks incomplete.
+  BALLOT_SYNC_ENABLED: z.enum(['true', 'false']).default('true'),
+  CIVICAPI_BASE_URL: z.string().url().default('https://civicapi.org/api/v2'),
+  CIVICAPI_HOUSE_RACE_ID: z.string().regex(/^\d+$/).default('87524'),
+  CIVICAPI_SENATE_RACE_ID: z.string().regex(/^\d+$/).default('87528'),
+  CIVICAPI_TIMEOUT_MS: z.string().regex(/^[1-9]\d*$/).default('20000'),
   ITEMIZED_COMMITTEES_PER_RUN: z.string().default('10'),
   ITEMIZED_MAX_PAGES: z.string().default('5'),
   ITEMIZED_REFRESH_HOURS: z.string().default('72'),
@@ -159,6 +167,8 @@ export const env = {
   POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
+  BALLOT_SYNC_ENABLED: parsed.data.BALLOT_SYNC_ENABLED === 'true',
+  CIVICAPI_TIMEOUT_MS: parseInt(parsed.data.CIVICAPI_TIMEOUT_MS, 10),
   RESULTS_PROVIDER_MOCK_ENABLED: parsed.data.RESULTS_PROVIDER_MOCK_ENABLED === 'true',
   RESULTS_PROVIDER_ENABLED_IDS: parsed.data.RESULTS_PROVIDER_ENABLED_IDS.split(',')
     .map((providerId) => providerId.trim())
