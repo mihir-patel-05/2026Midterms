@@ -27,6 +27,19 @@ Decisions this plan makes (change them before building if you disagree):
 - **civicAPI's percent reporting is an estimate.** Its FAQ defines it as the estimated share of precincts or ballot batches that have reported. We show it as "about X% of the expected vote counted (civicAPI estimate)", never as "% of precincts". We never turn it into precinct counts.
 - **Browsers never call civicAPI.** One worker polls it and writes through `RawArtifact` → `ResultSnapshot` → `publishSnapshot()`. The `/api/v1` read model serves the stored results.
 
+## Built (Oct 31)
+Everything below is built, on the War Room only (the user's call: every election-night item lives in the War Room). Where the build differs from the plan, the build wins:
+
+- **civicAPI was reachable from here on Oct 31** and is serving **test data** (`test_data: true`, moving numbers, and calls). The field names in this plan were confirmed against live responses; recorded fixtures are in `backend/src/features/election-results/civicapi/fixtures/`.
+- **Race calls are in v1.** civicAPI's FAQ says its own decision desk makes its calls ("civicAPI uses its own decision desk"), so `winner` is a projection by a named desk. Calls go to the new `race_calls` table (append-only; a call missing from two documents in a row is retracted, never deleted) and are labelled "civicAPI decision desk" everywhere, never as certification. `advanced` is stored as a runoff call. Detail documents carry `called_at`; for tier B races one detail request fetches it after the call appears (until then the time is "first seen", marked with *).
+- **Test data is held back.** The ingestor publishes nothing while civicAPI says `test_data: true`, and the source shows "civicAPI is serving test data". `CIVICAPI_ACCEPT_TEST_DATA=true` (Testing only) stores it with `is_test_data` and the API serves it with a loud TEST DATA label; the first live document deletes every test-data snapshot and call automatically.
+- **No catalog script.** The ballot sync (Oct 30) already writes the `civicapi` source, the event, one contest per race (`sourceContestId` = `election_id`) and every candidacy with civicAPI's ids, so the ingestor uses those. County geography (`counties-fips`) is created as counties first report.
+- **Tier A is chosen when the ingestor starts**, from the latest Kalshi snapshots (leader under 80¢, closest first, at most 60), or from `CIVICAPI_TIER_A_RACES`. No `tier-a.json`. A tier A race whose detail fails three times in a row drops to the aggregate for the rest of the run.
+- **Bug fixed on the way:** the ballot sync stores ballot order from 0, which the contract rejects, so every civicAPI contest would have been withheld. The read model now serves positions from 1.
+- **Measured on Oct 31** against live civicAPI test data, all 470 races: the first cycle published 470 snapshots; later cycles publish only what changed (40–70 races). `/api/v1/bootstrap?units=none` is 1.5 MB raw and 158 KB gzipped (compression is on for `/api/v1`), built in about 0.5 s and cached 10 s.
+- **Where it shows (War Room):** the Night screen (status banner, seats called and leading, call log, a results board of every race, key races, live coverage), a **Results** lens on the map, a Results section on every race dossier (counties for tier A), and a header chip. Official state results links (`CODE/public/data/state-results-links.json`) appear whenever the feed is delayed, switched off, or not connected. The links could not be opened from the build sandbox: run `npm run check:results-links` in `CODE/` and open each before Nov 3.
+- **Running it:** `npm run results:ingest` (or `node dist/workers/results-ingestor.js`) with `RESULTS_INGESTOR_ENABLED=true`; `--once`, `--record <dir>` and `--replay <dir>` as planned. On Testing, `RESULTS_INGESTOR_IN_PROCESS=true` runs it inside `api` (one replica only).
+
 ## What already exists
 - **Contracts** (`contracts.ts`, version `1.0.0`): `ContestResult`, `ReportingProgress`, `SourceStatus`, and the rules that keep mock and live labelling consistent.
 - **Parser interface** (`parser.ts`): `ElectionResultsParser`, taking a `RawResultsDocument` and returning `ParsedResultsBatch`. No live parser exists yet.
@@ -244,19 +257,30 @@ Every snapshot stores every unit's numbers again, and `Third_database` has 5 GB.
 | `CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS` | ingestor | `120` | Shortest gap between county snapshots for one race |
 | `CIVICAPI_DETAIL_RPS` / `CIVICAPI_MAX_RPS` | ingestor | `1` / `2` | Request pacing |
 | `CIVICAPI_TIMEOUT_MS` | ingestor | `15000` | Per-request timeout |
-| `VITE_RESULTS_LIVE_ENABLED` | `web` | `false` | Loads live results in the monitor (needs a rebuild) |
+| `CIVICAPI_ACCEPT_TEST_DATA` | ingestor and `api` | `false` | Testing rehearsals only: store and serve civicAPI test data, labelled TEST DATA |
+| `CIVICAPI_TIER_A_RACES` | ingestor | empty | Comma-separated races (`PA-07,GA-SEN`) to use instead of the Kalshi-based tier A |
+| `CIVICAPI_DETAIL_REFRESH_SECONDS` | ingestor | `600` | Every tier A race is refreshed at least this often |
+| `CIVICAPI_CONTACT` | ingestor | empty | Contact added to the User-Agent |
+| `LIVE_STREAMS_ENABLED` | `api` | `true` | `GET /api/live-streams` |
+| `VITE_RESULTS_LIVE_ENABLED` | `web` | `true` | Live results in the War Room (needs a rebuild; set `false` to hide) |
+| `VITE_FEATURE_LIVE_STREAMS` | `web` | `true` | The War Room's Live coverage panel |
 
 ## Election-night runbook
+- **Nov 1 (rehearsal on Testing):** `CIVICAPI_ACCEPT_TEST_DATA=true` on `api` and the ingestor, `RESULTS_INGESTOR_ENABLED=true`, `FEATURE_ELECTION_DASHBOARD=true`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi`, `data_sources.is_enabled = true`. The War Room Night screen fills with civicAPI's test numbers, labelled TEST DATA. Then point `CIVICAPI_BASE_URL` at a dead host: within 5 minutes the source turns stale and the official links appear. Set `CIVICAPI_ACCEPT_TEST_DATA=false` afterwards.
 - **Nov 2:**
-  - Run the catalog in production with `--write-tiers`, read its report, and commit `tier-a.json`.
-  - Deploy `results-ingestor` with `RESULTS_INGESTOR_ENABLED=false`.
-  - Set `VITE_RESULTS_LIVE_ENABLED=true` and rebuild `web`. The monitor shows "No live results provider connected" until the source is enabled.
+  - Run the ballot sync (`npm run sync:ballot -- --apply`) so every race and candidate is in the catalog; the ingestor uses it. Optionally pin tier A with `CIVICAPI_TIER_A_RACES`.
+  - Deploy `results-ingestor` (or `RESULTS_INGESTOR_IN_PROCESS=true` on a single-replica `api`) with `RESULTS_INGESTOR_ENABLED=false`, and a Volume at `RESULTS_RAW_ARTIFACT_DIR`.
+  - Build `web` with `VITE_FEATURE_WAR_ROOM=true` (live results and live coverage are on by default). The War Room says "Results · not connected" until the source is enabled.
+  - Admin dashboard > Live coverage: paste each network's election-night YouTube link once it is announced.
+  - Run `npm run check:results-links` in `CODE/` and open each official link by hand.
 - **Nov 3, 4:00 PM ET:**
-  - Set `data_sources.is_enabled = true` for `civicapi`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi` on `api`, and `RESULTS_INGESTOR_ENABLED=true` on the ingestor.
+  - Set `data_sources.is_enabled = true` for `civicapi`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi` and `FEATURE_ELECTION_DASHBOARD=true` on `api`, and `RESULTS_INGESTOR_ENABLED=true` on the ingestor. Check `CIVICAPI_ACCEPT_TEST_DATA` is `false` everywhere.
+  - If civicAPI still reports `test_data: true` after polls start closing, nothing publishes and the War Room says so; contact civicAPI, and use the official links meanwhile.
+  - `BALLOT_SYNC_ENABLED=false` for the night, so the ballot sync does not rewrite candidacies while counts arrive.
   - Watch `/api/v1/sources/status` and the `ingestion_runs` and `ingestion_errors` tables. The first polls close at 6:00 PM ET in parts of Indiana and Kentucky.
   - Check the database size at 9 PM and 11 PM ET (see "Database size").
 - **Kill switch:** set `data_sources.is_enabled = false` for `civicapi`.
-  - The read model stops serving it on the next request (after the 10-second cache), with no deploy. `/api/v1/bootstrap` returns 503 "No results source is available". Open monitors clear their results within 30 seconds and show "No live results provider connected" and the official-results links.
+  - The read model stops serving it on the next request (after the 10-second cache), with no deploy. `/api/v1/bootstrap` returns 503 "No results source is available". Open War Rooms clear their results within 30 seconds and show "Results · switched off" and the official-results links.
   - Removing `civicapi` from `RESULTS_PROVIDER_ENABLED_IDS` does the same, but restarts `api`.
 - **After Nov 6:** lower the cadence to 10 minutes and keep polling through certification. Some states, such as California, keep counting for weeks.
 

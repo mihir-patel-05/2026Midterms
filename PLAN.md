@@ -100,6 +100,13 @@ Differentiators:
   - **Flags:** `NATIONAL_POLLS_ENABLED` (backend) and `VITE_FEATURE_NATIONAL_POLLS` (frontend), both on by default.
   - **Data gap:** VoteHub's national polls thin out after June 2026. On Oct 31 its newest ended Oct 6, so the card warns when the newest poll is over 14 days old.
 
+- Election night in the War Room (Oct 31, `docs/plans/civicapi-results.md`, "Built"): live **civicAPI** results and **race calls** by civicAPI's own decision desk.
+  - **Ingestor:** `results-ingestor` worker (or in `api` on Testing) polls the Senate and House aggregates every 30 s, with county detail for up to 60 close races. Writes snapshots through `publishSnapshot()`, calls to the new `race_calls` table, and source health. civicAPI test data is held back unless `CIVICAPI_ACCEPT_TEST_DATA=true` (rehearsals only).
+  - **API:** results contract **1.1.0** (estimated progress, FEC ids, calls, test-data flag), `/api/v1/bootstrap?units=none`, a 10-second cache, gzip.
+  - **War Room:** Night screen (status, seats called and leading, call log, results board, key races), a **Results** map lens, a Results section on every dossier, a header chip, and official state results links whenever the feed is delayed or off.
+  - **Live coverage (§4.7):** `live_streams` table, `GET /api/live-streams`, an admin section to paste each network's YouTube link on the night, and a click-to-load panel on the Night screen (four players at most, one with sound).
+  - **Flags:** `VITE_RESULTS_LIVE_ENABLED` and `VITE_FEATURE_LIVE_STREAMS` (on by default), `RESULTS_INGESTOR_ENABLED`, `LIVE_STREAMS_ENABLED`. The War Room itself still needs `VITE_FEATURE_WAR_ROOM=true`.
+
 **Not done yet (carried over from Oct 1–7)**
 
 - District race pages with ACS demographics and partisan lean.
@@ -111,7 +118,7 @@ Differentiators:
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
-- No live election-results provider is licensed. Election night depends on getting one; see section 6. Plan (Oct 29): AP has not answered, so election night uses **civicAPI** (free, attribution required, no SLA) through the existing results pipeline, with official state results links as the fallback. See `docs/plans/civicapi-results.md`.
+- No live election-results provider is licensed. Election night uses **civicAPI** (free, attribution required, no SLA), built Oct 31, with official state results links as the fallback. Still to do: the Nov 1 rehearsal, hand-checking the official links (`npm run check:results-links`), and pasting each network's stream in the admin dashboard. See `docs/plans/civicapi-results.md`, "Built" and the runbook.
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 
