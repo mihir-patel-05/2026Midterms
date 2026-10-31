@@ -3,7 +3,7 @@ import { constants, generateKeyPairSync, verify } from 'node:crypto';
 import { test } from 'node:test';
 import { authHeaders, loadPrivateKey, signRequest } from './auth.js';
 import { assignParties, buildCatalog, eventMarkets, parseHouseEventTicker, parseStateElectionEvent, tickersTried, type JsonFetcher } from './catalog.js';
-import { KalshiLiveFeed, rateLimitDelay } from './live-feed.js';
+import { KalshiLiveFeed, mergePartialCatalog, rateLimitDelay, RequestPacer } from './live-feed.js';
 import { isStateCode, knownStateCode, quotePrice } from './shared.js';
 import { hourStart, snapshotRows, type SnapshotInput } from './snapshots.js';
 
@@ -165,7 +165,8 @@ test('the catalog covers control, regular and special Senate, and every House pa
     return null;
   };
   const notes: string[] = [];
-  const markets = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher, (note) => notes.push(note));
+  const { markets, failed } = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher, (note) => notes.push(note));
+  assert.equal(failed, 0);
   assert.deepEqual([...new Set(markets.map((market) => market.race))], ['US-HOUSE', 'OH-SEN', 'AL-01', 'DE-00', 'CA-07', 'CA-22']);
   assert.deepEqual(notes.sort(), [
     'KXCAELECTION-26GOV (California Governor general election winner?) is not a House race',
@@ -185,6 +186,44 @@ test('the catalog covers control, regular and special Senate, and every House pa
   assert.ok(!requested.some((url) => url.includes('/events/HOUSEAL1-26?') || url.includes('/events/HOUSEDEAL-26?')));
   assert.ok(requested.some((url) => url.includes('/events/HOUSEAL2-26?')));
   assert.equal(requested.filter((url) => url.includes('series_ticker=KXHOUSERACE')).length, 2);
+});
+
+test('a failed lookup costs only its own markets, and a failed House page stops the probing', async () => {
+  const requested: string[] = [];
+  const fetcher: JsonFetcher = async <T>(url: string) => {
+    requested.push(url);
+    const path = new URL(url).pathname;
+    if (path.endsWith('/events/CONTROLH-2026')) return { event: control } as T;
+    if (path.endsWith('/events/SENATEOHS-26')) throw new Error('Kalshi REST returned 429');
+    if (path.endsWith('/events') && new URL(url).searchParams.get('series_ticker') === 'KXHOUSERACE') throw new Error('Kalshi REST returned 429');
+    return null;
+  };
+  const result = await buildCatalog('https://kalshi.test/trade-api/v2', fetcher);
+  assert.deepEqual(result.markets.map((market) => market.race), ['US-HOUSE', 'US-HOUSE']);
+  assert.equal(result.failed, 2);
+  assert.equal(result.error, 'Kalshi REST returned 429');
+  // No state series or per-seat probes after the House page failed.
+  assert.ok(!requested.some((url) => url.includes('ELECTION') || /\/events\/HOUSE[A-Z]{2}/.test(url)));
+});
+
+test('a partial catalog keeps the previous markets it could not look up', () => {
+  const previous = [...eventMarkets(control, 'NATIONAL_HOUSE', null, null), ...eventMarkets(alabama1, 'HOUSE_DISTRICT', 'AL', '01')];
+  const found = eventMarkets(control, 'NATIONAL_HOUSE', null, null).map((market) => ({ ...market, outcome: `${market.outcome}!` }));
+  const merged = mergePartialCatalog(found, previous);
+  assert.deepEqual(merged.map((market) => market.ticker), [...found, ...previous.slice(found.length)].map((market) => market.ticker));
+  assert.ok(merged.slice(0, found.length).every((market) => market.outcome.endsWith('!')));
+  assert.deepEqual(mergePartialCatalog(found, []), found);
+});
+
+test('the request pacer spaces requests and holds them all after a 429', async () => {
+  const pacer = new RequestPacer(30);
+  const start = Date.now();
+  await Promise.all([pacer.wait(), pacer.wait(), pacer.wait()]);
+  assert.ok(Date.now() - start >= 55);
+  pacer.pause(80);
+  const paused = Date.now();
+  await pacer.wait();
+  assert.ok(Date.now() - paused >= 70);
 });
 
 test('the live board seeds from REST, applies ticks, and only reports real moves', () => {

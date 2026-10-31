@@ -19,9 +19,16 @@ app.set('trust proxy', 1);
 const toOrigin = (host?: string) =>
   host ? (/^https?:\/\//.test(host) ? host : `https://${host}`).replace(/\/+$/, '') : undefined;
 
-const allowedOrigins = [
+// Railway gives every service in this environment a RAILWAY_SERVICE_<NAME>_URL. Allow them all,
+// so a second or renamed frontend (2026Midterms_new_frotnend) is not refused.
+const railwayServiceOrigins = Object.entries(process.env)
+  .filter(([key]) => /^RAILWAY_SERVICE_\w+_URL$/.test(key))
+  .map(([, host]) => toOrigin(host?.trim()));
+
+const allowedOrigins = [...new Set([
   env.FRONTEND_URL ?? toOrigin(env.RAILWAY_SERVICE_FRONTEND_URL),
   env.ADMIN_URL ?? toOrigin(env.RAILWAY_SERVICE_ADMIN_DASHBOARD_URL),
+  ...railwayServiceOrigins,
   ...(env.NODE_ENV !== 'production'
     ? [
         'http://localhost:8080',
@@ -32,7 +39,7 @@ const allowedOrigins = [
         'http://127.0.0.1:5174',
       ]
     : []),
-]
+])]
   .filter((origin): origin is string => Boolean(origin))
   .map((origin) => origin.replace(/\/+$/, ''));
 

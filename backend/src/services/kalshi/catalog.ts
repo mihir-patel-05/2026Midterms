@@ -130,17 +130,37 @@ export function tickersTried(race: string): string[] {
   return [`KXHOUSERACE-${state}${code}-26`, `KX${state}ELECTION-26${code}`, `HOUSE${state}${seat === '00' ? 'AL' : Number(seat)}-26`];
 }
 
+export interface CatalogResult {
+  markets: CatalogMarket[];
+  /** Lookups that failed (a 429 after every retry, a timeout); their markets are missing from `markets`. */
+  failed: number;
+  /** The first failure's message, for the log. */
+  error: string | null;
+}
+
 /**
  * Every open market we can tie to a race. `onNote` hears each event the catalog found but
  * could not use (a ticker that is not a district, another office, or no open market), so new
- * layouts show up in the logs.
+ * layouts show up in the logs. A failed lookup is counted and skipped, not thrown, so one
+ * rate-limited request costs only its own markets.
  */
 export async function buildCatalog(
   restUrl: string,
-  getJson: JsonFetcher,
+  fetchJson: JsonFetcher,
   onNote: (note: string) => void = () => {},
-): Promise<CatalogMarket[]> {
+): Promise<CatalogResult> {
   const markets: CatalogMarket[] = [];
+  let failed = 0;
+  let error: string | null = null;
+  const getJson: JsonFetcher = async <T>(url: string) => {
+    try {
+      return await fetchJson<T>(url);
+    } catch (cause) {
+      failed++;
+      error ??= cause instanceof Error ? cause.message : String(cause);
+      return null;
+    }
+  };
   const describe = (event: KalshiEvent) => `${event.event_ticker} (${event.title ?? 'untitled'})`;
   // eventMarkets, noting an event whose markets are all closed or not yet open.
   const usable = (event: KalshiEvent, scope: MarketScope, stateCode: string | null, district: string | null) => {
@@ -166,6 +186,7 @@ export async function buildCatalog(
   });
   markets.push(...senate.flat());
 
+  const failedBeforeHouse = failed;
   let cursor = '';
   for (let page = 0; page < MAX_HOUSE_PAGES; page++) {
     const query = new URLSearchParams({ series_ticker: HOUSE_SERIES, status: 'open', with_nested_markets: 'true', limit: '200' });
@@ -179,6 +200,9 @@ export async function buildCatalog(
     cursor = body?.cursor || '';
     if (!cursor) break;
   }
+  // Without every KXHOUSERACE page, nearly every seat looks uncovered and the steps below
+  // would probe hundreds of them; stop here and let the retry finish the job.
+  if (failed > failedBeforeHouse) return { markets, failed, error };
 
   // Same-party and top-two races live in per-state series (`KXCAELECTION-2607`). Only states
   // with a seat KXHOUSERACE left uncovered are searched, to keep each refresh under Kalshi's rate limit.
@@ -220,7 +244,7 @@ export async function buildCatalog(
   });
   markets.push(...seats.flat());
 
-  return markets;
+  return { markets, failed, error };
 }
 
 /** A candidate in a race, from the ballot or an FEC filing, keyed by race (`CA-07`, `GA-SEN`). */
