@@ -8,7 +8,7 @@ test('mock API builders return valid normalized fixtures with stable ETags', asy
   process.env.GEMINI_API_KEY ||= 'fixture-test';
   const { mockBootstrapPayload, mockCurrentResult, mockSourceStatusPayload, etagFor } = await import('./results-v1.routes.js');
   const payload = mockBootstrapPayload();
-  assert.equal(payload.meta.contractVersion, '1.0.0');
+  assert.equal(payload.meta.contractVersion, '1.1.0');
   assert.equal(payload.meta.isMockData, true);
   assert.equal(payload.data.results.length, 5);
   for (const result of payload.data.results) {

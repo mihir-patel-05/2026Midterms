@@ -1,3 +1,4 @@
+import { RESULT_CONTRACT_VERSION } from './contracts.js';
 import type {
   Candidate,
   CandidateResult,
@@ -170,7 +171,7 @@ export const mockPartialSenateResultsFixture: ElectionResultsResponse = {
     updatedAt: senateUpdatedAt,
   },
   meta: {
-    contractVersion: '1.0.0',
+    contractVersion: RESULT_CONTRACT_VERSION,
     generatedAt: senateUpdatedAt,
     updatedAt: senateUpdatedAt,
     dataMode: 'MOCK',
@@ -255,7 +256,7 @@ export const mockStaleHouseResultsFixture: ElectionResultsResponse = {
     updatedAt: houseUpdatedAt,
   },
   meta: {
-    contractVersion: '1.0.0',
+    contractVersion: RESULT_CONTRACT_VERSION,
     generatedAt: houseGeneratedAt,
     updatedAt: houseUpdatedAt,
     dataMode: 'MOCK',
@@ -340,7 +341,7 @@ export const mockCertifiedStatewideResultsFixture: ElectionResultsResponse = {
     updatedAt: statewideUpdatedAt,
   },
   meta: {
-    contractVersion: '1.0.0',
+    contractVersion: RESULT_CONTRACT_VERSION,
     generatedAt: statewideUpdatedAt,
     updatedAt: statewideUpdatedAt,
     dataMode: 'MOCK',
@@ -421,7 +422,7 @@ export const mockCountyResultsFixture: ElectionResultsResponse = {
     updatedAt: countyUpdatedAt,
   },
   meta: {
-    contractVersion: '1.0.0',
+    contractVersion: RESULT_CONTRACT_VERSION,
     generatedAt: countyUpdatedAt,
     updatedAt: countyUpdatedAt,
     dataMode: 'MOCK',
@@ -448,7 +449,7 @@ const unavailableAt = '2026-11-04T02:20:00.000Z';
 export const mockUnavailableResultsFixture: ElectionResultsResponse = {
   data: null,
   meta: {
-    contractVersion: '1.0.0',
+    contractVersion: RESULT_CONTRACT_VERSION,
     generatedAt: unavailableAt,
     updatedAt: unavailableAt,
     dataMode: 'MOCK',

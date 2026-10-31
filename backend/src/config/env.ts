@@ -104,6 +104,28 @@ const envSchema = z.object({
   RESULTS_STALE_AFTER_SECONDS: z.string().regex(/^[1-9]\d*$/).default('300'),
   RESULTS_POLL_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('30'),
   RESULTS_PARSER_VERSION: z.string().default('unconfigured'),
+  // civicAPI results ingestion (docs/plans/civicapi-results.md). The loop runs only when enabled,
+  // in the results-ingestor service, or inside api with RESULTS_INGESTOR_IN_PROCESS (one api replica only).
+  RESULTS_INGESTOR_ENABLED: z.enum(['true', 'false']).default('false'),
+  RESULTS_INGESTOR_IN_PROCESS: z.enum(['true', 'false']).default('false'),
+  // Gzipped payloads, content-addressed. Mount a Railway Volume here in production.
+  RESULTS_RAW_ARTIFACT_DIR: z.string().default('.local/raw-artifacts'),
+  // civicAPI marks rehearsal numbers test_data. The ingestor holds them back, and the API hides any it
+  // stored, unless this is true. Testing rehearsals only; never true in production.
+  CIVICAPI_ACCEPT_TEST_DATA: z.enum(['true', 'false']).default('false'),
+  // County detail for close races (tier A). false takes every race from the aggregates (the database-size brake).
+  CIVICAPI_TIER_A_ENABLED: z.enum(['true', 'false']).default('true'),
+  CIVICAPI_TIER_A_MAX: z.string().regex(/^\d+$/).default('60'),
+  // Comma-separated races (PA-07,GA-SEN) to use instead of the Kalshi-based choice.
+  CIVICAPI_TIER_A_RACES: z.string().default(''),
+  CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('120'),
+  CIVICAPI_DETAIL_REFRESH_SECONDS: z.string().regex(/^[1-9]\d*$/).default('600'),
+  CIVICAPI_DETAIL_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('1'),
+  CIVICAPI_MAX_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
+  // Contact sent in the ingestor's User-Agent, so civicAPI can reach us about our traffic.
+  CIVICAPI_CONTACT: z.string().trim().optional(),
+  // GET /api/live-streams (the War Room's Live coverage panel). Admins can also hide it without a deploy.
+  LIVE_STREAMS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Where /api/v1 results come from: published DB snapshots, or the in-memory fictional fixtures.
   RESULTS_READ_SOURCE: z.enum(['database', 'fixtures']).default('database'),
 
@@ -179,4 +201,15 @@ export const env = {
     .filter(Boolean),
   RESULTS_STALE_AFTER_SECONDS: parseInt(parsed.data.RESULTS_STALE_AFTER_SECONDS, 10),
   RESULTS_POLL_INTERVAL_SECONDS: parseInt(parsed.data.RESULTS_POLL_INTERVAL_SECONDS, 10),
+  RESULTS_INGESTOR_ENABLED: parsed.data.RESULTS_INGESTOR_ENABLED === 'true',
+  RESULTS_INGESTOR_IN_PROCESS: parsed.data.RESULTS_INGESTOR_IN_PROCESS === 'true',
+  CIVICAPI_ACCEPT_TEST_DATA: parsed.data.CIVICAPI_ACCEPT_TEST_DATA === 'true',
+  CIVICAPI_TIER_A_ENABLED: parsed.data.CIVICAPI_TIER_A_ENABLED === 'true',
+  CIVICAPI_TIER_A_MAX: parseInt(parsed.data.CIVICAPI_TIER_A_MAX, 10),
+  CIVICAPI_TIER_A_RACES: parsed.data.CIVICAPI_TIER_A_RACES.split(',').map((race) => race.trim()).filter(Boolean),
+  CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS, 10),
+  CIVICAPI_DETAIL_REFRESH_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_REFRESH_SECONDS, 10),
+  CIVICAPI_DETAIL_RPS: parseFloat(parsed.data.CIVICAPI_DETAIL_RPS),
+  CIVICAPI_MAX_RPS: parseFloat(parsed.data.CIVICAPI_MAX_RPS),
+  LIVE_STREAMS_ENABLED: parsed.data.LIVE_STREAMS_ENABLED === 'true',
 };

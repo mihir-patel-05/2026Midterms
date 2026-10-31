@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-export const RESULT_CONTRACT_VERSION = '1.0.0' as const;
+/**
+ * 1.1.0 (additive): estimated progress for sources that give a share but no counts, FEC ids and
+ * incumbency on candidates, race calls, and a test-data flag. Every new field is optional, so 1.0
+ * payloads still validate; clients accept any 1.x.
+ */
+export const RESULT_CONTRACT_VERSION = '1.1.0' as const;
 
 export const DataModeSchema = z.enum(['MOCK', 'LIVE']);
 export const ElectionTypeSchema = z.enum(['PRIMARY', 'GENERAL', 'RUNOFF', 'SPECIAL']);
@@ -121,6 +126,27 @@ export const CandidateSchema = z
     party: PartySchema.nullable(),
     ballotOrder: z.number().int().positive().optional(),
     isWriteIn: z.boolean().default(false),
+    /** 1.1.0: the candidate's FEC id, when the ballot sync matched one. */
+    fecCandidateId: z.string().regex(/^[HSP][0-9A-Z]{8}$/).optional(),
+    /** 1.1.0 */
+    isIncumbent: z.boolean().optional(),
+  })
+  .strict();
+
+export const RaceCallKindSchema = z.enum(['WINNER', 'ADVANCED']);
+
+/**
+ * 1.1.0: a race call by the source's own decision desk. A projection, not a certification.
+ * `calledAtIsSourceTime` is false when the source gave no call time and `calledAt` is when we first saw it.
+ */
+export const RaceCallSchema = z
+  .object({
+    candidateId: IdentifierSchema,
+    candidacyId: IdentifierSchema,
+    kind: RaceCallKindSchema,
+    calledAt: IsoDateTimeSchema,
+    calledAtIsSourceTime: z.boolean(),
+    calledBy: z.string().trim().min(1).max(160),
   })
   .strict();
 
@@ -183,6 +209,11 @@ export const ReportingProgressSchema = z
   .object({
     reportingUnits: ProgressCountSchema,
     precincts: ProgressCountSchema,
+    /**
+     * 1.1.0: the source's estimate of the share of the expected vote counted, for sources that give
+     * a share but no counts (civicAPI). Never turned into precinct counts.
+     */
+    estimatedPercentage: PercentageSchema.nullable().optional(),
   })
   .strict();
 
@@ -212,6 +243,10 @@ export const ContestResultSchema = z
     status: ResultStatusSchema,
     certificationState: CertificationStateSchema,
     updatedAt: IsoDateTimeSchema,
+    /** 1.1.0: current (not retracted) calls. */
+    calls: z.array(RaceCallSchema).optional(),
+    /** 1.1.0: the source marked these numbers as rehearsal data, not election results. */
+    isTestData: z.boolean().optional(),
   })
   .strict()
   .superRefine((result, context) => {
@@ -311,6 +346,16 @@ export const ContestResultSchema = z
         reportingUnitResult.totalVotes,
         ['reportingUnitResults', index, 'candidateResults']
       );
+    }
+
+    for (const [index, call] of (result.calls ?? []).entries()) {
+      if (candidacyByCandidateId.get(call.candidateId) !== call.candidacyId) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'a race call must reference a candidate in this contest',
+          path: ['calls', index, 'candidacyId'],
+        });
+      }
     }
 
     if (result.certificationState === 'CERTIFIED' && result.status !== 'COMPLETE') {
@@ -450,6 +495,7 @@ export type CandidateResult = z.infer<typeof CandidateResultSchema>;
 export type ReportingProgress = z.infer<typeof ReportingProgressSchema>;
 export type ReportingUnitResult = z.infer<typeof ReportingUnitResultSchema>;
 export type ContestResult = z.infer<typeof ContestResultSchema>;
+export type RaceCall = z.infer<typeof RaceCallSchema>;
 export type SourceStatus = z.infer<typeof SourceStatusSchema>;
 export type ResponseMetadata = z.infer<typeof ResponseMetadataSchema>;
 export type ElectionResultsResponse = z.infer<typeof ElectionResultsResponseSchema>;

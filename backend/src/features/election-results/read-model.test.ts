@@ -67,11 +67,12 @@ function fixture(): ContestRecord {
       lastCheckedAt: null, lastSuccessfulAt: null, isEnabled: false, isMock: true, ...stamps,
     },
     candidacies: [candidacy('a', 1), candidacy('b', 2)],
+    raceCalls: [],
     currentSnapshot: {
       id: 'snapshot', contestId: 'contest', sourceId: 'source', ingestionRunId: null, rawArtifactId: 'artifact',
       sourceSnapshotId: null, payloadSha256: 'f'.repeat(64), publicationStatus: 'PUBLISHED', reportingStatus: 'PARTIAL',
       certification: 'UNOFFICIAL', sourceUpdatedAt: at, receivedAt: at, publishedAt: at, isPartial: true, isMock: true,
-      notes: null, ...stamps,
+      isTestData: false, notes: null, ...stamps,
       rawArtifact: { sourceUrl: 'https://example.invalid/results' },
       candidateVotes: [
         vote('a', 'district', 180n), vote('b', 'district', 120n),
@@ -179,4 +180,65 @@ test('source eligibility requires the mock flag or an enabled, listed live sourc
   assert.deepEqual(servableSourceWhere({ ...config, mockEnabled: false, enabledProviderKeys: ['state-zz'] }), {
     OR: [{ isMock: false, isEnabled: true, type: { not: 'MOCK_FIXTURE' }, key: { in: ['state-zz'] } }],
   });
+});
+
+test('a share with no counts behind it is served as an estimate, never as counts (1.1.0)', () => {
+  const contest = fixture();
+  const root = contest.currentSnapshot!.contestMetrics[0];
+  Object.assign(root, { precinctsTotal: null, precinctsReporting: null, reportingPercentage: new Prisma.Decimal(64.5) });
+  const response = toResultsResponse(contest, context());
+  assert(response?.data);
+  ElectionResultsResponseSchema.parse(response);
+  assert.deepEqual(response.data.reportingProgress.precincts, { reported: null, total: null, percentage: null });
+  assert.equal(response.data.reportingProgress.estimatedPercentage, 64.5);
+  assert.match(response.meta.limitations.join(' '), /estimate/);
+  // With counts the estimate stays null and the counted percentage is used.
+  assert.equal(toResultsResponse(fixture(), context())?.data?.reportingProgress.estimatedPercentage, null);
+});
+
+test('current race calls are served with who called them; calls for unlisted candidacies are not', () => {
+  const contest = fixture();
+  const call = (id: string, candidacyId: string, isTestData = false) => ({
+    id, contestId: 'contest', candidacyId, sourceId: 'source', kind: 'WINNER' as const, calledAt: at, calledAtSource: true,
+    firstSeenAt: at, retractedAt: null, rawArtifactId: null, isTestData, ...stamps,
+  });
+  contest.raceCalls = [call('c1', 'a'), call('c2', 'missing'), call('c3', 'b', true)];
+  const response = toResultsResponse(contest, context());
+  assert(response?.data);
+  ElectionResultsResponseSchema.parse(response);
+  assert.deepEqual(response.data.calls, [{
+    candidateId: 'person-a', candidacyId: 'a', kind: 'WINNER', calledAt: at.toISOString(), calledAtIsSourceTime: true,
+    calledBy: 'Fictional Source decision desk',
+  }]);
+});
+
+test('test-data snapshots are held back unless the API is told to show them', () => {
+  const contest = fixture();
+  contest.currentSnapshot!.isTestData = true;
+  const held = toResultsResponse(contest, context());
+  ElectionResultsResponseSchema.parse(held);
+  assert.equal(held?.data, null);
+  assert.match(held!.meta.limitations.join(' '), /test data/);
+  const shown = toResultsResponse(contest, context({ showTestData: true }));
+  assert.equal(shown?.data?.isTestData, true);
+  assert.match(shown!.meta.limitations.join(' '), /TEST DATA/);
+});
+
+test('candidates carry FEC ids and incumbency when the ballot sync matched them (1.1.0)', () => {
+  const contest = fixture();
+  Object.assign(contest.candidacies[0], { fecCandidateId: 'H6PA07123', isIncumbent: true });
+  Object.assign(contest.candidacies[1], { fecCandidateId: 'not-an-id' });
+  const response = toResultsResponse(contest, context());
+  assert.equal(response?.data?.candidates[0].fecCandidateId, 'H6PA07123');
+  assert.equal(response?.data?.candidates[0].isIncumbent, true);
+  assert.equal(response?.data?.candidates[1].fecCandidateId, undefined);
+});
+
+test('ballot order stored from 0 (the ballot sync) is served as positions from 1', () => {
+  const contest = fixture();
+  contest.candidacies[0].ballotOrder = 0;
+  contest.candidacies[1].ballotOrder = 1;
+  const response = toResultsResponse(contest, context());
+  assert(response?.data);
+  assert.deepEqual(response.data.candidates.map((candidate) => [candidate.candidacyId, candidate.ballotOrder]), [['a', 1], ['b', 2]]);
 });

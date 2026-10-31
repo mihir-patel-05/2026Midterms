@@ -1,0 +1,2038 @@
+{
+ "election_name": "United States Senate",
+ "election_type": "US Senate",
+ "election_scope": "General",
+ "election_date": "2026-11-03T05:00:00.000Z",
+ "country": "US",
+ "province": "US",
+ "district": null,
+ "municipality": null,
+ "polls_open": null,
+ "polls_close": null,
+ "is_disputed": false,
+ "has_map": false,
+ "registered_voters": 217223010,
+ "percent_reporting": 76,
+ "test_data": true,
+ "last_updated": "2026-10-31T23:13:11.405Z",
+ "round": 1,
+ "candidates": [
+  {
+   "name": "Democrats",
+   "candidate_id": 221410,
+   "party": "Democratic",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#4874a3",
+   "votes": 30001167,
+   "seats": 47,
+   "percent": 48.72
+  },
+  {
+   "name": "Republicans",
+   "candidate_id": 221411,
+   "party": "Republican",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#c6606b",
+   "votes": 29334995,
+   "seats": 45,
+   "percent": 47.64
+  },
+  {
+   "name": "America First",
+   "candidate_id": 221412,
+   "party": "America First",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#8B0000",
+   "votes": 2999,
+   "seats": 0,
+   "percent": 0
+  },
+  {
+   "name": "American Center Party",
+   "candidate_id": 221413,
+   "party": "American Center Party",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 44247,
+   "seats": 0,
+   "percent": 0.07
+  },
+  {
+   "name": "Approval Voting",
+   "candidate_id": 221414,
+   "party": "Approval Voting",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 13164,
+   "seats": 0,
+   "percent": 0.02
+  },
+  {
+   "name": "Constitution",
+   "candidate_id": 221415,
+   "party": "Constitution",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 63331,
+   "seats": 0,
+   "percent": 0.1
+  },
+  {
+   "name": "Forward",
+   "candidate_id": 221416,
+   "party": "Forward",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 12607,
+   "seats": 0,
+   "percent": 0.02
+  },
+  {
+   "name": "Green",
+   "candidate_id": 221417,
+   "party": "Green",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#09ad00",
+   "votes": 123200,
+   "seats": 0,
+   "percent": 0.2
+  },
+  {
+   "name": "Independent",
+   "candidate_id": 221418,
+   "party": "Independent",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 796256,
+   "seats": 0,
+   "percent": 1.29
+  },
+  {
+   "name": "Kentucky Party",
+   "candidate_id": 221419,
+   "party": "Kentucky Party",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 58037,
+   "seats": 0,
+   "percent": 0.09
+  },
+  {
+   "name": "Legal Marijuana Now",
+   "candidate_id": 221420,
+   "party": "Legal Marijuana Now",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#09ad00",
+   "votes": 5167,
+   "seats": 0,
+   "percent": 0.01
+  },
+  {
+   "name": "Libertarians",
+   "candidate_id": 221421,
+   "party": "Libertarian",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#d4c029",
+   "votes": 620193,
+   "seats": 0,
+   "percent": 1.01
+  },
+  {
+   "name": "Natural Law",
+   "candidate_id": 221422,
+   "party": "Natural Law",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#F0973E",
+   "votes": 35195,
+   "seats": 0,
+   "percent": 0.06
+  },
+  {
+   "name": "Nebraska Working People",
+   "candidate_id": 221423,
+   "party": "Nebraska Working People",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#CC5500",
+   "votes": 4829,
+   "seats": 0,
+   "percent": 0.01
+  },
+  {
+   "name": "Nonpartisan",
+   "candidate_id": 221424,
+   "party": "Nonpartisan",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#9A36FF",
+   "votes": 227443,
+   "seats": 0,
+   "percent": 0.37
+  },
+  {
+   "name": "Other Party",
+   "candidate_id": 221425,
+   "party": "Other Party",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 41490,
+   "seats": 0,
+   "percent": 0.07
+  },
+  {
+   "name": "Socialism and Liberation",
+   "candidate_id": 221427,
+   "party": "Socialism and Liberation",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 24500,
+   "seats": 0,
+   "percent": 0.04
+  },
+  {
+   "name": "U.S. Taxpayers",
+   "candidate_id": 221429,
+   "party": "U.S. Taxpayers",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#808080",
+   "votes": 47966,
+   "seats": 0,
+   "percent": 0.08
+  },
+  {
+   "name": "Unity",
+   "candidate_id": 221430,
+   "party": "Unity",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#ADD8E6",
+   "votes": 8750,
+   "seats": 0,
+   "percent": 0.01
+  },
+  {
+   "name": "Write-In",
+   "candidate_id": 999773,
+   "party": "Write-In",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#9A36FF",
+   "votes": 112344,
+   "seats": 0,
+   "percent": 0.18
+  }
+ ],
+ "region_results": {
+  "ak": {
+   "name": "Alaska",
+   "type": "State",
+   "fill": "#404040",
+   "election_id": 86916,
+   "percent_reporting": 0,
+   "candidates": [
+    {
+     "name": "Gerald L. Heikes",
+     "candidate_id": 219758,
+     "party": "Republican",
+     "votes": 0,
+     "percent": 0,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Mary Peltola",
+     "candidate_id": 219759,
+     "party": "Democratic",
+     "votes": 0,
+     "percent": 0,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Dan Sullivan",
+     "candidate_id": 219760,
+     "party": "Republican",
+     "votes": 0,
+     "percent": 0,
+     "color": "#e0bb24",
+     "winner": false,
+     "advanced": false,
+     "incumbent": true,
+     "major_candidate": false
+    },
+    {
+     "name": "Daniel J. Jr. Sullivan",
+     "candidate_id": 219761,
+     "party": "Republican",
+     "votes": 0,
+     "percent": 0,
+     "color": "#CD7F32",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Heather McElwain",
+     "candidate_id": 219762,
+     "party": "Libertarian",
+     "votes": 0,
+     "percent": 0,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Sidney \u201cSid\u201d Hill",
+     "candidate_id": 219763,
+     "party": "Independent",
+     "votes": 0,
+     "percent": 0,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "al": {
+   "name": "Alabama",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 86907,
+   "percent_reporting": 98.5,
+   "candidates": [
+    {
+     "name": "Barry Moore",
+     "candidate_id": 219738,
+     "party": "Republican",
+     "votes": 873942,
+     "percent": 55.79,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Everett Wess",
+     "candidate_id": 219739,
+     "party": "Democratic",
+     "votes": 692675,
+     "percent": 44.21,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ar": {
+   "name": "Arkansas",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 86949,
+   "percent_reporting": 83,
+   "candidates": [
+    {
+     "name": "Tom Cotton",
+     "candidate_id": 219851,
+     "party": "Republican",
+     "votes": 453057,
+     "percent": 53.28,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Hallie Shoffner",
+     "candidate_id": 219850,
+     "party": "Democratic",
+     "votes": 365308,
+     "percent": 42.96,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Jeff Wadlin",
+     "candidate_id": 219852,
+     "party": "Libertarian",
+     "votes": 32025,
+     "percent": 3.77,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "co": {
+   "name": "Colorado",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87022,
+   "percent_reporting": 50.3,
+   "candidates": [
+    {
+     "name": "John Hickenlooper",
+     "candidate_id": 220027,
+     "party": "Democratic",
+     "votes": 785871,
+     "percent": 54.9,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Mark Baisley",
+     "candidate_id": 220026,
+     "party": "Republican",
+     "votes": 571643,
+     "percent": 39.93,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ryan Apelbaum",
+     "candidate_id": 220029,
+     "party": "Republican",
+     "votes": 14794,
+     "percent": 1.03,
+     "color": "#CD7F32",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Christopher Baum",
+     "candidate_id": 220031,
+     "party": "Approval Voting",
+     "votes": 13164,
+     "percent": 0.92,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bob Chew",
+     "candidate_id": 220030,
+     "party": "Forward",
+     "votes": 12607,
+     "percent": 0.88,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Donald Willoughby",
+     "candidate_id": 220034,
+     "party": "Independent",
+     "votes": 11424,
+     "percent": 0.8,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Adam Withrow",
+     "candidate_id": 220033,
+     "party": "Unity",
+     "votes": 8750,
+     "percent": 0.61,
+     "color": "#ADD8E6",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Blake Huber",
+     "candidate_id": 220032,
+     "party": "Libertarian",
+     "votes": 8276,
+     "percent": 0.58,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Will Powers",
+     "candidate_id": 220028,
+     "party": "Republican",
+     "votes": 4941,
+     "percent": 0.35,
+     "color": "#e0bb24",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "de": {
+   "name": "Delaware",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87036,
+   "percent_reporting": 85.7,
+   "candidates": [
+    {
+     "name": "Chris Coons",
+     "candidate_id": 220068,
+     "party": "Democratic",
+     "votes": 202396,
+     "percent": 63.92,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Michael \"Dr. Mike\" Katz",
+     "candidate_id": 220069,
+     "party": "Republican",
+     "votes": 114248,
+     "percent": 36.08,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "fl": {
+   "name": "Florida",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87068,
+   "percent_reporting": 100,
+   "candidates": [
+    {
+     "name": "Ashley Moody",
+     "candidate_id": 220151,
+     "party": "Republican",
+     "votes": 4471655,
+     "percent": 51.1,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": true,
+     "major_candidate": false
+    },
+    {
+     "name": "Angie Nixon",
+     "candidate_id": 220152,
+     "party": "Democratic",
+     "votes": 3981559,
+     "percent": 45.5,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Neil J. Gillespie",
+     "candidate_id": 220153,
+     "party": "Independent",
+     "votes": 297069,
+     "percent": 3.39,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ga": {
+   "name": "Georgia",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87087,
+   "percent_reporting": 99.3,
+   "candidates": [
+    {
+     "name": "Jon Ossoff",
+     "candidate_id": 220200,
+     "party": "Democratic",
+     "votes": 2361727,
+     "percent": 52.21,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Mike Collins",
+     "candidate_id": 220201,
+     "party": "Republican",
+     "votes": 2162175,
+     "percent": 47.79,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ia": {
+   "name": "Iowa",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87151,
+   "percent_reporting": 66.2,
+   "candidates": [
+    {
+     "name": "Ashley Hinson",
+     "candidate_id": 220354,
+     "party": "Republican",
+     "votes": 458202,
+     "percent": 49.48,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Josh Turek",
+     "candidate_id": 220355,
+     "party": "Democratic",
+     "votes": 440862,
+     "percent": 47.61,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Thomas Laehn",
+     "candidate_id": 220356,
+     "party": "Libertarian",
+     "votes": 26878,
+     "percent": 2.9,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "id": {
+   "name": "Idaho",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87103,
+   "percent_reporting": 8,
+   "candidates": [
+    {
+     "name": "Jim Risch",
+     "candidate_id": 220234,
+     "party": "Republican",
+     "votes": 28396,
+     "percent": 52.63,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Natalie M Fleming",
+     "candidate_id": 220236,
+     "party": "Independent",
+     "votes": 23746,
+     "percent": 44.01,
+     "color": "#af81a2",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Matt Loesby",
+     "candidate_id": 220235,
+     "party": "Libertarian",
+     "votes": 1238,
+     "percent": 2.29,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Todd Achilles",
+     "candidate_id": 220237,
+     "party": "Independent",
+     "votes": 578,
+     "percent": 1.07,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "il": {
+   "name": "Illinois",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87129,
+   "percent_reporting": 60.1,
+   "candidates": [
+    {
+     "name": "Juliana Stratton",
+     "candidate_id": 220299,
+     "party": "Democratic",
+     "votes": 1538845,
+     "percent": 54.43,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Don Tracy",
+     "candidate_id": 220300,
+     "party": "Republican",
+     "votes": 1243975,
+     "percent": 44,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Whitfield Harrington Jr.",
+     "candidate_id": 220301,
+     "party": "American Center Party",
+     "votes": 44247,
+     "percent": 1.57,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ks": {
+   "name": "Kansas",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87162,
+   "percent_reporting": 94,
+   "candidates": [
+    {
+     "name": "Roger Marshall",
+     "candidate_id": 220382,
+     "party": "Republican",
+     "votes": 545057,
+     "percent": 50.19,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Adam Hamilton",
+     "candidate_id": 220381,
+     "party": "Democratic",
+     "votes": 506178,
+     "percent": 46.61,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "David C Graham",
+     "candidate_id": 220383,
+     "party": "Libertarian",
+     "votes": 34809,
+     "percent": 3.21,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ky": {
+   "name": "Kentucky",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87174,
+   "percent_reporting": 100,
+   "candidates": [
+    {
+     "name": "Andy Barr",
+     "candidate_id": 220415,
+     "party": "Republican",
+     "votes": 872888,
+     "percent": 52.72,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Charles Booker",
+     "candidate_id": 220416,
+     "party": "Democratic",
+     "votes": 724679,
+     "percent": 43.77,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Christopher Campbell",
+     "candidate_id": 220417,
+     "party": "Kentucky Party",
+     "votes": 58037,
+     "percent": 3.51,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "la": {
+   "name": "Louisiana",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87183,
+   "percent_reporting": 50.4,
+   "candidates": [
+    {
+     "name": "Julia Letlow",
+     "candidate_id": 220461,
+     "party": "Republican",
+     "votes": 416730,
+     "percent": 54.28,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Jamie Davis",
+     "candidate_id": 220460,
+     "party": "Democratic",
+     "votes": 350995,
+     "percent": 45.72,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ma": {
+   "name": "Massachusetts",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87275,
+   "percent_reporting": 64.4,
+   "candidates": [
+    {
+     "name": "Edward J. Markey",
+     "candidate_id": 220758,
+     "party": "Democratic",
+     "votes": 1144653,
+     "percent": 63.13,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "John Deaton",
+     "candidate_id": 220759,
+     "party": "Republican",
+     "votes": 603822,
+     "percent": 33.3,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Shiva Ayyadurai",
+     "candidate_id": 220761,
+     "party": "Independent",
+     "votes": 40283,
+     "percent": 2.22,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Joe Tache",
+     "candidate_id": 220760,
+     "party": "Socialism and Liberation",
+     "votes": 24500,
+     "percent": 1.35,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "me": {
+   "name": "Maine",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87188,
+   "percent_reporting": 63.2,
+   "candidates": [
+    {
+     "name": "Susan Collins",
+     "candidate_id": 220470,
+     "party": "Republican",
+     "votes": 240189,
+     "percent": 48.53,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Troy Jackson",
+     "candidate_id": 220471,
+     "party": "Democratic",
+     "votes": 239229,
+     "percent": 48.33,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "mi": {
+   "name": "Michigan",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87214,
+   "percent_reporting": 74,
+   "candidates": [
+    {
+     "name": "Mike Rogers",
+     "candidate_id": 220565,
+     "party": "Republican",
+     "votes": 1802620,
+     "percent": 48.58,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Abdul El-Sayed",
+     "candidate_id": 220564,
+     "party": "Democratic",
+     "votes": 1744803,
+     "percent": 47.02,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Lydia Christensen",
+     "candidate_id": 220566,
+     "party": "Libertarian",
+     "votes": 48501,
+     "percent": 1.31,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Tim Long",
+     "candidate_id": 220567,
+     "party": "U.S. Taxpayers",
+     "votes": 47966,
+     "percent": 1.29,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Walter P. Kristy",
+     "candidate_id": 220569,
+     "party": "Natural Law",
+     "votes": 35195,
+     "percent": 0.95,
+     "color": "#F0973E",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Douglas P. Marsh",
+     "candidate_id": 220568,
+     "party": "Green",
+     "votes": 31336,
+     "percent": 0.84,
+     "color": "#09ad00",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "mn": {
+   "name": "Minnesota",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87229,
+   "percent_reporting": 48.3,
+   "candidates": [
+    {
+     "name": "Peggy Flanagan",
+     "candidate_id": 220621,
+     "party": "Democratic",
+     "votes": 749553,
+     "percent": 52.87,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Michele Tafoya",
+     "candidate_id": 220622,
+     "party": "Republican",
+     "votes": 596451,
+     "percent": 42.07,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Write-in",
+     "candidate_id": 999747,
+     "party": "Nonpartisan",
+     "votes": 26759,
+     "percent": 1.89,
+     "color": "#9A36FF",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Marisa Simonetti",
+     "candidate_id": 220624,
+     "party": "Independent",
+     "votes": 25553,
+     "percent": 1.8,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Rebecca Whiting",
+     "candidate_id": 220623,
+     "party": "Libertarian",
+     "votes": 19349,
+     "percent": 1.36,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ms": {
+   "name": "Mississippi",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 81004,
+   "percent_reporting": 83.9,
+   "candidates": [
+    {
+     "name": "Cindy Hyde-Smith",
+     "candidate_id": 205793,
+     "party": "Republican",
+     "votes": 367923,
+     "percent": 54.61,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Scott Colom",
+     "candidate_id": 205792,
+     "party": "Democratic",
+     "votes": 297471,
+     "percent": 44.15,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ty Pinkins",
+     "candidate_id": 205794,
+     "party": "Independent",
+     "votes": 8383,
+     "percent": 1.24,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "mt": {
+   "name": "Montana",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87247,
+   "percent_reporting": 5.1,
+   "candidates": [
+    {
+     "name": "Kurt Alme",
+     "candidate_id": 220680,
+     "party": "Republican",
+     "votes": 17157,
+     "percent": 62.97,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Alani Bankhead",
+     "candidate_id": 220681,
+     "party": "Democratic",
+     "votes": 9457,
+     "percent": 34.71,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Seth Bodnar",
+     "candidate_id": 220683,
+     "party": "Independent",
+     "votes": 324,
+     "percent": 1.19,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Kyle Austin",
+     "candidate_id": 220682,
+     "party": "Libertarian",
+     "votes": 307,
+     "percent": 1.13,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "nc": {
+   "name": "North Carolina",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87346,
+   "percent_reporting": 89.9,
+   "candidates": [
+    {
+     "name": "Roy Cooper",
+     "candidate_id": 220936,
+     "party": "Democratic",
+     "votes": 2047724,
+     "percent": 50.25,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Michael Whatley",
+     "candidate_id": 220935,
+     "party": "Republican",
+     "votes": 1878698,
+     "percent": 46.1,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Michael Dublin",
+     "candidate_id": 220937,
+     "party": "Green",
+     "votes": 91864,
+     "percent": 2.25,
+     "color": "#09ad00",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Shannon Bray",
+     "candidate_id": 220938,
+     "party": "Libertarian",
+     "votes": 56965,
+     "percent": 1.4,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ne": {
+   "name": "Nebraska",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87254,
+   "percent_reporting": 31,
+   "candidates": [
+    {
+     "name": "Pete  Ricketts",
+     "candidate_id": 220702,
+     "party": "Republican",
+     "votes": 116882,
+     "percent": 49,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Dan  Osborn",
+     "candidate_id": 220706,
+     "party": "Independent",
+     "votes": 108650,
+     "percent": 45.55,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Mike  Marvin",
+     "candidate_id": 220703,
+     "party": "Legal Marijuana Now",
+     "votes": 5167,
+     "percent": 2.17,
+     "color": "#09ad00",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Robin  Richards",
+     "candidate_id": 220704,
+     "party": "Nebraska Working People",
+     "votes": 4829,
+     "percent": 2.02,
+     "color": "#CC5500",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Chuck  Conboy",
+     "candidate_id": 220705,
+     "party": "America First",
+     "votes": 2999,
+     "percent": 1.26,
+     "color": "#8B0000",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "nh": {
+   "name": "New Hampshire",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87283,
+   "percent_reporting": 87.9,
+   "candidates": [
+    {
+     "name": "John E. Sununu",
+     "candidate_id": 220780,
+     "party": "Republican",
+     "votes": 299517,
+     "percent": 48.91,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Chris Pappas",
+     "candidate_id": 220778,
+     "party": "Democratic",
+     "votes": 299165,
+     "percent": 48.85,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Edmond Laplante",
+     "candidate_id": 220779,
+     "party": "Constitution",
+     "votes": 13706,
+     "percent": 2.24,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "nj": {
+   "name": "New Jersey",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87302,
+   "percent_reporting": 55.9,
+   "candidates": [
+    {
+     "name": "Cory Booker",
+     "candidate_id": 220829,
+     "party": "Democratic",
+     "votes": 935497,
+     "percent": 56.4,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Justin Murphy",
+     "candidate_id": 220830,
+     "party": "Republican",
+     "votes": 669829,
+     "percent": 40.38,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "nm": {
+   "name": "New Mexico",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87288,
+   "percent_reporting": 45,
+   "candidates": [
+    {
+     "name": "Ben Ray Luj\u00e1n",
+     "candidate_id": 220790,
+     "party": "Democratic",
+     "votes": 206234,
+     "percent": 57.46,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Larry Marker",
+     "candidate_id": 220791,
+     "party": "Republican",
+     "votes": 152714,
+     "percent": 42.54,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "oh": {
+   "name": "Ohio",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87527,
+   "percent_reporting": 82.9,
+   "candidates": [
+    {
+     "name": "Sherrod Brown",
+     "candidate_id": 221403,
+     "party": "Democratic",
+     "votes": 1917368,
+     "percent": 47.96,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Jon Husted",
+     "candidate_id": 221406,
+     "party": "Republican",
+     "votes": 1889417,
+     "percent": 47.26,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Stephen Faris",
+     "candidate_id": 221404,
+     "party": "Write-In",
+     "votes": 44171,
+     "percent": 1.1,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Greg Levy",
+     "candidate_id": 221407,
+     "party": "Other Party",
+     "votes": 41490,
+     "percent": 1.04,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "William B. Redpath",
+     "candidate_id": 221408,
+     "party": "Libertarian",
+     "votes": 37250,
+     "percent": 0.93,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Timothy Telymonde",
+     "candidate_id": 221409,
+     "party": "Write-In",
+     "votes": 34441,
+     "percent": 0.86,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Anthony Holliman",
+     "candidate_id": 221405,
+     "party": "Write-In",
+     "votes": 33732,
+     "percent": 0.84,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ok": {
+   "name": "Oklahoma",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87526,
+   "percent_reporting": 75.7,
+   "candidates": [
+    {
+     "name": "Kevin Hern",
+     "candidate_id": 221398,
+     "party": "Republican",
+     "votes": 657448,
+     "percent": 66.54,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "N'Kiyla Jasmine Thomas",
+     "candidate_id": 221399,
+     "party": "Democratic",
+     "votes": 294689,
+     "percent": 29.83,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Sevier White",
+     "candidate_id": 221400,
+     "party": "Libertarian",
+     "votes": 18817,
+     "percent": 1.9,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ron Meinhardt",
+     "candidate_id": 221401,
+     "party": "Independent",
+     "votes": 10709,
+     "percent": 1.08,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Curtis Stinnett",
+     "candidate_id": 221402,
+     "party": "Independent",
+     "votes": 6361,
+     "percent": 0.64,
+     "color": "#af81a2",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "or": {
+   "name": "Oregon",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87374,
+   "percent_reporting": 0.1,
+   "candidates": [
+    {
+     "name": "Jeff Merkley",
+     "candidate_id": 221011,
+     "party": "Democratic",
+     "votes": 1113,
+     "percent": 51.82,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "David Brock Smith",
+     "candidate_id": 221012,
+     "party": "Republican",
+     "votes": 998,
+     "percent": 46.46,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ri": {
+   "name": "Rhode Island",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87396,
+   "percent_reporting": 80.9,
+   "candidates": [
+    {
+     "name": "John F. Reed",
+     "candidate_id": 221057,
+     "party": "Democratic",
+     "votes": 181786,
+     "percent": 55.33,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Raymond T. McKay",
+     "candidate_id": 221058,
+     "party": "Republican",
+     "votes": 133575,
+     "percent": 40.66,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Michael Bahry",
+     "candidate_id": 221059,
+     "party": "Independent",
+     "votes": 8993,
+     "percent": 2.74,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "sc": {
+   "name": "South Carolina",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87409,
+   "percent_reporting": 100,
+   "candidates": [
+    {
+     "name": "Darline Graham",
+     "candidate_id": 221091,
+     "party": "Republican",
+     "votes": 1056525,
+     "percent": 52.47,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Annie Andrews",
+     "candidate_id": 221090,
+     "party": "Democratic",
+     "votes": 858747,
+     "percent": 42.65,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Kasie Whitener",
+     "candidate_id": 221093,
+     "party": "Libertarian",
+     "votes": 37680,
+     "percent": 1.87,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Mark Hackett",
+     "candidate_id": 221092,
+     "party": "Constitution",
+     "votes": 35785,
+     "percent": 1.78,
+     "color": "#808080",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "sd": {
+   "name": "South Dakota",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87446,
+   "percent_reporting": 97.5,
+   "candidates": [
+    {
+     "name": "Mike Rounds",
+     "candidate_id": 221168,
+     "party": "Republican",
+     "votes": 209050,
+     "percent": 55,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Brian Bengs",
+     "candidate_id": 221169,
+     "party": "Independent",
+     "votes": 171008,
+     "percent": 45,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "tn": {
+   "name": "Tennessee",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87475,
+   "percent_reporting": 85.3,
+   "candidates": [
+    {
+     "name": "Bill Hagerty",
+     "candidate_id": 221252,
+     "party": "Republican",
+     "votes": 1003180,
+     "percent": 55.88,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Marquita Bradshaw",
+     "candidate_id": 221253,
+     "party": "Democratic",
+     "votes": 729531,
+     "percent": 40.64,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "tx": {
+   "name": "Texas",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87438,
+   "percent_reporting": 77.6,
+   "candidates": [
+    {
+     "name": "James Talarico",
+     "candidate_id": 221153,
+     "party": "Democratic",
+     "votes": 4109040,
+     "percent": 52.03,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ken Paxton",
+     "candidate_id": 221152,
+     "party": "Republican",
+     "votes": 3490661,
+     "percent": 44.2,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ted Brown",
+     "candidate_id": 1175698,
+     "party": "Libertarian",
+     "votes": 298088,
+     "percent": 3.77,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "va": {
+   "name": "Virginia",
+   "type": "State",
+   "fill": "#4874a3",
+   "election_id": 87472,
+   "percent_reporting": 100,
+   "candidates": [
+    {
+     "name": "Mark Warner",
+     "candidate_id": 221245,
+     "party": "Democratic",
+     "votes": 2106320,
+     "percent": 56.38,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bert Mizusawa",
+     "candidate_id": 221246,
+     "party": "Republican",
+     "votes": 1492504,
+     "percent": 39.95,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Write-In",
+     "candidate_id": 999764,
+     "party": "Nonpartisan",
+     "votes": 136793,
+     "percent": 3.66,
+     "color": "#9A36FF",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "wv": {
+   "name": "West Virginia",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87477,
+   "percent_reporting": 95,
+   "candidates": [
+    {
+     "name": "Shelley Moore Capito",
+     "candidate_id": 221256,
+     "party": "Republican",
+     "votes": 352687,
+     "percent": 69.01,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Rachel Fetty Anderson",
+     "candidate_id": 221257,
+     "party": "Democratic",
+     "votes": 144572,
+     "percent": 28.29,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "wy": {
+   "name": "Wyoming",
+   "type": "State",
+   "fill": "#c6606b",
+   "election_id": 87496,
+   "percent_reporting": 47.7,
+   "candidates": [
+    {
+     "name": "Harriet Hageman",
+     "candidate_id": 221290,
+     "party": "Republican",
+     "votes": 71445,
+     "percent": 68.33,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "James W. Byrd",
+     "candidate_id": 221291,
+     "party": "Democratic",
+     "votes": 33120,
+     "percent": 31.67,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  }
+ }
+}

@@ -155,6 +155,12 @@ const startServer = async () => {
 
   initializeScheduler();
   void kalshiLiveFeed.start().catch((error) => console.error('❌ Kalshi live feed failed to start:', error));
+  // Testing only, until the results-ingestor service exists: the civicAPI loop inside api (one replica).
+  if (env.RESULTS_INGESTOR_ENABLED && env.RESULTS_INGESTOR_IN_PROCESS) {
+    void import('./features/election-results/civicapi/run.js')
+      .then(({ startIngestorLoop }) => startIngestorLoop(prisma))
+      .catch((error) => console.error('❌ civicAPI results ingestor failed to start:', error));
+  }
 
   try {
     await prisma.$connect();
