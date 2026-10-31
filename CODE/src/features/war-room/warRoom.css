@@ -668,3 +668,31 @@
 .wr-results-counties-wrap > .wr-table-wrap { margin-top: 8px; }
 .wr-panel > .wr-btn { margin-top: 12px; }
 .wr-log[data-scroll] { max-height: 560px; overflow-y: auto; overscroll-behavior: contain; }
+
+/* Cost of living (map intel tab): weekly EIA fuel prices by state */
+.wr-col { display: grid; gap: 12px; }
+.wr-col-intro, .wr-col-source { margin: 0; font-size: 12px; color: var(--wr-text-2); line-height: 1.5; }
+.wr-col-source { color: var(--wr-text-3); }
+.wr-col-source a { color: var(--wr-accent); }
+.wr-col-fuel { display: grid; gap: 8px; padding: 10px 12px 12px; border: 1px solid var(--wr-line); background: var(--wr-raised); min-width: 0; }
+.wr-col-fuel header { display: grid; gap: 2px; }
+.wr-col-fuel h3 { margin: 0; font-family: var(--wr-cond); font-size: 14px; font-weight: 600; }
+.wr-col-area { font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--wr-text-3); text-transform: uppercase; }
+.wr-col-area[data-regional] { color: var(--wr-accent-ink); }
+.wr-col-now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-family: var(--wr-mono); }
+.wr-col-now strong { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wr-col-now span { font-size: 11px; color: var(--wr-text-3); }
+.wr-col-now .wr-col-vs { color: var(--wr-text-2); }
+.wr-col-changes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; background: var(--wr-line); border: 1px solid var(--wr-line); }
+.wr-col-changes > div { padding: 6px 8px; background: var(--wr-panel); min-width: 0; }
+.wr-col-changes dt { font-family: var(--wr-mono); font-size: 9px; letter-spacing: 0.12em; color: var(--wr-text-3); text-transform: uppercase; }
+.wr-col-changes dd { margin: 0; font-family: var(--wr-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.wr-col-changes dd.wr-col-us { font-size: 10px; color: var(--wr-text-3); }
+.wr-col-chart { margin: 0; display: grid; gap: 4px; }
+.wr-col-trace { position: relative; height: 140px; background: var(--wr-field); border: 1px solid var(--wr-line-soft); }
+.wr-col-axis { position: absolute; right: 4px; font-family: var(--wr-mono); font-size: 10px; color: var(--wr-text-3); }
+.wr-col-axis[data-edge="top"] { top: 2px; }
+.wr-col-axis[data-edge="bottom"] { bottom: 2px; }
+.wr-col-chart figcaption { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--wr-mono); font-size: 10px; color: var(--wr-text-3); }
+.wr-col-chart figcaption i { display: inline-block; width: 12px; height: 2px; margin-right: 5px; vertical-align: middle; }
+.wr-col-chart figcaption i[data-dashed] { background: repeating-linear-gradient(90deg, var(--wr-text-3) 0 4px, transparent 4px 7px); }

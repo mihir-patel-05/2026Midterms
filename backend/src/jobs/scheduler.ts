@@ -390,6 +390,26 @@ export function initializeScheduler(): void {
     console.log('FRED sync scheduler disabled: FRED_API_KEY is not set or ECON_INDICATORS_ENABLED is off');
   }
 
+  // EIA weekly fuel prices: published Monday afternoon (Tuesday after a holiday). Tuesday and
+  // Wednesday mornings catch both, and one run shortly after boot fills an empty table.
+  if (env.EIA_API_KEY && env.COST_OF_LIVING_ENABLED) {
+    const runFuel = async (why: string) => {
+      try {
+        const { runFuelSync } = await import('../services/fuel/run-fuel-sync.js');
+        const stats = await runFuelSync();
+        console.log(`⛽ Fuel sync (${why}) ${stats.status}: ${stats.inserted} new weeks, ${stats.failures.length} series failed`);
+      } catch (error) {
+        if (error instanceof SyncAlreadyRunningError) console.log('⛽ Fuel sync skipped: another run holds the lease');
+        else console.error('❌ Fuel sync failed:', error instanceof Error ? error.message : error);
+      }
+    };
+    cron.schedule('20 9 * * 2,3', () => runFuel('scheduled'), { timezone: 'America/New_York' });
+    setTimeout(() => void runFuel('after boot'), 3 * 60 * 1000).unref();
+    console.log('⛽ Fuel sync: Tuesday and Wednesday at 9:20 AM ET, and 3 minutes after boot\n');
+  } else {
+    console.log('Fuel sync scheduler disabled: EIA_API_KEY is not set or COST_OF_LIVING_ENABLED is off');
+  }
+
   // General election ballot from civicAPI: every 6 hours, and once shortly after boot so a
   // deploy picks it up without waiting.
   if (env.BALLOT_SYNC_ENABLED) {

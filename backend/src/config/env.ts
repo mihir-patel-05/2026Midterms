@@ -124,6 +124,12 @@ const envSchema = z.object({
   CIVICAPI_MAX_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
   // Contact sent in the ingestor's User-Agent, so civicAPI can reach us about our traffic.
   CIVICAPI_CONTACT: z.string().trim().optional(),
+  // EIA weekly gasoline and diesel prices for the Cost of living tab (PLAN.md §4.8). Free key:
+  // https://www.eia.gov/opendata/register.php. Without it the fuel sync is off and the tab says so.
+  EIA_API_KEY: z.string().trim().optional(),
+  EIA_API_BASE_URL: z.string().url().default('https://api.eia.gov/v2'),
+  // GET /api/cost-of-living and the weekly EIA sync.
+  COST_OF_LIVING_ENABLED: z.enum(['true', 'false']).default('true'),
   // GET /api/live-streams (the War Room's Live coverage panel). Admins can also hide it without a deploy.
   LIVE_STREAMS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Where /api/v1 results come from: published DB snapshots, or the in-memory fictional fixtures.
@@ -212,4 +218,5 @@ export const env = {
   CIVICAPI_DETAIL_RPS: parseFloat(parsed.data.CIVICAPI_DETAIL_RPS),
   CIVICAPI_MAX_RPS: parseFloat(parsed.data.CIVICAPI_MAX_RPS),
   LIVE_STREAMS_ENABLED: parsed.data.LIVE_STREAMS_ENABLED === 'true',
+  COST_OF_LIVING_ENABLED: parsed.data.COST_OF_LIVING_ENABLED === 'true',
 };

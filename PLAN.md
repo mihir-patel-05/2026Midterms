@@ -107,6 +107,13 @@ Differentiators:
   - **Live coverage (§4.7):** `live_streams` table, `GET /api/live-streams`, an admin section to paste each network's YouTube link on the night, and a click-to-load panel on the Night screen (four players at most, one with sound).
   - **Flags:** `VITE_RESULTS_LIVE_ENABLED` and `VITE_FEATURE_LIVE_STREAMS` (on by default), `RESULTS_INGESTOR_ENABLED`, `LIVE_STREAMS_ENABLED`. The War Room itself still needs `VITE_FEATURE_WAR_ROOM=true`.
 
+- Cost of living, fuel prices (Oct 31, section 4.8): a **Cost of living** tab in the War Room map's intel panel, per state.
+  - **Data:** EIA weekly retail regular gasoline and diesel (`npm run sync:fuel`; Tuesday and Wednesday 9:20 AM ET and once after boot), stored in `indicator_series` as `eia.<series id>`. 26 series: the U.S., the 9 states EIA prices on its own (diesel: California only), and the PADD regions.
+  - **Shown:** price now and the gap to the U.S., 1-week, 1-month and 1-year changes beside the U.S. change, and a 2-year chart against the U.S. A state EIA does not price shows its region, labelled "Regional average · not a <state> figure".
+  - **API:** `GET /api/cost-of-living?state=MI`, cached 15 minutes.
+  - **Needs:** `EIA_API_KEY` (free) on the Backend service. Flags: `COST_OF_LIVING_ENABLED` and `VITE_FEATURE_COST_OF_LIVING`, both on by default.
+  - **Tariff exposure index:** formula options are with the product owner; not built yet.
+
 **Not done yet (carried over from Oct 1–7)**
 
 - District race pages with ACS demographics and partisan lean.

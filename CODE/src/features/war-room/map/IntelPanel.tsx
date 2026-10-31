@@ -5,18 +5,20 @@ import { EconomyTab } from "@/features/election-monitor/EconomyTab";
 import { districtSelectionPatch } from "@/features/election-monitor/selection";
 import type { MonitorParams } from "@/features/election-monitor/useMonitorParams";
 import { HOUSE_APPORTIONMENT } from "@/features/simulator/midterms/races2026";
-import { demographicsEnabled, economyEnabled, newsEnabled } from "@/lib/featureFlags";
+import { costOfLivingEnabled, demographicsEnabled, economyEnabled, newsEnabled } from "@/lib/featureFlags";
+import { CostOfLivingTab } from "../costOfLiving/CostOfLivingTab";
 import { StateNews } from "../news/StateNews";
 import { Brackets } from "../panels/Panel";
 import { STATE_NAMES } from "../raceCodes";
 // The monitor's cards, rendered in War Room tokens; every rule in it is an em- class.
 import "@/features/election-monitor/monitor.css";
 
-type IntelTab = "brief" | "people" | "economy" | "news";
+type IntelTab = "brief" | "people" | "economy" | "cost" | "news";
 const TABS: Array<{ id: IntelTab; label: string; on: boolean }> = [
   { id: "brief", label: "Brief", on: true },
   { id: "people", label: "Demographics", on: demographicsEnabled },
   { id: "economy", label: "Economy", on: economyEnabled || demographicsEnabled },
+  { id: "cost", label: "Cost of living", on: costOfLivingEnabled },
   { id: "news", label: "News", on: newsEnabled },
 ];
 
@@ -32,8 +34,9 @@ function stateDistricts(state: string | null) {
 }
 
 /**
- * Everything about the selection on the map, in four tabs: the brief (seat holders, vote history, key Census
- * figures), the full ACS profile with CSV export, the state and U.S. economy, and the state's news.
+ * Everything about the selection on the map, in tabs: the brief (seat holders, vote history, key Census figures),
+ * the full ACS profile with CSV export, the state and U.S. economy, the state's cost of living (fuel prices), and
+ * the state's news.
  */
 export function IntelPanel({ params, update, districts }: {
   params: MonitorParams;
@@ -79,6 +82,7 @@ export function IntelPanel({ params, update, districts }: {
           />
         )}
         {tab === "economy" && <EconomyTab stateCode={state} stateName={stateName} counties={params.counties} districts={districts} />}
+        {tab === "cost" && <CostOfLivingTab stateCode={state} stateName={stateName} />}
         {tab === "news" && <StateNews state={state} />}
       </div>
     </section>

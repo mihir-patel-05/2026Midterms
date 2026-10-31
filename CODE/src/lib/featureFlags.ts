@@ -42,3 +42,5 @@ export const warRoomEnabled = import.meta.env.VITE_FEATURE_WAR_ROOM === "true";
 export const liveResultsEnabled = import.meta.env.VITE_RESULTS_LIVE_ENABLED !== "false";
 /** The Live coverage panel (network YouTube streams, click to load). On unless set to "false"; admins can also hide it. */
 export const liveStreamsEnabled = import.meta.env.VITE_FEATURE_LIVE_STREAMS !== "false";
+/** The map's Cost of living tab (EIA gasoline and diesel prices by state). On unless set to "false"; says so until the EIA sync has run. */
+export const costOfLivingEnabled = import.meta.env.VITE_FEATURE_COST_OF_LIVING !== "false";
