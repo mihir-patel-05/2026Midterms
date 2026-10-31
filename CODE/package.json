@@ -16,7 +16,8 @@
     "build:redistricting": "node scripts/build-redistricting.mjs",
     "build:seat-holders": "node scripts/build-seat-holders.mjs",
     "check:build-args": "node scripts/check-build-args.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:results-links": "node scripts/check-results-links.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

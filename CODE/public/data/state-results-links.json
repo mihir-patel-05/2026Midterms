@@ -1,0 +1,210 @@
+{
+  "note": "Each state's election office, where official results are posted. The fallback when the results source is delayed or switched off. Not yet hand-checked: run `npm run check:results-links` from a normal connection and open each link before Nov 3, then set checkedAt.",
+  "checkedAt": null,
+  "states": {
+    "AK": {
+      "office": "Alaska Division of Elections",
+      "url": "https://www.elections.alaska.gov/"
+    },
+    "AL": {
+      "office": "Alabama Secretary of State",
+      "url": "https://www.sos.alabama.gov/alabama-votes"
+    },
+    "AR": {
+      "office": "Arkansas Secretary of State",
+      "url": "https://www.sos.arkansas.gov/elections"
+    },
+    "AZ": {
+      "office": "Arizona Secretary of State",
+      "url": "https://azsos.gov/elections"
+    },
+    "CA": {
+      "office": "California Secretary of State",
+      "url": "https://www.sos.ca.gov/elections"
+    },
+    "CO": {
+      "office": "Colorado Secretary of State",
+      "url": "https://www.coloradosos.gov/pubs/elections/main.html"
+    },
+    "CT": {
+      "office": "Connecticut Secretary of the State",
+      "url": "https://portal.ct.gov/sots/election-services"
+    },
+    "DC": {
+      "office": "DC Board of Elections",
+      "url": "https://www.dcboe.org/"
+    },
+    "DE": {
+      "office": "Delaware Department of Elections",
+      "url": "https://elections.delaware.gov/"
+    },
+    "FL": {
+      "office": "Florida Division of Elections",
+      "url": "https://dos.fl.gov/elections/"
+    },
+    "GA": {
+      "office": "Georgia Secretary of State",
+      "url": "https://sos.ga.gov/elections"
+    },
+    "HI": {
+      "office": "Hawaii Office of Elections",
+      "url": "https://elections.hawaii.gov/"
+    },
+    "IA": {
+      "office": "Iowa Secretary of State",
+      "url": "https://sos.iowa.gov/elections/"
+    },
+    "ID": {
+      "office": "Idaho Secretary of State (VoteIdaho)",
+      "url": "https://voteidaho.gov/"
+    },
+    "IL": {
+      "office": "Illinois State Board of Elections",
+      "url": "https://www.elections.il.gov/"
+    },
+    "IN": {
+      "office": "Indiana Election Division",
+      "url": "https://www.in.gov/sos/elections/"
+    },
+    "KS": {
+      "office": "Kansas Secretary of State",
+      "url": "https://sos.ks.gov/elections/elections.html"
+    },
+    "KY": {
+      "office": "Kentucky State Board of Elections",
+      "url": "https://elect.ky.gov/"
+    },
+    "LA": {
+      "office": "Louisiana Secretary of State",
+      "url": "https://www.sos.la.gov/ElectionsAndVoting/"
+    },
+    "MA": {
+      "office": "Massachusetts Elections Division",
+      "url": "https://www.sec.state.ma.us/divisions/elections/"
+    },
+    "MD": {
+      "office": "Maryland State Board of Elections",
+      "url": "https://elections.maryland.gov/"
+    },
+    "ME": {
+      "office": "Maine Bureau of Corporations, Elections and Commissions",
+      "url": "https://www.maine.gov/sos/cec/elec/"
+    },
+    "MI": {
+      "office": "Michigan Bureau of Elections",
+      "url": "https://www.michigan.gov/sos/elections"
+    },
+    "MN": {
+      "office": "Minnesota Secretary of State",
+      "url": "https://www.sos.state.mn.us/elections-voting/"
+    },
+    "MO": {
+      "office": "Missouri Secretary of State",
+      "url": "https://www.sos.mo.gov/elections"
+    },
+    "MS": {
+      "office": "Mississippi Secretary of State",
+      "url": "https://www.sos.ms.gov/elections-voting"
+    },
+    "MT": {
+      "office": "Montana Secretary of State",
+      "url": "https://sosmt.gov/elections/"
+    },
+    "NC": {
+      "office": "North Carolina State Board of Elections",
+      "url": "https://www.ncsbe.gov/"
+    },
+    "ND": {
+      "office": "North Dakota Secretary of State",
+      "url": "https://vip.sos.nd.gov/"
+    },
+    "NE": {
+      "office": "Nebraska Secretary of State",
+      "url": "https://sos.nebraska.gov/elections"
+    },
+    "NH": {
+      "office": "New Hampshire Secretary of State",
+      "url": "https://www.sos.nh.gov/elections"
+    },
+    "NJ": {
+      "office": "New Jersey Division of Elections",
+      "url": "https://www.nj.gov/state/elections/"
+    },
+    "NM": {
+      "office": "New Mexico Secretary of State",
+      "url": "https://www.sos.nm.gov/voting-and-elections/"
+    },
+    "NV": {
+      "office": "Nevada Secretary of State",
+      "url": "https://www.nvsos.gov/sos/elections"
+    },
+    "NY": {
+      "office": "New York State Board of Elections",
+      "url": "https://www.elections.ny.gov/"
+    },
+    "OH": {
+      "office": "Ohio Secretary of State",
+      "url": "https://www.ohiosos.gov/elections/"
+    },
+    "OK": {
+      "office": "Oklahoma State Election Board",
+      "url": "https://oklahoma.gov/elections.html"
+    },
+    "OR": {
+      "office": "Oregon Secretary of State",
+      "url": "https://sos.oregon.gov/voting-elections/"
+    },
+    "PA": {
+      "office": "Pennsylvania Department of State",
+      "url": "https://www.pa.gov/agencies/dos/programs/voting-and-elections"
+    },
+    "RI": {
+      "office": "Rhode Island Secretary of State",
+      "url": "https://vote.sos.ri.gov/"
+    },
+    "SC": {
+      "office": "South Carolina Election Commission",
+      "url": "https://scvotes.gov/"
+    },
+    "SD": {
+      "office": "South Dakota Secretary of State",
+      "url": "https://sdsos.gov/elections-voting/"
+    },
+    "TN": {
+      "office": "Tennessee Secretary of State",
+      "url": "https://sos.tn.gov/elections"
+    },
+    "TX": {
+      "office": "Texas Secretary of State",
+      "url": "https://www.sos.state.tx.us/elections/"
+    },
+    "UT": {
+      "office": "Utah Lieutenant Governor (Vote Utah)",
+      "url": "https://vote.utah.gov/"
+    },
+    "VA": {
+      "office": "Virginia Department of Elections",
+      "url": "https://www.elections.virginia.gov/"
+    },
+    "VT": {
+      "office": "Vermont Secretary of State",
+      "url": "https://sos.vermont.gov/elections/"
+    },
+    "WA": {
+      "office": "Washington Secretary of State",
+      "url": "https://www.sos.wa.gov/elections"
+    },
+    "WI": {
+      "office": "Wisconsin Elections Commission",
+      "url": "https://elections.wi.gov/"
+    },
+    "WV": {
+      "office": "West Virginia Secretary of State",
+      "url": "https://sos.wv.gov/elections/"
+    },
+    "WY": {
+      "office": "Wyoming Secretary of State",
+      "url": "https://sos.wyo.gov/Elections/"
+    }
+  }
+}

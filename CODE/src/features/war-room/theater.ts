@@ -1,14 +1,16 @@
 import type { MonitorParams } from "@/features/election-monitor/useMonitorParams";
 import type { OddsOffice } from "@/features/election-monitor/oddsMap";
 import type { MapLayer } from "@/features/election-monitor/types";
+import { liveResultsEnabled } from "@/lib/featureFlags";
 
 /**
  * The Command map reads the monitor's parameters, so a monitor link opens the same view with only the path
  * changed. Market leader is the monitor's `mode=odds`, by `ooffice`. Seat holder and flip watch are War Room
  * lenses on that same map, in `lens`, which the monitor ignores.
  */
-export type Lens = "leader" | "holder" | "flip" | "past" | "census";
+export type Lens = "results" | "leader" | "holder" | "flip" | "past" | "census";
 export const LENSES: Array<{ id: Lens; label: string; senate: string; house: string; counties?: string }> = [
+  ...(liveResultsEnabled ? [{ id: "results" as const, label: "Results", senate: "2026 Senate count · called or leading", house: "2026 House count · called or leading" }] : []),
   { id: "leader", label: "Market leader", senate: "Market leader by state", house: "Market leader by district" },
   { id: "holder", label: "Seat holder", senate: "Who holds the seat today", house: "Who holds the seat today" },
   { id: "flip", label: "Flip watch", senate: "Flip watch · leader vs holder", house: "Flip watch · leader vs holder" },

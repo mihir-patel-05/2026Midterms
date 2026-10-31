@@ -35,3 +35,10 @@ export const newsEnabled = flag(import.meta.env.VITE_FEATURE_NEWS);
  * until the cut-over. See docs/plans/war-room-frontend.md.
  */
 export const warRoomEnabled = import.meta.env.VITE_FEATURE_WAR_ROOM === "true";
+/**
+ * Live election results (civicAPI through /api/v1) in the War Room: the Night screen, the map's Results lens, and
+ * each dossier. On unless set to "false"; until the backend serves a results source the War Room says so.
+ */
+export const liveResultsEnabled = import.meta.env.VITE_RESULTS_LIVE_ENABLED !== "false";
+/** The Live coverage panel (network YouTube streams, click to load). On unless set to "false"; admins can also hide it. */
+export const liveStreamsEnabled = import.meta.env.VITE_FEATURE_LIVE_STREAMS !== "false";
