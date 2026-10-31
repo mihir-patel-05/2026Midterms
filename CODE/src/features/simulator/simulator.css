@@ -24,7 +24,7 @@
 /* Controls */
 .sim-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px; margin-bottom: 14px; }
 .sim-field { display: grid; gap: 6px; }
-.sim-field > span:first-child { color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.sim-field > span:first-child, .sim-field > label:first-child { color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .sim-field select {
   min-height: 36px; padding: 0 10px; border: 1px solid hsl(var(--line)); border-radius: 8px;
   background: hsl(var(--surface-2)); color: hsl(var(--foreground)); font-size: 0.85rem; font-weight: 650;
@@ -105,6 +105,26 @@
 .sim-seg button[data-party="R"][aria-pressed="true"] { background: color-mix(in srgb, var(--sim-r) 30%, transparent); }
 .sim-seg button[data-party="T"][aria-pressed="true"] { background: color-mix(in srgb, var(--sim-t) 35%, transparent); }
 
+/* National environment (midterm simulator) */
+.sim-national { margin-bottom: 14px; }
+.sim-national-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
+.sim-national-stat { display: grid; align-content: start; gap: 3px; padding: 9px 11px; border: 1px solid hsl(var(--line-soft)); border-radius: 9px; }
+.sim-national-label { color: hsl(var(--quiet)); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.sim-national-stat > strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.sim-national-stat small, .sim-national-swing small { color: hsl(var(--muted-foreground)); font-size: 0.7rem; line-height: 1.4; }
+.sim-national strong[data-party="D"] { color: hsl(var(--signal-blue)); }
+.sim-national strong[data-party="R"] { color: hsl(var(--signal-coral)); }
+.sim-national strong[data-party="T"] { color: hsl(var(--signal-amber)); }
+.sim-national-swing { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sim-national-swing + .sim-national-swing { margin-top: 4px; padding-top: 6px; border-top: 1px solid hsl(var(--line-soft)); }
+.sim-national-swing > div { display: grid; gap: 1px; min-width: 0; }
+.sim-national-swing strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.sim-national-swing .sim-button { min-height: 30px; }
+.sim-national-swing .sim-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.sim-national-warning { color: hsl(var(--signal-amber)); }
+.sim-national-polls summary { cursor: pointer; color: hsl(var(--signal-teal)); font-size: 0.75rem; font-weight: 650; }
+.sim-national-polls .sim-table { margin-top: 6px; }
+
 /* Side panel */
 .sim-card { padding: 14px; border: 1px solid hsl(var(--line)); border-radius: 11px; background: hsl(var(--surface) / 0.82); }
 .sim-card + .sim-card { margin-top: 12px; }
@@ -147,6 +167,14 @@
   color: hsl(var(--signal-amber)); font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
 }
 .sim-hint { color: hsl(var(--quiet)); font-size: 0.68rem; }
+.sim-hint-error { color: hsl(var(--signal-danger)); }
+.sim-margin-row { display: flex; gap: 8px; }
+.sim-input {
+  min-width: 0; flex: 1 1 auto; min-height: 34px; padding: 0 10px; border: 1px solid hsl(var(--line)); border-radius: 8px;
+  background: hsl(var(--surface-2)); color: hsl(var(--foreground)); font-size: 0.85rem; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.sim-input:focus-visible { outline: 2px solid hsl(var(--signal-teal) / 0.6); outline-offset: 1px; }
+.sim-input[aria-invalid="true"] { border-color: hsl(var(--signal-danger) / 0.6); }
 .sim-effect { margin: 0; padding: 8px 10px; border-radius: 8px; background: hsl(var(--surface-2)); font-size: 0.8rem; font-weight: 600; }
 .sim-link { color: hsl(var(--signal-teal)); font-size: inherit; text-align: left; }
 .sim-link:hover { text-decoration: underline; }
@@ -168,6 +196,11 @@
 
 @media (max-width: 1180px) {
   .sim-bars { grid-template-columns: minmax(0, 1fr); }
+  .sim-national-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sim-national-grid > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .sim-national-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 980px) {
   .sim-shell { display: block; }

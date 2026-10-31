@@ -49,6 +49,9 @@ const envSchema = z.object({
   POLLS_DATABASE_URL: z.string().trim().optional(),
   // The VoteHub poll sync (every 3 hours) and GET /api/polls. Needs POLLS_DATABASE_URL too.
   POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // GET /api/polls/national: presidential approval and the generic ballot, read from VoteHub and
+  // kept in memory for 3 hours. Needs no database.
+  NATIONAL_POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
   // VoteHub's polling API: free, no key, CC BY 4.0 (credit VoteHub wherever polls are shown).
   VOTEHUB_API_BASE_URL: z.string().url().default('https://api.votehub.com'),
   // News top stories (docs/plans/news-agents.md, "Scope change"): the Apify sync and GET /api/news/top.
@@ -165,6 +168,7 @@ export const env = {
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
   POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
   POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
+  NATIONAL_POLLS_ENABLED: parsed.data.NATIONAL_POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   BALLOT_SYNC_ENABLED: parsed.data.BALLOT_SYNC_ENABLED === 'true',

@@ -2,15 +2,17 @@ import { lazy, Suspense, useCallback, useMemo } from "react";
 import { ArrowLeft, Link2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/shell/AppShell";
+import { Slider } from "@/components/ui/slider";
 import type { MapTarget } from "@/features/election-monitor/map/ElectionMap";
 import { stateFipsToPostal } from "@/features/election-monitor/map/fips";
 import { isRedistricted } from "@/features/election-monitor/map/redistricting";
 import { BIN_COLORS, STATUS_COLORS, usePastYear, type HouseYear, type PresidentYear } from "@/features/election-monitor/pastResults";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
-import { outcomeWords, pickLabel, sourceLabels, STATE_NAMES } from "@/features/simulator/labels";
+import { outcomeWords, pickLabel, sourceLabels, STATE_NAMES, swingLabel } from "@/features/simulator/labels";
 import { formatMargin, marginOf, nextPick, type Outcome, type Pick } from "@/features/simulator/model";
 import { HousePanel } from "@/features/simulator/midterms/HousePanel";
 import { MidtermBars } from "@/features/simulator/midterms/MidtermBars";
+import { NationalBaseline } from "@/features/simulator/midterms/NationalBaseline";
 import { houseBins, nextSeatPick, senateBins, simulateHouse, simulateSenate } from "@/features/simulator/midterms/model";
 import { districtName, isHouseDistrict, SENATE_RACES_2026, type SenateRace } from "@/features/simulator/midterms/races2026";
 import { SenateTable } from "@/features/simulator/midterms/SenateTable";
@@ -21,7 +23,7 @@ import { SimulatorTabs, type SimulatorPaths } from "@/features/simulator/Simulat
 import { StateCountyEdits } from "@/features/simulator/StateCountyEdits";
 import { StateEditor } from "@/features/simulator/StateEditor";
 import { useCountyNames } from "@/features/simulator/useCountyNames";
-import { MAX_COUNTY_EDITS, type SimLayer } from "@/features/simulator/useSimulatorParams";
+import { MAX_COUNTY_EDITS, SWING_LIMIT, type SimLayer } from "@/features/simulator/useSimulatorParams";
 // Eager, so the loading placeholder is sized before the lazy map chunk arrives.
 import "@/features/election-monitor/map/electionMap.css";
 import "@/features/simulator/simulator.css";
@@ -52,7 +54,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
   const houseLoading = house.base !== null && !houseData && !houseQuery.isError;
 
   const senateResult = useMemo(() => simulateSenate(senate, presidentData), [senate, presidentData]);
-  const houseResult = useMemo(() => simulateHouse(house.picks, houseData), [house.picks, houseData]);
+  const houseResult = useMemo(() => simulateHouse(house.picks, houseData, house.swing), [house.picks, houseData, house.swing]);
   const paint = useMemo(() => {
     const colors = { colors: BIN_COLORS, fallback: STATUS_COLORS.not_reported };
     if (chamber === "house") return { bins: houseLoading ? null : houseBins(houseResult), ...colors };
@@ -108,7 +110,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
     const code = `${state}-${district}`;
     if (!isHouseDistrict(code)) return;
     const seat = houseResult.districts[code];
-    const next = nextSeatPick(house.picks[code], seat.baseWinner);
+    const next = nextSeatPick(house.picks[code], seat.computed);
     const picks = { ...house.picks };
     if (next) picks[code] = next;
     else delete picks[code];
@@ -125,6 +127,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
         title: districtName(code),
         lines: [
           seat.winner === "T" ? "Tossup" : `${outcomeWords[seat.winner]}${seat.source === "pick" ? " (your pick)" : ""}`,
+          seat.margin !== null && house.swing !== 0 ? `Simulated ${formatMargin(seat.margin)} with the House swing` : "",
           base,
           isRedistricted(target.state) ? "New lines for 2026; these are the 2024 districts" : "",
           "Click to flip",
@@ -162,7 +165,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
         senateLayer === "states" ? "Click to change the call" : "",
       ].filter(Boolean),
     };
-  }, [houseResult, house.base, senateResult, presidentData, senate.counties, senate.picks, senate.base, senateLayer]);
+  }, [houseResult, house.base, house.swing, senateResult, presidentData, senate.counties, senate.picks, senate.base, senateLayer]);
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href)
@@ -229,7 +232,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
   };
 
   const hint = chamber === "house"
-    ? "Click a district to flip it; click again to return it to its baseline."
+    ? "Click a district to flip it; click again to return it to its simulated result."
     : senate.base === null
       ? "Click a race to call it. Choose a past election to edit counties."
       : senateLayer === "states"
@@ -247,6 +250,12 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
             </div>
           </header>
           <MidtermBars senate={senateResult.totals} house={houseResult.totals} senateLoading={senateLoading} houseLoading={houseLoading} />
+          <NationalBaseline
+            senateBase={senate.base}
+            houseBase={house.base}
+            onApplySenate={(swing) => update({ senate: { swing } })}
+            onApplyHouse={(swing) => update({ house: { swing } })}
+          />
           {chamber === "senate" ? (
             <SimulatorControls
               base={senate.base}
@@ -267,10 +276,31 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
                   <option value="blank">Blank map (all tossups)</option>
                 </select>
               </label>
+              <div className="sim-field sim-swing">
+                <span id="sim-house-swing-label">House swing</span>
+                <div className="sim-swing-row">
+                  <span className="sim-swing-end" data-party="R" aria-hidden="true">R</span>
+                  <Slider
+                    aria-labelledby="sim-house-swing-label"
+                    aria-valuetext={swingLabel(house.swing)}
+                    min={-SWING_LIMIT}
+                    max={SWING_LIMIT}
+                    step={0.5}
+                    value={[house.swing]}
+                    disabled={house.base === null}
+                    onValueChange={([value]) => update({ house: { swing: value } })}
+                  />
+                  <span className="sim-swing-end" data-party="D" aria-hidden="true">D</span>
+                  <output className="sim-swing-value" aria-hidden="true">{swingLabel(house.swing)}</output>
+                </div>
+              </div>
               <div className="sim-actions">
-                <button type="button" className="sim-button" onClick={() => update({ house: { picks: {} }, state: null, district: null })}><RotateCcw aria-hidden="true" />Reset</button>
+                <button type="button" className="sim-button" onClick={() => update({ house: { picks: {}, swing: 0 }, state: null, district: null })}><RotateCcw aria-hidden="true" />Reset</button>
                 <button type="button" className="sim-button" onClick={copyLink}><Link2 aria-hidden="true" />Copy link</button>
               </div>
+              {house.base !== null && (
+                <p className="sim-note">The swing moves every contested seat's 2024 margin by the same points; unopposed seats keep their winner.</p>
+              )}
             </section>
           )}
           {params.truncated && <p className="sim-error" role="status">This link had more than {MAX_COUNTY_EDITS} county settings; only the first {MAX_COUNTY_EDITS} were kept.</p>}
@@ -307,7 +337,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
                 onViewChange={noop}
               />
             </Suspense>
-            <SimLegend note={chamber === "house" ? "Seats you set use the 5–10 shade; unopposed seats the 20+ shade." : undefined} />
+            <SimLegend note={chamber === "house" ? "Seats you set use the Likely shade; unopposed seats the Safe shade." : undefined} />
           </section>
         </section>
 

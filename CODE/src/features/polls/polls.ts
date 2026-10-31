@@ -78,7 +78,7 @@ export class PollsError extends Error {
   }
 }
 
-async function getPolls<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function getPolls<T>(path: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/api/polls${path}`, { signal });

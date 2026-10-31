@@ -1,5 +1,5 @@
 import { stateMapItems } from "@/features/election-dashboard/map";
-import type { Outcome, Pick, Rating, StateSource } from "./model";
+import { formatMargin, type Outcome, type Pick, type Rating, type StateOutcome, type StateSource } from "./model";
 
 /** The tile-map list has the 50 states; DC votes for president too. */
 export const STATE_NAMES: Record<string, string> = {
@@ -16,8 +16,18 @@ export const sourceLabels: Record<StateSource, string> = {
   tossup: "not set",
 };
 
+/** "Tossup", "Lean D", or "D+2.5 (Lean D)" for a pick with an exact margin. */
 export function pickLabel(pick: Pick) {
-  return pick.party === "T" ? "Tossup" : `${ratingLabels[pick.rating]} ${pick.party}`;
+  if (pick.party === "T") return "Tossup";
+  const rating = `${ratingLabels[pick.rating]} ${pick.party}`;
+  return pick.margin === undefined ? rating : `${formatMargin(pick.margin)} (${rating})`;
+}
+
+/** A state's result in the tables: its margin, its pick's margin or rating, or "Tossup". */
+export function resultLabel(state: StateOutcome) {
+  if (state.winner === "T" && state.source !== "baseline") return "Tossup";
+  if (state.source !== "pick") return formatMargin(state.margin);
+  return state.pickMargin !== null ? formatMargin(state.pickMargin) : `${ratingLabels[state.rating!]} ${state.winner}`;
 }
 
 /** A swing reads as the direction it moves votes: "D+2.0 swing", or "No swing". */

@@ -1,26 +1,29 @@
 import { BIN_COLORS } from "@/features/election-monitor/pastResults";
+import { ratingLabels } from "./labels";
+import { ratingBin, type Rating } from "./model";
 
-const marginLabels = ["<1", "1–5", "5–10", "10–20", "20+"];
+/** Lightest to deepest, as the legend reads left to right. */
+const RATINGS: Rating[] = ["lean", "likely", "safe"];
 
 function Swatch({ color, label }: { color: string; label: string }) {
   return <i className="sim-swatch" style={{ background: color }} role="img" aria-label={label} title={label} />;
 }
 
-/** Same ramp as Past results: darker is closer. Calls you make use the Lean, Likely, and Safe steps. */
+/** Rating shades, as on a race-ratings map: Safe is deepest, Likely in between, Lean lightest. */
 export function SimLegend({ note }: { note?: string }) {
   return (
     <div className="sim-legend" aria-label="Map colours">
       {(["D", "R"] as const).map((party) => (
         <div className="sim-legend-row" key={party}>
           <span>{party === "D" ? "Democrat" : "Republican"}</span>
-          {marginLabels.map((label, i) => <Swatch key={label} color={BIN_COLORS[`${party}${i}`]} label={`${party === "D" ? "Democrat" : "Republican"} by ${label} pts`} />)}
+          {RATINGS.map((rating) => <Swatch key={rating} color={BIN_COLORS[ratingBin(party, rating)]} label={`${ratingLabels[rating]} ${party === "D" ? "Democrat" : "Republican"}`} />)}
         </div>
       ))}
       <div className="sim-legend-row">
         <span>Tossup</span>
         <Swatch color={BIN_COLORS.tossup} label="Tossup" />
       </div>
-      <p>Margin in points: {marginLabels.join(", ")}. {note ?? "Your calls shade Lean 1–5, Likely 5–10, Safe 20+."}</p>
+      <p>Lean (under 5 pts), Likely (5–10), Safe (10+), from lightest to deepest. {note ?? "Simulated margins and your calls use the same shades."}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 29, 2026
+Last updated: October 31, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -89,6 +89,16 @@ Differentiators:
   - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
   - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
   - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
+- Simulator ratings, margins, and the national environment (Oct 31):
+  - **Colours:** both simulators shade every state, county, and House seat by rating, as on a race-ratings map: Safe (10+ points) deepest, Likely (5–10) in between, Lean (under 5) lightest. Computed results and calls share the shades.
+  - **Exact margins:** a state's panel takes a winning margin such as `D+2.5`. It decides the state, sets the rating, and is kept in the link (`p=PAD2.5`).
+  - **House swing:** the midterm House map has a swing slider (`hswing`) that moves every contested seat's 2024 margin. Unopposed seats keep their winner.
+  - **National environment card** on `/simulator/midterms`: presidential approval and the generic congressional ballot. Averages are `polls-avg-v1` over VoteHub's `approval` (subject "Donald Trump") and `generic-ballot` polls, with party-sponsored polls left out.
+  - **Swing buttons:** they set the Senate swing to the ballot margin minus the 2024 presidential margin (R+1.5), and the House swing to the ballot margin minus the 2024 House vote (R+2.7). No pollster asks a generic Senate ballot, so the card says the Senate swing comes from the congressional question.
+  - **Not from civicAPI:** civicAPI publishes election results only, with no approval or polling data.
+  - **API:** `GET /api/polls/national` reads VoteHub at most every 3 hours and keeps the answer in memory, so it needs no polls database. If VoteHub fails, it serves the last good answer.
+  - **Flags:** `NATIONAL_POLLS_ENABLED` (backend) and `VITE_FEATURE_NATIONAL_POLLS` (frontend), both on by default.
+  - **Data gap:** VoteHub's national polls thin out after June 2026. On Oct 31 its newest ended Oct 6, so the card warns when the newest poll is over 14 days old.
 
 **Not done yet (carried over from Oct 1–7)**
 

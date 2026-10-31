@@ -99,6 +99,20 @@ describe("simulateHouse", () => {
     expect(simulateHouse({ "TX-28": "R" }, null).totals).toEqual({ D: 0, R: 1, T: 434 });
   });
 
+  it("moves every contested seat by the House swing", () => {
+    const base = simulateHouse({}, house2024);
+    const swung = simulateHouse({}, house2024, 3);
+    expect(swung.totals.D).toBeGreaterThan(base.totals.D);
+    expect(swung.totals.D + swung.totals.R + swung.totals.T).toBe(HOUSE_SEATS);
+    const flipped = Object.values(swung.districts).find((seat) => seat.source === "swing")!;
+    expect(flipped).toMatchObject({ baseWinner: "R", winner: "D", computed: "D" });
+    expect(flipped.margin! - flipped.baseMargin!).toBeCloseTo(3);
+    const unopposed = Object.values(swung.districts).find((seat) => seat.unopposed)!;
+    expect(unopposed.winner).toBe(unopposed.baseWinner);
+    // A pick still wins over the swing.
+    expect(simulateHouse({ [flipped.code]: "R" }, house2024, 3).districts[flipped.code]).toMatchObject({ winner: "R", computed: "D", source: "pick" });
+  });
+
   it("colours baseline seats by margin and picks at one shade", () => {
     const bins = houseBins(simulateHouse({ "PA-07": "D" }, house2024));
     expect(bins.get("PA-07")).toBe("D2");

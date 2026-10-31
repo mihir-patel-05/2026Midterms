@@ -1,5 +1,4 @@
-import { ratingLabels, sourceLabels, STATE_NAMES } from "../labels";
-import { formatMargin } from "../model";
+import { resultLabel, sourceLabels, STATE_NAMES } from "../labels";
 import type { SenateResult } from "./model";
 import { SENATE_INDEPENDENTS_NOTE, SENATE_NOT_UP, SENATE_RACES_2026 } from "./races2026";
 
@@ -37,7 +36,7 @@ export function SenateTable({ result, onSelect }: { result: SenateResult; onSele
                 <td><span className="sim-result" data-party={race.holder}>{race.holder}</span></td>
                 <td>
                   <span className="sim-result" data-party={state.winner}>
-                    {state.winner === "T" && state.source !== "baseline" ? "Tossup" : state.source === "pick" ? `${ratingLabels[state.rating!]} ${state.winner}` : formatMargin(state.margin)}
+                    {resultLabel(state)}
                   </span>
                   {flipped && <span className="sim-flag">Flip</span>}
                   {(state.source === "pick" || state.source === "counties") && <small>{sourceLabels[state.source]}</small>}

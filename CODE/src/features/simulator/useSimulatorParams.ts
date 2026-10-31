@@ -1,11 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DISTRICT_CODES, ELECTORAL_VOTES } from "./electoralVotes";
-import { EMPTY_SCENARIO, type Outcome, type Pick, type Rating, type Scenario } from "./model";
+import { EMPTY_SCENARIO, marginPick, type Outcome, type Pick, type Rating, type Scenario } from "./model";
 
 /** Baselines on offer; the newest is the default. */
 export const BASE_YEARS = [2024, 2020, 2016, 2012, 2008, 2004, 2000];
 export const SWING_LIMIT = 15;
+/** The widest margin a state can be set to by hand. */
+export const PICK_MARGIN_LIMIT = 100;
 /** Keeps shared links a reasonable length (about 12 characters per county). */
 export const MAX_COUNTY_EDITS = 300;
 
@@ -31,8 +33,8 @@ export interface SimulatorPatch {
 
 const ratingLetters: Record<Rating, string> = { safe: "s", likely: "k", lean: "l" };
 const ratingsByLetter = Object.fromEntries(Object.entries(ratingLetters).map(([rating, letter]) => [letter, rating])) as Record<string, Rating>;
-const round1 = (value: number) => Math.round(value * 10) / 10;
-const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
+export const round1 = (value: number) => Math.round(value * 10) / 10;
+export const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
 const isState = (code: string) => code in ELECTORAL_VOTES;
 
 /** "PA2,GA-1.5" → { PA: 2, GA: -1.5 }. */
@@ -45,15 +47,27 @@ export function parseSwings(value: string | null, valid: (code: string) => boole
   return swings;
 }
 
-/** "AZDl,GAT" → { AZ: lean D, GA: tossup }. */
+/** "AZDl,GAT,PAD2.5" → { AZ: lean D, GA: tossup, PA: D+2.5 }. A margin of 0 is dropped. */
 export function parsePicks(value: string | null, valid: (code: string) => boolean = isState) {
   const picks: Record<string, Pick> = {};
   for (const item of value?.split(",") ?? []) {
-    const match = /^([A-Z]{2})(?:([DR])([skl])|T)$/.exec(item);
+    const match = /^([A-Z]{2})(?:([DR])(?:([skl])|(\d+(?:\.\d+)?))|T)$/.exec(item);
     if (!match || !valid(match[1])) continue;
+    if (match[4] !== undefined) {
+      const size = Math.min(round1(Number(match[4])), PICK_MARGIN_LIMIT);
+      if (size > 0) picks[match[1]] = marginPick(match[2] === "D" ? size : -size);
+      continue;
+    }
     picks[match[1]] = match[2] ? { party: match[2] as "D" | "R", rating: ratingsByLetter[match[3]] } : { party: "T" };
   }
   return picks;
+}
+
+/** "PAD2.5", "AZRl", or "GAT" for one pick. */
+function pickToken(code: string, pick: Pick) {
+  if (pick.party === "T") return `${code}T`;
+  if (pick.margin !== undefined) return `${code}${pick.party}${round1(Math.abs(pick.margin))}`;
+  return `${code}${pick.party}${ratingLetters[pick.rating]}`;
 }
 
 /** "ME2R,NE2T" → { "ME-2": "R", "NE-2": "T" }. */
@@ -121,7 +135,7 @@ export function writeCountyScenario(search: URLSearchParams, scenario: Omit<Scen
   set("base", scenario.base === null ? "blank" : scenario.base === EMPTY_SCENARIO.base ? "" : String(scenario.base));
   set("swing", scenario.swing ? String(round1(scenario.swing)) : "");
   set("ss", Object.entries(scenario.stateSwing).filter(([, value]) => value).map(([code, value]) => `${code}${round1(value)}`).join(","));
-  set("p", Object.entries(scenario.picks).map(([code, pick]) => (pick.party === "T" ? `${code}T` : `${code}${pick.party}${ratingLetters[pick.rating]}`)).join(","));
+  set("p", Object.entries(scenario.picks).map(([code, pick]) => pickToken(code, pick)).join(","));
   set("c", Object.entries(scenario.counties).slice(0, MAX_COUNTY_EDITS).map(([fips, margin]) => `${fips}:${round1(margin)}`).join(","));
 }
 

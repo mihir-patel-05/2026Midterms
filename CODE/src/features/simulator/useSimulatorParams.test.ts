@@ -28,6 +28,18 @@ describe("scenario links", () => {
     expect(search.get("d")).toBe("ME2D,NE2T");
   });
 
+  it("round-trip picks with an exact margin, with the rating that margin earns", () => {
+    const scenario: Scenario = { ...EMPTY_SCENARIO, picks: { PA: { party: "D", rating: "lean", margin: 2.5 }, OH: { party: "R", rating: "safe", margin: -12 } } };
+    const { search, parsed } = roundTrip(scenario);
+    expect(search.get("p")).toBe("PAD2.5,OHR12");
+    expect(parsed).toEqual(scenario);
+  });
+
+  it("caps a margin pick and drops a margin of 0", () => {
+    const { scenario } = parseScenario(new URLSearchParams("p=PAD0,GAR250,AZD3.14"));
+    expect(scenario.picks).toEqual({ GA: { party: "R", rating: "safe", margin: -100 }, AZ: { party: "D", rating: "lean", margin: 3.1 } });
+  });
+
   it("writes a blank map as base=blank", () => {
     const { search, parsed } = roundTrip({ ...EMPTY_SCENARIO, base: null });
     expect(search.get("base")).toBe("blank");

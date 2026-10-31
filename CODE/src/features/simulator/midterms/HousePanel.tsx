@@ -17,7 +17,8 @@ const CLOSEST = 25;
 function baselineText(seat: SeatOutcome, base: HouseBase) {
   if (base === null || seat.baseWinner === null) return "no baseline";
   if (seat.unopposed) return `${seat.baseWinner} unopposed in ${base}`;
-  return `${formatMargin(seat.baseMargin)} in ${base}`;
+  const swung = seat.margin !== null && seat.margin !== seat.baseMargin ? `${formatMargin(seat.margin)} with swing · ` : "";
+  return `${swung}${formatMargin(seat.baseMargin)} in ${base}`;
 }
 
 /** One district with Auto, D, Tossup, and R; Auto returns it to its baseline. */
@@ -40,7 +41,7 @@ function SeatRow({ seat, pick, base, focused, onPick }: {
         <small>{pick ? `your pick · ${baselineText(seat, base)}` : baselineText(seat, base)}</small>
       </div>
       <div className="sim-seg" role="group" aria-label={`${districtName(seat.code)} winner`}>
-        <button type="button" aria-pressed={!pick} title={base === null ? "Auto: tossup" : `Auto: as in ${base}`} onClick={() => onPick(seat.code, null)}>Auto</button>
+        <button type="button" aria-pressed={!pick} title={base === null ? "Auto: tossup" : `Auto: ${base} result plus the House swing`} onClick={() => onPick(seat.code, null)}>Auto</button>
         {OPTIONS.map((option) => (
           <button key={option.value} type="button" data-party={option.value} aria-pressed={pick === option.value} onClick={() => onPick(seat.code, option.value)}>{option.label}</button>
         ))}
