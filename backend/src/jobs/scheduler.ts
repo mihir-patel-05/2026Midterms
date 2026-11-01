@@ -410,6 +410,24 @@ export function initializeScheduler(): void {
     console.log('Fuel sync scheduler disabled: EIA_API_KEY is not set or COST_OF_LIVING_ENABLED is off');
   }
 
+  // Census state imports for the tariff exposure score: the year's total, which only changes when
+  // Census revises it, so monthly (the 12th, after the trade release) and once after boot.
+  if (env.CENSUS_API_KEY && env.COST_OF_LIVING_ENABLED) {
+    const runTrade = async (why: string) => {
+      try {
+        const { runTradeSync } = await import('../services/tariff/run-trade-sync.js');
+        const stats = await runTradeSync();
+        console.log(`🚢 Census imports sync (${why}) ${stats.status}: ${stats.year}, ${stats.states} states${stats.error ? ` (${stats.error})` : ''}`);
+      } catch (error) {
+        if (error instanceof SyncAlreadyRunningError) console.log('🚢 Census imports sync skipped: another run holds the lease');
+        else console.error('❌ Census imports sync failed:', error instanceof Error ? error.message : error);
+      }
+    };
+    cron.schedule('30 10 12 * *', () => runTrade('scheduled'), { timezone: 'America/New_York' });
+    setTimeout(() => void runTrade('after boot'), 4 * 60 * 1000).unref();
+    console.log('🚢 Census imports sync: the 12th of each month at 10:30 AM ET, and 4 minutes after boot\n');
+  }
+
   // General election ballot from civicAPI: every 6 hours, and once shortly after boot so a
   // deploy picks it up without waiting.
   if (env.BALLOT_SYNC_ENABLED) {

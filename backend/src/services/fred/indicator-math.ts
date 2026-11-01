@@ -23,10 +23,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Sep 1 but published mid-October. Monthly allows 75 days because FRED shows
  * consumer sentiment about a month late, after BEA's end-of-month releases.
  */
-export const STALE_AFTER_DAYS: Record<IndicatorFrequency, number> = { DAILY: 7, WEEKLY: 14, MONTHLY: 75, QUARTERLY: 150 };
+export const STALE_AFTER_DAYS: Record<IndicatorFrequency, number> = { DAILY: 7, WEEKLY: 14, MONTHLY: 75, QUARTERLY: 150, ANNUAL: 500 };
 
 /** How far from the exact date a year earlier an observation may be and still count. */
-const YEAR_AGO_TOLERANCE_DAYS: Record<IndicatorFrequency, number> = { DAILY: 4, WEEKLY: 4, MONTHLY: 3, QUARTERLY: 3 };
+const YEAR_AGO_TOLERANCE_DAYS: Record<IndicatorFrequency, number> = { DAILY: 4, WEEKLY: 4, MONTHLY: 3, QUARTERLY: 3, ANNUAL: 3 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -41,6 +41,7 @@ export function periodEnd(date: string, frequency: IndicatorFrequency): Date {
     case 'WEEKLY': return new Date(start.getTime() + DAY_MS);
     case 'MONTHLY': return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
     case 'QUARTERLY': return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, 1));
+    case 'ANNUAL': return new Date(Date.UTC(start.getUTCFullYear() + 1, 0, 1));
   }
 }
 
@@ -132,6 +133,7 @@ export function periodLabel(date: string, frequency: IndicatorFrequency): string
     case 'WEEKLY': return `Week ending ${month} ${day.getUTCDate()}`;
     case 'MONTHLY': return `${month} ${day.getUTCFullYear()}`;
     case 'QUARTERLY': return `Q${Math.floor(day.getUTCMonth() / 3) + 1} ${day.getUTCFullYear()}`;
+    case 'ANNUAL': return `${day.getUTCFullYear()}`;
   }
 }
 

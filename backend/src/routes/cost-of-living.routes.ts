@@ -4,6 +4,7 @@ import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 import { costOfLiving, FuelNotLoadedError, type CostOfLivingResponse } from '../services/fuel/fuel-read.js';
 import { STATE_REGION } from '../services/fuel/fuel-catalog.js';
+import { tariffExposure, type ExposureResponse } from '../services/tariff/exposure.js';
 
 const router = Router();
 const CACHE_MS = 15 * 60 * 1000;
@@ -38,6 +39,25 @@ router.get('/', async (req, res) => {
     if (error instanceof FuelNotLoadedError) return res.status(503).json({ error: error.message, code: 'NOT_LOADED' });
     console.error('[cost-of-living] Read failed:', error instanceof Error ? error.message : error);
     return res.status(503).json({ error: 'Cost of living data is unavailable' });
+  }
+});
+
+let exposureCache: { at: number; body: ExposureResponse } | null = null;
+
+/**
+ * GET /api/cost-of-living/tariff-exposure
+ * The tariff exposure score for the 50 states and DC, with each of its four measures, their
+ * percentiles and periods, and the method. Exposure, not a measured cost. Cached one hour.
+ */
+router.get('/tariff-exposure', async (_req, res) => {
+  if (!env.COST_OF_LIVING_ENABLED) return res.status(404).json({ error: 'Cost of living is turned off' });
+  try {
+    if (!exposureCache || Date.now() - exposureCache.at > 60 * 60 * 1000) exposureCache = { at: Date.now(), body: await tariffExposure(prisma) };
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.json(exposureCache.body);
+  } catch (error) {
+    console.error('[tariff-exposure] Read failed:', error instanceof Error ? error.message : error);
+    return res.status(503).json({ error: 'Tariff exposure is unavailable' });
   }
 });
 

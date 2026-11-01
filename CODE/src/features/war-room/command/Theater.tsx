@@ -20,7 +20,8 @@ import { CLOSE_BELOW, FLIP_COLORS, flipCounts, flipOverlay, HOLDER_COLORS, holde
 import { Brackets } from "../panels/Panel";
 import { STATE_NAMES, raceLabel } from "../raceCodes";
 import { cents } from "../seatTally";
-import { COUNTY_LENSES, LENSES, type Lens } from "../theater";
+import { COUNTY_LENSES, LENSES, STATE_ONLY_LENSES, type Lens } from "../theater";
+import { EXPOSURE_COLORS, EXPOSURE_NO_DATA, exposureBand, ordinal, useTariffExposure, type TariffExposure } from "../costOfLiving/costOfLiving";
 import type { Board } from "../useBoard";
 // Eager, so the placeholder is sized before the lazy map chunk arrives.
 import "@/features/election-monitor/map/electionMap.css";
@@ -118,8 +119,9 @@ function describeResultRace(board: LiveBoard | null, code: string, kind: string)
   ];
 }
 
-function Legend({ lens, layer, view, house, census, past, results }: {
+function Legend({ lens, layer, view, house, census, past, results, tariff }: {
   results: { board: LiveBoard | null; kind: string };
+  tariff: { data: TariffExposure | null | undefined; loading: boolean };
   lens: Lens;
   layer: MapLayer;
   view: OddsView | null;
@@ -127,6 +129,18 @@ function Legend({ lens, layer, view, house, census, past, results }: {
   census: { view: ReturnType<typeof useCensusMap>["view"]; metric: string; loading: boolean; error: Error | null };
   past: { year: number | null; loading: boolean; error: boolean; linesMatch: boolean };
 }) {
+  if (lens === "tariff") {
+    if (layer !== "states") return <div className="wr-legend"><span>Tariff exposure is by state. Pick the States layer.</span></div>;
+    return (
+      <div className="wr-legend">
+        <span className="wr-legend-key">Exposure score</span>
+        {EXPOSURE_COLORS.map((color, i) => <span key={color}><Swatch color={color} />{i * 20}–{i * 20 + 20}</span>)}
+        <span><Swatch color={EXPOSURE_NO_DATA} />Not scored</span>
+        {tariff.loading && <span>Loading…</span>}
+        <span className="wr-legend-note">Imports ÷ GDP · China/Mexico/Canada share · manufacturing jobs · diesel · exposure, not a cost</span>
+      </div>
+    );
+  }
   if (lens === "results") {
     const source = results.board?.source.name ?? "Results";
     return (
@@ -251,7 +265,14 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
   const censusBins = census.view?.bins ?? null;
   const results = useLiveResults();
   const resultsBoard = boardOf(results);
+  const tariff = useTariffExposure();
+  const tariffData = lens === "tariff" ? tariff.data : null;
   const overlay = useMemo<MapOverlay | null>(() => {
+    if (lens === "tariff") {
+      if (layer !== "states") return null;
+      const bins = tariffData ? new Map(tariffData.states.flatMap((row) => (row.score === null ? [] : [[row.state, `T${exposureBand(row.score)}`] as const]))) : null;
+      return { bins, colors: Object.fromEntries(EXPOSURE_COLORS.map((color, i) => [`T${i}`, color])), fallback: EXPOSURE_NO_DATA };
+    }
     if (lens === "results") {
       if (layer === "counties") return null;
       const office = house ? "house" : "senate";
@@ -270,7 +291,7 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
     if (lens === "holder") return holderOverlay(house ? "house" : "senate", board.holders);
     if (lens === "flip") return flipOverlay(view);
     return { bins: view?.bins ?? null, colors: ODDS_COLORS, fallback: ODDS_STATUS_COLORS.no_market, redistricting: true, hatch: view?.flips };
-  }, [layer, lens, house, board.holders, view, censusBins, pastBins, resultsBoard, results.kind]);
+  }, [layer, lens, house, board.holders, view, censusBins, pastBins, resultsBoard, results.kind, tariffData]);
 
   // Senate prices label each state; the small Northeast states are listed beside the map, as on the monitor.
   const senateLabels = useMemo(() => {
@@ -296,6 +317,13 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
       return { title, lines: [`${past.year} ${past.data.office === "president" ? "presidential" : "House"}`, ...describeResult(past.lookup.result(code, level), past.data.office, past.year)] };
     }
     if (item.kind === "county") return { title, lines: ["No 2026 race by county · try the Census or Past results lens"] };
+    if (lens === "tariff") {
+      const row = tariffData?.states.find((state) => state.state === item.state);
+      if (!tariffData) return { title, lines: ["Loading tariff exposure…"] };
+      if (!row || row.score === null) return { title, lines: ["Not scored: fewer than 3 of the 4 measures"] };
+      const scored = tariffData.states.filter((state) => state.score !== null).length;
+      return { title, lines: [`Exposure ${row.score.toFixed(0)} / 100 · ${ordinal(row.rank!)} of ${scored}`, `${row.partsUsed} of 4 measures · exposure, not a measured cost`] };
+    }
     if (lens === "results") {
       if (!isHouse && !SENATE_RACES_2026[item.state]) return { title, lines: ["No Senate race in 2026"] };
       return { title, lines: describeResultRace(resultsBoard, isHouse ? code : `${code}-SEN`, results.kind) };
@@ -303,7 +331,7 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
     const source = isHouse ? board.house : board.senate;
     if (!source) return { title, lines: ["Waiting for Kalshi prices…"] };
     return { title, lines: [`2026 ${isHouse ? "House" : "Senate"} · Kalshi`, ...describeOddsRace(source.races.get(code), isHouse ? "house" : "senate")] };
-  }, [board.house, board.senate, lens, census.view, census.isLoading, past.lookup, past.year, past.data, past.error, resultsBoard, results.kind]);
+  }, [board.house, board.senate, lens, census.view, census.isLoading, past.lookup, past.year, past.data, past.error, resultsBoard, results.kind, tariffData]);
 
   const selectState = useCallback((code: string | null) => update({ state: code, district: null, districts: [], counties: [], contest: null }), [update]);
   const selectDistrict = useCallback((state: string, district: string, additive: boolean) => {
@@ -324,7 +352,7 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
   const closest = view && !full && (lens === "leader" || lens === "holder" || lens === "flip")
     ? [...view.races.values()].filter((race) => race.leader && race.bin !== "no_race").sort((a, b) => a.leader!.price - b.leader!.price || a.code.localeCompare(b.code)).slice(0, CLOSEST)
     : [];
-  const tag = lens === "results"
+  const tag = lens === "tariff" ? "Theater // Tariff exposure · Census · BEA · BLS · EIA" : lens === "results"
     ? `Theater // ${resultsBoard?.source.name ?? "Results"} count · ${house ? `House ${HOUSE_SEATS} seats` : `Senate ${SENATE_RACE_CODES.length} races`}${resultsBoard?.isTestData ? " · TEST DATA" : ""}`
     : lens === "census" || lens === "past"
     ? `Theater // ${lens === "census" ? "Census ACS 5-year" : "MIT Election Lab"} · ${layer}`
@@ -332,7 +360,7 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
     ? `Theater // U.S. House 2026 · ${HOUSE_SEATS} seats${view ? ` · ${view.priced} priced` : ""}`
     : layer === "states" ? `Theater // U.S. Senate 2026 · ${SENATE_RACE_CODES.length} races` : "Theater // Counties";
   const lensInfo = LENSES.find((item) => item.id === lens)!;
-  const lensDisabled = (id: Lens) => layer === "counties" && !COUNTY_LENSES.includes(id);
+  const lensDisabled = (id: Lens) => (layer === "counties" && !COUNTY_LENSES.includes(id)) || (layer !== "states" && STATE_ONLY_LENSES.includes(id));
   const heading = lens === "census"
     ? `${censusMetricOption(censusMetric).label} by ${layer === "counties" ? "county" : house ? "district" : "state"}`
     : layer === "counties" ? lensInfo.counties ?? "Counties" : house ? lensInfo.house : lensInfo.senate;
@@ -423,11 +451,11 @@ export function Theater({ params, update, lens, onLens, onLayer, layer, board, t
         )}
       </div>
 
-      <Legend lens={lens} layer={layer} view={view} house={house} results={{ board: resultsBoard, kind: results.kind }}
+      <Legend lens={lens} layer={layer} view={view} house={house} results={{ board: resultsBoard, kind: results.kind }} tariff={{ data: tariffData, loading: tariff.isLoading }}
         census={{ view: census.view, metric: censusMetric, loading: census.isLoading, error: census.error }}
         past={{ year: past.year, loading: past.loading, error: past.error, linesMatch: past.houseLinesMatch }} />
       <div className="wr-theater-foot">
-        <span>Layer: {layer} · Src {lens === "results" ? `${resultsBoard?.source.name ?? "results feed"}${resultsBoard ? ` · as of ${formatEtTime(resultsBoard.updatedAt)} ET` : ""}` : lens === "census" ? "Census ACS" : lens === "past" ? "MIT Election Lab" : `Kalshi ${board.status === "live" ? "live" : board.status}${view?.priceType ? ` · ${view.priceType}` : ""}`}</span>
+        <span>Layer: {layer} · Src {lens === "tariff" ? "Census · BEA · BLS via FRED · EIA" : lens === "results" ? `${resultsBoard?.source.name ?? "results feed"}${resultsBoard ? ` · as of ${formatEtTime(resultsBoard.updatedAt)} ET` : ""}` : lens === "census" ? "Census ACS" : lens === "past" ? "MIT Election Lab" : `Kalshi ${board.status === "live" ? "live" : board.status}${view?.priceType ? ` · ${view.priceType}` : ""}`}</span>
         <span>Sel: {target ? raceLabel(target) : params.state ?? "none"} · Last tick {lastTick ? `${etClock(Date.parse(lastTick))} ET` : "—"}</span>
       </div>
     </section>

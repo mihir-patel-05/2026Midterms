@@ -112,7 +112,7 @@ Differentiators:
   - **Shown:** price now and the gap to the U.S., 1-week, 1-month and 1-year changes beside the U.S. change, and a 2-year chart against the U.S. A state EIA does not price shows its region, labelled "Regional average · not a <state> figure".
   - **API:** `GET /api/cost-of-living?state=MI`, cached 15 minutes.
   - **Needs:** `EIA_API_KEY` (free) on the Backend service. Flags: `COST_OF_LIVING_ENABLED` and `VITE_FEATURE_COST_OF_LIVING`, both on by default.
-  - **Tariff exposure index:** formula options are with the product owner; not built yet.
+  - **Tariff exposure score** (chosen Nov 1): the average percentile of imports ÷ GDP, the China/Mexico/Canada share of imports, the manufacturing share of jobs, and the 1-year diesel change, shown in the tab and as a map lens. See section 4.8, "Decision (Nov 1)".
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -339,7 +339,19 @@ What to show:
 
 **Tariff exposure**
 
-No single neutral "tariff index" covers every state, so we show several measures, each with its own source and method. We never combine them into a score.
+**Decision (Nov 1):** the product owner chose a composite **tariff exposure score**, replacing the earlier "never combine them into a score" rule. Built in `backend/src/services/tariff/` (method `tariff-exposure-v1`):
+
+- **Score** = the average of the state's percentile ranks among the 50 states and DC (0 = lowest, 100 = highest, ties at their midpoint) on four measures, equal weights. Higher means more exposed.
+  1. **Goods imports ÷ state GDP:** Census imports by state of destination (calendar year, HS2 chapters summed) ÷ the mean of that year's four quarters of BEA nominal GDP (`{ST}NQGSP` via FRED).
+  2. **Imports from China, Mexico and Canada ÷ all imports:** Census, same year.
+  3. **Manufacturing share of jobs:** `{ST}MFG` ÷ `{ST}NA` (BLS via FRED), latest common month.
+  4. **Diesel, change over one year:** EIA weekly retail diesel; a regional price for every state but California, so a region's states share that rank.
+- A state missing a measure is scored on the others (at least 3) and says so. Each measure, its percentile and period are shown beside the score, with the method and its caveats: exposure, not a measured cost; imports count by the customs destination; equal weights are a judgment; job changes have many causes.
+- **Where:** the Cost of living tab (score, rank, the four measures; with no state, the 51-state ranking) and a **Tariff exposure** lens on the War Room map (states layer). API: `GET /api/cost-of-living/tariff-exposure`, cached one hour.
+- **Data jobs:** `npm run sync:trade` (Census, the 12th of each month and after boot; needs `CENSUS_API_KEY`), the FRED sync (now also `{ST}MFG` and `{ST}NQGSP`, stored without tiles), and the EIA fuel sync.
+- **Not verified against live responses:** the build sandbox could not reach Census, FRED or EIA. Check the first runs: the Census `CTY_CODE=-` total-for-all-countries row, and that FRED has `{ST}MFG` and `{ST}NQGSP` for every state (a missing one shows as a missing measure, never as zero).
+
+The measures below remain the reference list; the ones not in the score (NTUF tariffs paid, the Fed consumption share, QCEW, WARN) are not built.
 
 | Measure | Source | What it says | Geography and timing | Access |
 |---|---|---|---|---|

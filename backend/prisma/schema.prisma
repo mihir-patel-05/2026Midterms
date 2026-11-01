@@ -1143,6 +1143,7 @@ enum IndicatorFrequency {
   WEEKLY
   MONTHLY
   QUARTERLY
+  ANNUAL // Census state imports by calendar year (tariff exposure)
 }
 
 enum AgentKind {

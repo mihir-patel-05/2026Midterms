@@ -33,7 +33,7 @@ export async function getIndicators(
 ): Promise<IndicatorsResponse> {
   const { days, includeRestricted, state = null, now = new Date(), catalog = FRED_SERIES } = options;
   const nationalDefs = servedSeries(nationalSeries(catalog), includeRestricted);
-  const stateDefs = state ? servedSeries(stateSeries(state, catalog), includeRestricted) : [];
+  const stateDefs = state ? servedSeries(stateSeries(state, catalog).filter((def) => !def.noTile), includeRestricted) : [];
   const since = new Date(now.getTime() - days * DAY_MS);
   const readFrom = new Date(since.getTime() - LOOKBACK_DAYS * DAY_MS);
 

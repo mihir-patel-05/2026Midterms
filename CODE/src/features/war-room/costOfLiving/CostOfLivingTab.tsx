@@ -1,5 +1,6 @@
 import { formatEtTime } from "@/features/election-monitor/constants";
 import { StatusLine } from "../panels/Panel";
+import { TariffExposureCard } from "./TariffExposure";
 import { dollars, fuelLines, fuelRange, NotLoaded, signedDollars, signedPercent, useCostOfLiving, type Change, type FuelView } from "./costOfLiving";
 
 const LABEL = { gasoline: "Regular gasoline", diesel: "Diesel (No. 2)" } as const;
@@ -78,7 +79,7 @@ function FuelCard({ view, stateName }: { view: FuelView; stateName: string }) {
 export function CostOfLivingTab({ stateCode, stateName }: { stateCode: string | null; stateName: string | null }) {
   const query = useCostOfLiving(stateCode);
   if (query.isLoading) return <StatusLine>Loading fuel prices…</StatusLine>;
-  if (query.error instanceof NotLoaded) return <StatusLine>Fuel prices are not loaded yet. They arrive with the weekly EIA sync.</StatusLine>;
+  if (query.error instanceof NotLoaded) return <div className="wr-col"><StatusLine>Fuel prices are not loaded yet. They arrive with the weekly EIA sync.</StatusLine><TariffExposureCard stateCode={stateCode} /></div>;
   if (query.isError) return <StatusLine tone="warn">Fuel prices are unavailable right now.</StatusLine>;
   const data = query.data;
   if (!data) return <StatusLine>Cost of living is turned off.</StatusLine>;
@@ -87,6 +88,7 @@ export function CostOfLivingTab({ stateCode, stateName }: { stateCode: string | 
     <div className="wr-col">
       <p className="wr-col-intro">{stateCode ? `${stateName}: weekly retail fuel prices against the U.S. average.` : "U.S. weekly retail fuel prices. Pick a state on the map to compare it."} Diesel moves freight, so it feeds into the price of most goods.</p>
       {data.fuels.map((view) => <FuelCard key={view.fuel} view={view} stateName={name} />)}
+      <TariffExposureCard stateCode={stateCode} />
       <p className="wr-col-source">
         Src: <a href={data.source.url} target="_blank" rel="noreferrer">{data.source.name}</a>, weekly retail prices{data.source.fetchedAt ? ` · fetched ${new Date(data.source.fetchedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${formatEtTime(data.source.fetchedAt)} ET` : ""}.
         EIA prices 9 states on their own (diesel: California only); every other state shows its region. Same windows for every state. Context, not a forecast.

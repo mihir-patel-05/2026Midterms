@@ -78,3 +78,40 @@ export function fuelRange(history: FuelView["history"]): [number, number] {
   if (values.length === 0) return [0, 1];
   return [Math.floor(Math.min(...values) * 10) / 10, Math.ceil(Math.max(...values) * 10) / 10];
 }
+
+/** GET /api/cost-of-living/tariff-exposure: the score for the 50 states and DC (PLAN.md §4.8, chosen Nov 1). */
+export type PartKey = "importsToGdp" | "partnerShare" | "manufacturingShare" | "dieselChange";
+export interface PartValue { value: number; percentile: number; period: string; regional?: string }
+export interface StateExposure { state: string; score: number | null; rank: number | null; parts: Partial<Record<PartKey, PartValue>>; partsUsed: number }
+export interface TariffExposure {
+  method: { version: string; formula: string; parts: Array<{ key: PartKey; label: string; unit: string; source: string }>; notes: string[] };
+  states: StateExposure[];
+  periods: Partial<Record<PartKey, string>>;
+}
+
+export function useTariffExposure() {
+  return useQuery({
+    queryKey: ["war-room", "tariff-exposure"],
+    enabled: costOfLivingEnabled,
+    staleTime: 60 * 60_000,
+    retry: 1,
+    queryFn: async ({ signal }): Promise<TariffExposure | null> => {
+      const response = await fetch(`${API_BASE_URL}/api/cost-of-living/tariff-exposure`, { signal });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`Tariff exposure returned ${response.status}`);
+      return response.json() as Promise<TariffExposure>;
+    },
+  });
+}
+
+/** Five equal score bands for the map, low to high exposure. */
+export const EXPOSURE_COLORS = ["#1d3b4a", "#24606a", "#3a8f86", "#c9a33a", "#e0672e"] as const;
+export const EXPOSURE_NO_DATA = "#2b333d";
+export const exposureBand = (score: number) => Math.min(4, Math.floor(score / 20));
+
+/** "1st", "2nd", "23rd". */
+export function ordinal(n: number) {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+  return `${n}${suffix}`;
+}

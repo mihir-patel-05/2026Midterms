@@ -17,10 +17,10 @@ test('the catalog has unique keys and IDs, and only S&P 500 and VIX are restrict
   assert.deepEqual(FRED_SERIES.filter((def) => def.restricted).map((def) => def.fredId), ['SP500', 'VIXCLS']);
 });
 
-test('five series for each of the 50 states and DC, and none for Puerto Rico', () => {
+test('seven series for each of the 50 states and DC (two without tiles), and none for Puerto Rico', () => {
   assert.equal(FRED_STATE_CODES.length, 51);
   assert(FRED_STATE_CODES.includes('DC') && !FRED_STATE_CODES.includes('PR'));
-  assert.equal(FRED_STATE_SERIES.length, 51 * 5);
+  assert.equal(FRED_STATE_SERIES.length, 51 * 7);
   assert.equal(FRED_SERIES.length, FRED_NATIONAL_SERIES.length + FRED_STATE_SERIES.length);
 
   assert.deepEqual(stateSeries('CA').map((def) => [def.fredId, def.transform]), [
@@ -29,7 +29,10 @@ test('five series for each of the 50 states and DC, and none for Puerto Rico', (
     ['CAICLAIMS', 'level'],
     ['CARQGSP', 'qoq_annualized'],
     ['CASTHPI', 'yoy'],
+    ['CAMFG', 'level'],
+    ['CANQGSP', 'level'],
   ]);
+  assert.deepEqual(stateSeries('CA').filter((def) => def.noTile).map((def) => def.fredId), ['CAMFG', 'CANQGSP']);
   assert(stateSeries('CA').every((def) => def.stateCode === 'CA' && def.key === `fred.${def.fredId}`));
   assert.equal(stateSeries('CA').find((def) => def.fredId === 'CAICLAIMS')?.staleAfterDays, 21);
   assert.deepEqual(stateSeries('PR'), []);

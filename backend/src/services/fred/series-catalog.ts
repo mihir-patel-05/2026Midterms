@@ -41,6 +41,8 @@ export interface FredSeriesDef {
   stateCode: string | null;
   /** Overrides STALE_AFTER_DAYS for this series' frequency. */
   staleAfterDays?: number;
+  /** Stored for another feature (the tariff exposure score), not served as an economy tile. */
+  noTile?: boolean;
 }
 
 const series = (
@@ -92,6 +94,9 @@ const STATE_TEMPLATES: ReadonlyArray<Omit<FredSeriesDef, 'fredId' | 'key' | 'nam
   { suffix: 'ICLAIMS', name: 'Initial jobless claims, not seasonally adjusted', unit: 'Number', frequency: 'WEEKLY', originalSource: 'Department of Labor', transform: 'level', staleAfterDays: 21 },
   { suffix: 'RQGSP', name: 'Real GDP', unit: 'Millions of chained 2017 dollars', frequency: 'QUARTERLY', originalSource: 'BEA', transform: 'qoq_annualized' },
   { suffix: 'STHPI', name: 'House price index', unit: 'Index 1980:Q1=100', frequency: 'QUARTERLY', originalSource: 'FHFA', transform: 'yoy' },
+  // No tiles: the tariff exposure score reads these (manufacturing share of jobs; imports ÷ nominal GDP).
+  { suffix: 'MFG', name: 'Manufacturing employment', unit: 'Thousands of persons', frequency: 'MONTHLY', originalSource: 'BLS', transform: 'level', noTile: true },
+  { suffix: 'NQGSP', name: 'Nominal GDP', unit: 'Millions of dollars, seasonally adjusted annual rate', frequency: 'QUARTERLY', originalSource: 'BEA', transform: 'level', noTile: true },
 ];
 
 export const FRED_STATE_SERIES: readonly FredSeriesDef[] = FRED_STATE_CODES.flatMap((stateCode) =>
