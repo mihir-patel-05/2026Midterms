@@ -188,7 +188,8 @@ export function NightOps() {
 
       <ResultsStatus state={results} />
       <NightFigures now={now} markets={board.marketCount} results={results} />
-      {liveResultsEnabled && <SeatCount board={liveBoard} attribution={liveBoard?.attribution ?? null} />}
+      {/* Only once a results source answers: before that the count would show 435 uncalled and 0 leading. */}
+      {liveResultsEnabled && liveBoard && <SeatCount board={liveBoard} attribution={liveBoard.attribution} />}
 
       <Timeline now={now} />
 

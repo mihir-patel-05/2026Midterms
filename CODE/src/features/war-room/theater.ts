@@ -2,6 +2,7 @@ import type { MonitorParams } from "@/features/election-monitor/useMonitorParams
 import type { OddsOffice } from "@/features/election-monitor/oddsMap";
 import type { MapLayer } from "@/features/election-monitor/types";
 import { costOfLivingEnabled, liveResultsEnabled } from "@/lib/featureFlags";
+import { isElectionNight } from "./electionNight";
 
 /**
  * The Command map reads the monitor's parameters, so a monitor link opens the same view with only the path
@@ -24,9 +25,14 @@ export const STATE_ONLY_LENSES: Lens[] = ["tariff"];
 export const COUNTY_LENSES: Lens[] = ["past", "census"];
 const LENS_IDS = LENSES.map((item) => item.id);
 
-export function readLens(search: URLSearchParams): Lens {
+/** The lens a map opens on: live results on election night, the market leader otherwise. */
+export function defaultLens(now: number = Date.now()): Lens {
+  return liveResultsEnabled && isElectionNight(now) ? "results" : "leader";
+}
+
+export function readLens(search: URLSearchParams, now: number = Date.now()): Lens {
   const value = search.get("lens");
-  return LENS_IDS.includes(value as Lens) ? (value as Lens) : "leader";
+  return LENS_IDS.includes(value as Lens) ? (value as Lens) : defaultLens(now);
 }
 
 type TheaterParams = Pick<MonitorParams, "mode" | "oddsOffice" | "layer">;
@@ -50,9 +56,9 @@ export function layerPatch(layer: MapLayer): Partial<MonitorParams> {
 }
 
 /** The query string for a lens button. */
-export function lensSearch(current: URLSearchParams, lens: Lens) {
+export function lensSearch(current: URLSearchParams, lens: Lens, now: number = Date.now()) {
   const next = new URLSearchParams(current);
-  if (lens === "leader") next.delete("lens");
+  if (lens === defaultLens(now)) next.delete("lens");
   else next.set("lens", lens);
   next.set("mode", "odds");
   return next;

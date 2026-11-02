@@ -236,10 +236,10 @@
 .wr-off-copy { margin: 0; max-width: 72ch; font-size: 13px; color: var(--wr-text-2); }
 
 /* Command layout */
-.wr-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.wr-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
 .wr-split { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; }
 .wr-aside { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.wr-grid-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; align-items: stretch; }
+.wr-grid-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; align-items: stretch; }
 :root[data-skin="warroom"] .wr-section-title { margin-top: 2px; font-family: var(--wr-cond); font-size: 20px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .wr-mini { min-height: 28px; padding: 0 8px; background: transparent; border: 1px solid var(--wr-line-strong); color: var(--wr-text-2); font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
 .wr-mini:hover { color: var(--wr-text); border-color: var(--wr-text-3); }
@@ -495,10 +495,10 @@
 .wr-signals-mid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
 .wr-signals-mid > .wr-panel:first-child { flex: 2 1 640px; }
 .wr-signals-mid > .wr-panel:last-child { flex: 1 1 320px; }
-.wr-signals-low { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; align-items: start; }
+.wr-signals-low { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; align-items: start; }
 @media (max-width: 760px) { .wr-signals-low { grid-template-columns: minmax(0, 1fr); } }
 .wr-chambers { --wr-brk: 12px; }
-.wr-chamber-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.wr-chamber-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .wr-chamber-chart { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .wr-chamber-head { display: flex; justify-content: space-between; gap: 8px; font-family: var(--wr-mono); font-size: 12px; color: var(--wr-text-2); text-transform: uppercase; }
 .wr-chamber-head strong { font-size: 14px; }
@@ -626,7 +626,7 @@
 .wr-official a:hover, .wr-official a:focus-visible { color: var(--wr-text); text-decoration: underline; }
 .wr-official a strong { display: inline-block; min-width: 26px; font-family: var(--wr-mono); color: var(--wr-text); }
 .wr-official-note { margin: 6px 0 0; color: var(--wr-text-3); }
-.wr-seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.wr-seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
 .wr-seats-chamber { display: grid; gap: 8px; min-width: 0; }
 .wr-seats-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
 .wr-seats-head h3 { margin: 0; font-family: var(--wr-cond); font-size: 15px; font-weight: 600; }

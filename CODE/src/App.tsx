@@ -16,6 +16,7 @@ import ResearcherLogin from "./pages/research/ResearcherLogin";
 import ResearchDashboard from "./pages/research/ResearchDashboard";
 import RaceTracker from "./pages/research/RaceTracker";
 import Simulator from "./pages/research/Simulator";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { RequireResearcher } from "./components/research/RequireResearcher";
 import { newFrontendEnabled, newsEnabled, simulatorEnabled, warRoomEnabled } from "./lib/featureFlags";
 
@@ -46,95 +47,97 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {newFrontendEnabled ? (
-            <>
-              <Route path="/" element={dashboard} />
-              {/* Legacy landing page, kept reachable for one release. */}
-              <Route path="/classic" element={<Index />} />
-              <Route path="/election-dashboard" element={<DashboardRedirect />} />
-              {simulatorEnabled && (
-                <>
+        <ErrorBoundary>
+          <Routes>
+            {newFrontendEnabled ? (
+              <>
+                <Route path="/" element={dashboard} />
+                {/* Legacy landing page, kept reachable for one release. */}
+                <Route path="/classic" element={<Index />} />
+                <Route path="/election-dashboard" element={<DashboardRedirect />} />
+                {simulatorEnabled && (
+                  <>
+                    <Route
+                      path="/simulator"
+                      element={
+                        <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
+                          <ElectionSimulator />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/simulator/midterms"
+                      element={
+                        <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
+                          <MidtermSimulator />
+                        </Suspense>
+                      }
+                    />
+                  </>
+                )}
+                {newsEnabled && (
                   <Route
-                    path="/simulator"
+                    path="/news"
                     element={
-                      <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
-                        <ElectionSimulator />
+                      <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading top stories…</main>}>
+                        <News />
                       </Suspense>
                     }
                   />
-                  <Route
-                    path="/simulator/midterms"
-                    element={
-                      <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading simulator…</main>}>
-                        <MidtermSimulator />
-                      </Suspense>
-                    }
-                  />
-                </>
-              )}
-              {newsEnabled && (
-                <Route
-                  path="/news"
-                  element={
-                    <Suspense fallback={<main className="min-h-screen bg-background p-8 text-foreground">Loading top stories…</main>}>
-                      <News />
-                    </Suspense>
-                  }
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <Route path="/" element={<Index />} />
-              <Route path="/election-dashboard" element={dashboard} />
-            </>
-          )}
-          {WarRoom && (
+                )}
+              </>
+            ) : (
+              <>
+                <Route path="/" element={<Index />} />
+                <Route path="/election-dashboard" element={dashboard} />
+              </>
+            )}
+            {WarRoom && (
+              <Route
+                path="/war-room/*"
+                element={
+                  <Suspense fallback={<main style={{ minHeight: "100vh", padding: "2rem", background: "#06080b", color: "#8593a3", fontFamily: "ui-monospace, monospace" }}>Loading War Room…</main>}>
+                    <WarRoom />
+                  </Suspense>
+                }
+              />
+            )}
+            <Route path="/elections" element={<Elections />} />
+            <Route path="/elections/:state" element={<Elections />} />
+            <Route path="/elections/:state/:electionId" element={<RaceDetail />} />
+            <Route path="/candidates" element={<CandidatesPage />} />
+            <Route path="/candidates/:id" element={<Candidates />} />
+            <Route path="/voter-resources" element={<VoterResources />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/research/login" element={<ResearcherLogin />} />
             <Route
-              path="/war-room/*"
+              path="/research"
               element={
-                <Suspense fallback={<main style={{ minHeight: "100vh", padding: "2rem", background: "#06080b", color: "#8593a3", fontFamily: "ui-monospace, monospace" }}>Loading War Room…</main>}>
-                  <WarRoom />
-                </Suspense>
+                <RequireResearcher>
+                  <ResearchDashboard />
+                </RequireResearcher>
               }
             />
-          )}
-          <Route path="/elections" element={<Elections />} />
-          <Route path="/elections/:state" element={<Elections />} />
-          <Route path="/elections/:state/:electionId" element={<RaceDetail />} />
-          <Route path="/candidates" element={<CandidatesPage />} />
-          <Route path="/candidates/:id" element={<Candidates />} />
-          <Route path="/voter-resources" element={<VoterResources />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/research/login" element={<ResearcherLogin />} />
-          <Route
-            path="/research"
-            element={
-              <RequireResearcher>
-                <ResearchDashboard />
-              </RequireResearcher>
-            }
-          />
-          <Route
-            path="/research/races"
-            element={
-              <RequireResearcher>
-                <RaceTracker />
-              </RequireResearcher>
-            }
-          />
-          <Route
-            path="/research/simulate"
-            element={
-              <RequireResearcher>
-                <Simulator />
-              </RequireResearcher>
-            }
-          />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route
+              path="/research/races"
+              element={
+                <RequireResearcher>
+                  <RaceTracker />
+                </RequireResearcher>
+              }
+            />
+            <Route
+              path="/research/simulate"
+              element={
+                <RequireResearcher>
+                  <Simulator />
+                </RequireResearcher>
+              }
+            />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

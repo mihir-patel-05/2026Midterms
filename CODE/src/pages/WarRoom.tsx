@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { CommandView } from "@/features/war-room/command/CommandView";
 import { EarlyVoteScreen } from "@/features/war-room/earlyVote/EarlyVoteScreen";
 import { RaceDossier } from "@/features/war-room/dossier/RaceDossier";
@@ -9,6 +9,7 @@ import { SimScreen } from "@/features/war-room/sim/SimScreen";
 import { NightOps } from "@/features/war-room/night/NightOps";
 import { SignalsView } from "@/features/war-room/signals/SignalsView";
 import { WarRoomShell } from "@/features/war-room/WarRoomShell";
+import { shouldOpenNight } from "@/features/war-room/electionNight";
 
 /**
  * In-page links (#theater, #money) scroll to their panel once it has rendered, and once more after the first data
@@ -36,13 +37,29 @@ function UnknownScreen() {
   );
 }
 
+function sessionStore() {
+  try { return window.sessionStorage; } catch { return null; }
+}
+
+/**
+ * Command, except on election night: a visit that lands straight on /war-room (a bookmark, a shared link, the home
+ * page's link) opens the Night screen once per tab. React Router gives the first location of a page load the key
+ * "default", so clicking CMD inside the War Room still opens Command.
+ */
+function IndexScreen() {
+  const location = useLocation();
+  const [toNight] = useState(() => shouldOpenNight(Date.now(), location.key === "default" && !location.hash, sessionStore()));
+  if (toNight) return <Navigate to={{ pathname: "/war-room/night", search: location.search }} replace />;
+  return <CommandView />;
+}
+
 /** The War Room, at /war-room/*. Lazy-loaded and only routed when VITE_FEATURE_WAR_ROOM is "true". */
 export default function WarRoom() {
   useHashScroll();
   return (
     <WarRoomShell>
       <Routes>
-        <Route index element={<CommandView />} />
+        <Route index element={<IndexScreen />} />
         <Route path="race/:code" element={<RaceDossier />} />
         <Route path="signals" element={<SignalsView />} />
         <Route path="night" element={<NightOps />} />

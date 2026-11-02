@@ -38,6 +38,10 @@ const listeners = new Set<() => void>();
 let source: EventSource | null = null;
 let users = 0;
 let closeTimer: ReturnType<typeof setTimeout> | undefined;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let retries = 0;
+/** Waits before reopening a stream the browser gave up on: 2 s, 4 s, 8 s … up to 60 s. */
+export const reconnectDelayMs = (attempt: number) => Math.min(60_000, 2_000 * 2 ** Math.min(attempt, 5));
 
 function groupByRace(markets: Map<string, KalshiMarket>) {
   const byRace = new Map<string, KalshiMarket[]>();
@@ -60,12 +64,14 @@ function parse<T>(event: MessageEvent): T | null {
 
 function open() {
   if (source || typeof EventSource === "undefined") return;
-  source = new EventSource(STREAM_URL);
-  source.addEventListener("snapshot", (event) => {
+  const stream = new EventSource(STREAM_URL);
+  source = stream;
+  stream.addEventListener("snapshot", (event) => {
+    retries = 0;
     const board = parse<{ status: KalshiFeedStatus; markets: KalshiMarket[] }>(event as MessageEvent);
     if (board) setStore({ status: board.status, markets: new Map(board.markets.map((market) => [market.ticker, market])) });
   });
-  source.addEventListener("quotes", (event) => {
+  stream.addEventListener("quotes", (event) => {
     const deltas = parse<PriceDelta[]>(event as MessageEvent);
     if (!deltas?.length) return;
     const markets = new Map(store.markets);
@@ -79,12 +85,20 @@ function open() {
     }
     setStore({ markets });
   });
-  source.addEventListener("status", (event) => {
+  stream.addEventListener("status", (event) => {
     const body = parse<{ status: KalshiFeedStatus }>(event as MessageEvent);
     if (body) setStore({ status: body.status });
   });
-  // EventSource reconnects on its own; the server resends a snapshot when it does.
-  source.onerror = () => { if (store.status !== "offline") setStore({ status: "offline" }); };
+  // EventSource reconnects on its own after a dropped connection, and the server resends a snapshot when it does.
+  // After an HTTP error (a 502 while the backend redeploys, a 429) the browser closes the stream for good, so open a
+  // new one after a backoff instead of leaving the feed offline until the page is reloaded.
+  stream.onerror = () => {
+    if (store.status !== "offline") setStore({ status: "offline" });
+    if (stream.readyState !== EventSource.CLOSED || source !== stream) return;
+    source = null;
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => { if (users > 0) open(); }, reconnectDelayMs(retries++));
+  };
 }
 
 function subscribe(listener: () => void) {
@@ -99,7 +113,7 @@ function useStore() {
     open();
     return () => {
       users--;
-      if (users === 0) closeTimer = setTimeout(() => { source?.close(); source = null; }, CLOSE_DELAY_MS);
+      if (users === 0) closeTimer = setTimeout(() => { clearTimeout(retryTimer); source?.close(); source = null; }, CLOSE_DELAY_MS);
     };
   }, []);
   return useSyncExternalStore(subscribe, () => store);
