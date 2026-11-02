@@ -5,8 +5,11 @@ import { DISTRICT_BASELINES, DISTRICT_CODES, districtState, ELECTORAL_VOTES, sta
 export type Side = "D" | "R";
 export type Outcome = Side | "T";
 export type Rating = "safe" | "likely" | "lean";
-/** A state set by hand: a party with a rating, or a tossup. */
-export type Pick = { party: Side; rating: Rating } | { party: "T" };
+/**
+ * A state set by hand: a party with a rating, or a tossup. `margin` is an exact result set by hand
+ * (signed, positive for Democrats, never 0); the rating then follows it.
+ */
+export type Pick = { party: Side; rating: Rating; margin?: number } | { party: "T" };
 
 export interface Scenario {
   /** Baseline presidential election; null is a blank map where every state starts as a tossup. */
@@ -37,6 +40,8 @@ export interface StateOutcome {
   baseMargin: number | null;
   winner: Outcome;
   rating: Rating | null;
+  /** The exact margin of a pick that sets one, else null. */
+  pickMargin: number | null;
   /** Where the result comes from: a pick, edited counties, the baseline plus swing, or a blank map. */
   source: StateSource;
   editedCounties: number;
@@ -150,13 +155,33 @@ export function rollUpState(code: string, scenario: CountyScenario, data: Presid
   return { margin, baseMargin, edited };
 }
 
+/** A pick with an exact margin: its party is the margin's sign and its rating follows the size. */
+export function marginPick(margin: number): Pick {
+  return margin === 0 ? { party: "T" } : { party: margin > 0 ? "D" : "R", rating: ratingFor(margin), margin };
+}
+
+/**
+ * Reads a margin typed by hand: "D+2.5", "R 3", "r+0.4", or a signed number ("2.5" is D+2.5,
+ * "-3" is R+3). Returns the signed margin rounded to a tenth, or null when it can't be read, is
+ * 0, or is wider than `limit`.
+ */
+export function parseMarginInput(text: string, limit = 100): number | null {
+  const match = /^\s*(?:([DR])\s*\+?\s*(\d+(?:\.\d*)?|\.\d+)|([+-]?)\s*(\d+(?:\.\d*)?|\.\d+))\s*$/i.exec(text);
+  if (!match) return null;
+  const size = round1(Number(match[2] ?? match[4]));
+  if (!(size > 0) || size > limit) return null;
+  const democratic = match[1] ? match[1].toUpperCase() === "D" : match[3] !== "-";
+  return democratic ? size : -size;
+}
+
 /** A state's call from its rolled-up margin, unless a pick replaces it. */
 export function callState(margin: number | null, edited: number, pick: Pick | undefined) {
   const computed = winnerOf(margin);
   const winner: Outcome = pick ? pick.party : computed;
   const rating = pick ? (pick.party === "T" ? null : pick.rating) : computed === "T" ? null : ratingFor(margin!);
+  const pickMargin = pick && pick.party !== "T" ? pick.margin ?? null : null;
   const source: StateSource = pick ? "pick" : margin === null ? "tossup" : edited > 0 ? "counties" : "baseline";
-  return { winner, rating, source };
+  return { winner, rating, pickMargin, source };
 }
 
 /** Plays out a scenario on a baseline election; see `rollUpState` for how counties add up. */
@@ -169,8 +194,8 @@ export function simulate(scenario: Scenario, data: PresidentYear | null): Simula
   for (const code of Object.keys(ELECTORAL_VOTES)) {
     const ev = statewideVotes(code);
     const { margin, baseMargin, edited } = rollUpState(code, scenario, data, counties);
-    const { winner, rating, source } = callState(margin, edited, scenario.picks[code]);
-    states[code] = { code, ev, margin, baseMargin, winner, rating, source, editedCounties: edited };
+    const { winner, rating, pickMargin, source } = callState(margin, edited, scenario.picks[code]);
+    states[code] = { code, ev, margin, baseMargin, winner, rating, pickMargin, source, editedCounties: edited };
     totals[winner] += ev;
   }
 
@@ -211,26 +236,33 @@ export function formatMargin(margin: number | null) {
   return `${margin > 0 ? "D" : "R"}+${size < 0.1 ? Math.max(size, 0.01).toFixed(2) : round1(size).toFixed(1)}`;
 }
 
-const binIndex = (margin: number) => MARGIN_BREAKS.filter((limit) => Math.abs(margin) >= limit).length;
-const ratingBin: Record<Rating, number> = { lean: 1, likely: 2, safe: 4 };
+/**
+ * The Past results ramp read as ratings: Safe takes its deepest step, Likely the middle, and Lean
+ * the lightest, like a race-ratings map.
+ */
+const ratingStep: Record<Rating, number> = { safe: 0, likely: 2, lean: 4 };
+
+/** Colour bin for a party at a rating ("D0" is Safe D), or "tossup". */
+export function ratingBin(winner: Outcome, rating: Rating | null) {
+  return winner === "T" || rating === null ? "tossup" : `${winner}${ratingStep[rating]}`;
+}
+
+/** Colour bin for a computed margin: its party at the rating that margin earns. */
+export function marginBin(margin: number) {
+  const side = winnerOf(margin);
+  return side === "T" ? "tossup" : ratingBin(side, ratingFor(margin));
+}
 
 /**
- * Colour bin per map feature, using the Past results colours so a simulated map reads like a real
- * one: party and margin for computed results, the rating's shade for picks, and "tossup".
+ * Colour bin per map feature, in the Past results colours: each state or county at its rating's
+ * shade (Safe deepest, Lean lightest), whether computed or picked, and "tossup".
  */
 export function simBins(result: SimulationResult, layer: "states" | "counties"): Map<string, string> {
   const bins = new Map<string, string>();
   if (layer === "counties") {
-    for (const [fips, margin] of result.counties) {
-      const side = winnerOf(margin);
-      bins.set(fips, side === "T" ? "tossup" : `${side}${binIndex(margin)}`);
-    }
+    for (const [fips, margin] of result.counties) bins.set(fips, marginBin(margin));
     return bins;
   }
-  for (const state of Object.values(result.states)) {
-    if (state.winner === "T") bins.set(state.code, "tossup");
-    else if (state.source === "pick") bins.set(state.code, `${state.winner}${ratingBin[state.rating!]}`);
-    else bins.set(state.code, `${state.winner}${binIndex(state.margin!)}`);
-  }
+  for (const state of Object.values(result.states)) bins.set(state.code, ratingBin(state.winner, state.rating));
   return bins;
 }

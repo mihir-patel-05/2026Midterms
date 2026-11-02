@@ -640,6 +640,7 @@ model DataSource {
   rawArtifacts        RawArtifact[]
   resultSnapshots     ResultSnapshot[]
   certificationEvents CertificationEvent[]
+  raceCalls           RaceCall[]
   marketSnapshots     MarketSnapshot[]
   indicatorSeries     IndicatorSeries[]
   districtProfiles    DistrictProfile[]
@@ -703,6 +704,7 @@ model Contest {
   certificationEvents CertificationEvent[]
   ingestionErrors     IngestionError[]
   marketSnapshots     MarketSnapshot[]
+  raceCalls           RaceCall[]
 
   @@unique([sourceId, sourceContestId])
   @@index([electionEventId, office, districtCode])
@@ -767,6 +769,7 @@ model Candidacy {
   legacyCandidate         Candidate?         @relation("LegacyCandidateCandidacies", fields: [legacyCandidateId], references: [id], onDelete: SetNull)
   legacyCandidateElection CandidateElection? @relation("LegacyCandidateElectionCandidacy", fields: [legacyCandidateElectionId], references: [id], onDelete: SetNull)
   votes                   CandidateVote[]
+  raceCalls               RaceCall[]
 
   @@unique([contestId, personId])
   @@unique([sourceId, sourceCandidateId, contestId])
@@ -962,6 +965,9 @@ model ResultSnapshot {
   publishedAt       DateTime?                 @map("published_at")
   isPartial         Boolean                   @default(false) @map("is_partial")
   isMock            Boolean                   @default(false) @map("is_mock")
+  // The source marked these numbers as rehearsal data (civicAPI's `test_data`). Served only when
+  // the API is told to show test data; removed by the first live document.
+  isTestData        Boolean                   @default(false) @map("is_test_data")
   notes             String?                   @db.Text
   createdAt         DateTime                  @default(now()) @map("created_at")
   updatedAt         DateTime                  @updatedAt @map("updated_at")
@@ -1048,6 +1054,69 @@ model CertificationEvent {
   @@map("certification_events")
 }
 
+enum RaceCallKind {
+  WINNER
+  ADVANCED // Advances to a runoff
+}
+
+// A race call: a media projection made by the source's decision desk (civicAPI's own desk), never
+// a certification and never copied from a broadcast. Append-only: a withdrawn call gets
+// retracted_at, and a new call is a new row. Kept apart from certification_events (PLAN.md §6).
+model RaceCall {
+  id             String       @id @default(uuid())
+  contestId      String       @map("contest_id")
+  candidacyId    String       @map("candidacy_id")
+  sourceId       String       @map("source_id")
+  kind           RaceCallKind
+  // The source's call time when it gives one (civicAPI's called_at); otherwise when we first saw the call.
+  calledAt       DateTime     @map("called_at")
+  calledAtSource Boolean      @default(false) @map("called_at_source")
+  firstSeenAt    DateTime     @map("first_seen_at")
+  retractedAt    DateTime?    @map("retracted_at")
+  rawArtifactId  String?      @map("raw_artifact_id")
+  isTestData     Boolean      @default(false) @map("is_test_data")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  contest   Contest    @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  candidacy Candidacy  @relation(fields: [candidacyId], references: [id], onDelete: Restrict)
+  source    DataSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([contestId, retractedAt])
+  @@index([sourceId, calledAt])
+  @@map("race_calls")
+}
+
+// Election-night network streams for the War Room's Live coverage panel (PLAN.md §4.7). Admins set
+// these on the night; the web build never needs to change. Embeds use the official YouTube player.
+model LiveStream {
+  id          String   @id @default(uuid())
+  // Stable key, e.g. "abc-news". Outlets are listed alphabetically by name, never ranked.
+  key         String   @unique
+  name        String
+  // YouTube channel id (UC…): the player shows that channel's current live stream.
+  channelId   String?  @map("channel_id")
+  // A specific live video, which wins over the channel when set.
+  videoId     String?  @map("video_id")
+  // Link-out for outlets that do not stream free on YouTube, and the "Watch on YouTube" fallback.
+  watchUrl    String   @map("watch_url")
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("live_streams")
+}
+
+// Small key/value switches admins flip without a deploy (e.g. hiding the Live coverage panel).
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
 // Intel v2 batch 1: market history, economic indicators, district profiles,
 // and the agent run log. See docs/DATABASE_SCHEMA.md#intel-v2-proposed-schema.
 
@@ -1074,6 +1143,7 @@ enum IndicatorFrequency {
   WEEKLY
   MONTHLY
   QUARTERLY
+  ANNUAL // Census state imports by calendar year (tariff exposure)
 }
 
 enum AgentKind {

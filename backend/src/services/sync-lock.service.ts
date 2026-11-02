@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import type { PrismaClient } from '@prisma/client';
 import { prisma } from '../config/database.js';
 
 // A full sync makes ~2 requests per funded candidate (~4h at 1,000 req/hr).
@@ -36,11 +37,12 @@ export async function recoverStaleSyncLogs(): Promise<number> {
 export async function acquireSyncLease(
   name = 'fec-full',
   leaseMs = DEFAULT_LEASE_MS,
+  db: PrismaClient = prisma,
 ): Promise<string | null> {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + leaseMs);
 
-  const rows = await prisma.$queryRaw<Array<{ token: string }>>`
+  const rows = await db.$queryRaw<Array<{ token: string }>>`
     INSERT INTO "sync_leases" ("name", "token", "expires_at", "created_at", "updated_at")
     VALUES (${name}, ${token}, ${expiresAt}, NOW(), NOW())
     ON CONFLICT ("name") DO UPDATE
@@ -54,6 +56,6 @@ export async function acquireSyncLease(
   return rows[0]?.token === token ? token : null;
 }
 
-export async function releaseSyncLease(name: string, token: string): Promise<void> {
-  await prisma.syncLease.deleteMany({ where: { name, token } });
+export async function releaseSyncLease(name: string, token: string, db: PrismaClient = prisma): Promise<void> {
+  await db.syncLease.deleteMany({ where: { name, token } });
 }

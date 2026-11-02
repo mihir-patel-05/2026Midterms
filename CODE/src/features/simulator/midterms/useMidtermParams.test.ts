@@ -7,7 +7,7 @@ describe("midterm links", () => {
   it("leave the defaults out", () => {
     const search = new URLSearchParams();
     writeCountyScenario(search, EMPTY_SENATE);
-    writeHouse(search, { base: 2024, picks: {} });
+    writeHouse(search, { base: 2024, swing: 0, picks: {} });
     expect(search.toString()).toBe("");
   });
 
@@ -31,11 +31,12 @@ describe("midterm links", () => {
   });
 
   it("round-trip the House side", () => {
-    const house: HouseScenario = { base: null, picks: { "PA-07": "D", "AK-00": "R", "CA-13": "T" } };
+    const house: HouseScenario = { base: null, swing: -2.5, picks: { "PA-07": "D", "AK-00": "R", "CA-13": "T" } };
     const search = new URLSearchParams();
     writeHouse(search, house);
     expect(search.get("h")).toBe("PA07D,AK00R,CA13T");
     expect(search.get("hbase")).toBe("blank");
+    expect(search.get("hswing")).toBe("-2.5");
     expect(parseHouse(new URLSearchParams(search.toString()))).toEqual(house);
   });
 

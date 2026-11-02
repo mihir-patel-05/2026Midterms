@@ -55,15 +55,45 @@ export function rateLimitDelay(retryAfter: string | null, attempt: number): numb
   return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 60) * 1000 : 2000 * 2 ** attempt;
 }
 
+/**
+ * Spaces request starts at least `spacingMs` apart across every caller, and `pause` holds
+ * all of them back after a 429. The catalog's three workers otherwise fire as fast as Kalshi
+ * answers, well past its per-second read limit.
+ */
+export class RequestPacer {
+  private nextSlot = 0;
+
+  constructor(private readonly spacingMs: number) {}
+
+  async wait(): Promise<void> {
+    const now = Date.now();
+    const slot = Math.max(now, this.nextSlot);
+    this.nextSlot = slot + this.spacingMs;
+    if (slot > now) await sleep(slot - now);
+  }
+
+  pause(ms: number): void {
+    this.nextSlot = Math.max(this.nextSlot, Date.now() + ms);
+  }
+}
+
+// About 100 lookups a refresh at 5 a second is 20 seconds, every 30 minutes. Kalshi allows 20
+// reads a second, and the production and testing backends both refresh.
+const restPacer = new RequestPacer(200);
+
 async function getJson<T>(url: string): Promise<T | null> {
   for (let attempt = 0; ; attempt++) {
     let delay = 500 * 2 ** attempt;
     try {
+      await restPacer.wait();
       const response = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } });
       if (response.status === 404) return null;
       if (response.ok) return response.json() as Promise<T>;
       if ((response.status !== 429 && response.status < 500) || attempt >= 4) throw new Error(`Kalshi REST returned ${response.status}`);
-      if (response.status === 429) delay = rateLimitDelay(response.headers.get('retry-after'), attempt);
+      if (response.status === 429) {
+        delay = rateLimitDelay(response.headers.get('retry-after'), attempt);
+        restPacer.pause(delay);
+      }
     } catch (error) {
       if (attempt >= 4 || (error instanceof Error && /returned 4\d\d/.test(error.message))) throw error;
     }
@@ -214,7 +244,7 @@ export class KalshiLiveFeed extends EventEmitter {
   private async refreshCatalog(): Promise<void> {
     let delay = CATALOG_REFRESH_MS;
     try {
-      const found = await buildCatalog(env.KALSHI_REST_URL, getJson, (note) => {
+      const { markets: found, failed, error } = await buildCatalog(env.KALSHI_REST_URL, getJson, (note) => {
         if (this.catalogNotes.has(note)) return;
         this.catalogNotes.add(note);
         console.log(`📈 Kalshi: ${note}; skipped`);
@@ -223,7 +253,11 @@ export class KalshiLiveFeed extends EventEmitter {
         console.warn('⚠️  Could not load candidates for Kalshi party matching:', error instanceof Error ? error.message : error);
         return new Map<string, RaceCandidateName[]>();
       });
-      const markets = assignParties(found, candidates);
+      const markets = mergePartialCatalog(assignParties(found, candidates), failed > 0 ? [...this.catalog.values()] : []);
+      if (failed > 0) {
+        console.error(`⚠️  Kalshi catalog refresh incomplete: ${failed} lookup(s) failed (${error}); kept the previous markets for them, retrying in 5 minutes`);
+        delay = CATALOG_RETRY_MS;
+      }
       const relabelled = markets.some((market) => {
         const previous = this.catalog.get(market.ticker);
         return previous !== undefined && (previous.party !== market.party || previous.race !== market.race);
@@ -231,13 +265,13 @@ export class KalshiLiveFeed extends EventEmitter {
       const added = this.setCatalog(markets);
       const races = new Set(markets.map((market) => market.race)).size;
       console.log(`📈 Kalshi catalog: ${markets.length} markets across ${races} races (${added.length} new)`);
-      this.logMissingSeats(markets);
+      // A partial catalog would list races as missing that were only not looked up.
+      if (failed === 0) this.logMissingSeats(markets);
       if (added.length > 0 || relabelled) {
         this.subscribe(added);
         this.emit('snapshot');
       }
     } catch (error) {
-      // Keep the previous catalog; a partial one would drop races from the board.
       console.error('⚠️  Kalshi catalog refresh failed:', error instanceof Error ? error.message : error);
       delay = CATALOG_RETRY_MS;
     }
@@ -351,6 +385,15 @@ export class KalshiLiveFeed extends EventEmitter {
     timer.unref();
     this.timers.add(timer);
   }
+}
+
+/**
+ * A refresh with failed lookups adds what it found but drops nothing: markets it could not
+ * look up are kept from the previous catalog, so the board never loses a race to a 429.
+ */
+export function mergePartialCatalog(found: CatalogMarket[], previous: CatalogMarket[]): CatalogMarket[] {
+  const seen = new Set(found.map((market) => market.ticker));
+  return [...found, ...previous.filter((market) => !seen.has(market.ticker))];
 }
 
 export const kalshiLiveFeed = new KalshiLiveFeed();

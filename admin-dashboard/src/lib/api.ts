@@ -103,6 +103,11 @@ class AdminAPI {
     sessionStorage.removeItem('adminKey');
   }
 
+  /** Any admin endpoint, for feature modules that keep their own calls (see liveStreamsAPI). */
+  request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.fetch<T>(endpoint, options);
+  }
+
   private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -204,5 +209,26 @@ class AdminAPI {
 }
 
 export const adminAPI = new AdminAPI();
+
+interface LiveStreamRow {
+  id: string;
+  key: string;
+  name: string;
+  channelId: string | null;
+  videoId: string | null;
+  watchUrl: string;
+  isEnabled: boolean;
+  note: string | null;
+  updatedAt: string;
+}
+
+/** Election-night Live coverage outlets (PLAN.md §4.7): /api/admin/live-streams. */
+export const liveStreamsAPI = {
+  list: () => adminAPI.request<{ shown: boolean; streams: LiveStreamRow[] }>('/live-streams'),
+  update: (key: string, change: { input?: string | null; isEnabled?: boolean }) =>
+    adminAPI.request<{ stream: LiveStreamRow }>(`/live-streams/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify(change) }),
+  setPanel: (shown: boolean) => adminAPI.request<{ shown: boolean }>('/live-streams/panel', { method: 'PUT', body: JSON.stringify({ shown }) }),
+};
+export type { LiveStreamRow };
 export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult, Deadline, DeadlineInput, DeadlinesResponse };
 

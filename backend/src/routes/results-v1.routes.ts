@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import compression from 'compression';
 import { Router, type Request, type Response } from 'express';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
@@ -26,7 +27,33 @@ const readModelConfig = (): ReadModelConfig => ({
   mockEnabled: env.RESULTS_PROVIDER_MOCK_ENABLED,
   enabledProviderKeys: env.RESULTS_PROVIDER_ENABLED_IDS,
   staleAfterSeconds: env.RESULTS_STALE_AFTER_SECONDS,
+  showTestData: env.CIVICAPI_ACCEPT_TEST_DATA,
 });
+
+/**
+ * Database reads are cached for 10 seconds per URL, so election-night traffic costs one read per
+ * route every 10 seconds however many browsers poll. ETags still let browsers skip the body.
+ */
+export const RESULTS_CACHE_MS = 10_000;
+interface CachedRead { at: number; promise: Promise<unknown> }
+const readCache = new Map<string, CachedRead>();
+
+export function cachedRead(key: string, load: () => Promise<unknown>, now = Date.now()): Promise<unknown> {
+  const hit = readCache.get(key);
+  if (hit && now - hit.at < RESULTS_CACHE_MS) return hit.promise;
+  const promise = load();
+  readCache.set(key, { at: now, promise });
+  // A failed read is not cached, so the next request tries again.
+  promise.catch(() => {
+    if (readCache.get(key)?.promise === promise) readCache.delete(key);
+  });
+  if (readCache.size > 1000) readCache.clear();
+  return promise;
+}
+
+export function clearResultsCache() {
+  readCache.clear();
+}
 
 export function etagFor(body: unknown) {
   return `"${createHash('sha256').update(JSON.stringify(body)).digest('hex')}"`;
@@ -60,6 +87,8 @@ router.use((_req, res, next) => {
   if (!visible()) return res.status(404).json({ error: 'Not Found' });
   next();
 });
+// A bootstrap of every race is large and repetitive; it compresses about tenfold.
+router.use(compression());
 
 export function mockBootstrapPayload() {
   return {
@@ -94,7 +123,9 @@ async function respondFromDatabase(
 
 router.get('/bootstrap', (req, res) => {
   if (!fromDatabase()) return respond(req, res, mockBootstrapPayload());
-  return respondFromDatabase(req, res, () => dbBootstrapPayload(prisma, readModelConfig()), { status: 503, body: NO_SOURCE });
+  // `?units=none` leaves out counties, which come from /contests/:id/results/current for one race.
+  const includeUnits = req.query.units !== 'none';
+  return respondFromDatabase(req, res, () => cachedRead(`bootstrap:${includeUnits}`, () => dbBootstrapPayload(prisma, readModelConfig(), new Date(), { includeUnits })), { status: 503, body: NO_SOURCE });
 });
 
 export function mockCurrentResult(contestId: string) {
@@ -105,7 +136,7 @@ export function mockCurrentResult(contestId: string) {
 
 router.get('/contests/:id/results/current', (req, res) => {
   if (fromDatabase()) {
-    return respondFromDatabase(req, res, () => dbCurrentResult(prisma, readModelConfig(), req.params.id), {
+    return respondFromDatabase(req, res, () => cachedRead(`contest:${req.params.id}`, () => dbCurrentResult(prisma, readModelConfig(), req.params.id)), {
       status: 404, body: { error: 'Contest not found' },
     });
   }
@@ -121,7 +152,7 @@ export function mockSourceStatusPayload() {
 
 router.get('/sources/status', (req, res) => {
   if (!fromDatabase()) return respond(req, res, mockSourceStatusPayload());
-  return respondFromDatabase(req, res, () => dbSourceStatusPayload(prisma, readModelConfig()), { status: 503, body: NO_SOURCE });
+  return respondFromDatabase(req, res, () => cachedRead('sources', () => dbSourceStatusPayload(prisma, readModelConfig())), { status: 503, body: NO_SOURCE });
 });
 
 export default router;

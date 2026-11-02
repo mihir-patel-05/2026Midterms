@@ -55,7 +55,25 @@ export function partyCode(party: string | null): string {
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : '');
 const record = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-const normalized = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** Lower case, no accents or punctuation, single spaces: "Pete  Ricketts" and "pete ricketts" agree. */
+export const normalizedName = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const normalized = normalizedName;
+
+/** Placeholder rows ("Write-ins", "Scattering") that are no candidate. */
+export const isPlaceholderCandidate = (name: string) => NOT_A_CANDIDATE.test(name.trim());
+
+/**
+ * One civicAPI candidate row as the ballot sync stores it: the party (null for a declared write-in),
+ * its code, and the id that `Candidacy.sourceCandidateId` holds. Results use the same id, so the two agree.
+ */
+export function candidateIdentity(row: Record<string, unknown>): { name: string; party: string | null; partyCode: string; writeIn: boolean; sourceCandidateId: string } {
+  const name = text(row.name);
+  const listed = text(row.party) || null;
+  const writeIn = WRITE_IN.test(listed ?? '');
+  const party = writeIn ? null : listed;
+  const code = partyCode(party);
+  return { name, party, partyCode: code, writeIn, sourceCandidateId: text(row.candidate_id) || `name:${normalized(name)}|${code}` };
+}
 
 /** `pa-07` → PA-07, `ak-al` → AK-00, `pa` → PA-SEN; null for a key that is no race on the ballot. */
 export function raceFromRegion(regionKey: string, officeType: Race['officeType'], cycle: number): Race | null {
@@ -87,12 +105,8 @@ function parseCandidates(value: unknown, label: string, issues: string[]): Ballo
       continue;
     }
     if (NOT_A_CANDIDATE.test(name)) continue;
-    const listed = text(row.party) || null;
     // civicAPI gives declared write-ins the party "Write-In"; that is no party.
-    const writeIn = WRITE_IN.test(listed ?? '');
-    const party = writeIn ? null : listed;
-    const code = partyCode(party);
-    const sourceCandidateId = text(row.candidate_id) || `name:${normalized(name)}|${code}`;
+    const { party, partyCode: code, writeIn, sourceCandidateId } = candidateIdentity(row);
     if (seen.has(sourceCandidateId)) continue;
     seen.add(sourceCandidateId);
     candidates.push({ sourceCandidateId, name, party, partyCode: code, isIncumbent: row.incumbent === true || row.incumbent === 'true', writeIn });

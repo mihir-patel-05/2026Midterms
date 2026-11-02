@@ -6,6 +6,7 @@ import {
   SourceStatusSchema,
   type CandidateResult,
   type ContestResult,
+  type RaceCall,
   type CoverageStatusSchema,
   type ElectionResultsResponse,
   type FreshnessStatusSchema,
@@ -26,6 +27,13 @@ export interface ReadModelConfig {
   mockEnabled: boolean;
   enabledProviderKeys: string[];
   staleAfterSeconds: number;
+  /** Serve snapshots a source marked as rehearsal data (CIVICAPI_ACCEPT_TEST_DATA). Off in production. */
+  showTestData?: boolean;
+}
+
+export interface ReadOptions {
+  /** False leaves out county and other sub-units (`?units=none`), so a bootstrap of every race stays small. */
+  includeUnits?: boolean;
 }
 
 type Coverage = z.infer<typeof CoverageStatusSchema>;
@@ -37,12 +45,20 @@ const WITHHELD_LIMITATION =
 const MOCK_LIMITATION =
   'Results are fictional mock data; no live election provider is connected.';
 const FALLBACK_MOCK_DISCLAIMER = 'FICTIONAL MOCK DATA — not official election results.';
+const TEST_DATA_HELD =
+  'The source is serving test data for this contest; it is held back until live numbers arrive.';
+const TEST_DATA_SHOWN =
+  'TEST DATA: the source marked these numbers as a rehearsal. They are not election results.';
+const ESTIMATE_LIMITATION =
+  'Reporting progress is the source\'s estimate of the share of the expected vote counted, not a precinct count.';
+const FEC_ID = /^[HSP][0-9A-Z]{8}$/;
 
 export const contestInclude = {
   electionEvent: true,
   electionDistrict: true,
   source: true,
   candidacies: { include: { person: true, party: true } },
+  raceCalls: { where: { retractedAt: null }, orderBy: { calledAt: 'asc' } },
   currentSnapshot: {
     include: {
       rawArtifact: { select: { sourceUrl: true } },
@@ -51,6 +67,22 @@ export const contestInclude = {
     },
   },
 } satisfies Prisma.ContestInclude;
+
+/** The same shape; without units only the top-level rows are loaded. */
+export function contestIncludeFor(options: ReadOptions = {}) {
+  if (options.includeUnits !== false) return contestInclude;
+  const topLevel = { reportingUnit: { parentId: null } };
+  return {
+    ...contestInclude,
+    currentSnapshot: {
+      include: {
+        rawArtifact: { select: { sourceUrl: true } },
+        candidateVotes: { where: { voteType: 'TOTAL', ...topLevel } },
+        contestMetrics: { where: topLevel, include: { reportingUnit: { include: { geographyUnit: true } } } },
+      },
+    },
+  } satisfies Prisma.ContestInclude;
+}
 
 export type ContestRecord = Prisma.ContestGetPayload<{ include: typeof contestInclude }>;
 type SourceRecord = NonNullable<ContestRecord['source']>;
@@ -229,9 +261,12 @@ function progressCount(reported: number | null, total: number | null, sourcePerc
 }
 
 function toProgress(metric: MetricRecord): ReportingProgress {
+  const hasCounts = metric.precinctsTotal !== null || metric.reportingUnitsTotal !== null;
   return {
     reportingUnits: progressCount(metric.reportingUnitsReporting, metric.reportingUnitsTotal),
     precincts: progressCount(metric.precinctsReporting, metric.precinctsTotal, metric.reportingPercentage?.toNumber()),
+    // A share with no counts behind it is the source's estimate; it is never turned into counts.
+    estimatedPercentage: hasCounts ? null : metric.reportingPercentage?.toNumber() ?? null,
   };
 }
 
@@ -286,6 +321,17 @@ function buildContestResult(
 
   const root = contestLevelMetric(contest, snapshot.contestMetrics);
   const rootResults = unitResults(root);
+  const listed = new Set(candidacies.map((candidacy) => candidacy.id));
+  const calls: RaceCall[] = contest.raceCalls
+    .filter((call) => call.isTestData === snapshot.isTestData && listed.has(call.candidacyId))
+    .map((call) => ({
+      candidateId: personByCandidacy.get(call.candidacyId)!,
+      candidacyId: call.candidacyId,
+      kind: call.kind,
+      calledAt: iso(call.calledAt),
+      calledAtIsSourceTime: call.calledAtSource,
+      calledBy: `${contest.source?.name ?? 'Source'} decision desk`,
+    }));
   return {
     snapshotId: snapshot.id,
     election: {
@@ -307,15 +353,18 @@ function buildContestResult(
       districtCode: contest.districtCode ?? undefined,
     },
     reportingUnit: toReportingUnit(root, contest),
-    candidates: candidacies.map((candidacy) => ({
+    // Served as the position in ballot order (1, 2, …): the ballot sync stores civicAPI's order from 0.
+    candidates: candidacies.map((candidacy, position) => ({
       id: candidacy.personId,
       candidacyId: candidacy.id,
       displayName: candidacy.ballotName ?? candidacy.person.displayName,
       party: candidacy.party
         ? { name: candidacy.party.name, abbreviation: candidacy.party.abbreviation ?? undefined }
         : null,
-      ballotOrder: candidacy.ballotOrder ?? undefined,
+      ballotOrder: candidacy.ballotOrder === null ? undefined : position + 1,
       isWriteIn: candidacy.ballotStatus === 'WRITE_IN',
+      fecCandidateId: candidacy.fecCandidateId && FEC_ID.test(candidacy.fecCandidateId) ? candidacy.fecCandidateId : undefined,
+      isIncumbent: candidacy.isIncumbent,
     })),
     candidateResults: rootResults.candidateResults,
     reportingUnitResults: snapshot.contestMetrics
@@ -334,6 +383,8 @@ function buildContestResult(
     status,
     certificationState,
     updatedAt,
+    calls,
+    isTestData: snapshot.isTestData,
   };
 }
 
@@ -386,6 +437,7 @@ export function toResultsResponse(
   };
 
   if (!snapshot || snapshot.reportingStatus === 'UNAVAILABLE') return unavailable();
+  if (snapshot.isTestData && !config.showTestData) return unavailable([TEST_DATA_HELD]);
 
   let data: ContestResult;
   try {
@@ -402,6 +454,10 @@ export function toResultsResponse(
       freshness: freshnessFor(snapshot, source, now, config),
       coverage: snapshot.isPartial ? 'PARTIAL' : 'COMPLETE',
       request,
+      limitations: [
+        ...(snapshot.isTestData ? [TEST_DATA_SHOWN] : []),
+        ...(data.reportingProgress.estimatedPercentage != null ? [ESTIMATE_LIMITATION] : []),
+      ],
     }),
   };
   const parsed = ElectionResultsResponseSchema.safeParse(response);
@@ -454,14 +510,14 @@ function aggregateCoverage(values: Coverage[]): Coverage {
 }
 
 /** Null when no eligible source exists. */
-export async function dbBootstrapPayload(db: PrismaClient, config: ReadModelConfig, now = new Date()) {
+export async function dbBootstrapPayload(db: PrismaClient, config: ReadModelConfig, now = new Date(), options: ReadOptions = {}) {
   const sources = await loadServableSources(db, config, now);
   const primary = primarySource(sources);
   if (!primary) return null;
 
   const contests = await db.contest.findMany({
     where: { source: servableSourceWhere(config) },
-    include: contestInclude,
+    include: contestIncludeFor(options),
     orderBy: [{ stateCode: 'asc' }, { office: 'asc' }, { districtCode: 'asc' }, { id: 'asc' }],
   });
   const stateNames = await loadStateNames(db, contests.map((contest) => contest.stateCode));

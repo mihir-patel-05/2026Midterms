@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ELECTORAL_VOTES } from "../electoralVotes";
 import type { Outcome } from "../model";
-import { parseCountyScenario, setParam, writeCountyScenario, type SimLayer } from "../useSimulatorParams";
+import { clamp, parseCountyScenario, round1, setParam, SWING_LIMIT, writeCountyScenario, type SimLayer } from "../useSimulatorParams";
 import type { SenateScenario } from "./model";
 import { isHouseDistrict, isSenateRace } from "./races2026";
 
@@ -12,6 +12,8 @@ export type HouseBase = 2024 | null;
 
 export interface HouseScenario {
   base: HouseBase;
+  /** Points of margin toward Democrats added to every contested seat's baseline margin. */
+  swing: number;
   /** "PA-07" → winner set by hand. */
   picks: Record<string, Outcome>;
 }
@@ -53,11 +55,17 @@ export function parseHousePicks(value: string | null) {
 }
 
 export function parseHouse(search: URLSearchParams): HouseScenario {
-  return { base: search.get("hbase") === "blank" ? null : 2024, picks: parseHousePicks(search.get("h")) };
+  const swing = Number(search.get("hswing"));
+  return {
+    base: search.get("hbase") === "blank" ? null : 2024,
+    swing: Number.isFinite(swing) ? clamp(round1(swing), SWING_LIMIT) : 0,
+    picks: parseHousePicks(search.get("h")),
+  };
 }
 
 export function writeHouse(search: URLSearchParams, house: HouseScenario) {
   setParam(search, "hbase", house.base === null ? "blank" : "");
+  setParam(search, "hswing", house.swing ? String(round1(house.swing)) : "");
   setParam(search, "h", Object.entries(house.picks).map(([code, winner]) => `${code.replace("-", "")}${winner}`).join(","));
 }
 
@@ -65,7 +73,8 @@ export const parseSenate = (search: URLSearchParams) => parseCountyScenario(sear
 
 /**
  * The midterm scenario lives in the URL like the electoral college one: the Senate side uses the same
- * keys (base, swing, ss, c, p), limited to the 2026 race states, and the House side adds h and hbase.
+ * keys (base, swing, ss, c, p), limited to the 2026 race states, and the House side adds h, hbase,
+ * and hswing.
  */
 export function useMidtermParams() {
   const [searchParams, setSearchParams] = useSearchParams();

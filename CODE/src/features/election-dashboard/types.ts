@@ -3,7 +3,9 @@
  * Keep enum values and normalized field names synchronized with that schema.
  * Zod validation remains server-owned; the UI consumes validated responses.
  */
-export const RESULT_CONTRACT_VERSION = "1.0.0" as const;
+export const RESULT_CONTRACT_VERSION = "1.1.0" as const;
+/** Any 1.x payload is readable: minor versions only add optional fields. */
+export const isSupportedContract = (version: string) => /^1\.\d+\.\d+$/.test(version);
 
 export type DataMode = "MOCK" | "LIVE";
 export type ElectionType = "PRIMARY" | "GENERAL" | "RUNOFF" | "SPECIAL";
@@ -56,6 +58,21 @@ export interface CandidateContract {
   party: { name: string; abbreviation?: string } | null;
   ballotOrder?: number;
   isWriteIn: boolean;
+  /** 1.1.0 */
+  fecCandidateId?: string;
+  /** 1.1.0 */
+  isIncumbent?: boolean;
+}
+
+/** 1.1.0: a call by the source's decision desk; a projection, never a certification. */
+export interface RaceCallContract {
+  candidateId: string;
+  candidacyId: string;
+  kind: "WINNER" | "ADVANCED";
+  calledAt: string;
+  /** False when the source gave no call time and calledAt is when it was first seen. */
+  calledAtIsSourceTime: boolean;
+  calledBy: string;
 }
 
 export interface ReportingUnitContract {
@@ -86,6 +103,8 @@ export interface ProgressCountContract {
 export interface ReportingProgressContract {
   reportingUnits: ProgressCountContract;
   precincts: ProgressCountContract;
+  /** 1.1.0: the source's estimate of the share of the expected vote counted (no counts behind it). */
+  estimatedPercentage?: number | null;
 }
 
 export interface SourceStatusContract {
@@ -103,7 +122,8 @@ export interface SourceStatusContract {
 }
 
 export interface ResponseMetadataContract {
-  contractVersion: typeof RESULT_CONTRACT_VERSION;
+  /** Any 1.x; see isSupportedContract. */
+  contractVersion: string;
   generatedAt: string;
   updatedAt: string;
   dataMode: DataMode;
@@ -181,7 +201,15 @@ export interface ElectionResultsResponseContract {
     reportingUnitResults: Array<{
       reportingUnit: ReportingUnitContract;
       reportingProgress: ReportingProgressContract;
+      candidateResults: CandidateResultContract[];
+      totalVotes: number;
+      status: ResultStatus;
+      updatedAt: string;
     }>;
+    /** 1.1.0 */
+    calls?: RaceCallContract[];
+    /** 1.1.0 */
+    isTestData?: boolean;
   }) | null;
   meta: ResponseMetadataContract;
 }

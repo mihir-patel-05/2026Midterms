@@ -1,0 +1,476 @@
+{
+ "election_name": "United States House of Representatives",
+ "election_type": "House of Representatives",
+ "election_scope": "General",
+ "election_date": "2026-11-03T05:00:00.000Z",
+ "country": "US",
+ "province": "US",
+ "district": null,
+ "municipality": null,
+ "polls_open": null,
+ "polls_close": null,
+ "is_disputed": false,
+ "has_map": false,
+ "registered_voters": 217223010,
+ "percent_reporting": 59.8,
+ "test_data": true,
+ "last_updated": "2026-10-31T23:13:12.021Z",
+ "round": 1,
+ "candidates": [
+  {
+   "name": "Democrats",
+   "candidate_id": 221370,
+   "party": "Democratic",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#4874a3",
+   "votes": 37184051,
+   "seats": 148,
+   "percent": 49.83
+  },
+  {
+   "name": "Republicans",
+   "candidate_id": 221386,
+   "party": "Republican",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#c6606b",
+   "votes": 36188607,
+   "seats": 164,
+   "percent": 48.49
+  },
+  {
+   "name": "America First",
+   "candidate_id": 221366,
+   "party": "America First",
+   "incumbent": false,
+   "major_candidate": true,
+   "winner": false,
+   "advanced": false,
+   "color": "#8B0000",
+   "votes": 3133,
+   "seats": 0,
+   "percent": 0
+  }
+ ],
+ "region_results": {
+  "ak-al": {
+   "name": "Alaska's At-large Congressional District",
+   "type": "Congressional District",
+   "fill": "#404040",
+   "election_id": 86915,
+   "percent_reporting": 0,
+   "candidates": [
+    {
+     "name": "Nick Begich III",
+     "candidate_id": 219754,
+     "party": "Republican",
+     "votes": 0,
+     "percent": 0,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": true,
+     "major_candidate": false
+    },
+    {
+     "name": "Eric Hafner",
+     "candidate_id": 219755,
+     "party": "Democratic",
+     "votes": 0,
+     "percent": 0,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "James C. \u201cJim\u201d McDermott",
+     "candidate_id": 219756,
+     "party": "Libertarian",
+     "votes": 0,
+     "percent": 0,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bill Hill",
+     "candidate_id": 219757,
+     "party": "Nonpartisan",
+     "votes": 0,
+     "percent": 0,
+     "color": "#9A36FF",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ca-22": {
+   "name": "California's 22nd Congressional District",
+   "type": "Congressional District",
+   "fill": "#404040",
+   "election_id": 86971,
+   "percent_reporting": 0,
+   "candidates": [
+    {
+     "name": "Randy Villegas",
+     "candidate_id": 219895,
+     "party": "Democratic",
+     "votes": 0,
+     "percent": 0,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "David Valadao",
+     "candidate_id": 219896,
+     "party": "Republican",
+     "votes": 0,
+     "percent": 0,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "de-al": {
+   "name": "Delaware's At-large Congressional District",
+   "type": "Congressional District",
+   "fill": "#4874a3",
+   "election_id": 87035,
+   "percent_reporting": 72.7,
+   "candidates": [
+    {
+     "name": "Sarah McBride",
+     "candidate_id": 220066,
+     "party": "Democratic",
+     "votes": 154697,
+     "percent": 59.28,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Joseph \"Dr. Joe\" Arminio",
+     "candidate_id": 220067,
+     "party": "Republican",
+     "votes": 106249,
+     "percent": 40.72,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ny-01": {
+   "name": "New York's 1st Congressional District",
+   "type": "Congressional District",
+   "fill": "#c6606b",
+   "election_id": 87303,
+   "percent_reporting": 41,
+   "candidates": [
+    {
+     "name": "Nick LaLota",
+     "candidate_id": 220832,
+     "party": "Republican",
+     "votes": 56244,
+     "percent": 55.78,
+     "color": "#c6606b",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Chris Gallant",
+     "candidate_id": 220831,
+     "party": "Democratic",
+     "votes": 44584,
+     "percent": 44.22,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "pa-01": {
+   "name": "Pennsylvania's 1st Congressional District",
+   "type": "Congressional District",
+   "fill": "#c6606b",
+   "election_id": 87376,
+   "percent_reporting": 57.5,
+   "candidates": [
+    {
+     "name": "Brian Fitzpatrick",
+     "candidate_id": 221016,
+     "party": "Republican",
+     "votes": 100398,
+     "percent": 52.77,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bob Harvie",
+     "candidate_id": 221015,
+     "party": "Democratic",
+     "votes": 89865,
+     "percent": 47.23,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "pa-07": {
+   "name": "Pennsylvania's 7th Congressional District",
+   "type": "Congressional District",
+   "fill": "#c6606b",
+   "election_id": 87382,
+   "percent_reporting": 45.5,
+   "candidates": [
+    {
+     "name": "Ryan Mackenzie",
+     "candidate_id": 221028,
+     "party": "Republican",
+     "votes": 72933,
+     "percent": 50.05,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bob Brooks",
+     "candidate_id": 221027,
+     "party": "Democratic",
+     "votes": 72791,
+     "percent": 49.95,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "tx-28": {
+   "name": "Texas's 28th Congressional District",
+   "type": "Congressional District",
+   "fill": "#4874a3",
+   "election_id": 56011,
+   "percent_reporting": 87.8,
+   "candidates": [
+    {
+     "name": "Henry Cuellar",
+     "candidate_id": 140489,
+     "party": "Democratic",
+     "votes": 113734,
+     "percent": 53.46,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": true,
+     "major_candidate": false
+    },
+    {
+     "name": "Tano Tijerina",
+     "candidate_id": 140488,
+     "party": "Republican",
+     "votes": 90244,
+     "percent": 42.42,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Marl\u00f3n Dur\u00e1n",
+     "candidate_id": 1175407,
+     "party": "Green",
+     "votes": 8749,
+     "percent": 4.11,
+     "color": "#09ad00",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "va-02": {
+   "name": "Virginia's 2nd Congressional District",
+   "type": "Congressional District",
+   "fill": "#c6606b",
+   "election_id": 87462,
+   "percent_reporting": 93.9,
+   "candidates": [
+    {
+     "name": "Jen Kiggans",
+     "candidate_id": 221202,
+     "party": "Republican",
+     "votes": 131803,
+     "percent": 46.86,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Elaine Luria",
+     "candidate_id": 221201,
+     "party": "Democratic",
+     "votes": 130721,
+     "percent": 46.48,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Write-In",
+     "candidate_id": 999754,
+     "party": "Nonpartisan",
+     "votes": 6368,
+     "percent": 2.26,
+     "color": "#9A36FF",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "J. Matt Baker",
+     "candidate_id": 221204,
+     "party": "Independent",
+     "votes": 6328,
+     "percent": 2.25,
+     "color": "#af81a2",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Geral D. \"Bishop\" Staten",
+     "candidate_id": 221203,
+     "party": "Independent",
+     "votes": 6026,
+     "percent": 2.14,
+     "color": "#63c660",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ne-02": {
+   "name": "Nebraska's 2nd Congressional District",
+   "type": "Congressional District",
+   "fill": "#4874a3",
+   "election_id": 87252,
+   "percent_reporting": 48.3,
+   "candidates": [
+    {
+     "name": "Denise  Powell",
+     "candidate_id": 220695,
+     "party": "Democratic",
+     "votes": 65653,
+     "percent": 52.84,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Brinker  Harding",
+     "candidate_id": 220694,
+     "party": "Republican",
+     "votes": 56788,
+     "percent": 45.7,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Eric Michael Foreman",
+     "candidate_id": 220696,
+     "party": "Libertarian",
+     "votes": 1808,
+     "percent": 1.46,
+     "color": "#d4c029",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "ga-13": {
+   "name": "Georgia's 13th Congressional District",
+   "type": "Congressional District",
+   "fill": "#4874a3",
+   "election_id": 87085,
+   "percent_reporting": 88.1,
+   "candidates": [
+    {
+     "name": "Jasmine Clark",
+     "candidate_id": 220195,
+     "party": "Democratic",
+     "votes": 176480,
+     "percent": 69.39,
+     "color": "#4874a3",
+     "winner": true,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Jonathan Chavez",
+     "candidate_id": 220196,
+     "party": "Republican",
+     "votes": 77844,
+     "percent": 30.61,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  }
+ }
+}

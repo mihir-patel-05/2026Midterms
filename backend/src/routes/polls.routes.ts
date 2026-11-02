@@ -2,7 +2,9 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { getPollsDb } from '../config/polls-database.js';
+import { NationalPollsCache } from '../services/polls/national.js';
 import { getRaceAverages, getRacePolls, PollsNotLoadedError, RACE_CODE } from '../services/polls/poll-read.js';
+import { VoteHubClient } from '../services/polls/votehub-client.js';
 
 const router = Router();
 
@@ -49,6 +51,30 @@ function sendError(res: Response, error: unknown) {
   console.error('Polls lookup failed:', error instanceof Error ? error.message : error);
   res.status(503).json({ error: 'Polls are unavailable', code: 'UNAVAILABLE' });
 }
+
+let national: NationalPollsCache | null = null;
+
+/**
+ * GET /api/polls/national
+ * Presidential approval and the generic congressional ballot: each series' average
+ * (`status` is average, too_few, stale, or none), its newest polls, and attribution.
+ * Read from VoteHub at most every 3 hours; needs no polls database.
+ */
+router.get('/national', async (_req, res) => {
+  if (!env.NATIONAL_POLLS_ENABLED) {
+    res.status(404).json({ error: 'National polls are turned off', code: 'DISABLED' });
+    return;
+  }
+  try {
+    national ??= new NationalPollsCache(new VoteHubClient({ baseUrl: env.VOTEHUB_API_BASE_URL, retries: 1 }));
+    const data = await national.get();
+    res.set('Cache-Control', 'public, max-age=900');
+    res.json({ data });
+  } catch (error) {
+    console.error('National polls lookup failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'National polls are unavailable', code: 'UNAVAILABLE' });
+  }
+});
 
 /**
  * GET /api/polls?race=PA-SEN&limit=25

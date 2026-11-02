@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/apiBase";
+import { isSupportedContract } from "./types";
 import type {
   CandidateContract,
   ContestResultViewModel,
@@ -22,7 +23,7 @@ export async function loadMockDashboard(signal?: AbortSignal): Promise<MockDashb
   if (!response.ok) throw new Error(`Mock results API returned ${response.status}`);
   const payload = (await response.json()) as DashboardBootstrapResponse;
   // The manifest version tracks published snapshots; mock labels travel in each result's meta.
-  if (payload.meta.contractVersion !== "1.0.0") {
+  if (!isSupportedContract(payload.meta.contractVersion)) {
     throw new Error("Unexpected results contract version");
   }
 

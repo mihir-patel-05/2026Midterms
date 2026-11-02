@@ -1,0 +1,171 @@
+{
+ "election_name": "Pennsylvania US House 7",
+ "election_type": "House of Representatives",
+ "election_scope": "General",
+ "election_date": "2026-11-03T05:00:00.000Z",
+ "country": "US",
+ "province": "PA",
+ "district": "PA-07",
+ "municipality": null,
+ "polls_open": "2026-11-03T12:00:00.000Z",
+ "polls_close": "2026-11-04T01:00:00.000Z",
+ "is_disputed": false,
+ "has_map": true,
+ "registered_voters": null,
+ "percent_reporting": 46,
+ "test_data": true,
+ "last_updated": "2026-10-31T23:14:17.598Z",
+ "round": 1,
+ "candidates": [
+  {
+   "name": "Ryan Mackenzie",
+   "candidate_id": 221028,
+   "party": "Republican",
+   "incumbent": false,
+   "major_candidate": false,
+   "winner": false,
+   "advanced": false,
+   "color": "#c6606b",
+   "votes": 73727,
+   "percent": 50.04
+  },
+  {
+   "name": "Bob Brooks",
+   "candidate_id": 221027,
+   "party": "Democratic",
+   "incumbent": false,
+   "major_candidate": false,
+   "winner": false,
+   "advanced": false,
+   "color": "#4874a3",
+   "votes": 73609,
+   "percent": 49.96
+  }
+ ],
+ "region_results": {
+  "carbon": {
+   "name": "Carbon",
+   "type": "County",
+   "fips": "42025",
+   "fill": "#c6606b",
+   "percent_reporting": 70.4,
+   "candidates": [
+    {
+     "name": "Ryan Mackenzie",
+     "party": "Republican",
+     "votes": 11768,
+     "percent": 61.3,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Bob Brooks",
+     "party": "Democratic",
+     "votes": 7429,
+     "percent": 38.7,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "lehigh": {
+   "name": "Lehigh",
+   "type": "County",
+   "fips": "42077",
+   "fill": "#4874a3",
+   "percent_reporting": 34,
+   "candidates": [
+    {
+     "name": "Bob Brooks",
+     "party": "Democratic",
+     "votes": 25048,
+     "percent": 52.07,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ryan Mackenzie",
+     "party": "Republican",
+     "votes": 23053,
+     "percent": 47.93,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "monroe": {
+   "name": "Monroe",
+   "type": "County",
+   "fips": "42089",
+   "fill": "#4874a3",
+   "percent_reporting": 44,
+   "candidates": [
+    {
+     "name": "Bob Brooks",
+     "party": "Democratic",
+     "votes": 7655,
+     "percent": 50.35,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ryan Mackenzie",
+     "party": "Republican",
+     "votes": 7550,
+     "percent": 49.65,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  },
+  "northampton": {
+   "name": "Northampton",
+   "type": "County",
+   "fips": "42095",
+   "fill": "#4874a3",
+   "percent_reporting": 55.4,
+   "candidates": [
+    {
+     "name": "Bob Brooks",
+     "party": "Democratic",
+     "votes": 33477,
+     "percent": 51.64,
+     "color": "#4874a3",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    },
+    {
+     "name": "Ryan Mackenzie",
+     "party": "Republican",
+     "votes": 31356,
+     "percent": 48.36,
+     "color": "#c6606b",
+     "winner": false,
+     "advanced": false,
+     "incumbent": false,
+     "major_candidate": false
+    }
+   ]
+  }
+ }
+}

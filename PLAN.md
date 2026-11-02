@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 29, 2026
+Last updated: November 2, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -89,6 +89,30 @@ Differentiators:
   - **Redistricting:** districts in states listed in `redistricting-2026.json` keep the dashed amber outline, and the tooltip and legend warn that the shapes are 2024 lines while the colour is the 2026 market for that district number. As of Oct 22 the list is AL, CA, FL, LA, MO, NC, OH, TN, TX, and UT (AL and LA added by hand; see `CODE/public/geo/SOURCES.md`).
   - **Data:** the live SSE feed only, so no backend change. Labelled as market prices, with the price type and last change, never as forecasts.
   - **Flag:** `VITE_FEATURE_ODDS_MAP`, on by default.
+- Simulator ratings, margins, and the national environment (Oct 31):
+  - **Colours:** both simulators shade every state, county, and House seat by rating, as on a race-ratings map: Safe (10+ points) deepest, Likely (5–10) in between, Lean (under 5) lightest. Computed results and calls share the shades.
+  - **Exact margins:** a state's panel takes a winning margin such as `D+2.5`. It decides the state, sets the rating, and is kept in the link (`p=PAD2.5`).
+  - **House swing:** the midterm House map has a swing slider (`hswing`) that moves every contested seat's 2024 margin. Unopposed seats keep their winner.
+  - **National environment card** on `/simulator/midterms`: presidential approval and the generic congressional ballot. Averages are `polls-avg-v1` over VoteHub's `approval` (subject "Donald Trump") and `generic-ballot` polls, with party-sponsored polls left out.
+  - **Swing buttons:** they set the Senate swing to the ballot margin minus the 2024 presidential margin (R+1.5), and the House swing to the ballot margin minus the 2024 House vote (R+2.7). No pollster asks a generic Senate ballot, so the card says the Senate swing comes from the congressional question.
+  - **Not from civicAPI:** civicAPI publishes election results only, with no approval or polling data.
+  - **API:** `GET /api/polls/national` reads VoteHub at most every 3 hours and keeps the answer in memory, so it needs no polls database. If VoteHub fails, it serves the last good answer.
+  - **Flags:** `NATIONAL_POLLS_ENABLED` (backend) and `VITE_FEATURE_NATIONAL_POLLS` (frontend), both on by default.
+  - **Data gap:** VoteHub's national polls thin out after June 2026. On Oct 31 its newest ended Oct 6, so the card warns when the newest poll is over 14 days old.
+
+- Election night in the War Room (Oct 31, `docs/plans/civicapi-results.md`, "Built"): live **civicAPI** results and **race calls** by civicAPI's own decision desk.
+  - **Ingestor:** `results-ingestor` worker (or in `api` on Testing) polls the Senate and House aggregates every 30 s, with county detail for up to 60 close races. Writes snapshots through `publishSnapshot()`, calls to the new `race_calls` table, and source health. civicAPI test data is held back unless `CIVICAPI_ACCEPT_TEST_DATA=true` (rehearsals only).
+  - **API:** results contract **1.1.0** (estimated progress, FEC ids, calls, test-data flag), `/api/v1/bootstrap?units=none`, a 10-second cache, gzip.
+  - **War Room:** Night screen (status, seats called and leading, call log, results board, key races), a **Results** map lens, a Results section on every dossier, a header chip, and official state results links whenever the feed is delayed or off.
+  - **Live coverage (§4.7):** `live_streams` table, `GET /api/live-streams`, an admin section to paste each network's YouTube link on the night, and a click-to-load panel on the Night screen (four players at most, one with sound).
+  - **Flags:** `VITE_RESULTS_LIVE_ENABLED` and `VITE_FEATURE_LIVE_STREAMS` (on by default), `RESULTS_INGESTOR_ENABLED`, `LIVE_STREAMS_ENABLED`. The War Room itself still needs `VITE_FEATURE_WAR_ROOM=true`.
+
+- Cost of living, fuel prices (Oct 31, section 4.8): a **Cost of living** tab in the War Room map's intel panel, per state.
+  - **Data:** EIA weekly retail regular gasoline and diesel (`npm run sync:fuel`; Tuesday and Wednesday 9:20 AM ET and once after boot), stored in `indicator_series` as `eia.<series id>`. 26 series: the U.S., the 9 states EIA prices on its own (diesel: California only), and the PADD regions.
+  - **Shown:** price now and the gap to the U.S., 1-week, 1-month and 1-year changes beside the U.S. change, and a 2-year chart against the U.S. A state EIA does not price shows its region, labelled "Regional average · not a <state> figure".
+  - **API:** `GET /api/cost-of-living?state=MI`, cached 15 minutes.
+  - **Needs:** `EIA_API_KEY` (free) on the Backend service. Flags: `COST_OF_LIVING_ENABLED` and `VITE_FEATURE_COST_OF_LIVING`, both on by default.
+  - **Tariff exposure score** (chosen Nov 1): the average percentile of imports ÷ GDP, the China/Mexico/Canada share of imports, the manufacturing share of jobs, and the 1-year diesel change, shown in the tab and as a map lens. See section 4.8, "Decision (Nov 1)".
 
 **Not done yet (carried over from Oct 1–7)**
 
@@ -101,7 +125,7 @@ Differentiators:
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
-- No live election-results provider is licensed. Election night depends on getting one; see section 6. Plan (Oct 29): AP has not answered, so election night uses **civicAPI** (free, attribution required, no SLA) through the existing results pipeline, with official state results links as the fallback. See `docs/plans/civicapi-results.md`.
+- No live election-results provider is licensed. Election night uses **civicAPI** (free, attribution required, no SLA), built Oct 31, with official state results links as the fallback. Nov 2 review: the pipeline passed a local rehearsal against live civicAPI, but Testing's `Backend` had none of the results variables set and `main-prod` runs `main` without civicAPI. Still to do: the Nov 2 checklist (variables, `is_enabled`, deploy), hand-checking the official links, and pasting each network's stream. See `docs/plans/civicapi-results.md`, "Review (Nov 2)".
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 
@@ -315,7 +339,19 @@ What to show:
 
 **Tariff exposure**
 
-No single neutral "tariff index" covers every state, so we show several measures, each with its own source and method. We never combine them into a score.
+**Decision (Nov 1):** the product owner chose a composite **tariff exposure score**, replacing the earlier "never combine them into a score" rule. Built in `backend/src/services/tariff/` (method `tariff-exposure-v1`):
+
+- **Score** = the average of the state's percentile ranks among the 50 states and DC (0 = lowest, 100 = highest, ties at their midpoint) on four measures, equal weights. Higher means more exposed.
+  1. **Goods imports ÷ state GDP:** Census imports by state of destination (calendar year, HS2 chapters summed) ÷ the mean of that year's four quarters of BEA nominal GDP (`{ST}NQGSP` via FRED).
+  2. **Imports from China, Mexico and Canada ÷ all imports:** Census, same year.
+  3. **Manufacturing share of jobs:** `{ST}MFG` ÷ `{ST}NA` (BLS via FRED), latest common month.
+  4. **Diesel, change over one year:** EIA weekly retail diesel; a regional price for every state but California, so a region's states share that rank.
+- A state missing a measure is scored on the others (at least 3) and says so. Each measure, its percentile and period are shown beside the score, with the method and its caveats: exposure, not a measured cost; imports count by the customs destination; equal weights are a judgment; job changes have many causes.
+- **Where:** the Cost of living tab (score, rank, the four measures; with no state, the 51-state ranking) and a **Tariff exposure** lens on the War Room map (states layer). API: `GET /api/cost-of-living/tariff-exposure`, cached one hour.
+- **Data jobs:** `npm run sync:trade` (Census, the 12th of each month and after boot; needs `CENSUS_API_KEY`), the FRED sync (now also `{ST}MFG` and `{ST}NQGSP`, stored without tiles), and the EIA fuel sync.
+- **Not verified against live responses:** the build sandbox could not reach Census, FRED or EIA. Check the first runs: the Census `CTY_CODE=-` total-for-all-countries row, and that FRED has `{ST}MFG` and `{ST}NQGSP` for every state (a missing one shows as a missing measure, never as zero).
+
+The measures below remain the reference list; the ones not in the score (NTUF tariffs paid, the Fed consumption share, QCEW, WARN) are not built.
 
 | Measure | Source | What it says | Geography and timing | Access |
 |---|---|---|---|---|

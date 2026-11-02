@@ -14,6 +14,8 @@ import demographicsRoutes from './demographics.routes.js';
 import outsideSpendingRoutes from './outside-spending.routes.js';
 import indicatorsRoutes from './indicators.routes.js';
 import pollsRoutes from './polls.routes.js';
+import { adminLiveStreamsRouter, liveStreamsRouter } from './live-streams.routes.js';
+import costOfLivingRoutes from './cost-of-living.routes.js';
 import adminPollsRoutes from './admin-polls.routes.js';
 import newsRoutes from './news.routes.js';
 import { candidateController } from '../controllers/candidate.controller.js';
@@ -26,6 +28,7 @@ router.use('/candidates', candidatesRoutes);
 router.use('/sync', syncRoutes);
 router.use('/elections', electionsRoutes);
 router.use('/admin/polls', adminPollsRoutes);
+router.use('/admin/live-streams', adminLiveStreamsRouter);
 router.use('/admin', adminRoutes);
 router.use('/deadlines', deadlinesRoutes);
 router.use('/chat', chatRoutes);
@@ -39,6 +42,8 @@ router.use('/outside-spending', outsideSpendingRoutes);
 router.use('/indicators', indicatorsRoutes);
 router.use('/polls', pollsRoutes);
 router.use('/news', newsRoutes);
+router.use('/live-streams', liveStreamsRouter);
+router.use('/cost-of-living', costOfLivingRoutes);
 
 // Static catalog of supported lobbies (for UI legends/filters)
 router.get('/lobbies', (req, res) => candidateController.getLobbyCatalog(req, res));

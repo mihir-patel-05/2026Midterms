@@ -10,6 +10,7 @@ import { Icon, Mark, type IconName } from "./icons";
 import { targetSearch } from "./links";
 import { parseRace, raceForSelection } from "./raceCodes";
 import { useWatchlist } from "./watchlist";
+import { useLiveResults, type LiveResultsState } from "./results/useLiveResults";
 import { useNow } from "./useNow";
 import "./warRoom.css";
 
@@ -185,7 +186,24 @@ function Chip({ text, tone, pulse, hollow, title }: { text: string; tone?: "live
 }
 
 /** One chip per source: its state now, and when it last answered. Never a made-up time. */
+function ResultsChip({ state }: { state: LiveResultsState }) {
+  if (state.kind === "ready") {
+    const { board, delayed } = state;
+    const late = delayed || board.freshness === "STALE" || board.source.health === "STALE" || board.source.health === "UNAVAILABLE";
+    if (board.isTestData) return <Chip text={`${board.source.name} test data`} tone="accent" hollow title="The results source is serving rehearsal numbers, not election results" />;
+    if (board.source.health === "NOT_CONFIGURED") return <Chip text={`${board.source.name} waiting`} tone="accent" hollow title={board.source.message ?? "No live numbers yet"} />;
+    return late
+      ? <Chip text={`${board.source.name} delayed`} tone="accent" title={`Results last updated ${formatEtTime(board.source.lastSuccessfulAt ?? board.updatedAt)} ET; the source is delayed`} />
+      : <Chip text={`${board.source.name} ${formatEtTime(board.updatedAt)}`} tone="live" pulse title={`Results from ${board.source.name}, updated at this time ET`} />;
+  }
+  if (mockResultsProviderEnabled) return <Chip text="Results mock" tone="accent" hollow title="Results come from fictional fixtures labelled MOCK" />;
+  if (state.kind === "switched-off") return <Chip text="Results off" tone="accent" hollow title="The results source has been switched off; see official state results" />;
+  if (state.kind === "loading") return <Chip text="Results …" title="Loading results" />;
+  return <Chip text="No results feed" tone="accent" hollow title="No results source is connected" />;
+}
+
 function FeedChips() {
+  const results = useLiveResults();
   const kalshi = KALSHI_CHIP[useKalshiStatus()];
   const counts = useStateCounts();
   const econ = useEconIndicators(730, null);
@@ -200,9 +218,7 @@ function FeedChips() {
       {economyEnabled && (econ.isError
         ? <Chip text="FRED not loaded" tone="accent" title="FRED indicators are not available yet" />
         : <Chip text={fredAt ? `FRED ${formatEtTime(fredAt)}` : "FRED …"} tone={fredAt ? "live" : undefined} title={fredAt ? "FRED indicators, last fetched at this time ET" : "Loading FRED indicators"} />)}
-      {mockResultsProviderEnabled
-        ? <Chip text="Results mock" tone="accent" hollow title="Results come from fictional fixtures labelled MOCK" />
-        : <Chip text="No results feed" tone="accent" hollow title="No licensed results provider is connected" />}
+      <ResultsChip state={results} />
     </ul>
   );
 }
@@ -215,7 +231,7 @@ export function WarRoomShell({ children }: { children: ReactNode }) {
       <a className="wr-skip" href="#wr-main">Skip to content</a>
       <div className="wr-band">
         <span>VoteInformed // Ops</span>
-        <span>Public data · FEC · Kalshi · FRED · MIT Election Lab · Census ACS</span>
+        <span>Public data · FEC · Kalshi · FRED · MIT Election Lab · Census ACS · civicAPI results</span>
         <span>Market prices are not forecasts</span>
       </div>
       <header className="wr-top">

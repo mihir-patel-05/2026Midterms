@@ -1,0 +1,271 @@
+import 'dotenv/config';
+import assert from 'node:assert/strict';
+import { mkdtemp, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test } from 'node:test';
+import { PrismaClient } from '@prisma/client';
+import { parseAggregate } from '../../../services/ballot/civicapi-ballot.js';
+import { ElectionResultsResponseSchema } from '../contracts.js';
+import { dbBootstrapPayload, dbCurrentResult, type ReadModelConfig } from '../read-model.js';
+import { CivicApiClient } from './client.js';
+import { CivicApiIngestor, type IngestorOptions } from './ingestor.js';
+import { chooseTierA } from './tiers.js';
+
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
+
+async function reset(db: PrismaClient) {
+  const source = await db.dataSource.findUnique({ where: { key: 'civicapi' } });
+  if (!source) return;
+  const sourceId = source.id;
+  await db.contest.updateMany({ where: { sourceId }, data: { currentSnapshotId: null } });
+  await db.raceCall.deleteMany({ where: { sourceId } });
+  await db.resultSnapshot.deleteMany({ where: { sourceId } });
+  await db.candidacy.deleteMany({ where: { sourceId } });
+  await db.contest.deleteMany({ where: { sourceId } });
+  await db.reportingUnit.deleteMany({ where: { sourceId } });
+  await db.ingestionRun.deleteMany({ where: { sourceId } });
+  await db.electionEvent.deleteMany({ where: { sourceId } });
+  await db.syncLease.deleteMany({ where: { name: 'results-civicapi' } });
+  await db.dataSource.delete({ where: { id: sourceId } });
+}
+
+/** What the ballot sync writes, for the fixture races: the source, the event, contests and candidacies. */
+async function seedCatalog(db: PrismaClient) {
+  const source = await db.dataSource.create({
+    data: { key: 'civicapi', name: 'civicAPI', type: 'OTHER', homepageUrl: 'https://civicapi.org', attributionText: 'Results: civicAPI (civicapi.org).', expectedCadenceSeconds: 30, isEnabled: true },
+  });
+  const event = await db.electionEvent.create({ data: { name: '2026 General Election', electionDate: new Date('2026-11-03T00:00:00Z'), type: 'GENERAL', cycle: 2026, sourceId: source.id, sourceElectionId: '2026-general' } });
+  const races = [
+    ...parseAggregate(fixture('senate-aggregate.json'), 'SENATE', 2026).races,
+    ...parseAggregate(fixture('house-aggregate.trimmed.json'), 'HOUSE', 2026).races,
+  ];
+  for (const race of races) {
+    const contest = await db.contest.create({
+      data: {
+        electionEventId: event.id, sourceId: source.id, sourceContestId: race.sourceContestId, name: race.name,
+        office: race.officeType === 'SENATE' ? 'US_SENATE' : 'US_HOUSE', officeLevel: 'FEDERAL', stateCode: race.state, districtCode: race.district,
+      },
+    });
+    for (const [ballotOrder, candidate] of race.candidates.entries()) {
+      const person = await db.person.create({ data: { displayName: candidate.name, normalizedName: candidate.name.toLowerCase() } });
+      await db.candidacy.create({
+        data: {
+          personId: person.id, contestId: contest.id, sourceId: source.id, sourceCandidateId: candidate.sourceCandidateId, ballotName: candidate.name, ballotOrder,
+          ballotStatus: candidate.writeIn ? 'WRITE_IN' : 'BALLOT_CONFIRMED', isIncumbent: candidate.isIncumbent,
+          fecCandidateId: candidate.name === 'Jon Ossoff' ? 'S8GA00180' : null,
+        },
+      });
+    }
+  }
+  return source;
+}
+
+/** Serves documents by civicAPI race id; `docs` can be swapped between cycles. */
+function server(docs: Record<string, unknown>) {
+  const requests: string[] = [];
+  const fetchImpl = (async (url: string) => {
+    const id = /\/race\/(\d+)$/.exec(url)?.[1] ?? '';
+    requests.push(id);
+    return id in docs ? new Response(JSON.stringify(docs[id]), { status: 200, headers: { 'content-type': 'application/json' } }) : new Response('{}', { status: 404 });
+  }) as typeof fetch;
+  return { docs, requests, fetchImpl };
+}
+
+async function ingestor(db: PrismaClient, fetchImpl: typeof fetch, options: Partial<IngestorOptions>) {
+  const client = new CivicApiClient({ baseUrl: 'https://civicapi.example/api/v2', timeoutMs: 5000, maxRps: 10_000, fetchImpl, sleep: async () => {} });
+  return new CivicApiIngestor(db, client, {
+    cycle: 2026, senateAggregateId: '87528', houseAggregateId: '87524', intervalSeconds: 30, acceptTestData: false,
+    artifactDir: await mkdtemp(join(tmpdir(), 'civicapi-artifacts-')), parserVersion: 'civicapi/test',
+    tierA: { enabled: true, max: 60, override: ['GA-SEN', 'PA-07'], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 },
+    ...options,
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- recorded JSON
+const live = (body: any): any => ({ ...structuredClone(body), test_data: false, last_updated: "2026-11-04T02:00:00.000Z" });
+const readConfig = (showTestData: boolean): ReadModelConfig => ({ mockEnabled: false, enabledProviderKeys: ['civicapi'], staleAfterSeconds: 300, showTestData });
+
+test('civicAPI ingestion: test data is held, rehearsals publish, live numbers replace them, and calls follow the desk', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  try {
+    await reset(db);
+    const source = await seedCatalog(db);
+    const senate = fixture('senate-aggregate.json');
+    const house = fixture('house-aggregate.trimmed.json');
+    const ga = fixture('race-ga-sen.trimmed.json');
+    const pa = fixture('race-pa-07.json');
+    const feed = server({ 87528: senate, 87524: house, 87087: ga, 87382: pa });
+
+    // 1. civicAPI serves test data: nothing is published and the source says why.
+    const held = await (await ingestor(db, feed.fetchImpl, {})).cycle();
+    assert.equal(held.status, 'held');
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id } }), 0);
+    const heldSource = await db.dataSource.findUniqueOrThrow({ where: { id: source.id } });
+    assert.equal(heldSource.healthStatus, 'NOT_CONFIGURED');
+    assert.match(heldSource.coverageDescription ?? '', /test data/);
+
+    // 2. A rehearsal accepts it: tier B from the aggregates, tier A (GA-SEN, PA-07) from detail, with counties.
+    const rehearsal = await ingestor(db, feed.fetchImpl, { acceptTestData: true });
+    const first = await rehearsal.cycle(new Date('2026-11-04T01:00:00Z'));
+    assert.equal(first.status, 'ok', first.message);
+    assert.equal(first.published, 45);
+    // Tier A detail, plus one call-time lookup per newly called tier B race.
+    assert(feed.requests.includes('87087') && feed.requests.includes('87382'));
+    assert(first.details >= 2);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id, isTestData: true } }), 45);
+    const gaCall = await db.raceCall.findFirstOrThrow({ where: { contest: { sourceContestId: '87087' }, retractedAt: null } });
+    assert.equal(gaCall.calledAt.toISOString(), '2026-10-31T21:30:45.847Z');
+    assert.equal(gaCall.calledAtSource, true);
+    assert.equal(gaCall.isTestData, true);
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'CURRENT');
+    const payloads = await readdir(join((rehearsal as unknown as { options: IngestorOptions }).options.artifactDir, 'sha256'));
+    assert(payloads.length >= 3 && payloads.every((name) => name.endsWith('.json.gz')));
+
+    // The read model hides test data unless told to show it.
+    const contestId = (await db.contest.findFirstOrThrow({ where: { sourceContestId: '87087' } })).id;
+    assert.equal((await dbCurrentResult(db, readConfig(false), contestId))?.data, null);
+    const shown = await dbCurrentResult(db, readConfig(true), contestId);
+    assert(shown?.data);
+    ElectionResultsResponseSchema.parse(shown);
+    assert.equal(shown.data.isTestData, true);
+    assert.equal(shown.data.reportingUnitResults.length, 6);
+    assert.equal(shown.data.reportingUnitResults[0].reportingUnit.countyFips?.length, 5);
+    assert.equal(shown.data.reportingProgress.estimatedPercentage, 99.3);
+    assert.equal(shown.data.calls?.[0].kind, 'WINNER');
+    assert.equal(shown.data.candidates.find((candidate) => candidate.displayName === 'Jon Ossoff')?.fecCandidateId, 'S8GA00180');
+    const lean = await dbBootstrapPayload(db, readConfig(true), new Date(), { includeUnits: false });
+    const leanGa = lean?.data.results.find((item) => item.data?.contest.id === contestId);
+    assert.equal(leanGa?.data?.reportingUnitResults.length, 0);
+    assert.equal(leanGa?.data?.totalVotes, shown.data.totalVotes);
+
+    // 3. The same numbers again write nothing.
+    const again = await rehearsal.cycle(new Date('2026-11-04T01:00:30Z'));
+    assert.equal(again.published, 0);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id } }), 45);
+
+    // 4. Live numbers: the rehearsal is removed, then live snapshots and calls are written.
+    feed.docs[87528] = live(senate);
+    feed.docs[87524] = live(house);
+    feed.docs[87087] = live(ga);
+    feed.docs[87382] = live(pa);
+    const liveRun = await ingestor(db, feed.fetchImpl, {});
+    const firstLive = await liveRun.cycle(new Date('2026-11-04T02:00:00Z'));
+    assert.equal(firstLive.status, 'ok', firstLive.message);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id, isTestData: true } }), 0);
+    assert.equal(await db.raceCall.count({ where: { sourceId: source.id, isTestData: true } }), 0);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id, publicationStatus: 'PUBLISHED' } }), 45);
+    const liveGa = await dbCurrentResult(db, readConfig(false), contestId);
+    assert(liveGa?.data);
+    assert.equal(liveGa.data.isTestData, false);
+    assert.equal(liveGa.meta.dataMode, 'LIVE');
+
+    // 5. A moved count publishes one new snapshot and supersedes the old one; a new candidate is added unconfirmed.
+    const moved = live(senate);
+    (moved.region_results as Record<string, { candidates: Array<Record<string, unknown>> }>).me.candidates.push({ name: 'New Person', candidate_id: 999001, party: 'Independent', votes: 10, percent: 0.1 });
+    (moved.region_results as Record<string, { candidates: Array<Record<string, unknown>> }>).me.candidates[0].votes = 12345;
+    moved.last_updated = '2026-11-04T02:00:30.000Z';
+    feed.docs[87528] = moved;
+    const second = await liveRun.cycle(new Date('2026-11-04T02:00:30Z'));
+    assert.equal(second.published, 1);
+    const meContest = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'ME', office: 'US_SENATE' } });
+    assert.equal(await db.resultSnapshot.count({ where: { contestId: meContest.id, publicationStatus: 'SUPERSEDED' } }), 1);
+    assert.equal((await db.candidacy.findFirstOrThrow({ where: { contestId: meContest.id, sourceCandidateId: '999001' } })).ballotStatus, 'UNCONFIRMED');
+    assert(await db.ingestionError.findFirst({ where: { code: 'RESULTS_WARNING', message: { contains: 'New Person' } } }));
+
+    // 6. A call missing from one document stays; missing from two in a row it is retracted, never deleted.
+    const uncalled = structuredClone(moved);
+    for (const candidate of (uncalled.region_results as Record<string, { candidates: Array<Record<string, unknown>> }>).fl.candidates) candidate.winner = false;
+    uncalled.last_updated = '2026-11-04T02:01:00.000Z';
+    feed.docs[87528] = uncalled;
+    const flContest = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'FL', office: 'US_SENATE' } });
+    await liveRun.cycle(new Date('2026-11-04T02:01:00Z'));
+    assert.equal(await db.raceCall.count({ where: { contestId: flContest.id, retractedAt: null } }), 1);
+    const retracted = await liveRun.cycle(new Date('2026-11-04T02:01:30Z'));
+    assert(retracted.calls.some((line) => line.startsWith('FL-SEN') && line.includes('retracted')));
+    assert.equal(await db.raceCall.count({ where: { contestId: flContest.id, retractedAt: null } }), 0);
+    assert.equal(await db.raceCall.count({ where: { contestId: flContest.id } }), 1);
+
+    // 6b. After a restart ME-SEN gets county detail (tier B to A), and its detail document is older than the
+    // aggregate snapshot it has. It keeps its numbers, and that is a warning, not a failed race.
+    const meDetail = {
+      ...structuredClone((uncalled.region_results as Record<string, Record<string, unknown>>).me),
+      test_data: false, last_updated: '2026-11-04T01:59:00.000Z', called_at: null, region_results: {},
+    };
+    feed.docs[meContest.sourceContestId!] = meDetail;
+    const restarted = await ingestor(db, feed.fetchImpl, {
+      tierA: { enabled: true, max: 60, override: ['GA-SEN', 'PA-07', 'ME-SEN'], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 },
+    });
+    const meBefore = (await db.contest.findUniqueOrThrow({ where: { id: meContest.id } })).currentSnapshotId;
+    const switched = await restarted.cycle(new Date('2026-11-04T02:01:45Z'));
+    assert.equal(switched.status, 'ok', switched.message);
+    assert.equal(switched.rejected, 0);
+    assert.equal((await db.contest.findUniqueOrThrow({ where: { id: meContest.id } })).currentSnapshotId, meBefore);
+    assert(await db.ingestionError.findFirst({ where: { code: 'RESULTS_WARNING', message: { contains: 'ME-SEN: kept its aggregate snapshot' } } }));
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'CURRENT');
+    delete feed.docs[meContest.sourceContestId!];
+
+    // 7. A race missing from the catalog is rejected and logged; the others still publish.
+    const extra = structuredClone(uncalled);
+    (extra.region_results as Record<string, Record<string, unknown>>).me.election_id = 123456789;
+    (extra.region_results as Record<string, { candidates: Array<Record<string, unknown>> }>).ga.candidates[0].votes = 1;
+    feed.docs[87528] = extra;
+    const partial = await liveRun.cycle(new Date('2026-11-04T02:02:00Z'));
+    assert.equal(partial.rejected, 1);
+    assert(await db.ingestionError.findFirst({ where: { code: 'RACE_REJECTED', recordKey: 'ME-SEN' } }));
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'DEGRADED');
+
+    // 8. A second ingestor started by mistake skips while the lease is held.
+    const token = await db.syncLease.create({ data: { name: 'results-civicapi', token: 'other', expiresAt: new Date(Date.now() + 60_000) } });
+    assert.equal((await liveRun.cycle()).status, 'skipped');
+    await db.syncLease.delete({ where: { name: token.name } });
+
+    // 9. Three failed cycles in a row mark the source unavailable.
+    const down = await ingestor(db, (async () => new Response('down', { status: 503 })) as unknown as typeof fetch, {});
+    for (let i = 0; i < 3; i++) assert.equal((await down.cycle()).status, 'failed');
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'UNAVAILABLE');
+  } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
+
+test('tier A comes from the Kalshi hour at or before CIVICAPI_TIER_A_AS_OF, so restarts agree', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  const early = new Date('2030-01-01T05:00:00Z');
+  const late = new Date('2030-01-01T07:00:00Z');
+  const marketIds = ['TIERTEST-GA', 'TIERTEST-PA07'];
+  try {
+    const source = await db.dataSource.upsert({
+      where: { key: 'kalshi-tier-test' },
+      create: { key: 'kalshi-tier-test', name: 'Kalshi tier test', type: 'OTHER', attributionText: 'test', isEnabled: false },
+      update: {},
+    });
+    const row = (market: string, stateCode: string, districtCode: string | null, price: number, capturedHour: Date) => ({
+      sourceId: source.id, provider: 'KALSHI' as const, scope: districtCode ? 'HOUSE_DISTRICT' as const : 'STATE_SENATE' as const,
+      sourceEventId: market, sourceMarketId: market, outcome: 'yes', stateCode, districtCode, priceType: 'MIDPOINT' as const,
+      price, capturedHour, fetchedAt: capturedHour,
+    });
+    await db.marketSnapshot.deleteMany({ where: { sourceMarketId: { in: marketIds } } });
+    await db.marketSnapshot.createMany({
+      data: [
+        // Before the cutoff GA-SEN is close and PA-07 is not; on the night (later) it is the other way round.
+        row(marketIds[0], 'GA', null, 0.55, early), row(marketIds[1], 'PA', '07', 0.95, early),
+        row(marketIds[0], 'GA', null, 0.97, late), row(marketIds[1], 'PA', '07', 0.6, late),
+      ],
+    });
+    const asOf = await chooseTierA(db, { max: 60, override: [], asOf: new Date('2030-01-01T06:30:00Z') });
+    assert.deepEqual(asOf.labels, ['GA-SEN']);
+    assert.match(asOf.reason, /2030-01-01T05:00:00/);
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: [], asOf: null })).labels, ['PA-07']);
+    // With no prices at or before the cutoff, the latest hour is used.
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: [], asOf: new Date('1990-01-01T00:00:00Z') })).labels, ['PA-07']);
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: ['pa-7', 'ga-sen'], asOf: null })).labels, ['PA-07', 'GA-SEN']);
+  } finally {
+    await db.marketSnapshot.deleteMany({ where: { sourceMarketId: { in: marketIds } } }).catch(() => {});
+    await db.dataSource.deleteMany({ where: { key: 'kalshi-tier-test' } }).catch(() => {});
+    await db.$disconnect();
+  }
+});

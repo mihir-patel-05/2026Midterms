@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { mockResultsProviderEnabled } from "@/lib/featureFlags";
+import { liveResultsEnabled, mockResultsProviderEnabled } from "@/lib/featureFlags";
 import { districtLabel, formatEtTime, numberFormat } from "@/features/election-monitor/constants";
 import { useEconIndicators } from "@/features/election-monitor/economy";
 import { useMarketMovers } from "@/features/election-monitor/marketHistory";
@@ -7,7 +7,6 @@ import { useMockResultsFeed, useResultsSourceStatus } from "@/features/election-
 import { useStateCounts } from "@/features/election-monitor/realData";
 import { countdown, etHourMinute } from "../countdown";
 import { Badge, Panel, StatusLine } from "../panels/Panel";
-import { NotConnectedPanel } from "../panels/NotConnectedPanel";
 import { partyColor, partyLetter } from "../party";
 import { raceLabel, raceState } from "../raceCodes";
 import { cents } from "../seatTally";
@@ -15,6 +14,10 @@ import { useBoard } from "../useBoard";
 import { useNow } from "../useNow";
 import { useWatchlist } from "../watchlist";
 import { closedCount, closingFor, closingSlots, nextClose, POLL_CLOSINGS } from "./pollClosings";
+import { progressLabel, statesOf } from "../results/liveResults";
+import { LiveCoverage } from "../results/LiveCoverage";
+import { CallLog, LeaderCell, OfficialLinks, RaceBoard, ResultsStatus, SeatCount } from "../results/ResultsPanels";
+import { boardOf, useLiveResults, type LiveResultsState } from "../results/useLiveResults";
 
 const SLOTS = closingSlots();
 const KEY_RACES = 10;
@@ -42,27 +45,33 @@ function Timeline({ now }: { now: number }) {
   );
 }
 
-function NightFigures({ now, markets }: { now: number; markets: number | null }) {
+function NightFigures({ now, markets, results }: { now: number; markets: number | null; results: LiveResultsState }) {
   const next = nextClose(now);
+  const board = boardOf(results);
+  const reporting = board ? [...board.races.values()].filter((race) => race.totalVotes > 0).length : null;
+  const called = board ? [...board.races.values()].filter((race) => race.winner).length : null;
   return (
     <dl className="wr-night-figures">
       <div><dt>Polls closed</dt><dd>{closedCount(now)}<span> / {POLL_CLOSINGS.length}</span></dd></div>
       <div><dt>Next close</dt><dd>{next ? etHourMinute(next) : "All closed"}</dd></div>
       <div><dt>First close in</dt><dd>{countdown(now)}</dd></div>
+      <div><dt>Races reporting</dt><dd>{reporting === null ? "–" : numberFormat.format(reporting)}<span> / 470</span></dd></div>
+      <div><dt>Races called</dt><dd>{called === null ? "–" : numberFormat.format(called)}</dd></div>
       <div><dt>Markets live</dt><dd>{markets === null ? "–" : numberFormat.format(markets)}</dd></div>
     </dl>
   );
 }
 
-/** Watchlist races with their poll close and market. No vote counts until a provider is licensed. */
-function KeyRaces({ now, codes, board }: { now: number; codes: string[]; board: ReturnType<typeof useBoard> }) {
+/** Watchlist races with their poll close, the count so far, and the market. */
+function KeyRaces({ now, codes, board, results }: { now: number; codes: string[]; board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
+  const live = boardOf(results);
   return (
-    <Panel flush title="Key races · watchlist" meta={<Badge tone="off">No results until a provider is licensed</Badge>}
-      footnote="Market prices keep updating and are not results · never scraped or partial totals">
+    <Panel flush title="Key races · watchlist" meta={live ? <Badge tone={live.isTestData ? "mock" : "live"}>{live.isTestData ? "Test data" : `Results · ${live.source.name}`}</Badge> : <Badge tone="off">No results feed</Badge>}
+      footnote="Results: the source's count and its decision desk's calls · market prices are not results">
       {codes.length === 0 ? <StatusLine>Your watchlist is empty</StatusLine> : (
         <div className="wr-table-wrap">
           <table className="wr-table">
-            <thead><tr><th scope="col">Race</th><th scope="col">Polls</th><th scope="col">Results</th><th scope="col" className="wr-num">Market</th></tr></thead>
+            <thead><tr><th scope="col">Race</th><th scope="col">Polls</th><th scope="col">Results</th><th scope="col" className="wr-num">Counted</th><th scope="col" className="wr-num">Market</th></tr></thead>
             <tbody>
               {codes.slice(0, KEY_RACES).map((code) => {
                 const closing = closingFor(raceState(code));
@@ -72,7 +81,8 @@ function KeyRaces({ now, codes, board }: { now: number; codes: string[]; board: 
                   <tr key={code}>
                     <td><Link className="wr-cell-btn" to={`/war-room/race/${code}`}>{raceLabel(code)}</Link></td>
                     <td className={closing && closing.close <= now ? "wr-accent" : undefined}>{closing ? `${closing.close <= now ? "Closed" : "Closes"} ${etHourMinute(closing.close)}${closing.last ? "*" : ""}` : "—"}</td>
-                    <td className="wr-dim">Not connected</td>
+                    <td>{live ? <LeaderCell race={live.races.get(code)} /> : <span className="wr-dim">Not connected</span>}</td>
+                    <td className="wr-num">{live?.races.get(code) ? progressLabel(live.races.get(code)!, true) : "—"}</td>
                     <td className="wr-num" style={{ color: leader ? partyColor(leader.party) : undefined }}>{leader ? `${partyLetter(leader.party)} ${cents(leader.price)}` : "—"}</td>
                   </tr>
                 );
@@ -80,27 +90,6 @@ function KeyRaces({ now, codes, board }: { now: number; codes: string[]; board: 
             </tbody>
           </table>
         </div>
-      )}
-    </Panel>
-  );
-}
-
-/** Poll closings so far, newest first. Race calls join it with the results provider. */
-function CallLog({ now }: { now: number }) {
-  const closed = SLOTS.filter((slot) => slot.close <= now).reverse();
-  return (
-    <Panel flush title="Call log" meta={<Badge tone="off">Calls not connected</Badge>}>
-      <p className="wr-log-intro">Race calls arrive with the results provider. Until then, this log shows poll closings only.</p>
-      {closed.length === 0 ? <StatusLine>No polls have closed yet · first close Nov 3, 18:00 ET</StatusLine> : (
-        <ol className="wr-log">
-          {closed.map((slot) => (
-            <li key={slot.close}>
-              <time dateTime={new Date(slot.close).toISOString()}>{etHourMinute(slot.close)}</time>
-              <span className="wr-log-dot" aria-hidden="true" />
-              <span><strong>Polls closed</strong> in most of {slot.states.map((item) => item.state).join(", ")}.</span>
-            </li>
-          ))}
-        </ol>
       )}
     </Panel>
   );
@@ -139,7 +128,7 @@ function MockBoard() {
   );
 }
 
-function Health({ board }: { board: ReturnType<typeof useBoard> }) {
+function Health({ board, results }: { board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
   const counts = useStateCounts();
   const indicators = useEconIndicators(730, null);
   const sources = useResultsSourceStatus();
@@ -150,9 +139,12 @@ function Health({ board }: { board: ReturnType<typeof useBoard> }) {
     ["Hourly snapshots", movers.data?.asOf ? `Latest ${formatEtTime(movers.data.asOf)} ET` : movers.isError ? "Unavailable" : "…", movers.data?.asOf ? "good" : movers.isError ? "warn" : undefined],
     ["Elections API", counts.isError ? "Down" : counts.dataUpdatedAt ? `OK · ${formatEtTime(new Date(counts.dataUpdatedAt).toISOString())} ET` : "…", counts.isError ? "warn" : counts.dataUpdatedAt ? "good" : undefined],
     ["FRED", fred ? `Fetched ${formatEtTime(fred)} ET` : indicators.isError ? "Not loaded" : "…", fred ? "good" : indicators.isError ? "warn" : undefined],
-    ["Results source", mockResultsProviderEnabled
-      ? sources.data?.length ? sources.data.map((source) => `${source.isMock ? "Mock" : source.name} · ${source.health.toLowerCase().replace("_", " ")}`).join(", ") : sources.isError ? "Unavailable" : "…"
-      : "No provider connected", "warn"],
+    results.kind === "ready"
+      ? ["Results source", `${results.board.source.name} · ${results.delayed ? "not answering" : results.board.source.health.toLowerCase().replace("_", " ")}${results.board.source.lastSuccessfulAt ? ` · ${formatEtTime(results.board.source.lastSuccessfulAt)} ET` : ""}`,
+        results.board.source.health === "CURRENT" && !results.delayed ? "good" : "warn"]
+      : ["Results source", mockResultsProviderEnabled
+        ? sources.data?.length ? sources.data.map((source) => `${source.isMock ? "Mock" : source.name} · ${source.health.toLowerCase().replace("_", " ")}`).join(", ") : sources.isError ? "Unavailable" : "…"
+        : results.kind === "switched-off" ? "Switched off" : results.kind === "loading" ? "…" : "Not connected", "warn"],
   ];
   return (
     <Panel title="System health" meta="This browser's view">
@@ -163,13 +155,21 @@ function Health({ board }: { board: ReturnType<typeof useBoard> }) {
   );
 }
 
-/** Election night: poll closings, key races and the call log. Vote counts and calls wait for a licensed provider. */
+/**
+ * Election night: the results feed's status, seats called and leading, the poll-closing timeline, key races, the
+ * call log, every race on the results board, live coverage, and system health. Results and calls come from the
+ * results API (civicAPI on Nov 3); official state results are linked whenever the feed is not current.
+ */
 export function NightOps() {
   const { search } = useLocation();
   const now = useNow();
   const live = useBoard();
   const board = live.marketCount === null ? { ...live, senate: null, house: null } : live;
   const watch = useWatchlist(board.senate, board.house);
+  const results = useLiveResults();
+  const liveBoard = boardOf(results);
+  const badge = liveBoard ? (liveBoard.isTestData ? { tone: "mock" as const, text: "Test data · not results" } : { tone: "live" as const, text: `Results · ${liveBoard.source.name}` })
+    : mockResultsProviderEnabled ? { tone: "mock" as const, text: "Staging · mock results" } : { tone: "off" as const, text: "No results feed" };
   return (
     <>
       <div className="wr-head">
@@ -182,32 +182,39 @@ export function NightOps() {
             <Link to={{ pathname: "/war-room", search }}>Pre-election</Link>
             <Link to={{ pathname: "/war-room/night", search }} aria-current="page">Election night</Link>
           </div>
-          <Badge tone={mockResultsProviderEnabled ? "mock" : "off"}>{mockResultsProviderEnabled ? "Staging · mock results" : "No results provider"}</Badge>
+          <Badge tone={badge.tone}>{badge.text}</Badge>
         </div>
       </div>
 
-      <NotConnectedPanel title="Results · not connected" source="Licensed results provider"
-        description="No results provider is licensed yet, so there are no called seats, vote counts or reporting figures here. Market prices keep updating, and they are not results.">
-        <NightFigures now={now} markets={board.marketCount} />
-      </NotConnectedPanel>
+      <ResultsStatus state={results} />
+      <NightFigures now={now} markets={board.marketCount} results={results} />
+      {liveResultsEnabled && <SeatCount board={liveBoard} attribution={liveBoard?.attribution ?? null} />}
 
       <Timeline now={now} />
 
       <div className="wr-grid-panels">
-        <KeyRaces now={now} codes={watch.list} board={board} />
-        <CallLog now={now} />
+        <KeyRaces now={now} codes={watch.list} board={board} results={results} />
+        <CallLog board={liveBoard} closings={SLOTS} now={now} />
       </div>
 
-      {mockResultsProviderEnabled && <MockBoard />}
+      {liveResultsEnabled && <RaceBoard board={liveBoard} />}
+      {mockResultsProviderEnabled && !liveBoard && <MockBoard />}
 
       <div className="wr-grid-panels">
-        <NotConnectedPanel title="Live coverage" source="Network YouTube stream IDs"
-          description="Election-night streams appear once each network's scheduled stream is looked up and loaded (Oct 31 to Nov 2, PLAN §4.7). Embeds will use youtube-nocookie.com." />
-        <Health board={board} />
+        <LiveCoverage />
+        <div className="wr-stack">
+          <Health board={board} results={results} />
+          {liveBoard && (
+            <Panel title="Official results" footnote="Unofficial until each state certifies">
+              <OfficialLinks states={statesOf(watch.list)} title="Your watchlist's states" />
+              <OfficialLinks />
+            </Panel>
+          )}
+        </div>
       </div>
 
       <footer className="wr-footer">
-        <span>Src: poll closings from published state schedules · Kalshi live{mockResultsProviderEnabled ? " · mock results fixtures" : ""}</span>
+        <span>Src: poll closings from published state schedules · Kalshi live{liveBoard ? ` · ${liveBoard.attribution}` : mockResultsProviderEnabled ? " · mock results fixtures" : ""}</span>
         <span>Market prices are not forecasts or results</span>
       </footer>
     </>

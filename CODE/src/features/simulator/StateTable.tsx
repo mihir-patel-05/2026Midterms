@@ -1,6 +1,6 @@
 import { ELECTORAL_VOTES } from "./electoralVotes";
-import { ratingLabels, sourceLabels, STATE_NAMES } from "./labels";
-import { formatMargin, type SimulationResult, type StateOutcome } from "./model";
+import { resultLabel, sourceLabels, STATE_NAMES } from "./labels";
+import type { SimulationResult, StateOutcome } from "./model";
 
 const baseWinner = (state: StateOutcome) => (state.baseMargin === null ? null : state.baseMargin > 0 ? "D" : "R");
 
@@ -43,7 +43,7 @@ export function StateTable({ result, base, onSelect }: {
                 <td>{ELECTORAL_VOTES[state.code]}</td>
                 <td>
                   <span className="sim-result" data-party={state.winner}>
-                    {state.winner === "T" && state.source !== "baseline" ? "Tossup" : state.source === "pick" ? `${ratingLabels[state.rating!]} ${state.winner}` : formatMargin(state.margin)}
+                    {resultLabel(state)}
                   </span>
                   {flipped && <span className="sim-flag">Flip</span>}
                   {(state.source === "pick" || state.source === "counties") && <small>{sourceLabels[state.source]}</small>}

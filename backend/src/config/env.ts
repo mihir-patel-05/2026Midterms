@@ -49,6 +49,9 @@ const envSchema = z.object({
   POLLS_DATABASE_URL: z.string().trim().optional(),
   // The VoteHub poll sync (every 3 hours) and GET /api/polls. Needs POLLS_DATABASE_URL too.
   POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // GET /api/polls/national: presidential approval and the generic ballot, read from VoteHub and
+  // kept in memory for 3 hours. Needs no database.
+  NATIONAL_POLLS_ENABLED: z.enum(['true', 'false']).default('true'),
   // VoteHub's polling API: free, no key, CC BY 4.0 (credit VoteHub wherever polls are shown).
   VOTEHUB_API_BASE_URL: z.string().url().default('https://api.votehub.com'),
   // News top stories (docs/plans/news-agents.md, "Scope change"): the Apify sync and GET /api/news/top.
@@ -101,6 +104,38 @@ const envSchema = z.object({
   RESULTS_STALE_AFTER_SECONDS: z.string().regex(/^[1-9]\d*$/).default('300'),
   RESULTS_POLL_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('30'),
   RESULTS_PARSER_VERSION: z.string().default('unconfigured'),
+  // civicAPI results ingestion (docs/plans/civicapi-results.md). The loop runs only when enabled,
+  // in the results-ingestor service, or inside api with RESULTS_INGESTOR_IN_PROCESS (one api replica only).
+  RESULTS_INGESTOR_ENABLED: z.enum(['true', 'false']).default('false'),
+  RESULTS_INGESTOR_IN_PROCESS: z.enum(['true', 'false']).default('false'),
+  // Gzipped payloads, content-addressed. Mount a Railway Volume here in production.
+  RESULTS_RAW_ARTIFACT_DIR: z.string().default('.local/raw-artifacts'),
+  // civicAPI marks rehearsal numbers test_data. The ingestor holds them back, and the API hides any it
+  // stored, unless this is true. Testing rehearsals only; never true in production.
+  CIVICAPI_ACCEPT_TEST_DATA: z.enum(['true', 'false']).default('false'),
+  // County detail for close races (tier A). false takes every race from the aggregates (the database-size brake).
+  CIVICAPI_TIER_A_ENABLED: z.enum(['true', 'false']).default('true'),
+  CIVICAPI_TIER_A_MAX: z.string().regex(/^\d+$/).default('60'),
+  // Comma-separated races (PA-07,GA-SEN) to use instead of the Kalshi-based choice.
+  CIVICAPI_TIER_A_RACES: z.string().default(''),
+  // The Kalshi prices that choose tier A: the latest hour at or before this time, so every restart on
+  // election night picks the same races (prices from the night itself drop races as markets settle).
+  // Empty uses the latest hour stored.
+  CIVICAPI_TIER_A_AS_OF: z.union([z.string().datetime({ offset: true }), z.literal('')]).default('2026-11-02T12:00:00Z'),
+  CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('120'),
+  CIVICAPI_DETAIL_REFRESH_SECONDS: z.string().regex(/^[1-9]\d*$/).default('600'),
+  CIVICAPI_DETAIL_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('1'),
+  CIVICAPI_MAX_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
+  // Contact sent in the ingestor's User-Agent, so civicAPI can reach us about our traffic.
+  CIVICAPI_CONTACT: z.string().trim().optional(),
+  // EIA weekly gasoline and diesel prices for the Cost of living tab (PLAN.md §4.8). Free key:
+  // https://www.eia.gov/opendata/register.php. Without it the fuel sync is off and the tab says so.
+  EIA_API_KEY: z.string().trim().optional(),
+  EIA_API_BASE_URL: z.string().url().default('https://api.eia.gov/v2'),
+  // GET /api/cost-of-living and the weekly EIA sync.
+  COST_OF_LIVING_ENABLED: z.enum(['true', 'false']).default('true'),
+  // GET /api/live-streams (the War Room's Live coverage panel). Admins can also hide it without a deploy.
+  LIVE_STREAMS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Where /api/v1 results come from: published DB snapshots, or the in-memory fictional fixtures.
   RESULTS_READ_SOURCE: z.enum(['database', 'fixtures']).default('database'),
 
@@ -165,6 +200,7 @@ export const env = {
   FRED_RESTRICTED_SERIES_ENABLED: parsed.data.FRED_RESTRICTED_SERIES_ENABLED === 'true',
   POLLS_DATABASE_URL: parsed.data.POLLS_DATABASE_URL || undefined,
   POLLS_ENABLED: parsed.data.POLLS_ENABLED === 'true',
+  NATIONAL_POLLS_ENABLED: parsed.data.NATIONAL_POLLS_ENABLED === 'true',
   FEATURE_ELECTION_DASHBOARD: parsed.data.FEATURE_ELECTION_DASHBOARD === 'true',
   NOMINEES_ONLY: parsed.data.NOMINEES_ONLY === 'true',
   BALLOT_SYNC_ENABLED: parsed.data.BALLOT_SYNC_ENABLED === 'true',
@@ -175,4 +211,17 @@ export const env = {
     .filter(Boolean),
   RESULTS_STALE_AFTER_SECONDS: parseInt(parsed.data.RESULTS_STALE_AFTER_SECONDS, 10),
   RESULTS_POLL_INTERVAL_SECONDS: parseInt(parsed.data.RESULTS_POLL_INTERVAL_SECONDS, 10),
+  RESULTS_INGESTOR_ENABLED: parsed.data.RESULTS_INGESTOR_ENABLED === 'true',
+  RESULTS_INGESTOR_IN_PROCESS: parsed.data.RESULTS_INGESTOR_IN_PROCESS === 'true',
+  CIVICAPI_ACCEPT_TEST_DATA: parsed.data.CIVICAPI_ACCEPT_TEST_DATA === 'true',
+  CIVICAPI_TIER_A_ENABLED: parsed.data.CIVICAPI_TIER_A_ENABLED === 'true',
+  CIVICAPI_TIER_A_MAX: parseInt(parsed.data.CIVICAPI_TIER_A_MAX, 10),
+  CIVICAPI_TIER_A_RACES: parsed.data.CIVICAPI_TIER_A_RACES.split(',').map((race) => race.trim()).filter(Boolean),
+  CIVICAPI_TIER_A_AS_OF: parsed.data.CIVICAPI_TIER_A_AS_OF ? new Date(parsed.data.CIVICAPI_TIER_A_AS_OF) : null,
+  CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS, 10),
+  CIVICAPI_DETAIL_REFRESH_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_REFRESH_SECONDS, 10),
+  CIVICAPI_DETAIL_RPS: parseFloat(parsed.data.CIVICAPI_DETAIL_RPS),
+  CIVICAPI_MAX_RPS: parseFloat(parsed.data.CIVICAPI_MAX_RPS),
+  LIVE_STREAMS_ENABLED: parsed.data.LIVE_STREAMS_ENABLED === 'true',
+  COST_OF_LIVING_ENABLED: parsed.data.COST_OF_LIVING_ENABLED === 'true',
 };

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { PresidentYear } from "@/features/election-monitor/pastResults";
 import { ELECTORAL_VOTES, TOTAL_ELECTORAL_VOTES } from "./electoralVotes";
-import { EMPTY_SCENARIO, formatMargin, marginOf, nextPick, simBins, simulate, withMargin, type Scenario } from "./model";
+import { EMPTY_SCENARIO, formatMargin, marginOf, marginPick, nextPick, parseMarginInput, simBins, simulate, withMargin, type Scenario } from "./model";
 
 function load(year: number): PresidentYear {
   const file = fileURLToPath(new URL(`../../../public/data/past-results/president-${year}.json`, import.meta.url));
@@ -118,16 +118,40 @@ describe("simulate", () => {
 });
 
 describe("simBins", () => {
-  it("colours computed states by margin, picks by rating, and tossups", () => {
-    const result = run({ picks: { TX: { party: "D", rating: "likely" }, GA: { party: "T" } } });
+  it("shades Safe deepest, Likely in between, and Lean lightest, computed or picked", () => {
+    const result = run({ picks: { TX: { party: "D", rating: "likely" }, GA: { party: "T" }, OH: marginPick(2.5), FL: { party: "D", rating: "lean" } } });
     const bins = simBins(result, "states");
-    expect(bins.get("CA")).toBe("D4");
+    // California 2024 was D+20: Safe, the deepest step.
+    expect(bins.get("CA")).toBe("D0");
     expect(bins.get("TX")).toBe("D2");
+    expect(bins.get("OH")).toBe("D4");
+    expect(bins.get("FL")).toBe("D4");
     expect(bins.get("GA")).toBe("tossup");
+    // Pennsylvania 2024 was R+1.7: Lean, the lightest step.
+    expect(bins.get("PA")).toBe("R4");
   });
 
   it("colours every county with a result", () => {
     expect(simBins(run({}), "counties").size).toBe(run({}).counties.size);
+  });
+});
+
+describe("margin picks", () => {
+  it("read typed margins", () => {
+    expect(parseMarginInput("D+2.5")).toBe(2.5);
+    expect(parseMarginInput(" r + 4 ")).toBe(-4);
+    expect(parseMarginInput("R3.04")).toBe(-3);
+    expect(parseMarginInput("-1.25")).toBe(-1.3);
+    expect(parseMarginInput("2")).toBe(2);
+    for (const text of ["", "D+0", "0", "D+-2", "I+3", "D+101", "abc"]) expect(parseMarginInput(text), text).toBeNull();
+  });
+
+  it("decide the state, rate it by its size, and keep their margin", () => {
+    expect(marginPick(-7)).toEqual({ party: "R", rating: "likely", margin: -7 });
+    expect(marginPick(0)).toEqual({ party: "T" });
+    const state = run({ picks: { PA: marginPick(2.5) } }).states.PA;
+    expect(state).toMatchObject({ winner: "D", rating: "lean", pickMargin: 2.5, source: "pick" });
+    expect(run({}).states.PA.pickMargin).toBeNull();
   });
 });
 
