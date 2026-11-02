@@ -6,6 +6,7 @@ import { prisma } from './config/database.js';
 import routes from './routes/index.js';
 import { initializeScheduler } from './jobs/scheduler.js';
 import { kalshiLiveFeed } from './services/kalshi/live-feed.js';
+import { skipPublicRateLimit } from './middleware/public-rate-limit.js';
 
 const app: Application = express();
 
@@ -74,16 +75,17 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting for public API endpoints. One map page view makes ~10 calls (counts,
-// contests, finance, markets, stream), so 600 covers heavy browsing but stops scrapers.
+// Rate limiting for public API endpoints, per visitor IP. One map page view makes ~10 calls and an open War Room tab
+// about 60 every 15 minutes; people on one campus network or phone carrier share an IP, so the limit is
+// PUBLIC_RATE_LIMIT_MAX (3,000 by default). Cached election-night reads are not counted (see public-rate-limit.ts).
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 600,
+  max: env.PUBLIC_RATE_LIMIT_MAX,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
   // Admin routes have their own limiter below; counting them here too capped them at this limit.
-  skip: (req) => req.path === '/admin' || req.path.startsWith('/admin/'),
+  skip: (req) => skipPublicRateLimit(req.path),
 });
 
 // Higher limit for admin endpoints (dashboard polls frequently)
