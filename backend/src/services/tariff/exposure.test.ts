@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { CensusTradeClient, CensusTradeError, defaultTradeYear, parseStateTotals, syncStateImports } from './census-trade.js';
 import { percentiles, scoreStates, tariffExposure, type RawInputs } from './exposure.js';
+import { STATE_REGION } from '../fuel/fuel-catalog.js';
 
 test('percentiles run 0 to 100 with ties at their midpoint', () => {
   const ranks = percentiles(new Map([['A', 1], ['B', 2], ['C', 2], ['D', 5]]));
@@ -42,6 +43,39 @@ test('Census tables sum HS2 chapters by state and refuse an unknown shape', () =
   assert.match(new CensusTradeClient({ baseUrl: 'https://api.census.gov/data' }).url('-', 2025, false), /statehs\?get=STATE%2CGEN_VAL_YR.*time=2025-12&CTY_CODE=-/);
 });
 
+test('the Census client asks for one state, retries a timeout, and reads no rows as null', async () => {
+  const header = ['STATE', 'GEN_VAL_YR', 'I_COMMODITY', 'COMM_LVL'];
+  const urls: string[] = [];
+  let timeouts = 1;
+  const client = new CensusTradeClient({
+    baseUrl: 'https://census.example/data',
+    apiKey: 'k',
+    retryDelayMs: 0,
+    fetchJson: async (url) => {
+      urls.push(url);
+      if (url.includes('CTY_CODE=5700') && timeouts-- > 0) throw new Error('The operation was aborted due to timeout');
+      if (url.includes('CTY_CODE=1220')) return [];
+      // Another state's rows are ignored, should Census send them.
+      return [header, ['MI', '100', '01', 'HS2'], ['MI', '50', '02', 'HS2'], ['OH', '7', '01', 'HS2']];
+    },
+  });
+  assert.equal(await client.stateTotal('5700', 2025, 'MI'), 150);
+  assert.equal(client.requestCount, 2, 'one timeout, then an answer');
+  assert.match(urls[0], /time=2025-12&CTY_CODE=5700&STATE=MI&key=k$/);
+  assert.equal(await client.stateTotal('1220', 2025, 'MI'), null, 'no rows is null, for the caller to read');
+  assert.equal(await client.stateTotal('2010', 2025, 'TX'), null);
+
+  let attempts = 0;
+  const down = new CensusTradeClient({ baseUrl: 'https://census.example/data', retryDelayMs: 0, fetchJson: async () => { attempts++; throw new Error('fetch failed'); } });
+  await assert.rejects(down.stateTotal('-', 2025, 'MI'), /fetch failed/);
+  assert.equal(attempts, 3, 'two retries');
+
+  attempts = 0;
+  const badShape = new CensusTradeClient({ baseUrl: 'https://census.example/data', retryDelayMs: 0, fetchJson: async () => { attempts++; return { error: 'unknown variable' }; } });
+  await assert.rejects(badShape.stateTotal('-', 2025, 'MI'), CensusTradeError);
+  assert.equal(attempts, 1, 'a bad answer is not asked again');
+});
+
 test('imports, GDP, jobs and diesel stored together give every state a score', { skip: !process.env.TEST_DATABASE_URL }, async () => {
   const db = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL } } });
   const sourceKey = 'census-trade-test';
@@ -64,6 +98,8 @@ test('imports, GDP, jobs and diesel stored together give every state a score', {
     const sync = await syncStateImports(db, client, states, { year: 2025, sourceKey });
     assert.equal(sync.status, 'SUCCEEDED');
     assert.equal(sync.states, 4);
+    assert.deepEqual(sync.failed, []);
+    assert.equal(sync.requests, 16, 'four requests for each state');
     const total = await db.indicatorObservation.findFirstOrThrow({ where: { series: { key: 'census.imports.all.MI' } } });
     assert.equal(total.value.toNumber(), 150e9);
 
@@ -92,6 +128,48 @@ test('imports, GDP, jobs and diesel stored together give every state a score', {
     assert.equal(result.states.filter((item) => item.score !== null).length, 4);
     assert.equal(result.periods.importsToGdp, '2025');
     assert(result.method.notes.some((note) => note.startsWith('Exposure, not a measured cost')));
+  } finally {
+    await cleanup();
+    await db.$disconnect();
+  }
+});
+
+test('a state whose request fails is left out, never zero, and a year Census lacks stops early', { skip: !process.env.TEST_DATABASE_URL }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL } } });
+  const sourceKey = 'census-trade-partial-test';
+  const states = Object.keys(STATE_REGION);
+  const cleanup = async () => {
+    await db.indicatorSeries.deleteMany({ where: { source: { key: sourceKey } } });
+    await db.ingestionRun.deleteMany({ where: { source: { key: sourceKey } } });
+    await db.dataSource.deleteMany({ where: { key: sourceKey } });
+  };
+  try {
+    await cleanup();
+    const rows = (state: string, value: number) => [['STATE', 'GEN_VAL_YR', 'I_COMMODITY', 'COMM_LVL'], [state, String(value), '01', 'HS2']];
+    const client = new CensusTradeClient({
+      baseUrl: 'https://census.example/data',
+      retries: 0,
+      fetchJson: async (url) => {
+        const state = new URL(url).searchParams.get('STATE')!;
+        if (state === 'OH' && url.includes('CTY_CODE=2010')) throw new Error('The operation was aborted due to timeout');
+        return rows(state, url.includes('CTY_CODE=-') ? 900 : 100);
+      },
+    });
+    const sync = await syncStateImports(db, client, states, { year: 2025, sourceKey });
+    assert.equal(sync.status, 'PARTIAL');
+    assert.equal(sync.states, 50);
+    assert.deepEqual(sync.failed, ['OH: The operation was aborted due to timeout']);
+    assert.equal(await db.indicatorSeries.count({ where: { key: { in: ['census.imports.all.OH', 'census.imports.cnmxca.OH'] } } }), 0, 'Ohio is left out, not written as zero');
+    const mi = await db.indicatorObservation.findFirstOrThrow({ where: { series: { key: 'census.imports.cnmxca.MI' } } });
+    assert.equal(mi.value.toNumber(), 300);
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { key: sourceKey } })).healthStatus, 'DEGRADED');
+
+    // Census has no 2026 yet (204 for everything): stop once 45 states are out of reach, write nothing.
+    const empty = new CensusTradeClient({ baseUrl: 'https://census.example/data', fetchJson: async () => [] });
+    const none = await syncStateImports(db, empty, states, { year: 2026, sourceKey });
+    assert.equal(none.status, 'FAILED');
+    assert(none.requests <= 10, `stopped after ${none.requests} requests`);
+    assert.equal(await db.indicatorObservation.count({ where: { series: { source: { key: sourceKey } }, observedAt: new Date(Date.UTC(2026, 0, 1)) } }), 0);
   } finally {
     await cleanup();
     await db.$disconnect();

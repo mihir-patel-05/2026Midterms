@@ -411,13 +411,19 @@ export function initializeScheduler(): void {
   }
 
   // Census state imports for the tariff exposure score: the year's total, which only changes when
-  // Census revises it, so monthly (the 12th, after the trade release) and once after boot.
+  // Census revises it, so monthly (the 12th, after the trade release) and after boot unless the
+  // last run wrote every state within the week (a run is about 200 requests; Testing restarts often).
   if (env.CENSUS_API_KEY && env.COST_OF_LIVING_ENABLED) {
-    const runTrade = async (why: string) => {
+    const runTrade = async (why: 'scheduled' | 'after boot') => {
       try {
-        const { runTradeSync } = await import('../services/tariff/run-trade-sync.js');
+        const { runTradeSync, tradeSyncIsCurrent } = await import('../services/tariff/run-trade-sync.js');
+        if (why === 'after boot' && await tradeSyncIsCurrent(7 * 24 * 3600 * 1000)) {
+          console.log('🚢 Census imports sync (after boot) skipped: the last run wrote every state this week');
+          return;
+        }
         const stats = await runTradeSync();
-        console.log(`🚢 Census imports sync (${why}) ${stats.status}: ${stats.year}, ${stats.states} states${stats.error ? ` (${stats.error})` : ''}`);
+        const failed = stats.failed.length ? `, ${stats.failed.length} failed (first ${stats.failed[0]})` : '';
+        console.log(`🚢 Census imports sync (${why}) ${stats.status}: ${stats.year}, ${stats.states} states, ${stats.requests} requests${failed}${stats.error ? ` (${stats.error})` : ''}`);
       } catch (error) {
         if (error instanceof SyncAlreadyRunningError) console.log('🚢 Census imports sync skipped: another run holds the lease');
         else console.error('❌ Census imports sync failed:', error instanceof Error ? error.message : error);
