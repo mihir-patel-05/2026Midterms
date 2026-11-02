@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap, type MapMouseEvent } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "./electionMap.css";
 import type { Position } from "geojson";
 import type { MapLayer, Readiness } from "../types";
@@ -19,6 +21,10 @@ import {
 } from "./geo";
 import { resolveMapStyle } from "./mapStyle";
 import { REDISTRICTED_STATES } from "./redistricting";
+
+// MapLibre 6 is ESM-only, and under a bundler it needs its worker's URL. Vite's
+// `?worker&url` emits the worker as a self-contained same-origin asset.
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 export interface MapView {
   lat: number;
