@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { getRaceOutsideSpending } from "@/lib/api";
-import { liveResultsEnabled, pollsEnabled } from "@/lib/featureFlags";
+import { liveResultsEnabled, pollsEnabled, simulatorEnabled } from "@/lib/featureFlags";
 import { historyByTicker, historyStart, useMarketHistory } from "@/features/election-monitor/marketHistory";
 import { isRedistricted } from "@/features/election-monitor/map/redistricting";
 import type { SeatHolder } from "@/features/election-monitor/oddsMap";
@@ -23,6 +23,7 @@ import { useWatchlist } from "../watchlist";
 import { buildRaceLog, pickCandidates } from "./dossier";
 import { Candidates } from "./Candidates";
 import { MarketPanel } from "./MarketPanel";
+import { ForecastPanel } from "../forecast/SavedForecast";
 import { MoneyPanel } from "./MoneyPanel";
 import { ProfilePanel } from "./ProfilePanel";
 import { MAP_SCREEN } from "../screens";
@@ -30,7 +31,7 @@ import { RaceLogPanel } from "./RaceLogPanel";
 import { RaceResultsPanel } from "../results/RaceResultsPanel";
 import { TerrainPanel } from "./TerrainPanel";
 
-const SECTIONS = [...(liveResultsEnabled ? [["results", "Results"]] : []), ["candidates", "Candidates"], ["market", "Market"], ["money", "Money"], ...(pollsEnabled ? [["polls", "Polls"]] : []), ["terrain", "Terrain"], ["profile", "Profile"], ["log", "Log"]];
+const SECTIONS = [...(liveResultsEnabled ? [["results", "Results"]] : []), ["candidates", "Candidates"], ["market", "Market"], ...(simulatorEnabled ? [["forecast", "Forecast"]] : []), ["money", "Money"], ...(pollsEnabled ? [["polls", "Polls"]] : []), ["terrain", "Terrain"], ["profile", "Profile"], ["log", "Log"]];
 
 function UnknownRace({ segment }: { segment: string }) {
   return (
@@ -142,6 +143,7 @@ function Dossier({ code }: { code: string }) {
           <RaceResultsPanel id="results" code={code} />
           <Candidates id="candidates" picked={picked} markets={race?.markets ?? []} byTicker={byTicker} spending={spending} contestsLoading={contests.isLoading} contestsError={contests.isError} boardReady={board.marketCount !== null} />
           <MarketPanel id="market" code={code} markets={race?.markets ?? []} />
+          <ForecastPanel id="forecast" code={code} />
           <MoneyPanel id="money" picked={picked} spending={spending} />
           {pollsEnabled && (
             <Panel id="polls" title="Polls · VoteHub">

@@ -218,3 +218,12 @@
 @media (prefers-reduced-motion: reduce) {
   .sim-ev-bar span { transition: none; }
 }
+
+/* Your forecast: saved in this browser, opened again on the next visit. */
+.sim-forecast { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid hsl(var(--line)); border-radius: 10px; background: hsl(var(--surface) / 0.82); }
+.sim-forecast[data-status="saved"] { border-color: hsl(var(--signal-teal) / 0.45); }
+.sim-forecast-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; flex: 1 1 260px; margin: 0; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.sim-forecast-text strong { color: hsl(var(--quiet)); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.sim-forecast .sim-actions { flex-wrap: wrap; }
+.sim-button[data-primary] { color: hsl(var(--foreground)); border-color: hsl(var(--signal-teal) / 0.45); }
+.sim-button:disabled { opacity: 0.55; cursor: not-allowed; }

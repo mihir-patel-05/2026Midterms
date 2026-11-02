@@ -8,6 +8,7 @@ import { HOUSE_APPORTIONMENT } from "@/features/simulator/midterms/races2026";
 import { costOfLivingEnabled, demographicsEnabled, earlyVoteEnabled, economyEnabled, newsEnabled } from "@/lib/featureFlags";
 import { CostOfLivingTab } from "../costOfLiving/CostOfLivingTab";
 import { StateEarlyVote } from "../earlyVote/StateEarlyVote";
+import { ForecastBrief } from "../forecast/SavedForecast";
 import { StateNews } from "../news/StateNews";
 import { Brackets, StatusLine } from "../panels/Panel";
 import { STATE_NAMES } from "../raceCodes";
@@ -67,6 +68,7 @@ export function IntelPanel({ params, update, districts }: {
         ))}
       </div>
       <div className="wr-intel-body" role="tabpanel">
+        {tab === "brief" && state && <ForecastBrief codes={[`${state}-SEN`, ...(params.district ? [`${state}-${params.district}`] : [])]} />}
         {tab === "brief" && (
           <AreaBrief stateCode={state} stateName={stateName} district={params.district} districts={districts} counties={params.counties}
             onOpenProfile={() => setTab(demographicsEnabled ? "people" : "brief")} />

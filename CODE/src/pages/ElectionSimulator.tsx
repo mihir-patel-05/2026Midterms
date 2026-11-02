@@ -9,6 +9,7 @@ import { ELECTORAL_VOTES, SPLIT_DISTRICTS } from "@/features/simulator/electoral
 import { EvBar } from "@/features/simulator/EvBar";
 import { pickLabel, sourceLabels, STATE_NAMES } from "@/features/simulator/labels";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
+import { ForecastBar } from "@/features/simulator/ForecastBar";
 import { formatMargin, marginOf, nextPick, simBins, simulate, type Outcome, type Pick } from "@/features/simulator/model";
 import { SimLegend } from "@/features/simulator/SimLegend";
 import { SimulatorControls } from "@/features/simulator/SimulatorControls";
@@ -135,6 +136,7 @@ export function ElectionSimulatorContent({ paths }: { paths?: SimulatorPaths }) 
               <p>Start from a past presidential election, swing it, and call states yourself.</p>
             </div>
           </header>
+          <ForecastBar kind="electoral" />
           <SimulatorControls
             base={scenario.base}
             swing={scenario.swing}

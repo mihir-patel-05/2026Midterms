@@ -746,3 +746,17 @@
 @media (prefers-reduced-motion: reduce) {
   .wr-ev-table tr[data-changed] td { animation: none; background: var(--wr-live-ground); }
 }
+
+/* Your forecast (saved in the simulator, in this browser): the dossier panel and the intel panel's brief. */
+.wr-fc { display: flex; flex-direction: column; gap: 10px; }
+.wr-fc > .wr-btn { align-self: flex-start; }
+.wr-fc-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-family: var(--wr-mono); font-variant-numeric: tabular-nums; }
+.wr-fc-line strong { font-size: 20px; font-weight: 600; }
+.wr-fc-line .wr-dim { font-size: 11px; }
+.wr-fc-code { min-width: 64px; font-size: 11px; letter-spacing: 0.12em; color: var(--wr-text-2); }
+.wr-fc-brief { gap: 6px; padding: 10px 12px; border: 1px solid var(--wr-accent-line); background: var(--wr-accent-ground); }
+.wr-fc-brief .wr-fc-line strong { font-size: 15px; }
+.wr-fc-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.wr-fc-head h3 { margin: 0; font-family: var(--wr-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--wr-accent-ink); text-transform: uppercase; }
+.wr-fc-head .wr-dim { font-family: var(--wr-mono); font-size: 11px; }
+.wr-fc-open { align-self: flex-start; font-family: var(--wr-mono); font-size: 11px; color: var(--wr-accent-ink); }
