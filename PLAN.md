@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: October 31, 2026
+Last updated: November 2, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -125,7 +125,7 @@ Differentiators:
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
-- No live election-results provider is licensed. Election night uses **civicAPI** (free, attribution required, no SLA), built Oct 31, with official state results links as the fallback. Still to do: the Nov 1 rehearsal, hand-checking the official links (`npm run check:results-links`), and pasting each network's stream in the admin dashboard. See `docs/plans/civicapi-results.md`, "Built" and the runbook.
+- No live election-results provider is licensed. Election night uses **civicAPI** (free, attribution required, no SLA), built Oct 31, with official state results links as the fallback. Nov 2 review: the pipeline passed a local rehearsal against live civicAPI, but Testing's `Backend` had none of the results variables set and `main-prod` runs `main` without civicAPI. Still to do: the Nov 2 checklist (variables, `is_enabled`, deploy), hand-checking the official links, and pasting each network's stream. See `docs/plans/civicapi-results.md`, "Review (Nov 2)".
 - District boundaries: `CODE/public/geo/cd119.topo.json` has to be built (`npm run build:geo`) and committed. See `CODE/public/geo/SOURCES.md`.
 - The legacy frontend (`/classic`, `features/election-dashboard/*`, `react-simple-maps`, and the `VITE_FEATURE_NEW_FRONTEND` flag) is ready to be removed.
 

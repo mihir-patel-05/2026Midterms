@@ -11,6 +11,7 @@ import { ElectionResultsResponseSchema } from '../contracts.js';
 import { dbBootstrapPayload, dbCurrentResult, type ReadModelConfig } from '../read-model.js';
 import { CivicApiClient } from './client.js';
 import { CivicApiIngestor, type IngestorOptions } from './ingestor.js';
+import { chooseTierA } from './tiers.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -187,6 +188,25 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     assert.equal(await db.raceCall.count({ where: { contestId: flContest.id, retractedAt: null } }), 0);
     assert.equal(await db.raceCall.count({ where: { contestId: flContest.id } }), 1);
 
+    // 6b. After a restart ME-SEN gets county detail (tier B to A), and its detail document is older than the
+    // aggregate snapshot it has. It keeps its numbers, and that is a warning, not a failed race.
+    const meDetail = {
+      ...structuredClone((uncalled.region_results as Record<string, Record<string, unknown>>).me),
+      test_data: false, last_updated: '2026-11-04T01:59:00.000Z', called_at: null, region_results: {},
+    };
+    feed.docs[meContest.sourceContestId!] = meDetail;
+    const restarted = await ingestor(db, feed.fetchImpl, {
+      tierA: { enabled: true, max: 60, override: ['GA-SEN', 'PA-07', 'ME-SEN'], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 },
+    });
+    const meBefore = (await db.contest.findUniqueOrThrow({ where: { id: meContest.id } })).currentSnapshotId;
+    const switched = await restarted.cycle(new Date('2026-11-04T02:01:45Z'));
+    assert.equal(switched.status, 'ok', switched.message);
+    assert.equal(switched.rejected, 0);
+    assert.equal((await db.contest.findUniqueOrThrow({ where: { id: meContest.id } })).currentSnapshotId, meBefore);
+    assert(await db.ingestionError.findFirst({ where: { code: 'RESULTS_WARNING', message: { contains: 'ME-SEN: kept its aggregate snapshot' } } }));
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'CURRENT');
+    delete feed.docs[meContest.sourceContestId!];
+
     // 7. A race missing from the catalog is rejected and logged; the others still publish.
     const extra = structuredClone(uncalled);
     (extra.region_results as Record<string, Record<string, unknown>>).me.election_id = 123456789;
@@ -208,6 +228,44 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'UNAVAILABLE');
   } finally {
     if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
+
+test('tier A comes from the Kalshi hour at or before CIVICAPI_TIER_A_AS_OF, so restarts agree', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  const early = new Date('2030-01-01T05:00:00Z');
+  const late = new Date('2030-01-01T07:00:00Z');
+  const marketIds = ['TIERTEST-GA', 'TIERTEST-PA07'];
+  try {
+    const source = await db.dataSource.upsert({
+      where: { key: 'kalshi-tier-test' },
+      create: { key: 'kalshi-tier-test', name: 'Kalshi tier test', type: 'OTHER', attributionText: 'test', isEnabled: false },
+      update: {},
+    });
+    const row = (market: string, stateCode: string, districtCode: string | null, price: number, capturedHour: Date) => ({
+      sourceId: source.id, provider: 'KALSHI' as const, scope: districtCode ? 'HOUSE_DISTRICT' as const : 'STATE_SENATE' as const,
+      sourceEventId: market, sourceMarketId: market, outcome: 'yes', stateCode, districtCode, priceType: 'MIDPOINT' as const,
+      price, capturedHour, fetchedAt: capturedHour,
+    });
+    await db.marketSnapshot.deleteMany({ where: { sourceMarketId: { in: marketIds } } });
+    await db.marketSnapshot.createMany({
+      data: [
+        // Before the cutoff GA-SEN is close and PA-07 is not; on the night (later) it is the other way round.
+        row(marketIds[0], 'GA', null, 0.55, early), row(marketIds[1], 'PA', '07', 0.95, early),
+        row(marketIds[0], 'GA', null, 0.97, late), row(marketIds[1], 'PA', '07', 0.6, late),
+      ],
+    });
+    const asOf = await chooseTierA(db, { max: 60, override: [], asOf: new Date('2030-01-01T06:30:00Z') });
+    assert.deepEqual(asOf.labels, ['GA-SEN']);
+    assert.match(asOf.reason, /2030-01-01T05:00:00/);
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: [], asOf: null })).labels, ['PA-07']);
+    // With no prices at or before the cutoff, the latest hour is used.
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: [], asOf: new Date('1990-01-01T00:00:00Z') })).labels, ['PA-07']);
+    assert.deepEqual((await chooseTierA(db, { max: 60, override: ['pa-7', 'ga-sen'], asOf: null })).labels, ['PA-07', 'GA-SEN']);
+  } finally {
+    await db.marketSnapshot.deleteMany({ where: { sourceMarketId: { in: marketIds } } }).catch(() => {});
+    await db.dataSource.deleteMany({ where: { key: 'kalshi-tier-test' } }).catch(() => {});
     await db.$disconnect();
   }
 });

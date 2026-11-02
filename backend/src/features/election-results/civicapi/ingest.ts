@@ -46,6 +46,8 @@ interface ContestState {
   currentSignature: string | null;
   currentSnapshotIsTest: boolean;
   currentSourceUpdatedAt: Date | null;
+  /** The document kind the current snapshot came from (each race takes snapshots from one kind; see the tiers). */
+  currentKind: ParsedDocument['kind'] | null;
   activeCalls: Array<{ id: string; candidacyId: string; kind: 'WINNER' | 'ADVANCED'; calledAtSource: boolean; isTestData: boolean }>;
 }
 
@@ -93,7 +95,7 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
     select: {
       id: true, sourceContestId: true, office: true, stateCode: true, districtCode: true,
       candidacies: { where: { sourceId }, select: { id: true, sourceCandidateId: true } },
-      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true } },
+      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, rawArtifact: { select: { metadata: true } } } },
       raceCalls: { where: { retractedAt: null }, select: { id: true, candidacyId: true, kind: true, calledAtSource: true, isTestData: true } },
     },
   });
@@ -109,10 +111,17 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
       currentSignature: row.currentSnapshot?.sourceSnapshotId ?? null,
       currentSnapshotIsTest: row.currentSnapshot?.isTestData ?? false,
       currentSourceUpdatedAt: row.currentSnapshot?.sourceUpdatedAt ?? null,
+      currentKind: documentKind(row.currentSnapshot?.rawArtifact?.metadata),
       activeCalls: row.raceCalls,
     });
   }
   return { sourceId, contests };
+}
+
+/** `aggregate` or `detail`, from the metadata `recordArtifact` writes. */
+function documentKind(metadata: Prisma.JsonValue | undefined): ParsedDocument['kind'] | null {
+  const kind = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata.kind : null;
+  return kind === 'aggregate' || kind === 'detail' ? kind : null;
 }
 
 /** True when a race's numbers differ from its current snapshot (or the snapshot is rehearsal data and this is not). */
@@ -392,6 +401,13 @@ export async function ingestDocument(
   for (const update of changed) {
     const contest = ctx.contests.get(update.sourceContestId)!;
     if (contest.currentSourceUpdatedAt && sourceUpdatedAt < contest.currentSourceUpdatedAt && !contest.currentSnapshotIsTest) {
+      if (contest.currentKind && contest.currentKind !== parsed.kind) {
+        // The race changed tiers (a restart, or county detail that kept failing). A detail document's time
+        // is the race's own and the aggregate's is the whole feed's, so the race keeps its current numbers
+        // until it next changes. Nothing failed validation, so this is no rejection.
+        outcome.warnings.push(`${update.label}: kept its ${contest.currentKind} snapshot; the ${parsed.kind} document is older (the race changed tiers) and publishes once the race next changes`);
+        continue;
+      }
       outcome.rejected.push({ label: update.label, reason: 'this document is older than the race’s current snapshot' });
       continue;
     }
@@ -400,6 +416,7 @@ export async function ingestDocument(
       contest.currentSignature = signatureId(update);
       contest.currentSnapshotIsTest = parsed.testData;
       contest.currentSourceUpdatedAt = sourceUpdatedAt;
+      contest.currentKind = parsed.kind;
       outcome.published.push(update.label);
     } catch (error) {
       // Unit and geography ids cached inside a rolled-back transaction may not exist.

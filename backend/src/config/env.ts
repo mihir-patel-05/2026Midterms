@@ -118,6 +118,10 @@ const envSchema = z.object({
   CIVICAPI_TIER_A_MAX: z.string().regex(/^\d+$/).default('60'),
   // Comma-separated races (PA-07,GA-SEN) to use instead of the Kalshi-based choice.
   CIVICAPI_TIER_A_RACES: z.string().default(''),
+  // The Kalshi prices that choose tier A: the latest hour at or before this time, so every restart on
+  // election night picks the same races (prices from the night itself drop races as markets settle).
+  // Empty uses the latest hour stored.
+  CIVICAPI_TIER_A_AS_OF: z.union([z.string().datetime({ offset: true }), z.literal('')]).default('2026-11-02T12:00:00Z'),
   CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('120'),
   CIVICAPI_DETAIL_REFRESH_SECONDS: z.string().regex(/^[1-9]\d*$/).default('600'),
   CIVICAPI_DETAIL_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('1'),
@@ -213,6 +217,7 @@ export const env = {
   CIVICAPI_TIER_A_ENABLED: parsed.data.CIVICAPI_TIER_A_ENABLED === 'true',
   CIVICAPI_TIER_A_MAX: parseInt(parsed.data.CIVICAPI_TIER_A_MAX, 10),
   CIVICAPI_TIER_A_RACES: parsed.data.CIVICAPI_TIER_A_RACES.split(',').map((race) => race.trim()).filter(Boolean),
+  CIVICAPI_TIER_A_AS_OF: parsed.data.CIVICAPI_TIER_A_AS_OF ? new Date(parsed.data.CIVICAPI_TIER_A_AS_OF) : null,
   CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS, 10),
   CIVICAPI_DETAIL_REFRESH_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_REFRESH_SECONDS, 10),
   CIVICAPI_DETAIL_RPS: parseFloat(parsed.data.CIVICAPI_DETAIL_RPS),

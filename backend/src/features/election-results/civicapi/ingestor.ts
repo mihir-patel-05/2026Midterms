@@ -33,6 +33,8 @@ export interface IngestorOptions {
     enabled: boolean;
     max: number;
     override: string[];
+    /** Kalshi prices as of this time choose tier A, so restarts agree; null takes the latest. */
+    asOf?: Date | null;
     detailMinIntervalSeconds: number;
     detailRefreshSeconds: number;
     detailRps: number;
@@ -90,7 +92,7 @@ export class CivicApiIngestor {
       console.log('[civicapi] County detail is off (CIVICAPI_TIER_A_ENABLED=false); every race takes totals from the aggregates');
       return;
     }
-    const choice = await chooseTierA(this.db, { max: this.options.tierA.max, override: this.options.tierA.override });
+    const choice = await chooseTierA(this.db, { max: this.options.tierA.max, override: this.options.tierA.override, asOf: this.options.tierA.asOf });
     const byLabel = new Map([...ctx.contests].map(([id, contest]) => [contest.label, id]));
     for (const label of choice.labels) {
       const id = byLabel.get(label);
