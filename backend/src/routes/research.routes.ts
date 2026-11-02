@@ -113,7 +113,7 @@ const simulateSchema = z.object({
   officeType: z.enum(['HOUSE', 'SENATE']).optional(),
   swings: z.object({
     statewide: swingSchema.optional(),
-    perRace: z.record(swingSchema).optional(),
+    perRace: z.record(z.string(), swingSchema).optional(),
   }),
 });
 
