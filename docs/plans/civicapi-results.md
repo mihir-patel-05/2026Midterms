@@ -34,11 +34,55 @@ Everything below is built, on the War Room only (the user's call: every election
 - **Race calls are in v1.** civicAPI's FAQ says its own decision desk makes its calls ("civicAPI uses its own decision desk"), so `winner` is a projection by a named desk. Calls go to the new `race_calls` table (append-only; a call missing from two documents in a row is retracted, never deleted) and are labelled "civicAPI decision desk" everywhere, never as certification. `advanced` is stored as a runoff call. Detail documents carry `called_at`; for tier B races one detail request fetches it after the call appears (until then the time is "first seen", marked with *).
 - **Test data is held back.** The ingestor publishes nothing while civicAPI says `test_data: true`, and the source shows "civicAPI is serving test data". `CIVICAPI_ACCEPT_TEST_DATA=true` (Testing only) stores it with `is_test_data` and the API serves it with a loud TEST DATA label; the first live document deletes every test-data snapshot and call automatically.
 - **No catalog script.** The ballot sync (Oct 30) already writes the `civicapi` source, the event, one contest per race (`sourceContestId` = `election_id`) and every candidacy with civicAPI's ids, so the ingestor uses those. County geography (`counties-fips`) is created as counties first report.
-- **Tier A is chosen when the ingestor starts**, from the latest Kalshi snapshots (leader under 80¢, closest first, at most 60), or from `CIVICAPI_TIER_A_RACES`. No `tier-a.json`. A tier A race whose detail fails three times in a row drops to the aggregate for the rest of the run.
+- **Tier A is chosen when the ingestor starts**, from Kalshi snapshots (leader under 80¢, closest first, at most 60), or from `CIVICAPI_TIER_A_RACES`. No `tier-a.json`. A tier A race whose detail fails three times in a row drops to the aggregate for the rest of the run. Since Nov 2 the prices are the latest hour at or before `CIVICAPI_TIER_A_AS_OF` (default Nov 2, 12:00 UTC), so every restart picks the same races (see "Review (Nov 2)").
 - **Bug fixed on the way:** the ballot sync stores ballot order from 0, which the contract rejects, so every civicAPI contest would have been withheld. The read model now serves positions from 1.
 - **Measured on Oct 31** against live civicAPI test data, all 470 races: the first cycle published 470 snapshots; later cycles publish only what changed (40–70 races). `/api/v1/bootstrap?units=none` is 1.5 MB raw and 158 KB gzipped (compression is on for `/api/v1`), built in about 0.5 s and cached 10 s.
 - **Where it shows (War Room):** the Night screen (status banner, seats called and leading, call log, a results board of every race, key races, live coverage), a **Results** lens on the map, a Results section on every race dossier (counties for tier A), and a header chip. Official state results links (`CODE/public/data/state-results-links.json`) appear whenever the feed is delayed, switched off, or not connected. The links could not be opened from the build sandbox: run `npm run check:results-links` in `CODE/` and open each before Nov 3.
 - **Running it:** `npm run results:ingest` (or `node dist/workers/results-ingestor.js`) with `RESULTS_INGESTOR_ENABLED=true`; `--once`, `--record <dir>` and `--replay <dir>` as planned. On Testing, `RESULTS_INGESTOR_IN_PROCESS=true` runs it inside `api` (one replica only).
+
+## Review (Nov 2)
+A pre-election review of the pipeline, against live civicAPI and the Railway projects.
+
+**Verified:**
+- **civicAPI** answers. It still serves **test data** (`test_data: true`, last updated Nov 2 08:23 UTC), with every race at 100% and called. It sends no ETags, and Cloudflare caches each response for 15 s.
+- **IDs are stable.** Both aggregate IDs, all 470 `election_id`s, and every candidate id match the Oct 31 recording. The parser reads today's payloads with no issues. The GA-SEN detail has 159 counties.
+- **Local rehearsal.** On a fresh database, the real ballot sync and ingestor ran against live civicAPI:
+  - With test data held, nothing published and the source said why.
+  - As a rehearsal, 470 races published with 0 errors, in about 26 s.
+  - Then a live night made from today's payloads was replayed. Test data was purged, all races published, and a call was made and then retracted after two documents.
+  - `/api/v1/bootstrap?units=none` is 1.4 MB, or 140 KB gzipped. It takes 0.5 s cold and 0.05 s cached.
+  - The kill switch answered 503 within 10 s and recovered. A dead host turned the source `UNAVAILABLE` after 3 cycles.
+- **Testing's ballot sync** runs every 6 hours: 470 races, 1,236 candidates, 1,166 matched to FEC. The 5 delegate seats (DC, AS, GU, MP, VI) are not in civicAPI. AK-SEN lists "Dan Sullivan" and "Daniel J. Jr. Sullivan" under two civicAPI ids; both are kept, so watch that race.
+
+**Found in Railway (Nov 2, 13:00 UTC):**
+- **Testing `Backend` has no results variables.** It runs `2026Midterm_intel_v2` at `a3c35e83`, but `FEATURE_ELECTION_DASHBOARD`, `RESULTS_PROVIDER_ENABLED_IDS`, `RESULTS_INGESTOR_ENABLED` and `RESULTS_INGESTOR_IN_PROCESS` are all unset. The ingestor has never run there (no `[civicapi]` log line), `/api/v1` answers 404, and the Nov 1 rehearsal did not happen on Testing.
+- **There is no `results-ingestor` service.** Run the loop inside Testing's single-replica `Backend` with `RESULTS_INGESTOR_IN_PROCESS=true`. Payloads then go to the container's disk, which is lost on redeploy. They are an audit copy only; every number is in Postgres.
+- **`main-prod` is not ready.** It runs `main` from Oct 30, which has no civicAPI ingestion and no live results, and its `Frontend` has no `VITE_FEATURE_WAR_ROOM`. Election night runs on Testing (`2026midterms-testing.up.railway.app`) unless `main-prod` gets `2026Midterm_intel_v2` merged to `main`, every variable below, a ballot sync, and a rebuild of `web`.
+- **The source starts switched off.** The ballot sync creates `civicapi` with `is_enabled = false`, and no admin control exists. Switching it on, and the kill switch, are SQL against the Testing database.
+
+**Fixed (Nov 2):**
+- **Tier A no longer changes on restart.** It is chosen from Kalshi prices at a fixed time (`CIVICAPI_TIER_A_AS_OF`). Every variable change restarts `Backend`, the database-size brakes included. Before this fix, a restart on the night re-chose from prices of the night. Settled markets dropped close races from county detail, and races newly in tier A were rejected as "older than the race's current snapshot". That turned the source `DEGRADED`, and the War Room showed "Some races failed validation".
+- **A race that changes tiers is a warning, not a failure.** It keeps its current numbers and logs a warning; it publishes again when the race next changes.
+- **NBC News's video** `b043z24ErQk` is on the Live coverage panel (migration `20261102120000`), unless an admin already set NBC.
+
+**Checklist, Nov 2.** Every change happens at once, in one restart. Switching on now is safe: while civicAPI serves test data nothing publishes, and the War Room shows "civicAPI waiting".
+1. **Testing `Backend` variables:**
+   - `FEATURE_ELECTION_DASHBOARD=true`, `RESULTS_PROVIDER_ENABLED_IDS=civicapi`, `RESULTS_INGESTOR_ENABLED=true` and `RESULTS_INGESTOR_IN_PROCESS=true`.
+   - `BALLOT_SYNC_ENABLED=false`. The catalog is complete; left on, the sync runs at 6:40 PM ET on the night and 2 minutes after every restart.
+   - `CIVICAPI_CONTACT=<email>`.
+   - Leave `CIVICAPI_ACCEPT_TEST_DATA` unset. Testing is the public site, so a rehearsal there would show TEST DATA to visitors. The rehearsal above was run locally instead.
+2. **Testing database:** `UPDATE data_sources SET is_enabled = true WHERE key = 'civicapi';`
+3. **Check the result.**
+   - `Backend` logs show `[civicapi] Results ingestor started` and then `[civicapi] held: civicAPI is serving test data…` every 30 s.
+   - `/api/v1/sources/status` shows `NOT_CONFIGURED` with that message.
+   - The War Room header shows "civicAPI waiting".
+4. **Merge and deploy** this change to Testing (the tier fix and NBC). Admin > Live coverage: check NBC, and paste the other networks' links.
+5. **Official links.** Open each link in `CODE/public/data/state-results-links.json` by hand, then set `checkedAt`. The build sandbox could not reach state sites or YouTube.
+
+**On the night**, nothing needs switching on.
+- **When civicAPI goes live:** its first live document publishes every tier B race at 0 (`ok: N published`). County-detail races follow within a cycle or two.
+- **If it still reports test data after 7 PM ET:** nothing publishes, and the War Room says so. Contact civicAPI; the official links stand in meanwhile.
+- **Restarts:** the lease is taken per cycle. If a restart kills a cycle midway, the lease expires after 90 s, so results can pause for up to about 2 minutes. The last numbers stay on screen.
 
 ## What already exists
 - **Contracts** (`contracts.ts`, version `1.0.0`): `ContestResult`, `ReportingProgress`, `SourceStatus`, and the rules that keep mock and live labelling consistent.
@@ -259,6 +303,7 @@ Every snapshot stores every unit's numbers again, and `Third_database` has 5 GB.
 | `CIVICAPI_TIMEOUT_MS` | ingestor | `15000` | Per-request timeout |
 | `CIVICAPI_ACCEPT_TEST_DATA` | ingestor and `api` | `false` | Testing rehearsals only: store and serve civicAPI test data, labelled TEST DATA |
 | `CIVICAPI_TIER_A_RACES` | ingestor | empty | Comma-separated races (`PA-07,GA-SEN`) to use instead of the Kalshi-based tier A |
+| `CIVICAPI_TIER_A_AS_OF` | ingestor | `2026-11-02T12:00:00Z` | Tier A uses the latest Kalshi hour at or before this time (the latest stored when there is none), so restarts agree. Empty uses the latest hour |
 | `CIVICAPI_DETAIL_REFRESH_SECONDS` | ingestor | `600` | Every tier A race is refreshed at least this often |
 | `CIVICAPI_CONTACT` | ingestor | empty | Contact added to the User-Agent |
 | `LIVE_STREAMS_ENABLED` | `api` | `true` | `GET /api/live-streams` |
