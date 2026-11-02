@@ -760,3 +760,18 @@
 .wr-fc-head h3 { margin: 0; font-family: var(--wr-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--wr-accent-ink); text-transform: uppercase; }
 .wr-fc-head .wr-dim { font-family: var(--wr-mono); font-size: 11px; }
 .wr-fc-open { align-self: flex-start; font-family: var(--wr-mono); font-size: 11px; color: var(--wr-accent-ink); }
+
+/* ---------- Election-night extras (each behind a War Room flag) ---------- */
+.wr-stale { margin: 0; padding: 8px 12px; border: 1px solid var(--wr-accent-line); background: var(--wr-accent-ground); color: var(--wr-accent-ink); font-size: 13px; }
+.wr-control-banner { padding: 10px 14px; border: 1px solid var(--wr-live); background: var(--wr-panel); font-size: 14px; }
+.wr-control-banner p { margin: 0; }
+.wr-control-banner p + p { margin-top: 4px; font-size: 12px; }
+.wr-majority .wr-badge { white-space: nowrap; }
+.wr-alerts { position: fixed; right: 16px; bottom: 16px; z-index: 40; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.wr-alerts ol { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.wr-alert { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--wr-live); background: var(--wr-panel); box-shadow: 0 6px 24px rgb(0 0 0 / 45%); font-size: 13px; }
+.wr-alert > div { flex: 1 1 auto; min-width: 0; }
+.wr-alert p { margin: 2px 0; }
+.wr-alert-eyebrow { font-family: var(--wr-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wr-live); }
+.wr-alert-close { flex: none; background: none; border: 0; color: var(--wr-text-3); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.wr-alert-close:hover { color: var(--wr-text); }

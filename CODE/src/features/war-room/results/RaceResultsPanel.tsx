@@ -6,10 +6,15 @@ import { raceState } from "../raceCodes";
 import { leaderOf, progressLabel, type LiveRace } from "./liveResults";
 import { useOfficialLinks } from "./officialLinks";
 import { useContestDetail, useLiveResults } from "./useLiveResults";
+import { useWarRoomFlags } from "../flags";
+import { useCallTracker } from "./callTracker";
+import { INDEPENDENT_CAUCUS, majorityRuleFor, majorityStatus } from "./nightExtras";
 
 const pct = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function CallLine({ race }: { race: LiveRace }) {
+  const flags = useWarRoomFlags();
+  const tracker = useCallTracker().tracker;
   const call = race.calls.find((item) => item.kind === "WINNER");
   const winner = race.winner;
   if (call && winner) {
@@ -25,7 +30,31 @@ function CallLine({ race }: { race: LiveRace }) {
     return <p className="wr-results-call"><Badge tone="accent">Runoff</Badge> {names.join(" and ")} advance · {runoff[0].calledBy}</p>;
   }
   const leader = leaderOf(race);
-  return <p className="wr-results-call">{leader ? <><Badge>Not called</Badge> {leader.name} leads in the count so far</> : <><Badge tone="off">No votes yet</Badge> No votes counted</>}</p>;
+  const retracted = flags.retracted_calls ? tracker?.retractions.find((item) => item.code === race.code) : undefined;
+  const majority = flags.runoff_labels ? majorityStatus(race) : null;
+  if (leader && majority?.kind === "under-majority") {
+    return (
+      <p className="wr-results-call">
+        <Badge>Not called</Badge> {leader.name} leads with {pct.format(leader.pct)}%, under 50% so far.
+        {retracted && <> <Badge tone="accent">Call retracted</Badge> {retracted.calledBy} withdrew its call for {retracted.name} ({formatEtTime(new Date(retracted.noticedAt).toISOString())} ET, first seen).</>}
+      </p>
+    );
+  }
+  return <p className="wr-results-call">{retracted && <><Badge tone="accent">Call retracted</Badge> {retracted.calledBy} withdrew its call for {retracted.name} ({formatEtTime(new Date(retracted.noticedAt).toISOString())} ET, first seen). </>}{leader ? <><Badge>Not called</Badge> {leader.name} leads in the count so far</> : <><Badge tone="off">No votes yet</Badge> No votes counted</>}</p>;
+}
+
+/** Standing notes for a race: its majority rule, and an independent's caucus plans. */
+function RaceNotes({ code }: { code: string }) {
+  const flags = useWarRoomFlags();
+  const rule = flags.runoff_labels ? majorityRuleFor(code) : null;
+  const caucus = flags.caucus_note ? INDEPENDENT_CAUCUS[code] : undefined;
+  if (!rule && !caucus) return null;
+  return (
+    <>
+      {rule && <p className="wr-seats-note">{rule.text}</p>}
+      {caucus && <p className="wr-seats-note">{caucus.note}</p>}
+    </>
+  );
 }
 
 /** The dossier's results section: the count, the decision desk's call, and counties for races with county detail. */
@@ -67,6 +96,7 @@ export function RaceResultsPanel({ code, id }: { code: string; id?: string }) {
       footnote={`${board.attribution} · Calls are decision desk projections, not certified results`}>
       {race.isTestData && <p className="wr-results-test"><strong>Test data</strong> Rehearsal numbers, not election results.</p>}
       <CallLine race={race} />
+      <RaceNotes code={code} />
       <ul className="wr-results-cands">
         {race.candidates.map((candidate) => (
           <li key={candidate.id}>
