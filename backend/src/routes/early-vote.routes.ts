@@ -10,7 +10,7 @@ const STATE_MESSAGE = 'state must be a state postal code, DC, or a territory';
 export const earlyVoteStateParams = z.object({
   state: z.preprocess(
     (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-    z.string({ required_error: STATE_MESSAGE }).refine(isEarlyVoteState, STATE_MESSAGE),
+    z.string({ error: STATE_MESSAGE }).refine(isEarlyVoteState, STATE_MESSAGE),
   ),
 });
 
