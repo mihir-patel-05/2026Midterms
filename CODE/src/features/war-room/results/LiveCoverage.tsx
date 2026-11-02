@@ -71,7 +71,7 @@ export function LiveCoverage() {
     setLoud((current) => (current === key ? null : current));
   };
   return (
-    <Panel className="wr-coverage" title="Live coverage · network streams" meta={<Badge tone={playing.length ? "live" : undefined}>{playing.length ? `${playing.length} playing` : `Up to ${MAX_PLAYERS} at once`}</Badge>}
+    <Panel className="wr-live-coverage" title="Live coverage · network streams" meta={<Badge tone={playing.length ? "live" : undefined}>{playing.length ? `${playing.length} playing` : `Up to ${MAX_PLAYERS} at once`}</Badge>}
       footnote="Third-party broadcasts. Race calls and numbers in the video are the network's, not VoteInformed's. Players load only when you click, from youtube-nocookie.com.">
       {streams.isLoading ? <StatusLine>Loading streams…</StatusLine> : streams.isError ? <StatusLine tone="warn">Live coverage list unavailable</StatusLine> : list.length === 0 ? <StatusLine>No outlets listed</StatusLine> : (
         <ul className="wr-streams">
