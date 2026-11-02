@@ -108,7 +108,7 @@ No panel ever shows mock numbers in the build. Each panel without data shows one
 - **Tipping-point races, Senate and House.** These come from your 10,000-run Monte Carlo simulation, which you'll build separately (§4.1). Both the Command panel and the Signals panel ship as Coming soon. When the model is ready, a `VITE_FEATURE_TIPPING_POINT` flag swaps in the real panel. The "TIPPING POINT #2" chip on the dossier header is left out until then.
 - **Win probability index** (§4.1). Wherever a panel would show it, it shows Coming soon.
 - **"Why it moved"** on the dossier (Agent 3, §4.2).
-- **Early vote tracker** (§4.1), if it gets a panel.
+- ~~**Early vote tracker** (§4.1), if it gets a panel.~~ Built Nov 2 as its own screen, `/war-room/early-vote`, plus an Early vote tab on the map (PLAN.md §2).
 
 **Not connected in v1:**
 - Live results and race calls (no licensed provider; see Known gaps in §2).
