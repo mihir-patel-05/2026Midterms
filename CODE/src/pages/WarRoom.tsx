@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { CommandView } from "@/features/war-room/command/CommandView";
+import { EarlyVoteScreen } from "@/features/war-room/earlyVote/EarlyVoteScreen";
 import { RaceDossier } from "@/features/war-room/dossier/RaceDossier";
 import { MapScreen } from "@/features/war-room/map/MapScreen";
 import { NewsScreen } from "@/features/war-room/news/NewsScreen";
@@ -47,6 +48,7 @@ export default function WarRoom() {
         <Route path="night" element={<NightOps />} />
         <Route path="map" element={<MapScreen />} />
         <Route path="news" element={<NewsScreen />} />
+        <Route path="early-vote" element={<EarlyVoteScreen />} />
         <Route path="sim" element={<SimScreen kind="midterms" />} />
         <Route path="sim/ec" element={<SimScreen kind="electoral" />} />
         <Route path="*" element={<UnknownScreen />} />
