@@ -710,3 +710,39 @@
 .wr-tx-rank li { display: grid; grid-template-columns: 24px minmax(0, 1fr) 90px 28px; gap: 8px; align-items: center; font-size: 12px; }
 .wr-tx-rank-n { font-family: var(--wr-mono); color: var(--wr-text-3); text-align: right; }
 .wr-tx-swatch { display: inline-block; width: 12px; height: 12px; align-self: center; border: 1px solid var(--wr-line-strong); }
+
+/* Early vote tracker (/war-room/early-vote) and the map's Early vote tab. */
+.wr-ev-live { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-family: var(--wr-mono); font-size: 11px; color: var(--wr-text-3); }
+.wr-ev-stale { color: var(--wr-accent-ink); }
+.wr-ev-split { display: flex; flex-direction: column; gap: 10px; }
+.wr-ev-bar { display: flex; height: 14px; gap: 1px; background: var(--wr-line); border: 1px solid var(--wr-line); }
+.wr-ev-bar > span { flex-basis: 0; min-width: 2px; }
+.wr-ev-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-family: var(--wr-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wr-ev-legend li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.wr-ev-legend i { flex: 0 0 auto; width: 9px; height: 9px; align-self: center; }
+.wr-ev-legend strong { color: var(--wr-text); font-weight: 600; }
+.wr-ev-legend li[data-gap] { color: var(--wr-text-3); }
+.wr-ev-noparty { margin: 0; font-family: var(--wr-mono); font-size: 11px; color: var(--wr-text-3); }
+.wr-ev-state { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.wr-ev-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.wr-ev-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--wr-line); background: var(--wr-raised); min-width: 0; }
+.wr-ev-card header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.wr-ev-card h3, .wr-ev-counties h3 { margin: 0; font-family: var(--wr-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--wr-text-2); text-transform: uppercase; }
+.wr-ev-card header .wr-dim { font-family: var(--wr-mono); font-size: 11px; }
+.wr-ev-total { font-family: var(--wr-mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wr-ev-counties { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wr-ev-counties-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.wr-ev-counties .wr-table :is(th, td):first-child { padding-left: 6px; }
+.wr-ev-counties .wr-table :is(th, td):last-child { padding-right: 6px; }
+.wr-ev-counties .wr-table tbody th { padding: 8px 6px; border-top: 1px solid var(--wr-line-soft); color: var(--wr-text); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.wr-ev-table tr[aria-selected] td:first-child { box-shadow: inset 2px 0 0 var(--wr-accent); }
+.wr-ev-table tr[data-changed] td { animation: wr-ev-flash 6s ease-out; }
+@keyframes wr-ev-flash { from { background: var(--wr-live-ground); color: var(--wr-live-ink); } to { background: transparent; } }
+.wr-ev-source { margin: 0; font-family: var(--wr-mono); font-size: 11px; line-height: 1.6; color: var(--wr-text-3); }
+.wr-ev-source a { color: var(--wr-text-2); }
+.wr-ev-top { align-items: start; }
+.wr-ev-intel { display: flex; flex-direction: column; gap: 12px; }
+.wr-ev-intel > .wr-btn { align-self: flex-start; }
+@media (prefers-reduced-motion: reduce) {
+  .wr-ev-table tr[data-changed] td { animation: none; background: var(--wr-live-ground); }
+}
