@@ -7,6 +7,7 @@ import {
   FRED_STATE_SERIES,
   nationalSeries,
   stateSeries,
+  stateSeriesKey,
 } from './series-catalog.js';
 
 test('the catalog has unique keys and IDs, and only S&P 500 and VIX are restricted', () => {
@@ -37,6 +38,14 @@ test('seven series for each of the 50 states and DC (two without tiles), and non
   assert.equal(stateSeries('CA').find((def) => def.fredId === 'CAICLAIMS')?.staleAfterDays, 21);
   assert.deepEqual(stateSeries('PR'), []);
   assert.deepEqual(stateSeries('ca'), []);
+});
+
+test('Alabama and DC manufacturing jobs use the IDs FRED has, under keys the tariff score finds', () => {
+  assert.equal(stateSeries('AL').find((def) => def.key === stateSeriesKey('AL', 'MFG'))?.fredId, 'SMS01000003000000001');
+  assert.equal(stateSeries('DC').find((def) => def.key === stateSeriesKey('DC', 'MFG'))?.fredId, 'SMU11000003000000001SA');
+  assert.equal(stateSeriesKey('CA', 'MFG'), 'fred.CAMFG');
+  assert.equal(stateSeriesKey('AL', 'NQGSP'), 'fred.ALNQGSP');
+  assert(FRED_STATE_CODES.every((code) => stateSeries(code).some((def) => def.key === stateSeriesKey(code, 'MFG'))));
 });
 
 test('national series carry no state, and include the U.S. home price index', () => {
