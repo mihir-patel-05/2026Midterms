@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { economyEnabled, mockResultsProviderEnabled, newsEnabled, pastResultsEnabled, simulatorEnabled } from "@/lib/featureFlags";
+import { earlyVoteEnabled, economyEnabled, mockResultsProviderEnabled, newsEnabled, pastResultsEnabled, simulatorEnabled } from "@/lib/featureFlags";
 import { formatEtTime } from "@/features/election-monitor/constants";
 import { useEconIndicators } from "@/features/election-monitor/economy";
 import { useStateCounts } from "@/features/election-monitor/realData";
@@ -97,6 +97,11 @@ const RAIL: RailItem[] = [
     const state = current.get("state");
     return new URLSearchParams(state ? { state } : {});
   }, current: (path: string) => path === "/war-room/news" }] : []),
+  // The tracker keeps only the state from the current screen, so a state picked on the map opens in it.
+  ...(earlyVoteEnabled ? [{ label: "EARLY", icon: "early" as const, pathname: "/war-room/early-vote", search: (current: URLSearchParams) => {
+    const state = current.get("state");
+    return new URLSearchParams(state ? { state } : {});
+  }, current: (path: string) => path === "/war-room/early-vote" }] : []),
   { label: "NIGHT", icon: "night", pathname: "/war-room/night", current: (path) => path === "/war-room/night" },
 ];
 

@@ -132,6 +132,12 @@ const envSchema = z.object({
   COST_OF_LIVING_ENABLED: z.enum(['true', 'false']).default('true'),
   // GET /api/live-streams (the War Room's Live coverage panel). Admins can also hide it without a deploy.
   LIVE_STREAMS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // GET /api/early-vote: ballots requested, returned, and cast early by state and county, from civicAPI
+  // (PLAN.md §4.1). Kept in memory; the national documents are read at most every EARLY_VOTE_REFRESH_SECONDS.
+  EARLY_VOTE_ENABLED: z.enum(['true', 'false']).default('true'),
+  EARLY_VOTE_REFRESH_SECONDS: z.string().regex(/^[1-9]\d*$/).default('120'),
+  // Requests per second to civicAPI for early vote, separate from the results ingestor's CIVICAPI_MAX_RPS.
+  EARLY_VOTE_MAX_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('4'),
   // Where /api/v1 results come from: published DB snapshots, or the in-memory fictional fixtures.
   RESULTS_READ_SOURCE: z.enum(['database', 'fixtures']).default('database'),
 
@@ -219,4 +225,7 @@ export const env = {
   CIVICAPI_MAX_RPS: parseFloat(parsed.data.CIVICAPI_MAX_RPS),
   LIVE_STREAMS_ENABLED: parsed.data.LIVE_STREAMS_ENABLED === 'true',
   COST_OF_LIVING_ENABLED: parsed.data.COST_OF_LIVING_ENABLED === 'true',
+  EARLY_VOTE_ENABLED: parsed.data.EARLY_VOTE_ENABLED === 'true',
+  EARLY_VOTE_REFRESH_SECONDS: parseInt(parsed.data.EARLY_VOTE_REFRESH_SECONDS, 10),
+  EARLY_VOTE_MAX_RPS: parseFloat(parsed.data.EARLY_VOTE_MAX_RPS),
 };

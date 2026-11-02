@@ -1,24 +1,28 @@
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AreaBrief } from "@/features/election-monitor/AreaBrief";
 import { DemographicsTab } from "@/features/election-monitor/DemographicsTab";
 import { EconomyTab } from "@/features/election-monitor/EconomyTab";
 import { districtSelectionPatch } from "@/features/election-monitor/selection";
 import type { MonitorParams } from "@/features/election-monitor/useMonitorParams";
 import { HOUSE_APPORTIONMENT } from "@/features/simulator/midterms/races2026";
-import { costOfLivingEnabled, demographicsEnabled, economyEnabled, newsEnabled } from "@/lib/featureFlags";
+import { costOfLivingEnabled, demographicsEnabled, earlyVoteEnabled, economyEnabled, newsEnabled } from "@/lib/featureFlags";
 import { CostOfLivingTab } from "../costOfLiving/CostOfLivingTab";
+import { StateEarlyVote } from "../earlyVote/StateEarlyVote";
+import { ForecastBrief } from "../forecast/SavedForecast";
 import { StateNews } from "../news/StateNews";
-import { Brackets } from "../panels/Panel";
+import { Brackets, StatusLine } from "../panels/Panel";
 import { STATE_NAMES } from "../raceCodes";
+import { EARLY_VOTE_SCREEN } from "../screens";
 // The monitor's cards, rendered in War Room tokens; every rule in it is an em- class.
 import "@/features/election-monitor/monitor.css";
 
-type IntelTab = "brief" | "people" | "economy" | "cost" | "news";
+type IntelTab = "brief" | "people" | "economy" | "cost" | "early" | "news";
 const TABS: Array<{ id: IntelTab; label: string; on: boolean }> = [
   { id: "brief", label: "Brief", on: true },
   { id: "people", label: "Demographics", on: demographicsEnabled },
   { id: "economy", label: "Economy", on: economyEnabled || demographicsEnabled },
   { id: "cost", label: "Cost of living", on: costOfLivingEnabled },
+  { id: "early", label: "Early vote", on: earlyVoteEnabled },
   { id: "news", label: "News", on: newsEnabled },
 ];
 
@@ -35,8 +39,8 @@ function stateDistricts(state: string | null) {
 
 /**
  * Everything about the selection on the map, in tabs: the brief (seat holders, vote history, key Census figures),
- * the full ACS profile with CSV export, the state and U.S. economy, the state's cost of living (fuel prices), and
- * the state's news.
+ * the full ACS profile with CSV export, the state and U.S. economy, the state's cost of living (fuel prices), its
+ * early vote, and the state's news.
  */
 export function IntelPanel({ params, update, districts }: {
   params: MonitorParams;
@@ -64,6 +68,7 @@ export function IntelPanel({ params, update, districts }: {
         ))}
       </div>
       <div className="wr-intel-body" role="tabpanel">
+        {tab === "brief" && state && <ForecastBrief codes={[`${state}-SEN`, ...(params.district ? [`${state}-${params.district}`] : [])]} />}
         {tab === "brief" && (
           <AreaBrief stateCode={state} stateName={stateName} district={params.district} districts={districts} counties={params.counties}
             onOpenProfile={() => setTab(demographicsEnabled ? "people" : "brief")} />
@@ -83,6 +88,12 @@ export function IntelPanel({ params, update, districts }: {
         )}
         {tab === "economy" && <EconomyTab stateCode={state} stateName={stateName} counties={params.counties} districts={districts} />}
         {tab === "cost" && <CostOfLivingTab stateCode={state} stateName={stateName} />}
+        {tab === "early" && (
+          <div className="wr-ev-intel">
+            {state ? <StateEarlyVote state={state} /> : <StatusLine>Pick a state on the map for its early vote.</StatusLine>}
+            <Link className="wr-btn" to={{ pathname: EARLY_VOTE_SCREEN, search: state ? `?state=${state}` : "" }}>Every state in the early vote tracker</Link>
+          </div>
+        )}
         {tab === "news" && <StateNews state={state} />}
       </div>
     </section>

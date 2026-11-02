@@ -1,0 +1,232 @@
+{
+ "state": "AZ",
+ "category": "returned",
+ "election_name": "Arizona Ballots Returned",
+ "snapshot_date": "2026-11-02",
+ "regions": {
+  "Apache": {
+   "Democratic": {
+    "votes": 6941,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 2157,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 3369,
+    "color": "#c6606b"
+   }
+  },
+  "Cochise": {
+   "Democratic": {
+    "votes": 9509,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 8049,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 12419,
+    "color": "#c6606b"
+   }
+  },
+  "Coconino": {
+   "Democratic": {
+    "votes": 17318,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 8882,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 8759,
+    "color": "#c6606b"
+   }
+  },
+  "Gila": {
+   "Democratic": {
+    "votes": 3416,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 2944,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 8289,
+    "color": "#c6606b"
+   }
+  },
+  "Graham": {
+   "Democratic": {
+    "votes": 1392,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 920,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 3454,
+    "color": "#c6606b"
+   }
+  },
+  "Greenlee": {
+   "Democratic": {
+    "votes": 494,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 247,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 386,
+    "color": "#c6606b"
+   }
+  },
+  "La Paz": {
+   "Democratic": {
+    "votes": 600,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 657,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 1541,
+    "color": "#c6606b"
+   }
+  },
+  "Maricopa": {
+   "Democratic": {
+    "votes": 345324,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 234856,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 350638,
+    "color": "#c6606b"
+   }
+  },
+  "Mohave": {
+   "Democratic": {
+    "votes": 8851,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 10506,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 31709,
+    "color": "#c6606b"
+   }
+  },
+  "Navajo": {
+   "Democratic": {
+    "votes": 6793,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 3919,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 9603,
+    "color": "#c6606b"
+   }
+  },
+  "Pima": {
+   "Democratic": {
+    "votes": 132576,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 69775,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 77569,
+    "color": "#c6606b"
+   }
+  },
+  "Pinal": {
+   "Democratic": {
+    "votes": 31148,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 25184,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 41456,
+    "color": "#c6606b"
+   }
+  },
+  "Santa Cruz": {
+   "Democratic": {
+    "votes": 1594,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 580,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 505,
+    "color": "#c6606b"
+   }
+  },
+  "Yavapai": {
+   "Democratic": {
+    "votes": 20962,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 21000,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 47687,
+    "color": "#c6606b"
+   }
+  },
+  "Yuma": {
+   "Democratic": {
+    "votes": 10264,
+    "color": "#4874a3"
+   },
+   "Other": {
+    "votes": 6963,
+    "color": "#e0bb24"
+   },
+   "Republican": {
+    "votes": 12022,
+    "color": "#c6606b"
+   }
+  }
+ },
+ "statewide_total": {
+  "Democratic": {
+   "votes": 597182,
+   "color": "#4874a3"
+  },
+  "Other": {
+   "votes": 396639,
+   "color": "#e0bb24"
+  },
+  "Republican": {
+   "votes": 609406,
+   "color": "#c6606b"
+  }
+ }
+}

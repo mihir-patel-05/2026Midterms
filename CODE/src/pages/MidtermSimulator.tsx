@@ -8,6 +8,7 @@ import { stateFipsToPostal } from "@/features/election-monitor/map/fips";
 import { isRedistricted } from "@/features/election-monitor/map/redistricting";
 import { BIN_COLORS, STATUS_COLORS, usePastYear, type HouseYear, type PresidentYear } from "@/features/election-monitor/pastResults";
 import { CountyEditor } from "@/features/simulator/CountyEditor";
+import { ForecastBar } from "@/features/simulator/ForecastBar";
 import { outcomeWords, pickLabel, sourceLabels, STATE_NAMES, swingLabel } from "@/features/simulator/labels";
 import { formatMargin, marginOf, nextPick, type Outcome, type Pick } from "@/features/simulator/model";
 import { HousePanel } from "@/features/simulator/midterms/HousePanel";
@@ -249,6 +250,7 @@ export function MidtermSimulatorContent({ paths }: { paths?: SimulatorPaths }) {
               <p>Swing the 2026 Senate races county by county, call House districts, and see who controls each chamber.</p>
             </div>
           </header>
+          <ForecastBar kind="midterms" />
           <MidtermBars senate={senateResult.totals} house={houseResult.totals} senateLoading={senateLoading} houseLoading={houseLoading} />
           <NationalBaseline
             senateBase={senate.base}
