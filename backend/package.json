@@ -66,7 +66,7 @@
     "bottleneck": "^2.19.5",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "csv-parse": "^5.5.6",
+    "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
@@ -75,7 +75,7 @@
     "prisma": "^6.19.3",
     "ws": "^8.22.0",
     "yaml": "^2.9.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -85,5 +85,13 @@
     "@types/ws": "^8.18.2",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    },
+    "get-uri": {
+      "basic-ftp": "^6.2.1"
+    }
   }
 }

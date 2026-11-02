@@ -15,18 +15,18 @@ const MAX_RACES = 60;
 
 const raceCode = z.preprocess(
   (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-  z.string({ required_error: RACE_MESSAGE, invalid_type_error: RACE_MESSAGE }).regex(RACE_CODE, RACE_MESSAGE),
+  z.string({ error: RACE_MESSAGE }).regex(RACE_CODE, RACE_MESSAGE),
 );
 
 export const pollsQuery = z.object({
   race: raceCode,
-  limit: z.coerce.number({ invalid_type_error: LIMIT_MESSAGE }).int(LIMIT_MESSAGE).min(1, LIMIT_MESSAGE).max(100, LIMIT_MESSAGE).default(25),
+  limit: z.coerce.number({ error: LIMIT_MESSAGE }).int(LIMIT_MESSAGE).min(1, LIMIT_MESSAGE).max(100, LIMIT_MESSAGE).default(25),
 });
 
 export const averagesQuery = z.object({
   races: z.preprocess(
     (value) => (typeof value === 'string' ? [...new Set(value.split(',').map((code) => code.trim().toUpperCase()).filter(Boolean))] : value),
-    z.array(z.string().regex(RACE_CODE, RACES_MESSAGE), { required_error: RACES_MESSAGE, invalid_type_error: RACES_MESSAGE })
+    z.array(z.string().regex(RACE_CODE, RACES_MESSAGE), { error: RACES_MESSAGE })
       .min(1, RACES_MESSAGE).max(MAX_RACES, RACES_MESSAGE),
   ),
 });

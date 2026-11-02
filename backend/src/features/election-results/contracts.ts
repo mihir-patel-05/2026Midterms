@@ -471,7 +471,7 @@ export const ResultsProviderFeatureFlagSchema = z
 export const ElectionResultsFeatureFlagsSchema = z
   .object({
     dashboardEnabled: z.boolean(),
-    providers: z.record(ResultsProviderFeatureFlagSchema),
+    providers: z.record(z.string(), ResultsProviderFeatureFlagSchema),
   })
   .strict()
   .superRefine((flags, context) => {

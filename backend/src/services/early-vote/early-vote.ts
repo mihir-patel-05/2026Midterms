@@ -93,13 +93,13 @@ export function partyKey(label: string): PartyKey | null {
 }
 
 const Leaf = z.object({ votes: z.number().finite().nonnegative() }).passthrough();
-const Breakdown = z.record(Leaf);
+const Breakdown = z.record(z.string(), Leaf);
 const DocumentSchema = z.object({
   state: z.string(),
   category: z.string(),
   election_name: z.string().nullish(),
   snapshot_date: z.string().nullish(),
-  regions: z.record(Breakdown),
+  regions: z.record(z.string(), Breakdown),
   statewide_total: Breakdown.nullish(),
 });
 

@@ -10,10 +10,10 @@ const DAYS_MESSAGE = 'days must be a whole number from 30 to 1825';
 const STATE_MESSAGE = 'state must be a two-letter postal code';
 
 export const indicatorsQuery = z.object({
-  days: z.coerce.number({ invalid_type_error: DAYS_MESSAGE }).int(DAYS_MESSAGE).min(30, DAYS_MESSAGE).max(1825, DAYS_MESSAGE).default(730),
+  days: z.coerce.number({ error: DAYS_MESSAGE }).int(DAYS_MESSAGE).min(30, DAYS_MESSAGE).max(1825, DAYS_MESSAGE).default(730),
   state: z.preprocess(
     (value) => (typeof value === 'string' ? value.toUpperCase() : value),
-    z.string({ invalid_type_error: STATE_MESSAGE }).regex(/^[A-Z]{2}$/, STATE_MESSAGE),
+    z.string({ error: STATE_MESSAGE }).regex(/^[A-Z]{2}$/, STATE_MESSAGE),
   ).optional(),
 });
 
