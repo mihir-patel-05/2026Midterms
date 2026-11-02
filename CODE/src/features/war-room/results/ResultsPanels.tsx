@@ -10,6 +10,9 @@ import { etHourMinute } from "../countdown";
 import { callFeed, chamberCount, HOUSE_CODES, leaderOf, progressLabel, SENATE_CODES, type ChamberCount, type LiveBoard, type LiveRace } from "./liveResults";
 import { useOfficialLinks } from "./officialLinks";
 import type { LiveResultsState } from "./useLiveResults";
+import { useWarRoomFlags } from "../flags";
+import { useCallTracker } from "./callTracker";
+import { controlDecided, INDEPENDENT_CAUCUS, majorityStatus } from "./nightExtras";
 
 
 const pctFormat = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -98,6 +101,7 @@ function SeatBar({ count, seats, toControl }: { count: ChamberCount; seats: numb
 
 /** Seats called by the source's decision desk, and who leads the uncalled count, for each chamber. */
 export function SeatCount({ board, attribution }: { board: LiveBoard | null; attribution: string | null }) {
+  const flags = useWarRoomFlags();
   const senate = chamberCount(board, SENATE_CODES, SENATE_NOT_UP);
   const house = chamberCount(board, HOUSE_CODES);
   const desk = board ? `${board.source.name} decision desk` : "the decision desk";
@@ -118,7 +122,7 @@ export function SeatCount({ board, attribution }: { board: LiveBoard | null; att
               {count.called.other > 0 && <div><dt>Other called</dt><dd style={{ color: "var(--wr-ind)" }}>{count.called.other}</dd></div>}
               <div><dt>Uncalled</dt><dd>{count.uncalled}<span> · D lead {count.leading.D} · R lead {count.leading.R}{count.leading.other ? ` · other ${count.leading.other}` : ""}</span></dd></div>
             </dl>
-            {label === "U.S. Senate" && <p className="wr-seats-note">Called includes the {SENATE_NOT_UP.D + SENATE_NOT_UP.R} seats not up this year (D {SENATE_NOT_UP.D} · R {SENATE_NOT_UP.R}). {SENATE_INDEPENDENTS_NOTE}</p>}
+            {label === "U.S. Senate" && <p className="wr-seats-note">Called includes the {SENATE_NOT_UP.D + SENATE_NOT_UP.R} seats not up this year (D {SENATE_NOT_UP.D} · R {SENATE_NOT_UP.R}). {SENATE_INDEPENDENTS_NOTE}{flags.caucus_note ? ` ${INDEPENDENT_CAUCUS["NE-SEN"].note}` : ""}</p>}
           </div>
         ))}
       </div>
@@ -126,15 +130,45 @@ export function SeatCount({ board, attribution }: { board: LiveBoard | null; att
   );
 }
 
+const PARTY_NAME = { D: "Democrats", R: "Republicans" } as const;
+
+/** A banner once called seats alone settle a chamber. Projections from the decision desk, never leads. */
+export function ControlBanner({ board }: { board: LiveBoard }) {
+  const flags = useWarRoomFlags();
+  if (!flags.control_banner) return null;
+  const decided = controlDecided(chamberCount(board, SENATE_CODES, SENATE_NOT_UP), chamberCount(board, HOUSE_CODES));
+  if (decided.length === 0) return null;
+  return (
+    <div className="wr-control-banner" role="status" data-test={board.isTestData || undefined}>
+      {decided.map((call) => (
+        <p key={call.chamber}>
+          {board.isTestData && <Badge tone="mock">Test data · not a result</Badge>}{" "}
+          <strong>{call.chamber} control decided:</strong>{" "}
+          <span style={{ color: partyColor(call.party) }}>{PARTY_NAME[call.party]}</span> have {call.seats} called seats
+          {call.tiebreak ? `, a majority with ${VICE_PRESIDENT.name}'s tiebreak` : ` of ${call.chamber === "Senate" ? SENATE_SEATS : HOUSE_SEATS}`}.
+        </p>
+      ))}
+      <p className="wr-dim">Based on {board.source.name} decision desk calls, which are projections, not certified results.</p>
+    </div>
+  );
+}
+
 /** The leader (or winner) of a race, compactly: "D Ossoff 52.2%". */
 export function LeaderCell({ race }: { race: LiveRace | undefined }) {
+  const flags = useWarRoomFlags();
   const leader = leaderOf(race);
+  const majority = flags.runoff_labels ? majorityStatus(race) : null;
   if (!race) return <span className="wr-dim">No result yet</span>;
   if (!leader) return <span className="wr-dim">No votes counted</span>;
   const surname = leader.name.trim().split(/\s+/).pop();
   return (
     <span className="wr-leader" style={{ color: partyColor(leader.party) }}>
       {race.winner ? <Badge tone="live">Called</Badge> : null} {partyLetter(leader.party)} {surname} {pctFormat.format(leader.pct)}%
+      {majority && (
+        <span className="wr-majority" title={majority.kind === "runoff-called" ? "The source has called a runoff" : majority.rule.text}>
+          {" "}<Badge tone="accent">{majority.kind === "runoff-called" ? "Runoff" : majority.rule.short}</Badge>
+        </span>
+      )}
     </span>
   );
 }
@@ -206,8 +240,26 @@ interface LogItem { at: number; key: string; node: JSX.Element }
 /** Race calls from the decision desk and poll closings, newest first. */
 export function CallLog({ board, closings, now }: { board: LiveBoard | null; closings: Array<{ close: number; states: Array<{ state: string }> }>; now: number }) {
   const { search } = useLocation();
+  const flags = useWarRoomFlags();
+  const tracker = useCallTracker().tracker;
   const calls = callFeed(board);
+  const retractions = flags.retracted_calls && board && tracker ? tracker.retractions : [];
   const items: LogItem[] = [
+    ...retractions.map((call) => ({
+      at: call.noticedAt,
+      key: `retracted-${call.key}-${call.noticedAt}`,
+      node: (
+        <>
+          <time dateTime={new Date(call.noticedAt).toISOString()} title="When this browser saw the call disappear from the source">{formatEtTime(new Date(call.noticedAt).toISOString())}*</time>
+          <span className="wr-log-dot" data-tone="accent" aria-hidden="true" />
+          <span>
+            <strong><Link className="wr-cell-btn" to={{ pathname: `/war-room/race/${call.code}`, search }}>{raceLabel(call.code)}</Link></strong>{" "}
+            <Badge tone="accent">Call retracted</Badge> {call.calledBy} no longer calls this race for <strong style={{ color: partyColor(call.party) }}>{call.name}</strong> ({call.partyName ?? "no party"})
+            <span className="wr-dim"> · was called {formatEtTime(call.calledAt)} ET{call.isTestData ? " · TEST DATA" : ""}</span>
+          </span>
+        </>
+      ),
+    })),
     ...calls.map((call) => ({
       at: Date.parse(call.at),
       key: `${call.code}-${call.candidate.id}-${call.kind}`,
@@ -237,7 +289,7 @@ export function CallLog({ board, closings, now }: { board: LiveBoard | null; clo
   ].sort((a, b) => b.at - a.at);
   return (
     <Panel flush title="Call log" meta={<Badge tone={calls.length ? "live" : "off"}>{calls.length ? `${calls.length} calls` : "No calls yet"}</Badge>}
-      footnote="Calls are the source's decision desk projections, not certified results · * time first seen; the source gave none · never copied from broadcasts">
+      footnote={`Calls are the source's decision desk projections, not certified results · * time first seen; the source gave none${retractions.length ? " · retractions are what this browser has seen since it opened" : ""} · never copied from broadcasts`}>
       {items.length === 0 ? <StatusLine>No calls or poll closings yet · first close Nov 3, 18:00 ET</StatusLine> : (
         <ol className="wr-log" data-scroll tabIndex={0} aria-label="Calls and poll closings, newest first">{items.slice(0, 200).map((item) => <li key={item.key}>{item.node}</li>)}</ol>
       )}

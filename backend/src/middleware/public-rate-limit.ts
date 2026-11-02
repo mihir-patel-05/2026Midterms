@@ -5,9 +5,10 @@
  * - `/prediction-markets/kalshi/stream`: the live price stream, one long-lived connection per tab. A tab reconnecting
  *   after a redeploy should not spend its allowance.
  * - `/live-streams`: the network video list, read every 2 minutes.
+ * - `/war-room/flags`: the War Room's runtime off switches, read every minute.
  * Admin routes have their own limiter.
  */
-const EXEMPT = [/^\/v1(\/|$)/, /^\/prediction-markets\/kalshi\/stream$/, /^\/live-streams(\/|$)/, /^\/admin(\/|$)/];
+const EXEMPT = [/^\/v1(\/|$)/, /^\/prediction-markets\/kalshi\/stream$/, /^\/live-streams(\/|$)/, /^\/war-room\/flags$/, /^\/admin(\/|$)/];
 
 /** `path` is relative to the /api mount, as express-rate-limit sees `req.path`. */
 export function skipPublicRateLimit(path: string): boolean {

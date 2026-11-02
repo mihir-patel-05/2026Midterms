@@ -232,3 +232,15 @@ export const liveStreamsAPI = {
 export type { LiveStreamRow };
 export type { AdminStats, SyncStatus, SyncLog, SyncResult, GenerateResult, Deadline, DeadlineInput, DeadlinesResponse };
 
+
+/** Runtime off switches for the War Room's election-night extras: /api/admin/war-room/flags. */
+export interface WarRoomFlagRow {
+  name: string;
+  label: string;
+  enabled: boolean;
+}
+export const warRoomFlagsAPI = {
+  list: () => adminAPI.request<{ flags: WarRoomFlagRow[] }>('/war-room/flags'),
+  set: (name: string, enabled: boolean) =>
+    adminAPI.request<{ name: string; enabled: boolean }>(`/war-room/flags/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
+};
