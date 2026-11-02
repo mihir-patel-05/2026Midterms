@@ -15,6 +15,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { STATE_REGION, areaForState, seriesKey as fuelKey } from '../fuel/fuel-catalog.js';
 import { changeOver } from '../fuel/fuel-read.js';
+import { stateSeriesKey } from '../fred/series-catalog.js';
 import { tradeSeriesKey } from './census-trade.js';
 
 export const EXPOSURE_METHOD_VERSION = 'tariff-exposure-v1';
@@ -110,7 +111,7 @@ const monthLabel = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateS
 export async function tariffExposure(db: PrismaClient, now = new Date()): Promise<ExposureResponse> {
   const states = Object.keys(STATE_REGION).sort();
   const since = new Date(now.getTime() - 3 * 365 * 24 * 3600 * 1000);
-  const keys = states.flatMap((state) => [tradeSeriesKey(state, 'all'), tradeSeriesKey(state, 'cnmxca'), `fred.${state}NQGSP`, `fred.${state}MFG`, `fred.${state}NA`]);
+  const keys = states.flatMap((state) => [tradeSeriesKey(state, 'all'), tradeSeriesKey(state, 'cnmxca'), stateSeriesKey(state, 'NQGSP'), stateSeriesKey(state, 'MFG'), stateSeriesKey(state, 'NA')]);
   const dieselAreas = new Map(states.map((state) => [state, areaForState('diesel', state)!]));
   keys.push(...new Set([...dieselAreas.values()].map((area) => fuelKey('diesel', area.code))));
   const points = await seriesPoints(db, keys, since);
@@ -122,7 +123,7 @@ export async function tariffExposure(db: PrismaClient, now = new Date()): Promis
     if (imports && imports.value > 0) {
       const year = imports.date.slice(0, 4);
       // The year's GDP: the mean of its four quarters at annual rates (millions of dollars).
-      const quarters = (points.get(`fred.${state}NQGSP`) ?? []).filter((obs) => obs.date.startsWith(year));
+      const quarters = (points.get(stateSeriesKey(state, 'NQGSP')) ?? []).filter((obs) => obs.date.startsWith(year));
       if (quarters.length === 4) {
         const gdp = quarters.reduce((sum, obs) => sum + obs.value, 0) / 4 * 1e6;
         inputs.importsToGdp.set(state, { value: (imports.value / gdp) * 100, period: year });
@@ -130,8 +131,8 @@ export async function tariffExposure(db: PrismaClient, now = new Date()): Promis
       if (partners && partners.date === imports.date) inputs.partnerShare.set(state, { value: (partners.value / imports.value) * 100, period: year });
     }
     // Manufacturing and all jobs for the same, latest common month.
-    const mfg = points.get(`fred.${state}MFG`) ?? [];
-    const jobs = new Map((points.get(`fred.${state}NA`) ?? []).map((obs) => [obs.date, obs.value]));
+    const mfg = points.get(stateSeriesKey(state, 'MFG')) ?? [];
+    const jobs = new Map((points.get(stateSeriesKey(state, 'NA')) ?? []).map((obs) => [obs.date, obs.value]));
     const month = [...mfg].reverse().find((obs) => jobs.get(obs.date));
     if (month) inputs.manufacturingShare.set(state, { value: (month.value / jobs.get(month.date)!) * 100, period: monthLabel(month.date) });
     const area = dieselAreas.get(state)!;

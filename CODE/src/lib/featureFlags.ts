@@ -44,3 +44,5 @@ export const liveResultsEnabled = import.meta.env.VITE_RESULTS_LIVE_ENABLED !== 
 export const liveStreamsEnabled = import.meta.env.VITE_FEATURE_LIVE_STREAMS !== "false";
 /** The map's Cost of living tab (EIA gasoline and diesel prices by state). On unless set to "false"; says so until the EIA sync has run. */
 export const costOfLivingEnabled = import.meta.env.VITE_FEATURE_COST_OF_LIVING !== "false";
+/** The War Room's early vote tracker (civicAPI, by state and county) and the map's Early vote tab. On unless set to "false"; needs EARLY_VOTE_ENABLED on the backend. */
+export const earlyVoteEnabled = import.meta.env.VITE_FEATURE_EARLY_VOTE !== "false";

@@ -21,7 +21,7 @@
     "ingest:day0-fixture": "tsx src/scripts/ingest-day0-fixture.ts",
     "results:ingest": "tsx src/workers/results-ingestor.ts",
     "results:ingest:once": "tsx src/workers/results-ingestor.ts --once",
-    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts src/features/election-results/read-model.test.ts src/features/election-results/read-model.db.test.ts src/features/election-results/civicapi/civicapi.test.ts src/features/election-results/civicapi/ingest.db.test.ts src/routes/results-v1.routes.test.ts src/services/fec-sync.test.ts src/utils/rate-limiter.test.ts src/utils/pagination.test.ts src/utils/races.test.ts src/utils/person-name.test.ts src/services/ballot/ballot.test.ts src/config/fec-client.test.ts src/services/district-lookup.test.ts src/services/kalshi/kalshi.test.ts src/services/kalshi/history.test.ts src/services/kalshi/history.db.test.ts src/services/census/census-client.test.ts src/services/census/acs-metrics.test.ts src/services/census/acs-sync.db.test.ts src/services/fred/fred-client.test.ts src/services/fred/series-catalog.test.ts src/services/fred/fred-sync.db.test.ts src/services/fred/indicator-math.test.ts src/routes/indicators.routes.test.ts src/services/demographics.db.test.ts src/routes/demographics.routes.test.ts src/services/outside-spending/schedule-e.test.ts src/services/outside-spending/schedule-e-sync.db.test.ts src/services/outside-spending/outside-spending.db.test.ts src/routes/outside-spending.routes.test.ts src/routes/prediction-markets.routes.test.ts src/services/primary-pruning.test.ts src/services/primary-pruning.db.test.ts src/services/news/ingest.test.ts src/agents/top-stories.test.ts src/agents/top-stories.db.test.ts src/services/news/news-sync.db.test.ts src/services/news/news-read.db.test.ts src/routes/news.routes.test.ts src/services/polls/votehub-client.test.ts src/services/polls/race-match.test.ts src/services/polls/poll-sync.db.test.ts src/services/polls/average.test.ts src/services/polls/national.test.ts src/services/polls/poll-read.db.test.ts src/routes/polls.routes.test.ts src/services/live-streams.test.ts src/services/fuel/fuel.test.ts src/services/tariff/exposure.test.ts",
+    "test:results": "node --import tsx --test src/features/election-results/contracts.test.ts src/features/election-results/fixture-ingestion.test.ts src/features/election-results/read-model.test.ts src/features/election-results/read-model.db.test.ts src/features/election-results/civicapi/civicapi.test.ts src/features/election-results/civicapi/ingest.db.test.ts src/routes/results-v1.routes.test.ts src/services/fec-sync.test.ts src/utils/rate-limiter.test.ts src/utils/pagination.test.ts src/utils/races.test.ts src/utils/person-name.test.ts src/services/ballot/ballot.test.ts src/config/fec-client.test.ts src/services/district-lookup.test.ts src/services/kalshi/kalshi.test.ts src/services/kalshi/history.test.ts src/services/kalshi/history.db.test.ts src/services/census/census-client.test.ts src/services/census/acs-metrics.test.ts src/services/census/acs-sync.db.test.ts src/services/fred/fred-client.test.ts src/services/fred/series-catalog.test.ts src/services/fred/fred-sync.db.test.ts src/services/fred/indicator-math.test.ts src/routes/indicators.routes.test.ts src/services/demographics.db.test.ts src/routes/demographics.routes.test.ts src/services/outside-spending/schedule-e.test.ts src/services/outside-spending/schedule-e-sync.db.test.ts src/services/outside-spending/outside-spending.db.test.ts src/routes/outside-spending.routes.test.ts src/routes/prediction-markets.routes.test.ts src/services/primary-pruning.test.ts src/services/primary-pruning.db.test.ts src/services/news/ingest.test.ts src/agents/top-stories.test.ts src/agents/top-stories.db.test.ts src/services/news/news-sync.db.test.ts src/services/news/news-read.db.test.ts src/routes/news.routes.test.ts src/services/polls/votehub-client.test.ts src/services/polls/race-match.test.ts src/services/polls/poll-sync.db.test.ts src/services/polls/average.test.ts src/services/polls/national.test.ts src/services/polls/poll-read.db.test.ts src/routes/polls.routes.test.ts src/services/live-streams.test.ts src/services/fuel/fuel.test.ts src/services/tariff/exposure.test.ts src/services/early-vote/early-vote.test.ts",
     "test:fec": "tsx src/jobs/test-fec-api.ts",
     "test:fec-pagination": "tsx src/scripts/test-fec-pagination.ts",
     "sync:all": "node dist/jobs/sync-all-data.js",
@@ -66,7 +66,7 @@
     "bottleneck": "^2.19.5",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "csv-parse": "^5.5.6",
+    "csv-parse": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
@@ -75,7 +75,7 @@
     "prisma": "^6.19.3",
     "ws": "^8.22.0",
     "yaml": "^2.9.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -85,5 +85,13 @@
     "@types/ws": "^8.18.2",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    },
+    "get-uri": {
+      "basic-ftp": "^6.2.1"
+    }
   }
 }

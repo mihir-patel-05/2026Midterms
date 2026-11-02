@@ -271,6 +271,8 @@ Backend totals after the 29 October merge: 12 vulnerabilities (10 high, 2 modera
 
 **How to verify.** `npm audit --omit=dev` returns zero high or critical in each workspace; the security-audit workflow is green.
 
+**Status (Nov 2).** Fixed except `react-router`. `npm audit --audit-level=high` passes in all three workspaces. `backend` and `admin-dashboard` have no vulnerabilities; `body-parser` and `qs` came from `npm audit fix`, `zod` is on 4.x, `csv-parse` on 7.x, and npm overrides pin `deepmerge-ts` 8 under the Prisma 6 CLI and `basic-ftp` 6 under `apify-client`. In `CODE`, `maplibre-gl` is on 6.x, `d3-color` is overridden to 3.1, and the unused `zod` was removed. What remains in `CODE` is moderate: `react-router` (deferred until after the election; v7 changes how relative links resolve under `/war-room/*`) and `minimatch` in the eslint toolchain, which has no upstream fix.
+
 ### M7. Per-IP limit sized for one person throttles shared networks; proxy-hop assumption unverified
 
 **Description.** The public limiter allows 600 requests per 15 minutes per client IP, and the comment says one map page view makes about ten calls. That is 60 page views per 15 minutes shared by everyone behind one NAT: a newsroom, a university, a mobile carrier's CGNAT pool. Separately, `app.set('trust proxy', 1)` assumes exactly one proxy hop in front of Express. If Railway's edge adds more than one `X-Forwarded-For` entry, `req.ip` becomes the proxy's address and every visitor shares a single 600-request bucket.

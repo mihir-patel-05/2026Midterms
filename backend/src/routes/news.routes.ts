@@ -12,7 +12,7 @@ const TOPIC_MESSAGE = `topic must be one of ${TOPICS.join(', ')}`;
 export const topStoriesQuery = z.object({
   topic: z.preprocess(
     (value) => (typeof value === 'string' ? value.toUpperCase() : value),
-    z.enum(TOPICS, { errorMap: () => ({ message: TOPIC_MESSAGE }) }),
+    z.enum(TOPICS, { error: TOPIC_MESSAGE }),
   ).optional(),
 });
 

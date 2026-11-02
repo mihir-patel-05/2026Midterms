@@ -99,11 +99,26 @@ const STATE_TEMPLATES: ReadonlyArray<Omit<FredSeriesDef, 'fredId' | 'key' | 'nam
   { suffix: 'NQGSP', name: 'Nominal GDP', unit: 'Millions of dollars, seasonally adjusted annual rate', frequency: 'QUARTERLY', originalSource: 'BEA', transform: 'level', noTile: true },
 ];
 
+/**
+ * State series whose FRED ID breaks the postal code + suffix pattern. FRED answered "The series does
+ * not exist" for ALMFG and DCMFG (Nov 2, 2026); it carries Alabama's manufacturing jobs under the
+ * BLS State and Metro Area Employment ID, and DC's under an ID FRED seasonally adjusts itself.
+ */
+const STATE_ID_OVERRIDES: Readonly<Record<string, string>> = {
+  ALMFG: 'SMS01000003000000001',
+  DCMFG: 'SMU11000003000000001SA',
+};
+
+const stateFredId = (stateCode: string, suffix: string) => STATE_ID_OVERRIDES[`${stateCode}${suffix}`] ?? `${stateCode}${suffix}`;
+
+/** The stored key of a state's series by its template suffix (e.g. `MFG`), following the ID overrides. */
+export const stateSeriesKey = (stateCode: string, suffix: string) => `fred.${stateFredId(stateCode, suffix)}`;
+
 export const FRED_STATE_SERIES: readonly FredSeriesDef[] = FRED_STATE_CODES.flatMap((stateCode) =>
   STATE_TEMPLATES.map(({ suffix, name, ...template }): FredSeriesDef => ({
     ...template,
-    fredId: `${stateCode}${suffix}`,
-    key: `fred.${stateCode}${suffix}`,
+    fredId: stateFredId(stateCode, suffix),
+    key: stateSeriesKey(stateCode, suffix),
     name: `${name}, ${stateCode}`,
     restricted: false,
     stateCode,
