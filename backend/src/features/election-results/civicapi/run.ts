@@ -22,6 +22,7 @@ export function ingestorOptionsFromEnv(overrides: Partial<IngestorOptions> = {})
       enabled: env.CIVICAPI_TIER_A_ENABLED,
       max: env.CIVICAPI_TIER_A_MAX,
       override: env.CIVICAPI_TIER_A_RACES,
+      asOf: env.CIVICAPI_TIER_A_AS_OF,
       detailMinIntervalSeconds: env.CIVICAPI_DETAIL_MIN_INTERVAL_SECONDS,
       detailRefreshSeconds: env.CIVICAPI_DETAIL_REFRESH_SECONDS,
       detailRps: env.CIVICAPI_DETAIL_RPS,

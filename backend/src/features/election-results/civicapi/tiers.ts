@@ -26,22 +26,27 @@ export function normalizeLabel(value: string): string | null {
 }
 
 /**
- * Races from the latest hour of Kalshi snapshots whose leader is under 80¢, closest first, capped.
- * An explicit list (`CIVICAPI_TIER_A_RACES`) replaces the choice.
+ * Races from one hour of Kalshi snapshots whose leader is under 80¢, closest first, capped: the
+ * latest hour at or before `asOf` (`CIVICAPI_TIER_A_AS_OF`), else the latest hour stored. A fixed
+ * `asOf` makes every restart on election night choose the same races; prices from the night itself
+ * would drop races as markets settle and switch others mid-count. An explicit list
+ * (`CIVICAPI_TIER_A_RACES`) replaces the choice.
  */
-export async function chooseTierA(db: PrismaClient, options: { max: number; override: string[] }): Promise<TierChoice> {
+export async function chooseTierA(db: PrismaClient, options: { max: number; override: string[]; asOf?: Date | null }): Promise<TierChoice> {
   if (options.override.length > 0) {
     const labels = [...new Set(options.override.map(normalizeLabel).filter((label): label is string => Boolean(label)))].slice(0, options.max);
     return { labels, reason: 'CIVICAPI_TIER_A_RACES' };
   }
-  const latest = await db.marketSnapshot.findFirst({
-    where: { provider: 'KALSHI', scope: { in: ['STATE_SENATE', 'HOUSE_DISTRICT'] } },
+  const races = { provider: 'KALSHI' as const, scope: { in: ['STATE_SENATE' as const, 'HOUSE_DISTRICT' as const] } };
+  const latestHour = (asOf?: Date | null) => db.marketSnapshot.findFirst({
+    where: { ...races, ...(asOf ? { capturedHour: { lte: asOf } } : {}) },
     orderBy: { capturedHour: 'desc' },
     select: { capturedHour: true },
   });
+  const latest = (options.asOf ? await latestHour(options.asOf) : null) ?? await latestHour();
   if (!latest) return { labels: [], reason: 'no Kalshi snapshots stored, so no race has county detail' };
   const rows = await db.marketSnapshot.findMany({
-    where: { provider: 'KALSHI', scope: { in: ['STATE_SENATE', 'HOUSE_DISTRICT'] }, capturedHour: latest.capturedHour },
+    where: { ...races, capturedHour: latest.capturedHour },
     select: { scope: true, stateCode: true, districtCode: true, price: true },
   });
   const leader = new Map<string, number>();
