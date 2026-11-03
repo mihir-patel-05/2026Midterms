@@ -10,6 +10,7 @@ const paths = {
   sim: <><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>,
   news: <><rect x="3" y="4" width="15" height="16" /><path d="M18 8h3v10a2 2 0 0 1-2 2H5M6 8h9M6 12h9M6 16h5" /></>,
   night: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  wall: <><rect x="2" y="3" width="9" height="8" /><rect x="13" y="3" width="9" height="8" /><rect x="2" y="13" width="9" height="8" /><rect x="13" y="13" width="9" height="8" /></>,
   early: <><path d="M3 12h18v9H3z" /><path d="M8 12V3h8v9" /><path d="M10.5 7.5l1.5 1.5 3-3" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
   close: <path d="M6 6l12 12M18 6L6 18" />,
