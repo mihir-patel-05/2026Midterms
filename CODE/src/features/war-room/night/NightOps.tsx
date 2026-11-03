@@ -18,12 +18,13 @@ import { progressLabel, statesOf } from "../results/liveResults";
 import { LiveCoverage } from "../results/LiveCoverage";
 import { CallLog, ControlBanner, LeaderCell, OfficialLinks, RaceBoard, ResultsStatus, SeatCount } from "../results/ResultsPanels";
 import { useWarRoomFlag } from "../flags";
+import { MarketCountPanel } from "../results/MarketAlerts";
 import { boardOf, useLiveResults, type LiveResultsState } from "../results/useLiveResults";
 
-const SLOTS = closingSlots();
+export const SLOTS = closingSlots();
 const KEY_RACES = 10;
 
-function Timeline({ now }: { now: number }) {
+export function Timeline({ now }: { now: number }) {
   const next = nextClose(now);
   return (
     <Panel title="Poll closing timeline · ET · Nov 3" meta="Most of each state · split states note their last close"
@@ -46,7 +47,7 @@ function Timeline({ now }: { now: number }) {
   );
 }
 
-function NightFigures({ now, markets, results }: { now: number; markets: number | null; results: LiveResultsState }) {
+export function NightFigures({ now, markets, results }: { now: number; markets: number | null; results: LiveResultsState }) {
   const next = nextClose(now);
   const nextCloseOn = useWarRoomFlag("next_close_countdown");
   const board = boardOf(results);
@@ -67,7 +68,7 @@ function NightFigures({ now, markets, results }: { now: number; markets: number 
 }
 
 /** Watchlist races with their poll close, the count so far, and the market. */
-function KeyRaces({ now, codes, board, results }: { now: number; codes: string[]; board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
+export function KeyRaces({ now, codes, board, results }: { now: number; codes: string[]; board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
   const live = boardOf(results);
   return (
     <Panel flush title="Key races · watchlist" meta={live ? <Badge tone={live.isTestData ? "mock" : "live"}>{live.isTestData ? "Test data" : `Results · ${live.source.name}`}</Badge> : <Badge tone="off">No results feed</Badge>}
@@ -132,7 +133,7 @@ function MockBoard() {
   );
 }
 
-function Health({ board, results }: { board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
+export function Health({ board, results }: { board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
   const counts = useStateCounts();
   const indicators = useEconIndicators(730, null);
   const sources = useResultsSourceStatus();
@@ -172,6 +173,7 @@ export function NightOps() {
   const watch = useWatchlist(board.senate, board.house);
   const results = useLiveResults();
   const liveBoard = boardOf(results);
+  const marketAlerts = useWarRoomFlag("market_alerts");
   const badge = liveBoard ? (liveBoard.isTestData ? { tone: "mock" as const, text: "Test data · not results" } : { tone: "live" as const, text: `Results · ${liveBoard.source.name}` })
     : mockResultsProviderEnabled ? { tone: "mock" as const, text: "Staging · mock results" } : { tone: "off" as const, text: "No results feed" };
   return (
@@ -202,6 +204,8 @@ export function NightOps() {
         <KeyRaces now={now} codes={watch.list} board={board} results={results} />
         <CallLog board={liveBoard} closings={SLOTS} now={now} />
       </div>
+
+      {marketAlerts && <MarketCountPanel />}
 
       {liveResultsEnabled && <RaceBoard board={liveBoard} />}
       {mockResultsProviderEnabled && !liveBoard && <MockBoard />}

@@ -9,6 +9,8 @@ import { SimScreen } from "@/features/war-room/sim/SimScreen";
 import { NightOps } from "@/features/war-room/night/NightOps";
 import { SignalsView } from "@/features/war-room/signals/SignalsView";
 import { WarRoomShell } from "@/features/war-room/WarRoomShell";
+import { WallScreen } from "@/features/war-room/wall/WallScreen";
+import { useWarRoomFlag } from "@/features/war-room/flags";
 import { shouldOpenNight } from "@/features/war-room/electionNight";
 
 /**
@@ -53,6 +55,14 @@ function IndexScreen() {
   return <CommandView />;
 }
 
+/** Wall mode, or the Night screen while an admin has the wall_mode switch off. */
+function WallRoute() {
+  const location = useLocation();
+  const on = useWarRoomFlag("wall_mode");
+  if (!on) return <Navigate to={{ pathname: "/war-room/night", search: location.search }} replace />;
+  return <WallScreen />;
+}
+
 /** The War Room, at /war-room/*. Lazy-loaded and only routed when VITE_FEATURE_WAR_ROOM is "true". */
 export default function WarRoom() {
   useHashScroll();
@@ -63,6 +73,7 @@ export default function WarRoom() {
         <Route path="race/:code" element={<RaceDossier />} />
         <Route path="signals" element={<SignalsView />} />
         <Route path="night" element={<NightOps />} />
+        <Route path="wall" element={<WallRoute />} />
         <Route path="map" element={<MapScreen />} />
         <Route path="news" element={<NewsScreen />} />
         <Route path="early-vote" element={<EarlyVoteScreen />} />

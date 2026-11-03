@@ -12,9 +12,10 @@ import { parseRace, raceForSelection } from "./raceCodes";
 import { useWatchlist } from "./watchlist";
 import { useLiveResults, type LiveResultsState } from "./results/useLiveResults";
 import { useNow } from "./useNow";
-import { useWarRoomFlags } from "./flags";
+import { useWarRoomFlags, type WarRoomFlag } from "./flags";
 import { nextCloseReadout } from "./night/pollClosings";
 import { CallWatcher } from "./results/CallAlerts";
+import { MarketWatcher } from "./results/MarketAlerts";
 import "./warRoom.css";
 
 /**
@@ -74,6 +75,8 @@ interface RailItem {
   /** Leaves the War Room for another page, with the same query parameters. */
   search?: (current: URLSearchParams) => URLSearchParams;
   current?: (pathname: string, hash: string, search: URLSearchParams) => boolean;
+  /** Shown only while this War Room switch is on. */
+  flag?: WarRoomFlag;
 }
 
 const RAIL: RailItem[] = [
@@ -106,14 +109,16 @@ const RAIL: RailItem[] = [
     return new URLSearchParams(state ? { state } : {});
   }, current: (path: string) => path === "/war-room/early-vote" }] : []),
   { label: "NIGHT", icon: "night", pathname: "/war-room/night", current: (path) => path === "/war-room/night" },
+  { label: "WALL", icon: "wall", pathname: "/war-room/wall", flag: "wall_mode", current: (path) => path === "/war-room/wall" },
 ];
 
 function Rail() {
   const { pathname, search, hash } = useLocation();
   const firstWatched = useWatchlist(null, null).list[0] ?? null;
+  const flags = useWarRoomFlags();
   return (
     <nav className="wr-rail" aria-label="War Room modules">
-      {RAIL.map((item) => {
+      {RAIL.filter((item) => !item.flag || flags[item.flag]).map((item) => {
         const query = item.search ? item.search(new URLSearchParams(search)).toString() : search.slice(1);
         const current = item.current?.(pathname.replace(/\/+$/, "") || "/", hash, new URLSearchParams(search)) ?? false;
         const to = typeof item.pathname === "string" ? item.pathname : item.pathname({ search: new URLSearchParams(search), firstWatched });
@@ -290,7 +295,10 @@ export function WarRoomShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      <CallWatcher alerts={flags.watchlist_alerts} />
+      <div className="wr-alert-stack">
+        <CallWatcher alerts={flags.watchlist_alerts} />
+        {flags.market_alerts && <MarketWatcher />}
+      </div>
     </div>
   );
 }

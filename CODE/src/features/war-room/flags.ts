@@ -15,6 +15,8 @@ export const WAR_ROOM_FLAG_NAMES = [
   "control_banner",
   "hide_coming_soon",
   "watchlist_alerts",
+  "wall_mode",
+  "market_alerts",
 ] as const;
 
 export type WarRoomFlag = (typeof WAR_ROOM_FLAG_NAMES)[number];

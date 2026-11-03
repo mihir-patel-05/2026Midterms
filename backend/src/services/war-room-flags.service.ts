@@ -14,6 +14,8 @@ export const WAR_ROOM_FLAGS = {
   control_banner: 'Chamber control decided banner',
   hide_coming_soon: 'Hide the Coming soon panels',
   watchlist_alerts: 'Alerts when a watched race is called',
+  wall_mode: 'Wall mode: a tile grid of the night for a TV or second screen',
+  market_alerts: 'Market vs count: alerts and panel when the count leader and the Kalshi favorite disagree, or a market swings 20 points',
 } as const;
 
 export type WarRoomFlag = keyof typeof WAR_ROOM_FLAGS;
