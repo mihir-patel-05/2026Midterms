@@ -3,6 +3,9 @@ import type { HistoryPoint } from "@/features/election-monitor/marketHistory";
 import { changeOver, HOUR_MS, priceRange, signedPoints, traceSegments, tracePolylines } from "./trace";
 import { layerPatch, lensSearch, readLens, theaterLayer, theaterOffice } from "./theater";
 
+const BEFORE_NIGHT = Date.parse("2026-11-02T12:00:00Z");
+const ON_NIGHT = Date.parse("2026-11-04T02:00:00Z");
+
 const at = (hour: number, value: number): HistoryPoint => [hour * HOUR_MS, value];
 
 describe("traceSegments", () => {
@@ -66,9 +69,14 @@ describe("theater parameters", () => {
   });
 
   it("keeps the lens in its own parameter", () => {
-    expect(readLens(new URLSearchParams("lens=flip"))).toBe("flip");
-    expect(readLens(new URLSearchParams("lens=other"))).toBe("leader");
-    expect(lensSearch(new URLSearchParams("state=NC&lens=flip"), "leader").toString()).toBe("state=NC&mode=odds");
-    expect(lensSearch(new URLSearchParams("state=NC"), "holder").toString()).toBe("state=NC&lens=holder&mode=odds");
+    expect(readLens(new URLSearchParams("lens=flip"), BEFORE_NIGHT)).toBe("flip");
+    expect(readLens(new URLSearchParams("lens=other"), BEFORE_NIGHT)).toBe("leader");
+    expect(lensSearch(new URLSearchParams("state=NC&lens=flip"), "leader", BEFORE_NIGHT).toString()).toBe("state=NC&mode=odds");
+    expect(lensSearch(new URLSearchParams("state=NC"), "holder", BEFORE_NIGHT).toString()).toBe("state=NC&lens=holder&mode=odds");
+    // On election night the map opens on live results, so picking the market leader has to be spelled out.
+    expect(readLens(new URLSearchParams(""), ON_NIGHT)).toBe("results");
+    expect(readLens(new URLSearchParams("lens=leader"), ON_NIGHT)).toBe("leader");
+    expect(lensSearch(new URLSearchParams("state=NC"), "leader", ON_NIGHT).toString()).toBe("state=NC&lens=leader&mode=odds");
+    expect(lensSearch(new URLSearchParams("state=NC&lens=leader"), "results", ON_NIGHT).toString()).toBe("state=NC&mode=odds");
   });
 });

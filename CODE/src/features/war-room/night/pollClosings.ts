@@ -1,3 +1,4 @@
+import { etDate, etHourMinute } from "../countdown";
 /**
  * When polls close on Nov 3, 2026, in Eastern time (EST, UTC−5; daylight saving ends Nov 1). Each state is listed
  * at the time most of its polls close, as the networks do; states split across time zones also carry the time
@@ -65,3 +66,11 @@ export function nextClose(now: number, closings: PollClosing[] = POLL_CLOSINGS) 
 }
 
 export const closingFor = (state: string) => POLL_CLOSINGS.find((item) => item.state === state);
+
+/** The clock's readout: the countdown to the next poll close, or how long since the last one once all have closed. */
+export function nextCloseReadout(now: number, closings: PollClosing[] = POLL_CLOSINGS): { label: string; target: number } {
+  const next = nextClose(now, closings);
+  if (next !== null) return { label: `NEXT POLLS CLOSE · ${etDate(next)} ${etHourMinute(next)} ET`, target: next };
+  const last = Math.max(...closings.flatMap((item) => [item.close, item.last ?? item.close]));
+  return { label: `ALL POLLS CLOSED · ${etDate(last)} ${etHourMinute(last)} ET`, target: last };
+}

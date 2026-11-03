@@ -45,7 +45,10 @@ interface ContestState {
   candidacies: Map<string, string>;
   currentSignature: string | null;
   currentSnapshotIsTest: boolean;
+  /** The current snapshot's "as of" time: a detail document's `last_updated`, or the cycle time for an aggregate. */
   currentSourceUpdatedAt: Date | null;
+  /** civicAPI's own `last_updated` on the document behind the current snapshot. */
+  currentDocumentTime: Date | null;
   /** The document kind the current snapshot came from (each race takes snapshots from one kind; see the tiers). */
   currentKind: ParsedDocument['kind'] | null;
   activeCalls: Array<{ id: string; candidacyId: string; kind: 'WINNER' | 'ADVANCED'; calledAtSource: boolean; isTestData: boolean }>;
@@ -95,7 +98,7 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
     select: {
       id: true, sourceContestId: true, office: true, stateCode: true, districtCode: true,
       candidacies: { where: { sourceId }, select: { id: true, sourceCandidateId: true } },
-      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, rawArtifact: { select: { metadata: true } } } },
+      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, rawArtifact: { select: { metadata: true, sourceUpdatedAt: true } } } },
       raceCalls: { where: { retractedAt: null }, select: { id: true, candidacyId: true, kind: true, calledAtSource: true, isTestData: true } },
     },
   });
@@ -111,6 +114,7 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
       currentSignature: row.currentSnapshot?.sourceSnapshotId ?? null,
       currentSnapshotIsTest: row.currentSnapshot?.isTestData ?? false,
       currentSourceUpdatedAt: row.currentSnapshot?.sourceUpdatedAt ?? null,
+      currentDocumentTime: row.currentSnapshot?.rawArtifact?.sourceUpdatedAt ?? row.currentSnapshot?.sourceUpdatedAt ?? null,
       currentKind: documentKind(row.currentSnapshot?.rawArtifact?.metadata),
       activeCalls: row.raceCalls,
     });
@@ -396,15 +400,25 @@ export async function ingestDocument(
   outcome.unchanged = known.filter(options.snapshotRaces).length - changed.length;
   const anyCalls = known.some((update) => calledCandidates(update).length > 0 || ctx.contests.get(update.sourceContestId)!.activeCalls.length > 0);
   const artifactId = changed.length > 0 || anyCalls ? await recordArtifact(db, ctx.sourceId, options.runId, doc, parsed, options) : null;
-  const sourceUpdatedAt = new Date(parsed.lastUpdated ?? doc.fetchedAt);
+  // civicAPI's own time for this document: one race's for a detail document, the whole feed's for an aggregate.
+  const documentTime = new Date(parsed.lastUpdated ?? doc.fetchedAt);
+  // The snapshot's "as of" time. A detail document's last_updated is its race's own. An aggregate's is feed-wide
+  // and need not follow the counts: on Nov 3 both aggregates still read Oct 23 while detail documents were current.
+  // So an aggregate snapshot is stamped with the cycle that first saw its numbers, within one poll of the change.
+  const sourceUpdatedAt = parsed.kind === 'aggregate' ? now : documentTime;
 
   for (const update of changed) {
     const contest = ctx.contests.get(update.sourceContestId)!;
-    if (contest.currentSourceUpdatedAt && sourceUpdatedAt < contest.currentSourceUpdatedAt && !contest.currentSnapshotIsTest) {
-      if (contest.currentKind && contest.currentKind !== parsed.kind) {
-        // The race changed tiers (a restart, or county detail that kept failing). A detail document's time
-        // is the race's own and the aggregate's is the whole feed's, so the race keeps its current numbers
-        // until it next changes. Nothing failed validation, so this is no rejection.
+    const sameKind = contest.currentKind === parsed.kind;
+    // A document older than the one of the same kind behind the current snapshot is a stale copy served late.
+    const stale = sameKind && contest.currentDocumentTime !== null && documentTime < contest.currentDocumentTime;
+    // Across kinds only the "as of" times compare, as publishSnapshot() does.
+    const behind = !sameKind && contest.currentSourceUpdatedAt !== null && sourceUpdatedAt < contest.currentSourceUpdatedAt;
+    if ((stale || behind) && !contest.currentSnapshotIsTest) {
+      if (behind && contest.currentKind) {
+        // The race joined tier A after a restart: its detail document's own time is older than the cycle that
+        // stamped its aggregate snapshot, so it keeps its current numbers until it next changes. (The other way,
+        // detail to aggregate, always publishes: the cycle time is newer.) Nothing failed validation, so this is no rejection.
         outcome.warnings.push(`${update.label}: kept its ${contest.currentKind} snapshot; the ${parsed.kind} document is older (the race changed tiers) and publishes once the race next changes`);
         continue;
       }
@@ -416,6 +430,7 @@ export async function ingestDocument(
       contest.currentSignature = signatureId(update);
       contest.currentSnapshotIsTest = parsed.testData;
       contest.currentSourceUpdatedAt = sourceUpdatedAt;
+      contest.currentDocumentTime = documentTime;
       contest.currentKind = parsed.kind;
       outcome.published.push(update.label);
     } catch (error) {

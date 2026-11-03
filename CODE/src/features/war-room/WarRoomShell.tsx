@@ -1,10 +1,10 @@
-import { useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { earlyVoteEnabled, economyEnabled, mockResultsProviderEnabled, newsEnabled, pastResultsEnabled, simulatorEnabled } from "@/lib/featureFlags";
 import { formatEtTime } from "@/features/election-monitor/constants";
 import { useEconIndicators } from "@/features/election-monitor/economy";
 import { useStateCounts } from "@/features/election-monitor/realData";
-import { useKalshiStatus, type KalshiFeedStatus } from "@/features/election-monitor/useKalshiLive";
+import { setKalshiWatchdog, useKalshiMarkets, type KalshiFeedStatus } from "@/features/election-monitor/useKalshiLive";
 import { countdown, etClock, zuluClock } from "./countdown";
 import { Icon, Mark, type IconName } from "./icons";
 import { targetSearch } from "./links";
@@ -12,6 +12,10 @@ import { parseRace, raceForSelection } from "./raceCodes";
 import { useWatchlist } from "./watchlist";
 import { useLiveResults, type LiveResultsState } from "./results/useLiveResults";
 import { useNow } from "./useNow";
+import { useWarRoomFlags, type WarRoomFlag } from "./flags";
+import { nextCloseReadout } from "./night/pollClosings";
+import { CallWatcher } from "./results/CallAlerts";
+import { MarketWatcher } from "./results/MarketAlerts";
 import "./warRoom.css";
 
 /**
@@ -71,6 +75,8 @@ interface RailItem {
   /** Leaves the War Room for another page, with the same query parameters. */
   search?: (current: URLSearchParams) => URLSearchParams;
   current?: (pathname: string, hash: string, search: URLSearchParams) => boolean;
+  /** Shown only while this War Room switch is on. */
+  flag?: WarRoomFlag;
 }
 
 const RAIL: RailItem[] = [
@@ -103,14 +109,16 @@ const RAIL: RailItem[] = [
     return new URLSearchParams(state ? { state } : {});
   }, current: (path: string) => path === "/war-room/early-vote" }] : []),
   { label: "NIGHT", icon: "night", pathname: "/war-room/night", current: (path) => path === "/war-room/night" },
+  { label: "WALL", icon: "wall", pathname: "/war-room/wall", flag: "wall_mode", current: (path) => path === "/war-room/wall" },
 ];
 
 function Rail() {
   const { pathname, search, hash } = useLocation();
   const firstWatched = useWatchlist(null, null).list[0] ?? null;
+  const flags = useWarRoomFlags();
   return (
     <nav className="wr-rail" aria-label="War Room modules">
-      {RAIL.map((item) => {
+      {RAIL.filter((item) => !item.flag || flags[item.flag]).map((item) => {
         const query = item.search ? item.search(new URLSearchParams(search)).toString() : search.slice(1);
         const current = item.current?.(pathname.replace(/\/+$/, "") || "/", hash, new URLSearchParams(search)) ?? false;
         const to = typeof item.pathname === "string" ? item.pathname : item.pathname({ search: new URLSearchParams(search), firstWatched });
@@ -158,11 +166,13 @@ function Search() {
 
 function Clocks() {
   const now = useNow();
+  const nextCloseOn = useWarRoomFlags().next_close_countdown;
+  const readout = nextCloseOn ? nextCloseReadout(now) : { label: "FIRST POLLS CLOSE · NOV 3 18:00 ET", target: undefined };
   return (
     <>
       <div className="wr-readout" data-tone="accent">
-        <span>FIRST POLLS CLOSE · NOV 3 18:00 ET</span>
-        <strong>{countdown(now)}</strong>
+        <span>{readout.label}</span>
+        <strong>{countdown(now, readout.target)}</strong>
       </div>
       <div className="wr-readout">
         <span>EASTERN · {zuluClock(now)}</span>
@@ -207,15 +217,42 @@ function ResultsChip({ state }: { state: LiveResultsState }) {
   return <Chip text="No results feed" tone="accent" hollow title="No results source is connected" />;
 }
 
+/** "Kalshi stale · 21:04": the feed is not live, and prices on screen are from when it last was. */
+function kalshiChip(status: KalshiFeedStatus, liveAt: number | null, staleOn: boolean) {
+  const chip = KALSHI_CHIP[status];
+  if (!staleOn || (status !== "degraded" && status !== "offline") || liveAt === null) return { ...chip, title: "Kalshi prices, pushed live over server-sent events" };
+  const at = formatEtTime(new Date(liveAt).toISOString());
+  return { text: `Kalshi stale · ${at}`, tone: "accent" as const, title: `Prices are from ${at} ET, when the Kalshi feed was last live. Reconnecting automatically.` };
+}
+
+/** After this long off live, the War Room says prices are stale (a quick reconnect after a deploy says nothing). */
+const STALE_AFTER_MS = 20_000;
+
+/** A line above every screen while Kalshi prices are stale, so no one reads an old price as live. */
+function StalePrices() {
+  const { status, liveAt, notLiveSince, markets } = useKalshiMarkets();
+  const now = useNow(5_000);
+  if ((status !== "degraded" && status !== "offline") || markets.size === 0 || notLiveSince === null || now - notLiveSince < STALE_AFTER_MS) return null;
+  const at = liveAt === null ? null : formatEtTime(new Date(liveAt).toISOString());
+  return (
+    <p className="wr-stale" role="status">
+      <strong>Market prices are stale.</strong> {at ? `The Kalshi feed was last live at ${at} ET, and prices shown are from then.` : "The Kalshi feed is delayed, so prices shown may be old."} Reconnecting automatically.
+    </p>
+  );
+}
+
 function FeedChips() {
   const results = useLiveResults();
-  const kalshi = KALSHI_CHIP[useKalshiStatus()];
+  const flags = useWarRoomFlags();
+  const { status, liveAt } = useKalshiMarkets();
+  const kalshi = kalshiChip(status, liveAt, flags.stale_prices);
+  useEffect(() => { setKalshiWatchdog(flags.stale_prices); }, [flags.stale_prices]);
   const counts = useStateCounts();
   const econ = useEconIndicators(730, null);
   const fredAt = econ.data?.series.reduce<string | null>((latest, series) => (series.fetchedAt && (!latest || series.fetchedAt > latest) ? series.fetchedAt : latest), null);
   return (
     <ul className="wr-chips" aria-label="Data feeds">
-      <Chip {...kalshi} title="Kalshi prices, pushed live over server-sent events" />
+      <Chip {...kalshi} />
       {counts.isError
         ? <Chip text="FEC down" tone="accent" title="The elections API did not answer; race counts are hidden" />
         : <Chip text={counts.dataUpdatedAt ? `FEC ${formatEtTime(new Date(counts.dataUpdatedAt).toISOString())}` : "FEC …"} tone={counts.dataUpdatedAt ? "live" : undefined}
@@ -231,6 +268,7 @@ function FeedChips() {
 export function WarRoomShell({ children }: { children: ReactNode }) {
   useWarRoomSkin();
   const { search } = useLocation();
+  const flags = useWarRoomFlags();
   return (
     <div className="wr-app">
       <a className="wr-skip" href="#wr-main">Skip to content</a>
@@ -252,7 +290,14 @@ export function WarRoomShell({ children }: { children: ReactNode }) {
       </header>
       <div className="wr-body">
         <Rail />
-        <main id="wr-main" className="wr-main" tabIndex={-1}>{children}</main>
+        <main id="wr-main" className="wr-main" tabIndex={-1}>
+          {flags.stale_prices && <StalePrices />}
+          {children}
+        </main>
+      </div>
+      <div className="wr-alert-stack">
+        <CallWatcher alerts={flags.watchlist_alerts} />
+        {flags.market_alerts && <MarketWatcher />}
       </div>
     </div>
   );

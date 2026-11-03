@@ -102,6 +102,9 @@ const envSchema = z.object({
   RESULTS_PROVIDER_MOCK_ENABLED: z.enum(['true', 'false']).default('false'),
   RESULTS_PROVIDER_ENABLED_IDS: z.string().default(''),
   RESULTS_STALE_AFTER_SECONDS: z.string().regex(/^[1-9]\d*$/).default('300'),
+  // Requests per visitor IP per 15 minutes on the public API. Visitors on one campus network or phone carrier share
+  // an IP, and an open War Room tab makes about 60 requests in 15 minutes, so 600 ran out at about 10 people.
+  PUBLIC_RATE_LIMIT_MAX: z.string().regex(/^[1-9]\d*$/).default('3000'),
   RESULTS_POLL_INTERVAL_SECONDS: z.string().regex(/^[1-9]\d*$/).default('30'),
   RESULTS_PARSER_VERSION: z.string().default('unconfigured'),
   // civicAPI results ingestion (docs/plans/civicapi-results.md). The loop runs only when enabled,
@@ -216,6 +219,7 @@ export const env = {
     .map((providerId) => providerId.trim())
     .filter(Boolean),
   RESULTS_STALE_AFTER_SECONDS: parseInt(parsed.data.RESULTS_STALE_AFTER_SECONDS, 10),
+  PUBLIC_RATE_LIMIT_MAX: parseInt(parsed.data.PUBLIC_RATE_LIMIT_MAX, 10),
   RESULTS_POLL_INTERVAL_SECONDS: parseInt(parsed.data.RESULTS_POLL_INTERVAL_SECONDS, 10),
   RESULTS_INGESTOR_ENABLED: parsed.data.RESULTS_INGESTOR_ENABLED === 'true',
   RESULTS_INGESTOR_IN_PROCESS: parsed.data.RESULTS_INGESTOR_IN_PROCESS === 'true',

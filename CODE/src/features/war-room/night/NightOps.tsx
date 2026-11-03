@@ -16,13 +16,15 @@ import { useWatchlist } from "../watchlist";
 import { closedCount, closingFor, closingSlots, nextClose, POLL_CLOSINGS } from "./pollClosings";
 import { progressLabel, statesOf } from "../results/liveResults";
 import { LiveCoverage } from "../results/LiveCoverage";
-import { CallLog, LeaderCell, OfficialLinks, RaceBoard, ResultsStatus, SeatCount } from "../results/ResultsPanels";
+import { CallLog, ControlBanner, LeaderCell, OfficialLinks, RaceBoard, ResultsStatus, SeatCount } from "../results/ResultsPanels";
+import { useWarRoomFlag } from "../flags";
+import { MarketCountPanel } from "../results/MarketAlerts";
 import { boardOf, useLiveResults, type LiveResultsState } from "../results/useLiveResults";
 
-const SLOTS = closingSlots();
+export const SLOTS = closingSlots();
 const KEY_RACES = 10;
 
-function Timeline({ now }: { now: number }) {
+export function Timeline({ now }: { now: number }) {
   const next = nextClose(now);
   return (
     <Panel title="Poll closing timeline · ET · Nov 3" meta="Most of each state · split states note their last close"
@@ -45,8 +47,9 @@ function Timeline({ now }: { now: number }) {
   );
 }
 
-function NightFigures({ now, markets, results }: { now: number; markets: number | null; results: LiveResultsState }) {
+export function NightFigures({ now, markets, results }: { now: number; markets: number | null; results: LiveResultsState }) {
   const next = nextClose(now);
+  const nextCloseOn = useWarRoomFlag("next_close_countdown");
   const board = boardOf(results);
   const reporting = board ? [...board.races.values()].filter((race) => race.totalVotes > 0).length : null;
   const called = board ? [...board.races.values()].filter((race) => race.winner).length : null;
@@ -54,7 +57,9 @@ function NightFigures({ now, markets, results }: { now: number; markets: number 
     <dl className="wr-night-figures">
       <div><dt>Polls closed</dt><dd>{closedCount(now)}<span> / {POLL_CLOSINGS.length}</span></dd></div>
       <div><dt>Next close</dt><dd>{next ? etHourMinute(next) : "All closed"}</dd></div>
-      <div><dt>First close in</dt><dd>{countdown(now)}</dd></div>
+      {nextCloseOn
+        ? <div><dt>Next close in</dt><dd>{next ? countdown(now, next) : "All closed"}</dd></div>
+        : <div><dt>First close in</dt><dd>{countdown(now)}</dd></div>}
       <div><dt>Races reporting</dt><dd>{reporting === null ? "–" : numberFormat.format(reporting)}<span> / 470</span></dd></div>
       <div><dt>Races called</dt><dd>{called === null ? "–" : numberFormat.format(called)}</dd></div>
       <div><dt>Markets live</dt><dd>{markets === null ? "–" : numberFormat.format(markets)}</dd></div>
@@ -63,7 +68,7 @@ function NightFigures({ now, markets, results }: { now: number; markets: number 
 }
 
 /** Watchlist races with their poll close, the count so far, and the market. */
-function KeyRaces({ now, codes, board, results }: { now: number; codes: string[]; board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
+export function KeyRaces({ now, codes, board, results }: { now: number; codes: string[]; board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
   const live = boardOf(results);
   return (
     <Panel flush title="Key races · watchlist" meta={live ? <Badge tone={live.isTestData ? "mock" : "live"}>{live.isTestData ? "Test data" : `Results · ${live.source.name}`}</Badge> : <Badge tone="off">No results feed</Badge>}
@@ -128,7 +133,7 @@ function MockBoard() {
   );
 }
 
-function Health({ board, results }: { board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
+export function Health({ board, results }: { board: ReturnType<typeof useBoard>; results: LiveResultsState }) {
   const counts = useStateCounts();
   const indicators = useEconIndicators(730, null);
   const sources = useResultsSourceStatus();
@@ -168,6 +173,7 @@ export function NightOps() {
   const watch = useWatchlist(board.senate, board.house);
   const results = useLiveResults();
   const liveBoard = boardOf(results);
+  const marketAlerts = useWarRoomFlag("market_alerts");
   const badge = liveBoard ? (liveBoard.isTestData ? { tone: "mock" as const, text: "Test data · not results" } : { tone: "live" as const, text: `Results · ${liveBoard.source.name}` })
     : mockResultsProviderEnabled ? { tone: "mock" as const, text: "Staging · mock results" } : { tone: "off" as const, text: "No results feed" };
   return (
@@ -188,7 +194,9 @@ export function NightOps() {
 
       <ResultsStatus state={results} />
       <NightFigures now={now} markets={board.marketCount} results={results} />
-      {liveResultsEnabled && <SeatCount board={liveBoard} attribution={liveBoard?.attribution ?? null} />}
+      {/* Only once a results source answers: before that the count would show 435 uncalled and 0 leading. */}
+      {liveResultsEnabled && liveBoard && <ControlBanner board={liveBoard} />}
+      {liveResultsEnabled && liveBoard && <SeatCount board={liveBoard} attribution={liveBoard.attribution} />}
 
       <Timeline now={now} />
 
@@ -196,6 +204,8 @@ export function NightOps() {
         <KeyRaces now={now} codes={watch.list} board={board} results={results} />
         <CallLog board={liveBoard} closings={SLOTS} now={now} />
       </div>
+
+      {marketAlerts && <MarketCountPanel />}
 
       {liveResultsEnabled && <RaceBoard board={liveBoard} />}
       {mockResultsProviderEnabled && !liveBoard && <MockBoard />}

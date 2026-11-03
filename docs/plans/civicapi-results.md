@@ -84,6 +84,27 @@ A pre-election review of the pipeline, against live civicAPI and the Railway pro
 - **If it still reports test data after 7 PM ET:** nothing publishes, and the War Room says so. Contact civicAPI; the official links stand in meanwhile.
 - **Restarts:** the lease is taken per cycle. If a restart kills a cycle midway, the lease expires after 90 s, so results can pause for up to about 2 minutes. The last numbers stay on screen.
 
+## Check (Nov 3)
+A last check at 16:45 UTC (11:45 AM ET) on election day, against live civicAPI and Testing.
+
+**Verified:**
+- **civicAPI is live.** Both aggregates say `test_data: false`. Every race is at 0 votes and 0% with no calls, and detail documents carry today's `last_updated` (GA-SEN 16:44 UTC). Most answers take 1–2 s. Testing logged one 502 on the Senate aggregate (16:32 UTC); the next cycle succeeded.
+- **Testing's ingestor** (inside `Backend`, deployed 15:40 UTC) runs every 30 s with 0 rejections. The 418 tier B races come from the aggregates, and the 52 tier A races (the `CIVICAPI_TIER_A_AS_OF` list) are refreshed every 10 minutes. The War Room's `/api/v1/bootstrap` answers 200 in about 0.35 s, and 304 to ETags. The ballot sync is off.
+- **Early vote** reads civicAPI's Nov 3 documents. A few state documents answered 502 or timed out; each keeps its last good document and is read again on the next sweep.
+- **Tests:** `test:results` passes 255 (3 polls tests skip without a polls database). In `CODE/`, lint, typecheck, build, and 297 tests pass. A local rehearsal (fresh database, the real ballot sync, one live cycle) published all 470 races with 0 errors.
+
+**Found:** both aggregates' `last_updated` still read **Oct 23, 15:37 UTC**, while detail documents are current. Every tier B snapshot took that as its "as of" time, so 418 races would show "As of 11:37 ET" all night if it does not move. A race moving from detail to aggregate never published again, because its aggregate document was always "older" than its last detail. That happens after 3 failed details in a row, or with `CIVICAPI_TIER_A_ENABLED=false` (the 4.5 GB brake, which would have frozen all 52 tier A races).
+
+**Fixed (Nov 3):**
+- An aggregate snapshot is stamped with the cycle that first saw its numbers, within 30 s of the change. Detail snapshots keep the race's own `last_updated`.
+- civicAPI's `last_updated` stays on the raw artifact. An aggregate older than the one behind a race's current snapshot is still rejected as a stale copy.
+- A race moving from detail to aggregate publishes at its next change.
+- Test: `ingest.db.test.ts`, "aggregates whose last_updated stands still…". It fails on the old code for both the "as of" time and the brake.
+
+**Still open:**
+- **`main-prod`** runs `main` at `42d795c0` (Nov 2) without the ingestor (no `[civicapi]` cycles today), and its ballot sync still runs every 6 hours. Election night runs on Testing, as decided on Nov 2.
+- Deploying this fix restarts `Backend`, so results pause for up to about 2 minutes (see "Restarts" above). Before polls close at 6 PM ET, nothing is lost.
+
 ## What already exists
 - **Contracts** (`contracts.ts`, version `1.0.0`): `ContestResult`, `ReportingProgress`, `SourceStatus`, and the rules that keep mock and live labelling consistent.
 - **Parser interface** (`parser.ts`): `ElectionResultsParser`, taking a `RawResultsDocument` and returning `ParsedResultsBatch`. No live parser exists yet.
@@ -145,7 +166,7 @@ The field names below come from the open-source TUTV election-night app ([benton
 | `percent` | `CandidateVote.sourceVotePercentage` |
 | `percent_reporting` | `ContestMetric.reportingPercentage`, with the precinct and unit counts left **null** |
 | sum of candidate votes | `ContestMetric.votesCounted` |
-| `last_updated` | `ResultSnapshot.sourceUpdatedAt` (falling back to fetch time, with a warning) |
+| `last_updated` | `RawArtifact.sourceUpdatedAt`; `ResultSnapshot.sourceUpdatedAt` for detail documents. Aggregate snapshots take the cycle time instead (see "Check (Nov 3)") |
 | `region_results[*].fips` | a county `ReportingUnit` linked to a `GeographyUnit` |
 | `winner` | kept in the raw artifact only (v1) |
 

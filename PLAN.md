@@ -106,6 +106,7 @@ Differentiators:
   - **War Room:** Night screen (status, seats called and leading, call log, results board, key races), a **Results** map lens, a Results section on every dossier, a header chip, and official state results links whenever the feed is delayed or off.
   - **Live coverage (§4.7):** `live_streams` table, `GET /api/live-streams`, an admin section to paste each network's YouTube link on the night, and a click-to-load panel on the Night screen (four players at most, one with sound).
   - **Flags:** `VITE_RESULTS_LIVE_ENABLED` and `VITE_FEATURE_LIVE_STREAMS` (on by default), `RESULTS_INGESTOR_ENABLED`, `LIVE_STREAMS_ENABLED`. The War Room itself still needs `VITE_FEATURE_WAR_ROOM=true`.
+  - **Nov 3 check:** civicAPI is live (no test data) and Testing's ingestor runs cleanly. civicAPI's aggregates still read `last_updated` Oct 23, so aggregate snapshots now take the cycle time as their "as of" time. Without that, 418 races would have read "As of 11:37 ET", and a race moved off county detail (failed details, or the 4.5 GB brake) would have stopped updating. See `docs/plans/civicapi-results.md`, "Check (Nov 3)".
 
 - Cost of living, fuel prices (Oct 31, section 4.8): a **Cost of living** tab in the War Room map's intel panel, per state.
   - **Data:** EIA weekly retail regular gasoline and diesel (`npm run sync:fuel`; Tuesday and Wednesday 9:20 AM ET and once after boot), stored in `indicator_series` as `eia.<series id>`. 26 series: the U.S., the 9 states EIA prices on its own (diesel: California only), and the PADD regions.
