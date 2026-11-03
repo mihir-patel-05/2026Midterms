@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { stateMapItems } from "@/features/election-dashboard/map";
 import { etHourMinute, FIRST_POLLS_CLOSE } from "../countdown";
-import { closedCount, closingFor, closingSlots, et, nextClose, POLL_CLOSINGS } from "./pollClosings";
+import { closedCount, closingFor, closingSlots, et, nextClose, nextCloseReadout, POLL_CLOSINGS } from "./pollClosings";
 
 describe("poll closings", () => {
   it("lists every state and DC once", () => {
@@ -39,5 +39,15 @@ describe("poll closings", () => {
     expect(nextClose(et(18))).toBe(et(19));
     expect(nextClose(et(24, 30))).toBe(et(25));
     expect(nextClose(et(25))).toBe(null);
+  });
+});
+
+describe("next close readout", () => {
+  it("counts down to the next close, then says when the last one was", () => {
+    expect(nextCloseReadout(et(12))).toEqual({ label: "NEXT POLLS CLOSE · NOV 3 18:00 ET", target: et(18) });
+    expect(nextCloseReadout(et(18))).toEqual({ label: "NEXT POLLS CLOSE · NOV 3 19:00 ET", target: et(19) });
+    expect(nextCloseReadout(et(19, 15)).target).toBe(et(19, 30));
+    expect(nextCloseReadout(et(24, 30))).toEqual({ label: "NEXT POLLS CLOSE · NOV 4 01:00 ET", target: et(25) });
+    expect(nextCloseReadout(et(26))).toEqual({ label: "ALL POLLS CLOSED · NOV 4 01:00 ET", target: et(25) });
   });
 });

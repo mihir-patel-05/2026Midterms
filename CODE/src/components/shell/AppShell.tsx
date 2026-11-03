@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChatButton } from "@/components/chat/ChatButton";
 import { DataBanner } from "./DataBanner";
 import { TopBar } from "./TopBar";
+import { WarRoomBanner } from "./WarRoomBanner";
 
 /**
  * Site chrome for the new frontend. `variant="app"` is the full-height
@@ -17,6 +18,7 @@ export function AppShell({ children, variant = "page" }: { children: ReactNode; 
       </a>
       <TopBar />
       <DataBanner />
+      <WarRoomBanner />
       <main id="main-content" className="flex-1">{children}</main>
       {variant === "page" && <ShellFooter />}
       <ChatButton />
