@@ -269,3 +269,69 @@ test('tier A comes from the Kalshi hour at or before CIVICAPI_TIER_A_AS_OF, so r
     await db.$disconnect();
   }
 });
+
+test('aggregates whose last_updated stands still keep publishing, stamped with the cycle; stale copies are rejected; the tier A brake publishes', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  try {
+    await reset(db);
+    const source = await seedCatalog(db);
+    // On Nov 3 both aggregates read last_updated Oct 23 while detail documents were current.
+    const frozen = '2026-10-23T15:37:21.863Z';
+    const at = (body: unknown, lastUpdated: string) => ({ ...live(body), last_updated: lastUpdated });
+    type Regions = Record<string, { candidates: Array<Record<string, unknown>> }>;
+    const senate = at(fixture('senate-aggregate.json'), frozen);
+    const feed = server({
+      87528: senate, 87524: at(fixture('house-aggregate.trimmed.json'), frozen),
+      87087: at(fixture('race-ga-sen.trimmed.json'), '2026-11-04T01:30:00.000Z'), 87382: at(fixture('race-pa-07.json'), '2026-11-04T01:30:00.000Z'),
+    });
+    const contest = (sourceContestId: string) => db.contest.findFirstOrThrow({ where: { sourceId: source.id, sourceContestId }, include: { currentSnapshot: { include: { rawArtifact: true } } } });
+    const meId = (senate.region_results as Record<string, { election_id: number }>).me.election_id.toString();
+
+    const run = await ingestor(db, feed.fetchImpl, {});
+    const t1 = new Date('2026-11-04T02:00:00Z');
+    assert.equal((await run.cycle(t1)).published, 45);
+    const me1 = await contest(meId);
+    assert.equal(me1.currentSnapshot?.sourceUpdatedAt?.toISOString(), t1.toISOString());
+    assert.equal(me1.currentSnapshot?.rawArtifact?.sourceUpdatedAt?.toISOString(), frozen);
+    // Tier A keeps the race's own time from its detail document.
+    assert.equal((await contest('87087')).currentSnapshot?.sourceUpdatedAt?.toISOString(), '2026-11-04T01:30:00.000Z');
+
+    // 1. A moved count publishes although last_updated has not moved, and its "as of" time is that cycle's.
+    const moved = structuredClone(senate);
+    (moved.region_results as Regions).me.candidates[0].votes = 54321;
+    feed.docs[87528] = moved;
+    const t2 = new Date('2026-11-04T02:00:30Z');
+    const second = await run.cycle(t2);
+    assert.equal(second.published, 1);
+    assert.equal(second.rejected, 0);
+    assert.equal((await contest(meId)).currentSnapshot?.sourceUpdatedAt?.toISOString(), t2.toISOString());
+    const shown = await dbCurrentResult(db, readConfig(false), me1.id);
+    assert.equal(shown?.data?.updatedAt, t2.toISOString());
+
+    // 2. A stale copy (older last_updated than the document behind the current snapshot) is still rejected.
+    const stale = structuredClone(senate);
+    stale.last_updated = '2026-10-22T00:00:00.000Z';
+    (stale.region_results as Regions).me.candidates[0].votes = 11;
+    feed.docs[87528] = stale;
+    const third = await run.cycle(new Date('2026-11-04T02:01:00Z'));
+    assert.equal(third.rejected, 1);
+    assert(await db.ingestionError.findFirst({ where: { code: 'RACE_REJECTED', recordKey: 'ME-SEN', message: { contains: 'older' } } }));
+    assert.equal((await contest(meId)).currentSnapshot?.sourceUpdatedAt?.toISOString(), t2.toISOString());
+
+    // 3. County detail switched off (the database-size brake, or a race demoted after failed details): the race's
+    // next change publishes from the aggregate, although the aggregate's last_updated is older than its detail's.
+    const gaMoved = structuredClone(moved);
+    (gaMoved.region_results as Regions).ga.candidates[0].votes = 777777;
+    feed.docs[87528] = gaMoved;
+    const braked = await ingestor(db, feed.fetchImpl, { tierA: { enabled: false, max: 60, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    const t4 = new Date('2026-11-04T02:01:30Z');
+    const fourth = await braked.cycle(t4);
+    assert.equal(fourth.rejected, 0, fourth.message);
+    const ga = await contest('87087');
+    assert.equal(ga.currentSnapshot?.sourceUpdatedAt?.toISOString(), t4.toISOString());
+    assert.equal(await db.candidateVote.count({ where: { snapshotId: ga.currentSnapshotId!, votes: 777777 } }), 1);
+  } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});

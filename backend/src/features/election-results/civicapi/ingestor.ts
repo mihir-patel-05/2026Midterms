@@ -262,7 +262,7 @@ export class CivicApiIngestor {
       } catch (error) {
         total.warnings.push(`${contest.label} detail: ${error instanceof Error ? error.message : error}`);
         if (state && ++state.failures >= DETAIL_FAILURES_UNTIL_DEMOTED) {
-          // The aggregate's feed-wide last_updated is newer than any detail's, so this race now stays on the aggregate.
+          // Aggregate snapshots carry the cycle time, newer than any detail's, so this race publishes from the aggregate at its next change.
           tierA.delete(item.id);
           total.warnings.push(`${contest.label}: ${DETAIL_FAILURES_UNTIL_DEMOTED} detail failures in a row; totals now come from the aggregate`);
         }
