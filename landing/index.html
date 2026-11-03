@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>War Room · VoteInformed</title>
+  <meta name="description" content="A free, live election-night dashboard for the 2026 midterms: results, poll closings, prediction markets, campaign money and the economy on one screen.">
+  <meta name="theme-color" content="#06080b">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="War Room · 2026 midterms, live on one screen">
+  <meta property="og:description" content="Results, poll closings, prediction markets, campaign money and the economy for every House and Senate race. Free, no signup.">
+  <meta property="og:image" content="__SITE_URL__/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav" id="top">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="War Room home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">WAR ROOM</span>
+        <span class="brand-sub">by VoteInformed</span>
+      </a>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#modules">Modules</a>
+        <a href="#tonight">Tonight</a>
+        <a href="#sources">Sources</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="__WAR_ROOM_URL__" data-launch>Launch dashboard</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <p class="tag"><span class="dot" aria-hidden="true"></span><span data-phase-label>2026 midterms · election night Nov 3</span></p>
+        <h1>Election night,<br>on <em>one screen.</em></h1>
+        <p class="lede">The War Room puts live results, poll closings, prediction markets, campaign money and the economy side by side for every House and Senate race, so you can see what is moving and why without twelve open tabs.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="__WAR_ROOM_URL__" data-launch>Launch the War Room <span aria-hidden="true">→</span></a>
+          <a class="btn btn-ghost btn-lg" href="#modules">See what's inside <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="micro">Free · No signup · Works on your phone</p>
+
+        <div class="clock" role="status" aria-live="polite">
+          <div class="clock-cell">
+            <span class="clock-key" data-clock-key>First polls close</span>
+            <span class="clock-val" data-clock-val>Nov 3 · 6:00 PM ET</span>
+          </div>
+          <div class="clock-cell">
+            <span class="clock-key">States closed</span>
+            <span class="clock-val"><span data-closed>0</span><span class="dim"> / 51</span></span>
+          </div>
+          <div class="clock-cell">
+            <span class="clock-key">Next up</span>
+            <span class="clock-val clock-states" data-next-states>IN · KY</span>
+          </div>
+        </div>
+
+        <dl class="stats">
+          <div><dt>435</dt><dd>House seats</dd></div>
+          <div><dt>35</dt><dd>Senate seats</dd></div>
+          <div><dt>11</dt><dd>Dashboard modules</dd></div>
+          <div><dt>5</dt><dd>Live data sources</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="preview-section" aria-label="Dashboard preview">
+      <div class="wrap">
+        <figure class="preview">
+          <div class="pv-bar">
+            <span class="pv-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="pv-title">WAR ROOM // NIGHT</span>
+            <span class="pv-live"><span class="dot" aria-hidden="true"></span>LIVE</span>
+          </div>
+          <div class="pv-body" aria-hidden="true">
+            <ul class="pv-rail">
+              <li class="on">CMD</li><li>MAP</li><li>RACES</li><li>MKTS</li><li>MONEY</li><li>ECON</li><li>SIM</li><li>NEWS</li><li>EARLY</li><li>NIGHT</li>
+            </ul>
+            <div class="pv-main">
+              <div class="pv-panel pv-control">
+                <p class="pv-h">Chamber control</p>
+                <div class="pv-chamber">
+                  <span class="pv-label">SENATE</span>
+                  <div class="pv-track"><span class="d" style="--w:47%"></span><span class="u" style="--w:5%"></span><span class="r" style="--w:48%"></span></div>
+                </div>
+                <div class="pv-chamber">
+                  <span class="pv-label">HOUSE</span>
+                  <div class="pv-track"><span class="d" style="--w:49%"></span><span class="u" style="--w:3%"></span><span class="r" style="--w:48%"></span></div>
+                </div>
+                <div class="pv-odds"><span>MKT · D <b class="dem">—</b></span><span>R <b class="rep">—</b></span></div>
+              </div>
+              <div class="pv-panel pv-map">
+                <p class="pv-h">Results map</p>
+                <div class="pv-hexes">
+                  <i class="r"></i><i class="r"></i><i class="n"></i><i class="d"></i><i class="d"></i><i class="r"></i><i class="n"></i>
+                  <i class="d"></i><i class="r"></i><i class="r"></i><i class="u"></i><i class="d"></i><i class="r"></i><i class="d"></i>
+                  <i class="n"></i><i class="d"></i><i class="r"></i><i class="d"></i><i class="u"></i><i class="r"></i><i class="r"></i>
+                  <i class="d"></i><i class="n"></i><i class="r"></i><i class="d"></i><i class="r"></i><i class="d"></i><i class="n"></i>
+                </div>
+              </div>
+              <div class="pv-panel pv-closings">
+                <p class="pv-h">Poll closings · ET</p>
+                <ol>
+                  <li class="done"><b>18:00</b> IN KY</li>
+                  <li class="done"><b>19:00</b> FL GA NH SC VA VT</li>
+                  <li class="next"><b>19:30</b> NC OH WV</li>
+                  <li><b>20:00</b> PA MI TX +16</li>
+                </ol>
+              </div>
+              <div class="pv-panel pv-feed">
+                <p class="pv-h">Call alerts</p>
+                <p class="pv-line"><span class="chip live">CALL</span> Watchlist race called</p>
+                <p class="pv-line"><span class="chip">MKT</span> Big move on a watched race</p>
+                <p class="pv-line"><span class="chip">CLOSE</span> Next states close soon</p>
+              </div>
+            </div>
+          </div>
+          <div class="pv-ticker" aria-hidden="true"><span>FRED // MACRO</span><span>CPI</span><span>UNEMPLOYMENT</span><span>GAS</span><span>10Y</span><span>MORTGAGE</span></div>
+          <figcaption>Illustration of the War Room layout. The real dashboard fills every panel with live data.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- What is it -->
+    <section class="section" id="about">
+      <div class="wrap two-col">
+        <div>
+          <p class="eyebrow">What is the War Room?</p>
+          <h2>A command center for the midterms, built for people who follow the count.</h2>
+        </div>
+        <div class="prose">
+          <p>Most election sites show you one thing: the results map, or the odds, or the news. The War Room keeps them together. Pick the races you care about, and every screen follows your watchlist, from the poll closing timeline to the race dossiers to the alerts that fire when something gets called.</p>
+          <p>It runs in the browser, it is free, and it is built to keep working through the busiest hour of the night.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modules -->
+    <section class="section" id="modules">
+      <div class="wrap">
+        <p class="eyebrow">What's inside</p>
+        <h2>Eleven modules. One watchlist ties them together.</h2>
+        <div class="cards">
+          <a class="card" href="__WAR_ROOM_URL__/night" data-launch>
+            <span class="card-code">NIGHT</span>
+            <h3>Election night</h3>
+            <p>Poll closing timeline, your key races, call alerts, live coverage and links to every state's official results.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__" data-launch>
+            <span class="card-code">CMD</span>
+            <h3>Command</h3>
+            <p>Chamber control, key figures, the intel feed and your watchlist on one board.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/map" data-launch>
+            <span class="card-code">MAP</span>
+            <h3>Results map</h3>
+            <p>Every district and state, switchable between live results, market odds and past results.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__" data-launch>
+            <span class="card-code">RACES</span>
+            <h3>Race dossiers</h3>
+            <p>Candidates, market history, money, district terrain and a running log for each race.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/signals" data-launch>
+            <span class="card-code">MKTS</span>
+            <h3>Markets</h3>
+            <p>Live prediction market prices from Kalshi for every race and both chambers, plus the biggest movers.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/signals#money" data-launch>
+            <span class="card-code">MONEY</span>
+            <h3>Campaign money</h3>
+            <p>Who raised and spent what, from FEC filings, race by race.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/signals#econ" data-launch>
+            <span class="card-code">ECON</span>
+            <h3>Economy</h3>
+            <p>Inflation, jobs, gas and rates from FRED, plus cost of living by place, the backdrop voters feel.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/sim" data-launch>
+            <span class="card-code">SIM</span>
+            <h3>Simulator</h3>
+            <p>Play out the House, Senate or Electoral College and save your own forecast to check against the night.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/news" data-launch>
+            <span class="card-code">NEWS</span>
+            <h3>News</h3>
+            <p>Stories by state and race, filtered to what you are watching.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/early-vote" data-launch>
+            <span class="card-code">EARLY</span>
+            <h3>Early vote</h3>
+            <p>Early and mail ballots cast so far, state by state.</p>
+          </a>
+          <a class="card" href="__WAR_ROOM_URL__/map?lens=past&amp;mode=odds" data-launch>
+            <span class="card-code">PAST</span>
+            <h3>Past results</h3>
+            <p>How each seat voted before, to put tonight's swing in context.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tonight -->
+    <section class="section" id="tonight">
+      <div class="wrap">
+        <p class="eyebrow">Tonight</p>
+        <h2>When the polls close.</h2>
+        <p class="sub">Eastern time, Nov 3. Each state is listed at the time most of its polls close; some split states keep voting an hour longer. This timeline updates in your browser.</p>
+        <ol class="timeline" data-timeline>
+          <li data-close="18:00"><time>6:00 PM</time><span class="states">IN · KY</span></li>
+          <li data-close="19:00"><time>7:00 PM</time><span class="states">FL · GA · NH · SC · VA · VT</span></li>
+          <li data-close="19:30"><time>7:30 PM</time><span class="states">NC · OH · WV</span></li>
+          <li data-close="20:00"><time>8:00 PM</time><span class="states">AL · CT · DC · DE · IL · KS · MA · MD · ME · MI · MO · MS · NJ · OK · PA · RI · SD · TN · TX</span></li>
+          <li data-close="20:30"><time>8:30 PM</time><span class="states">AR</span></li>
+          <li data-close="21:00"><time>9:00 PM</time><span class="states">AZ · CO · IA · LA · MN · ND · NE · NM · NY · WI · WY</span></li>
+          <li data-close="22:00"><time>10:00 PM</time><span class="states">ID · MT · NV · UT</span></li>
+          <li data-close="23:00"><time>11:00 PM</time><span class="states">CA · OR · WA</span></li>
+          <li data-close="24:00"><time>12:00 AM</time><span class="states">AK · HI</span></li>
+        </ol>
+        <div class="center">
+          <a class="btn btn-primary" href="__WAR_ROOM_URL__/night" data-launch>Open the Night screen <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- How -->
+    <section class="section" id="how">
+      <div class="wrap">
+        <p class="eyebrow">Zero to oriented</p>
+        <h2>Up to speed in four steps.</h2>
+        <ol class="steps">
+          <li><span class="step-n">01</span><h3>Launch</h3><p>Open the War Room. It loads in the browser on a laptop, a phone or a TV.</p></li>
+          <li><span class="step-n">02</span><h3>Pick your races</h3><p>Search a state or district and add it to your watchlist. Every screen follows it.</p></li>
+          <li><span class="step-n">03</span><h3>Watch the night</h3><p>Keep the Night screen up for closings, calls and live coverage. Alerts tell you when a race on your list is called.</p></li>
+          <li><span class="step-n">04</span><h3>Dig in</h3><p>Open a race dossier to see the money, the market and the district behind the number.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Sources -->
+    <section class="section" id="sources">
+      <div class="wrap">
+        <p class="eyebrow">Under the hood</p>
+        <h2>Where the numbers come from.</h2>
+        <ul class="sources">
+          <li><b>Results</b><span>civicAPI</span><p>Vote counts and race calls as states report them.</p></li>
+          <li><b>Markets</b><span>Kalshi</span><p>Live prediction market prices for races and chamber control.</p></li>
+          <li><b>Money</b><span>FEC</span><p>Campaign fundraising and spending filings.</p></li>
+          <li><b>Economy</b><span>FRED</span><p>Inflation, jobs, gas prices and interest rates.</p></li>
+          <li><b>Places</b><span>Census</span><p>Who lives in each district and state.</p></li>
+        </ul>
+        <p class="fine">Results are unofficial until each state certifies them, and the War Room links to every state's official results page. Market prices show what traders are betting, not a forecast or an endorsement.</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="wrap narrow">
+        <p class="eyebrow">FAQ</p>
+        <h2>Questions.</h2>
+        <details>
+          <summary>Is it free?</summary>
+          <p>Yes. No account, no paywall, no trial.</p>
+        </details>
+        <details>
+          <summary>Does it work on my phone?</summary>
+          <p>Yes. The War Room is built for phones as well as big screens, and on iPhone or iPad you can add it to your home screen like an app.</p>
+        </details>
+        <details>
+          <summary>Are these the official results?</summary>
+          <p>No. Results are unofficial until each state certifies them. The Night screen links straight to each state's election office for the official count.</p>
+        </details>
+        <details>
+          <summary>Why show betting markets?</summary>
+          <p>Markets react within seconds when new votes come in, so they are a fast signal of what people who follow the count expect.</p>
+        </details>
+        <details>
+          <summary>Who makes this?</summary>
+          <p>The War Room is part of VoteInformed, an nonpartisan civic project that helps people follow their elections.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- Closing CTA -->
+    <section class="final">
+      <div class="wrap center">
+        <h2>The count starts at 6 PM Eastern.</h2>
+        <p class="sub">Get your watchlist set before the first polls close.</p>
+        <a class="btn btn-primary btn-lg" href="__WAR_ROOM_URL__" data-launch>Launch the War Room <span aria-hidden="true">→</span></a>
+        <p class="micro">Free · No signup · Works on your phone</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="brand-name small">WAR ROOM</span>
+      <nav aria-label="Footer">
+        <a href="__WAR_ROOM_URL__" data-launch>Dashboard</a>
+        <a href="__SITE_URL__">VoteInformed</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <span class="fine">Nonpartisan. Results unofficial until certified.</span>
+    </div>
+  </footer>
+</body>
+</html>
