@@ -55,12 +55,39 @@ Every analysis states how many races it left out and why.
 - Senate races with at least 2 nonpartisan polls in the last 30 days: poll average margin against the result. Signed error and absolute error per race, plus the average of each, worded the same way in either direction.
 - Races with no public polling are listed as such, not given a zero.
 
-### Tier 2: if the data and time allow
+**A5. County shifts, 2024 to 2026 (every state with a statewide race)**
 
-**A5. County shifts in the close Senate races**
-- For the races with county detail: the 2026 Senate margin in each county against its 2024 presidential margin, and 2026 total votes as a share of 2024's.
-- Output: the counties that moved most in each direction per state, and a scatter of shift against the 2024 margin.
-- Data: civicAPI `/race/{id}` or our `/api/v1/contests/:id/results/current`, plus `president-2024.json` (3,112 counties).
+Which counties moved most between the 2024 presidential vote and the 2026 midterm? And did the counties that moved most from 2020 to 2024 (South Texas among them) keep moving, hold, or move back?
+
+- **The 2026 side:** each state's statewide race, by county. That's the U.S. Senate race where there is one (35 races; their civicAPI ids are in the Senate aggregate's `region_results.<state>.election_id`), and governor otherwise (find the ids with civicAPI's race search in the morning). Texas has both, so it shows both. civicAPI's race document lists every county by 5-digit FIPS with its own `percent_reporting` (see `backend/src/features/election-results/civicapi/parser.ts`).
+- **The baselines:** `CODE/public/data/past-results/president-2024.json` and `president-2020.json`. Each holds `[D, R, other]` votes for each of 3,112 county FIPS codes, including all 254 Texas counties.
+- **Measures:**
+  - Margin: D share minus R share of all votes, as everywhere else.
+  - Shift: the 2026 statewide margin minus the 2024 presidential margin.
+  - Prior shift: 2020 to 2024.
+  - Turnout ratio: 2026 total votes ÷ 2024 presidential total votes.
+- **Outputs:**
+  1. **Largest shifts nationally:** the 25 counties that moved most toward each party, among counties with at least 5,000 votes in 2026 so tiny counties don't crowd the list. Every county is in the CSV.
+  2. **Did the 2024 movers hold?** A scatter of the 2020 to 2024 shift (x) against the 2024 to 2026 shift (y), one dot per county sized by votes. In words: of the 100 counties that moved most toward Republicans from 2020 to 2024, how many moved back toward Democrats in 2026, and by how much (median). The same for the 100 that moved most toward Democrats.
+  3. **Texas spotlight:** all 254 counties, with Senate and governor side by side and a shift map. For the 20 Texas counties with the largest 2020 to 2024 shift, a three-point line: 2020, 2024, 2026. For example, Starr County went from D+5.0 in 2020 to R+16.0 in 2024 in the MIT data; the line shows where 2026 put it.
+  4. **By state:** the vote-weighted and the median county shift.
+  5. **A county shift map:** a diverging scale with the same bins in both directions, county shapes from `us-atlas`.
+- **Rules:**
+  - Only counties at 95% reporting or more (civicAPI's per-county figure) are compared; the rest are counted and listed.
+  - The label always names both contests, for example "2026 Senate vs. 2024 President". A different race measures candidates as well as places. Where the Senate and governor results disagree in a county, show both.
+  - Midterm turnout is lower, so the turnout ratio sits next to every shift. A shift can come from who turned out as well as from people changing their vote, and the page never claims which.
+  - Counties are places, not groups of voters. No sentences like "Hispanic voters swung back". If our API is reachable, ACS figures can be shown as facts about a county.
+  - Races without both a Democrat and a Republican are left out. Maine and Alaska are first-round votes. A Georgia runoff, if any, uses the Nov 3 round.
+- **Not comparable, shown in grey:**
+  - Alaska (no county results in either file).
+  - Connecticut (the 2024 file uses its old counties).
+  - New England states where civicAPI reports towns rather than counties (the parser drops towns; adding towns up into counties can come later).
+  - The states with no Senate or governor race this year. By our count those are IN, MO, ND, UT and WA; check against civicAPI.
+- **Fallback:** if civicAPI has no governor races, states with only a governor race (AZ, CA, CT, HI, MD, NV, NY, PA, VT, WI) can use the sum of every House candidate's county votes, labelled "2026 House vote, all districts". Counties in uncontested districts are left out.
+- **Load:** about 60 to 70 race documents from civicAPI at 1 per second, roughly 10 minutes at election-week response times. Fetch them once, at the freeze.
+- **Afterwards:** this becomes a 2024 to 2026 "Shift" view in the map's Past results mode (product idea 3).
+
+### Tier 2: if the data and time allow
 
 **A6. How the count unfolded** *(needs the SQL below)*
 - Hours from each state's poll closing to each call.
@@ -93,9 +120,9 @@ Every analysis states how many races it left out and why.
 
 | ET | Step |
 |---|---|
-| 7:30 | Freeze: pull every source once and stamp one "as of" time for the whole report |
-| 7:45 | Tier 1: A1, A2, A4, then A3 if the API is reachable |
-| 9:15 | Tier 2, as data allows |
+| 7:30 | Freeze: pull every source once and stamp one "as of" time for the whole report. Start the county documents for A5 first, since they take about 10 minutes |
+| 7:45 | Tier 1: A1, A5 (county shifts), A2, A4, then A3 if the API is reachable |
+| 9:30 | Tier 2, as data allows |
 | 10:15 | Write the page; check every number against its CSV and every sentence for symmetric wording |
 | 10:45 | Publish; 11:00 done |
 
