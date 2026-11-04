@@ -36,6 +36,10 @@ export function civicClientFromEnv(fetchImpl?: typeof fetch) {
     baseUrl: env.CIVICAPI_BASE_URL,
     timeoutMs: env.CIVICAPI_TIMEOUT_MS,
     maxRps: env.CIVICAPI_MAX_RPS,
+    // On Nov 3 civicAPI answered many requests with a 502 within a second and the next try often worked,
+    // so fast failures get up to 4 tries; none starts after 25 s, so a slow request still ends near 45 s.
+    attempts: 4,
+    retryWindowMs: 25_000,
     userAgent: `VoteInformed results-ingestor (+https://civicapi.org attribution${env.CIVICAPI_CONTACT ? `; ${env.CIVICAPI_CONTACT}` : ''})`,
     fetchImpl,
   });

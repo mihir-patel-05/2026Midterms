@@ -15,6 +15,10 @@ export interface CivicApiClientOptions {
   /** Injectable for tests and `--replay`. */
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** Tries per request on a timeout, network error or 5xx (default 2: one retry). A 4xx is never retried. */
+  attempts?: number;
+  /** No new try starts this long after the first (default: no limit). */
+  retryWindowMs?: number;
 }
 
 export interface FetchedDocument extends RawResultsDocument<unknown> {
@@ -104,16 +108,20 @@ export class CivicApiClient {
     };
   }
 
-  /** GET `path` (`race/87528`), retried once on a timeout, network error or 5xx. */
+  /** GET `path` (`race/87528`), retried with jitter on a timeout, network error or 5xx, within `attempts` and `retryWindowMs`. */
   async get(path: string): Promise<FetchedDocument> {
     const url = this.url(path);
-    try {
-      return await this.once(url);
-    } catch (error) {
-      const retryable = error instanceof CivicApiError && (error.status === null || error.status >= 500);
-      if (!retryable) throw error;
-      await this.sleep(250 + Math.floor(Math.random() * 750));
-      return this.once(url);
+    const attempts = Math.max(this.options.attempts ?? 2, 1);
+    const window = this.options.retryWindowMs ?? Number.POSITIVE_INFINITY;
+    const started = Date.now();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.once(url);
+      } catch (error) {
+        const retryable = error instanceof CivicApiError && (error.status === null || error.status >= 500);
+        if (!retryable || attempt >= attempts || Date.now() - started >= window) throw error;
+        await this.sleep(250 + Math.floor(Math.random() * 750));
+      }
     }
   }
 }

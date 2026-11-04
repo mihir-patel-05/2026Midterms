@@ -101,6 +101,8 @@ A last check at 16:45 UTC (11:45 AM ET) on election day, against live civicAPI a
 - A race moving from detail to aggregate publishes at its next change.
 - Test: `ingest.db.test.ts`, "aggregates whose last_updated stands still…". It fails on the old code for both the "as of" time and the brake.
 
+**On the night (Nov 3, 8–9 PM ET):** civicAPI answered most requests with 502s, 500s or timeouts, and only 11 of about 100 cycles on Testing succeeded. A failed Senate aggregate also threw away a good House one, and a fast 502 was tried only twice. Since then each chamber stands alone (a cycle fails only when both aggregates fail; one missing marks the source `DEGRADED`), and the ingestor's client tries a request up to 4 times, starting none after 25 s. Test: `ingest.db.test.ts`, "one aggregate failing does not hold back the other chamber…".
+
 **Still open:**
 - **`main-prod`** runs `main` at `42d795c0` (Nov 2) without the ingestor (no `[civicapi]` cycles today), and its ballot sync still runs every 6 hours. Election night runs on Testing, as decided on Nov 2.
 - Deploying this fix restarts `Backend`, so results pause for up to about 2 minutes (see "Restarts" above). Before polls close at 6 PM ET, nothing is lost.
