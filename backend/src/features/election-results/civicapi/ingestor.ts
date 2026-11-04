@@ -151,19 +151,26 @@ export class CivicApiIngestor {
           data: { status, completedAt: new Date(), recordsFetched: counts.fetched, recordsAccepted: counts.accepted, recordsRejected: counts.rejected, errorSummary: summary ?? null, ...(metadata ? { metadata: { cycle: this.cycleNumber, ...metadata } } : {}) },
         });
 
-      let docs: Array<{ doc: FetchedDocument; parsed: ParsedDocument }>;
-      try {
-        const [senate, house] = await Promise.all([
-          this.client.get(`race/${this.options.senateAggregateId}`),
-          this.client.get(`race/${this.options.houseAggregateId}`),
-        ]);
-        await Promise.all([this.record(senate, this.options.senateAggregateId), this.record(house, this.options.houseAggregateId)]);
-        docs = [
-          { doc: senate, parsed: senate.notModified ? emptyDoc() : parseAggregateResults(senate.payload, 'SENATE', this.options.cycle) },
-          { doc: house, parsed: house.notModified ? emptyDoc() : parseAggregateResults(house.payload, 'HOUSE', this.options.cycle) },
-        ];
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+      // Each chamber stands alone: on Nov 3 civicAPI failed about half of all requests, and one failed
+      // aggregate threw away the other. The cycle fails only when both do.
+      const aggregates = [
+        { id: this.options.senateAggregateId, chamber: 'SENATE' as const, label: 'Senate' },
+        { id: this.options.houseAggregateId, chamber: 'HOUSE' as const, label: 'House' },
+      ];
+      const settled = await Promise.allSettled(aggregates.map((aggregate) => this.client.get(`race/${aggregate.id}`)));
+      const docs: Array<{ doc: FetchedDocument; parsed: ParsedDocument }> = [];
+      const fetchFailures: string[] = [];
+      for (const [index, result] of settled.entries()) {
+        const aggregate = aggregates[index];
+        if (result.status === 'rejected') {
+          fetchFailures.push(`${aggregate.label} aggregate: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+          continue;
+        }
+        await this.record(result.value, aggregate.id);
+        docs.push({ doc: result.value, parsed: result.value.notModified ? emptyDoc() : parseAggregateResults(result.value.payload, aggregate.chamber, this.options.cycle) });
+      }
+      if (docs.length === 0) {
+        const message = fetchFailures.join('; ');
         await finish('FAILED', { fetched: 0, accepted: 0, rejected: 0 }, message);
         await this.health(source.id, 'failed', now);
         return report('failed', message);
@@ -171,14 +178,14 @@ export class CivicApiIngestor {
       const issues = docs.flatMap(({ parsed }) => parsed.issues);
       if (docs.some(({ parsed }) => unusable(parsed))) {
         await recordIssues(this.db, run.id, issues, null, null);
-        await finish('FAILED', { fetched: 2, accepted: 0, rejected: 2 }, 'An aggregate has no region_results');
+        await finish('FAILED', { fetched: docs.length, accepted: 0, rejected: docs.length }, 'An aggregate has no region_results');
         await this.health(source.id, 'failed', now);
         return report('failed', 'an aggregate has no region_results');
       }
 
       const testData = docs.some(({ parsed }) => parsed.testData);
       if (testData && !this.options.acceptTestData) {
-        await finish('CANCELLED', { fetched: 2, accepted: 0, rejected: 0 }, TEST_DATA_MESSAGE, { testData: true });
+        await finish('CANCELLED', { fetched: docs.length, accepted: 0, rejected: 0 }, TEST_DATA_MESSAGE, { testData: true });
         await this.health(source.id, 'held', now);
         return report('held', TEST_DATA_MESSAGE);
       }
@@ -208,11 +215,13 @@ export class CivicApiIngestor {
       for (const id of total.needCallTime) if (!tierA.has(id)) this.callTimeQueue.add(id);
 
       const details = await this.detailPhase(ctx, run.id, now, total, started);
+      total.warnings.push(...fetchFailures.map((failure) => `${failure}; that chamber keeps its last numbers this cycle`));
       await recordIssues(this.db, run.id, issues, total, ctx);
-      const degraded = total.rejected.length > 0;
-      await finish(degraded ? 'PARTIAL' : 'SUCCEEDED', { fetched: 2 + details, accepted: total.published.length, rejected: total.rejected.length }, degraded ? total.rejected.slice(0, 5).map((item) => `${item.label}: ${item.reason}`).join('; ') : undefined, { testData });
+      const degraded = total.rejected.length > 0 || fetchFailures.length > 0;
+      const summary = [...fetchFailures, ...total.rejected.slice(0, 5).map((item) => `${item.label}: ${item.reason}`)].join('; ');
+      await finish(degraded ? 'PARTIAL' : 'SUCCEEDED', { fetched: docs.length + details, accepted: total.published.length, rejected: total.rejected.length }, degraded ? summary : undefined, { testData });
       await this.health(source.id, degraded ? 'degraded' : 'ok', now);
-      return report('ok', `${total.published.length} published, ${total.unchanged} unchanged, ${total.rejected.length} rejected`, total, details);
+      return report('ok', `${total.published.length} published, ${total.unchanged} unchanged, ${total.rejected.length} rejected${fetchFailures.length > 0 ? ` · ${fetchFailures.join('; ')}` : ''}`, total, details);
     } finally {
       await releaseSyncLease(LEASE_NAME, leaseToken, this.db).catch(() => {});
     }

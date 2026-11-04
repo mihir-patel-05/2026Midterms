@@ -130,3 +130,31 @@ test('the client retries a 5xx once, never a 4xx, and paces requests', async () 
   assert.match(calls[2], /If|"a"/);
   assert(sleeps.some((ms) => ms >= 250));
 });
+
+test('the client retries fast failures up to its attempts, and starts no try after its window', async () => {
+  const make = (statuses: number[], options: { attempts?: number; retryWindowMs?: number }) => {
+    const calls: number[] = [];
+    const client = new CivicApiClient({
+      baseUrl: 'https://civicapi.example/api/v2/', timeoutMs: 1000, maxRps: 1000, ...options,
+      fetchImpl: (async () => {
+        const status = statuses[calls.length] ?? 502;
+        calls.push(status);
+        return status === 200 ? new Response('{"ok":true}', { status }) : new Response('busy', { status });
+      }) as unknown as typeof fetch,
+      sleep: async () => {},
+    });
+    return { client, calls };
+  };
+  const fourth = make([502, 502, 502, 200], { attempts: 4 });
+  assert.deepEqual((await fourth.client.get('race/1')).payload, { ok: true });
+  assert.equal(fourth.calls.length, 4);
+  const down = make([502, 502, 502, 502, 502], { attempts: 4 });
+  await assert.rejects(down.client.get('race/1'), /502/);
+  assert.equal(down.calls.length, 4);
+  const closed = make([502, 200], { attempts: 4, retryWindowMs: 0 });
+  await assert.rejects(closed.client.get('race/1'), /502/);
+  assert.equal(closed.calls.length, 1);
+  const missing = make([404, 200], { attempts: 4 });
+  await assert.rejects(missing.client.get('race/1'), /404/);
+  assert.equal(missing.calls.length, 1);
+});
