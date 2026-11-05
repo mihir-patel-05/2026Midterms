@@ -335,3 +335,46 @@ test('aggregates whose last_updated stands still keep publishing, stamped with t
     await db.$disconnect();
   }
 });
+
+test('one aggregate failing does not hold back the other chamber; both failing fails the cycle', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  try {
+    await reset(db);
+    const source = await seedCatalog(db);
+    const senate = live(fixture('senate-aggregate.json'));
+    const feed = server({ 87528: senate, 87524: live(fixture('house-aggregate.trimmed.json')), 87087: live(fixture('race-ga-sen.trimmed.json')), 87382: live(fixture('race-pa-07.json')) });
+    const down = new Set<string>(['87528']);
+    const fetchImpl = (async (url: string) => {
+      const id = /\/race\/(\d+)$/.exec(url)?.[1] ?? '';
+      return down.has(id) ? new Response('Bad Gateway', { status: 502 }) : feed.fetchImpl(url);
+    }) as unknown as typeof fetch;
+    const meId = (senate.region_results as Record<string, { election_id: number }>).me.election_id.toString();
+    const snapshotOf = async (sourceContestId: string) => (await db.contest.findFirstOrThrow({ where: { sourceId: source.id, sourceContestId } })).currentSnapshotId;
+    const run = await ingestor(db, fetchImpl, {});
+
+    // 1. The Senate aggregate answers 502: House races still publish, Senate races wait, and the source says so.
+    const partial = await run.cycle(new Date('2026-11-04T02:00:00Z'));
+    assert.equal(partial.status, 'ok', partial.message);
+    assert.match(partial.message, /Senate aggregate: .*502/);
+    assert(partial.published > 0);
+    assert.notEqual(await snapshotOf('87382'), null);
+    assert.equal(await snapshotOf(meId), null);
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'DEGRADED');
+    assert(await db.ingestionError.findFirst({ where: { code: 'RESULTS_WARNING', message: { contains: 'Senate aggregate' } } }));
+
+    // 2. It answers again: the Senate publishes and the source is current.
+    down.clear();
+    const back = await run.cycle(new Date('2026-11-04T02:00:30Z'));
+    assert.equal(back.status, 'ok', back.message);
+    assert.notEqual(await snapshotOf(meId), null);
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'CURRENT');
+
+    // 3. Both down: the cycle fails, and three in a row mark the source unavailable.
+    down.add('87528').add('87524');
+    for (let i = 0; i < 3; i++) assert.equal((await run.cycle(new Date(`2026-11-04T02:0${1 + i}:00Z`))).status, 'failed');
+    assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'UNAVAILABLE');
+  } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
