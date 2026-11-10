@@ -21,7 +21,7 @@ The log ends with the row counts of the election-night tables (`result_snapshots
 | Setting | Value |
 |---|---|
 | Source | this repo, root directory `/ops/db-backup` (built from its `Dockerfile`) |
-| Cron | `30 8 * * *` (3:30 AM ET), restart policy `NEVER` |
+| Cron | `30 8 * * *` (08:30 UTC: 3:30 AM ET in winter, 4:30 AM in summer), restart policy `NEVER`, rebuilds only on changes under `/ops/db-backup/**` |
 | `DATABASE_URL` | `${{Testing_database.DATABASE_URL}}` (a reference, never pasted) |
 | `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `ENDPOINT`, `REGION` | references to the bucket's variables |
 

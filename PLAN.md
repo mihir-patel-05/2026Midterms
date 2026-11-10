@@ -1121,7 +1121,7 @@ Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Fr
 
 *Nov 10 (#190): Railway's Testing environment has no `Third_database` service. `Backend`'s `DATABASE_URL` points at `postgres.railway.internal`, which is the `Testing_database` service (now a 5 GB volume, about 1 GB used), so **the Nov 3 record lives in `Testing_database`**. Polls are in `Polling_data` (`pollingdata.railway.internal`). A third 5 GB volume, `postgres-volume-N4RC`, is attached to nothing; keep it until its contents are known.*
 
-*Backups (#190): the `db-backup` service (`ops/db-backup/`) runs `pg_dump` nightly at 3:30 AM ET, restores the dump into a throwaway Postgres, checks every table's row count, and only then uploads it to the `db-backups` bucket under `db-backups/main/<UTC time>/`.*
+*Backups (#190): the `db-backup` service (`ops/db-backup/`) runs `pg_dump` nightly at 08:30 UTC (3:30 AM ET in winter), restores the dump into a throwaway Postgres, checks every table's row count, and only then uploads it to the `db-backups` bucket under `db-backups/main/<UTC time>/`.*
 
 - **Same tables, new data only.** The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on `Third_database`, so its schema and tables match `Testing_database`'s. Nothing is copied over: it holds only what the API pulls after the switch.
 - **One variable.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). On `Backend`, it is `${{Third_database.DATABASE_URL}}`.
