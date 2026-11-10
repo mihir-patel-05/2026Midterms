@@ -1051,9 +1051,12 @@ Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Fr
 - **Results fixtures:** `ingest-day0-fixture` (the fictional `/api/v1` results).
 - **Deadlines:** enter them again in the admin dashboard.
 
-### 5.6 Suite architecture (after the Nov 25 launch)
+### 5.6 Mycroft: suite architecture (after the Nov 25 launch)
 
-The War Room becomes the first app in a suite of tools for political analysts. Each app gets its own address, and one hub site showcases them and links to each. None of this starts before the Nov 25 launch; it comes before any second app is built.
+The War Room becomes the first app in **Mycroft**, a suite of tools for political and policy analysis. Each app gets its own address, and one hub site showcases them and links to each. Apart from the landing page below, none of this starts before the Nov 25 launch; it comes before any second app is built.
+
+- **The name** (decided Nov 10) comes from Mycroft Holmes, through whom every government department's conclusions pass. Apps are named under it: Mycroft War Room, Mycroft Markets. Domains and trademarks have not been checked.
+- **The landing page is live.** Repo `Landing_page_suite`: a static Astro site in the War Room's style, deployed on Railway on Nov 10. It lists the six apps with their status, all marked coming soon, and collects nothing from visitors. To launch an app there, set its `status` to `live` and add its `url` in `src/data/site.ts`. This repo grows into the hub.
 
 ```
 <domain>              hub: landing, app showcase, sign-in, /data, race and candidate pages (server-rendered)
@@ -1077,7 +1080,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Railway with several repos.** Still one Railway project; each service connects to its own repo and deploys on that repo's pushes. A change to the API that an app depends on ships to the API first and stays backward compatible within `/api/v1`.
 - **One data platform, many thin apps.** No app gets its own backend or database. Every app reads the same versioned `/api/v1`, which is also the public read API (#159). Per-app user state lives in its own Postgres schema.
 - **One identity.** Merge `AdminUser`, `ResearcherUser` and the chat users (section 4.12) into one users table with roles and an entitlements table. The session cookie is set on the parent domain, so one sign-in covers every app. This is #151, built for the suite.
-- **The hub is server-rendered** (Astro, or similar) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
+- **The hub is server-rendered** (Astro; today's landing page is its static first version) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
 - **Subdomains, not paths.** Each app is its own Railway service with its own deploys, and no reverse proxy is needed.
 - **Railway.** One project, `staging` and `production` environments, as in section 5.2, with one `web`-style service per app. The in-process `node-cron` schedules move to cron services (section 5.3) before `api` runs more than one replica.
 
@@ -1097,7 +1100,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Already built, to split out:** the voter guide (find my races, candidates, deadlines) serves voters, not analysts, and becomes its own app. The data portal (API keys, docs, bulk downloads, MCP server: #144, #159, #183) lives in the hub.
 - **Not building:** a map-drawing redistricting tool (the tracker, #162, stays a War Room feature), a standalone polls database (pollster scoring goes in Referee), state legislatures beyond #176, and foreign elections.
 
-**legAI** (repo `ForThePeopleAI`; its README calls it LegisTrack; pick one name before it goes on the hub). As of its last commit (July 16) it is a bill search and bill detail site with a Gemini chat per bill, about 4,400 lines, with one table of bills fed from Congress.gov. Members, votes, accounts, follows and AI summaries are not built.
+**legAI** (repo `ForThePeopleAI`; its README calls it LegisTrack; the landing page lists it as LegAI). As of its last commit (July 16) it is a bill search and bill detail site with a Gemini chat per bill, about 4,400 lines, with one table of bills fed from Congress.gov. Members, votes, accounts, follows and AI summaries are not built.
 
 - **Frontend stays, in its own repo.** It is React, Vite, Tailwind and shadcn/ui, the same as the War Room.
 - **Backend moves into the core API.** Its Python backend (FastAPI, SQLAlchemy, its own Postgres) is retired and bill ingestion is rebuilt in `backend/` on the shared database, because every feature that sets the app apart joins bills to members, money and districts. Python comes back only as an offline modelling job, if ever needed.
@@ -1105,7 +1108,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Build order:** 1) member pages over the legislators, ideology and FEC data we already hold, plus a roll-call votes feed; 2) the election link: how often each member votes against their district's lean, who funds a bill's sponsors, and each incumbent's votes on their War Room race page; 3) cited AI summaries that quote the bill text, with a review state; 4) follows and alerts.
 - **Dropped from its plan:** vote prediction (most votes are party-line, so a model adds little), sentiment analysis and reading-level scores.
 
-**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub, in its own repo; 4) Markets, in its own repo, with the `shared` package; 5) legAI moved onto the core API; then the rest of the lineup.
+**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub: sign-in, `/data` and server-rendered race pages added to the landing page repo; 4) Markets, in its own repo, with the `shared` package; 5) legAI moved onto the core API; then the rest of the lineup.
 
 ---
 
