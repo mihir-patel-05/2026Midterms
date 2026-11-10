@@ -1081,7 +1081,31 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Subdomains, not paths.** Each app is its own Railway service with its own deploys, and no reverse proxy is needed.
 - **Railway.** One project, `staging` and `production` environments, as in section 5.2, with one `web`-style service per app. The in-process `node-cron` schedules move to cron services (section 5.3) before `api` runs more than one replica.
 
-**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub, in its own repo; 4) the second app, in its own repo, with the `shared` package.
+**App lineup** (decided Nov 10). Each app has one audience and one job; issues move to the app that owns them.
+
+| Order | App | What it does | For | Issues |
+|---|---|---|---|---|
+| 0 | **War Room** | Results, maps, swing analysis, replay and election night | Analysts and junkies | The launch set, #140, #162, #176, #177 |
+| 1 | **Markets** | Political prediction markets in one place: prices across venues, spreads, thin-market warnings, movers with cited explanations | Traders and daily readers | #166, #167, #178 |
+| 2 | **legAI** | Congress tracker tied to elections: bills, members, roll-call votes, cited AI summaries | Analysts, advocacy staff | #164, P12 |
+| 3 | **Money** | Campaign finance explorer: outside-spending network, donor geography, digital ad spend | Journalists, students, researchers | #163, #181, #182 |
+| 4 | **Referee** | Every rating, poll average, market and model, archived and scored, plus the forecasting league | Analysts, competitive junkies | #141, #149, #175, #180 |
+| 5 | **Simulator** | The House, Senate and impeachment simulators with saved, shareable scenarios and seat distributions | Junkies, classrooms | #150, #160 |
+
+- **Why this order.** Markets is useful every day in off years and runs on price history we already collect. legAI already exists as an app. Money's data is already in the database. Referee grows as the 2027 specials give it elections to score. Simulator comes last because free tools already cover the basics.
+- **Markets rules.** Prices stay labeled as market prices, never forecasts, and nothing reads as trading advice.
+- **Already built, to split out:** the voter guide (find my races, candidates, deadlines) serves voters, not analysts, and becomes its own app. The data portal (API keys, docs, bulk downloads, MCP server: #144, #159, #183) lives in the hub.
+- **Not building:** a map-drawing redistricting tool (the tracker, #162, stays a War Room feature), a standalone polls database (pollster scoring goes in Referee), state legislatures beyond #176, and foreign elections.
+
+**legAI** (repo `ForThePeopleAI`; its README calls it LegisTrack; pick one name before it goes on the hub). As of its last commit (July 16) it is a bill search and bill detail site with a Gemini chat per bill, about 4,400 lines, with one table of bills fed from Congress.gov. Members, votes, accounts, follows and AI summaries are not built.
+
+- **Frontend stays, in its own repo.** It is React, Vite, Tailwind and shadcn/ui, the same as the War Room.
+- **Backend moves into the core API.** Its Python backend (FastAPI, SQLAlchemy, its own Postgres) is retired and bill ingestion is rebuilt in `backend/` on the shared database, because every feature that sets the app apart joins bills to members, money and districts. Python comes back only as an offline modelling job, if ever needed.
+- **One AI provider.** Its chat moves from Gemini to the Claude provider layer (section 4.12), with sign-in and rate limits from the shared accounts. Its public chat endpoint has neither today.
+- **Build order:** 1) member pages over the legislators, ideology and FEC data we already hold, plus a roll-call votes feed; 2) the election link: how often each member votes against their district's lean, who funds a bill's sponsors, and each incumbent's votes on their War Room race page; 3) cited AI summaries that quote the bill text, with a review state; 4) follows and alerts.
+- **Dropped from its plan:** vote prediction (most votes are party-line, so a model adds little), sentiment analysis and reading-level scores.
+
+**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub, in its own repo; 4) Markets, in its own repo, with the `shared` package; 5) legAI moved onto the core API; then the rest of the lineup.
 
 ---
 
