@@ -1067,15 +1067,21 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 
 **Decisions:**
 
-- **One GitHub organization, one repo.** Move this repo into an organization and rename it. Apps do not get their own repos, because they share the UI kit, API client, auth and schema. A separate repo is for something open-sourced on its own, or something on a different stack with no shared code (a Python modelling project, for example). Do the transfer after launch; the Railway services need reconnecting to the new location.
-- **Monorepo layout.** `apps/hub`, `apps/war-room` (today's `CODE/`), `apps/admin`, `apps/api` (today's `backend/`), and shared `packages/ui`, `packages/api-client`, `packages/auth`. Each Railway service builds from its folder and redeploys only when that folder or a shared package changes (watch paths).
+- **One repo per app, on the personal account.** No organization and no monorepo (decided Nov 10). This repo stays as it is: the core API (`backend/`), the War Room (`CODE/`) and the admin site, since Railway is already wired to it. The hub and each later app get their own repos.
+- **Sharing code across repos.** Keep it small so repos do not drift:
+  - **API client:** the API publishes an OpenAPI description of `/api/v1`; each app generates its typed client from it. No hand-copied types.
+  - **Look and feel:** one small `shared` repo publishes a Tailwind preset (colors, type, spacing) and the few truly common components as a private package on GitHub Packages. shadcn/ui components are copied per app by design, so only the tokens must match.
+  - **Auth:** lives in the API. Apps only read the session cookie, so there is no auth code to share.
+  - Create the `shared` repo when the second app needs it, not before.
+- **Tracking.** One GitHub Project (project 6) spans all the repos; each issue lives in the repo of the app it changes.
+- **Railway with several repos.** Still one Railway project; each service connects to its own repo and deploys on that repo's pushes. A change to the API that an app depends on ships to the API first and stays backward compatible within `/api/v1`.
 - **One data platform, many thin apps.** No app gets its own backend or database. Every app reads the same versioned `/api/v1`, which is also the public read API (#159). Per-app user state lives in its own Postgres schema.
 - **One identity.** Merge `AdminUser`, `ResearcherUser` and the chat users (section 4.12) into one users table with roles and an entitlements table. The session cookie is set on the parent domain, so one sign-in covers every app. This is #151, built for the suite.
 - **The hub is server-rendered** (Astro, or similar) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
 - **Subdomains, not paths.** Each app is its own Railway service with its own deploys, and no reverse proxy is needed.
 - **Railway.** One project, `staging` and `production` environments, as in section 5.2, with one `web`-style service per app. The in-process `node-cron` schedules move to cron services (section 5.3) before `api` runs more than one replica.
 
-**Order:** 1) launch on Nov 25 unchanged; 2) move to the organization and the monorepo layout; 3) shared accounts; 4) hub; 5) the second app.
+**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub, in its own repo; 4) the second app, in its own repo, with the `shared` package.
 
 ---
 
