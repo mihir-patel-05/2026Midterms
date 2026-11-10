@@ -1,6 +1,6 @@
 # VoteInformed: plan, product ideas, and tech stack
 
-Last updated: November 2, 2026
+Last updated: November 10, 2026
 Election day: Tuesday, November 3, 2026
 
 This is the single planning document for the repo. It replaces all earlier plans, day reports, PRDs, and deployment guides. Those plans covered AWS, Supabase, and Vercel. **Everything now runs on Railway.**
@@ -931,6 +931,37 @@ There is no address-lookup tool, because the privacy rules forbid storing addres
 - Create the Google OAuth client and consent screen, and register the Testing and production `web` origins.
 - Publish a privacy policy page for the consent screen, covering what we keep (Google ID, email, name, and one day of chats).
 
+### 4.13 War Room 2.0: backlog review and new ideas (Nov 10)
+
+War Room 2.0 is tracked in GitHub issues under the `war-room-2.0` label: the Nov 25 launch set (#136 to #146) and the post-launch backlog (#147 to #174). This section records the Nov 10 review of that backlog and ten added ideas (#175 to #184).
+
+**What sets us apart.** Lead with what rests on data only we captured, or on a role nobody else plays: the election-night replay (#139), the signal scorecard (#141), cited explanations for moves (#166), the divergence watch (#167), and the redistricting tracker (#162).
+
+**Changes to the existing backlog:**
+
+- **Forecast model (#149):** forecasting is the most crowded field and a new model has no track record until 2028. Keep it simple and transparent, as one scored signal among many. The scorecard and the referee (#175) are the headline.
+- **Precincts (#169, #171):** pull precinct results only where the redistricting tracker (#162) needs them. Do not build a general precinct warehouse; others already do that well.
+- **Query builder, linked views, analyst map (#154, #155, #157):** large platform features that come after ask the data (#165), which covers most of the query builder's use.
+- **Race memos and object pages (#152, #156):** both count on search traffic, so they are built as server-rendered pages in the hub (section 5.6), not inside the Vite app.
+- **Accounts and public API (#151, #159):** built once for the whole suite (section 5.6), not for the War Room alone.
+
+**New ideas, in priority order:**
+
+| # | Idea | What | Effort |
+|---|---|---|---|
+| #175 | **The referee** | Archive every public signal daily (ratings, polls, markets, models) and score them all after each election | M |
+| #176 | **Special elections tracker** | Every special election against its presidential baseline, with a running overperformance index; covers 2027 races | M to L |
+| #177 | **Open "what's still out" model** | Estimate the outstanding vote and its lean on election night; method published; backtested on our 2026 snapshots. An estimate, never a race call | L |
+| #178 | **Finer market data** | Kalshi price changes instead of hourly snapshots, a second venue, cross-venue spreads, thin-market warnings | M |
+| #179 | **"As of" time travel and embeds** | Any page as of a past date; every chart embeddable with source and timestamp | M |
+| #180 | **Forecasting league** | Brier-scored user picks on a leaderboard against markets and models. No money; a pick is never the user's own vote | M |
+| #181 | **Money geography** | Share of itemized money from in-district, in-state and out-of-state | S to M |
+| #182 | **Digital ad tracker** | Spend per race from the Meta and Google political ad libraries, shown as ranges | M to L |
+| #183 | **MCP server** | The read API's query tools exposed to AI clients | S after #159 and #165 |
+| #184 | **Streamer mode** | Wall mode as a stream overlay | S |
+
+The first two fill the main gap in the backlog: a reason to visit between December 2026 and the 2028 primaries. #178 starts early because finer price history cannot be backfilled.
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -1019,6 +1050,32 @@ Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Fr
 - **County results:** `seed-counties` and `import-mit-results`, from the MIT files kept outside git.
 - **Results fixtures:** `ingest-day0-fixture` (the fictional `/api/v1` results).
 - **Deadlines:** enter them again in the admin dashboard.
+
+### 5.6 Suite architecture (after the Nov 25 launch)
+
+The War Room becomes the first app in a suite of tools for political analysts. Each app gets its own address, and one hub site showcases them and links to each. None of this starts before the Nov 25 launch; it comes before any second app is built.
+
+```
+<domain>              hub: landing, app showcase, sign-in, /data, race and candidate pages (server-rendered)
+warroom.<domain>      War Room (the existing Vite app)
+<app>.<domain>        each later app (Vite)
+admin.<domain>        admin
+api.<domain>          one core API, /api/v1 (the existing Express app)
+```
+
+Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, locks), the Bucket (raw payloads, exports, chart images), the `market-feed` and `results-ingestor` workers, and the `cron-*` services from section 5.2.
+
+**Decisions:**
+
+- **One GitHub organization, one repo.** Move this repo into an organization and rename it. Apps do not get their own repos, because they share the UI kit, API client, auth and schema. A separate repo is for something open-sourced on its own, or something on a different stack with no shared code (a Python modelling project, for example). Do the transfer after launch; the Railway services need reconnecting to the new location.
+- **Monorepo layout.** `apps/hub`, `apps/war-room` (today's `CODE/`), `apps/admin`, `apps/api` (today's `backend/`), and shared `packages/ui`, `packages/api-client`, `packages/auth`. Each Railway service builds from its folder and redeploys only when that folder or a shared package changes (watch paths).
+- **One data platform, many thin apps.** No app gets its own backend or database. Every app reads the same versioned `/api/v1`, which is also the public read API (#159). Per-app user state lives in its own Postgres schema.
+- **One identity.** Merge `AdminUser`, `ResearcherUser` and the chat users (section 4.12) into one users table with roles and an entitlements table. The session cookie is set on the parent domain, so one sign-in covers every app. This is #151, built for the suite.
+- **The hub is server-rendered** (Astro, or similar) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
+- **Subdomains, not paths.** Each app is its own Railway service with its own deploys, and no reverse proxy is needed.
+- **Railway.** One project, `staging` and `production` environments, as in section 5.2, with one `web`-style service per app. The in-process `node-cron` schedules move to cron services (section 5.3) before `api` runs more than one replica.
+
+**Order:** 1) launch on Nov 25 unchanged; 2) move to the organization and the monorepo layout; 3) shared accounts; 4) hub; 5) the second app.
 
 ---
 
