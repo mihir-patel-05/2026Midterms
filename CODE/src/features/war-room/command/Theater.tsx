@@ -13,7 +13,7 @@ import type { MapLayer, Readiness } from "@/features/election-monitor/types";
 import type { MonitorParams } from "@/features/election-monitor/useMonitorParams";
 import { HOUSE_DISTRICT_CODES, HOUSE_SEATS, SENATE_RACE_CODES, SENATE_RACES_2026 } from "@/features/simulator/midterms/races2026";
 import { formatEtTime, numberFormat } from "@/features/election-monitor/constants";
-import { leaderOf, progressLabel, RESULTS_COLORS, resultsBins, resultsFlips, type LiveBoard } from "../results/liveResults";
+import { isUncountedUnopposed, leaderOf, progressLabel, RESULTS_COLORS, resultsBins, resultsFlips, type LiveBoard } from "../results/liveResults";
 import { boardOf, useLiveResults } from "../results/useLiveResults";
 import { etClock } from "../countdown";
 import { CLOSE_BELOW, FLIP_COLORS, flipCounts, flipOverlay, HOLDER_COLORS, holderOverlay } from "../holderOverlay";
@@ -109,12 +109,13 @@ function describeResultRace(board: LiveBoard | null, code: string, kind: string)
   const race = board.races.get(code);
   if (!race) return [`No result from ${board.source.name} yet`];
   const leader = leaderOf(race);
+  if (leader && isUncountedUnopposed(race)) return [`Unopposed: ${leader.name} (${leader.partyName ?? "no party"})`, "The state prints no votes for an unopposed race", board.source.name];
   if (!leader) return ["No votes counted yet", `${board.source.name}${race.isTestData ? " · TEST DATA" : ""}`];
   const second = race.candidates.find((candidate) => candidate.id !== leader.id);
   return [
     `${race.winner ? "Called for" : "Leading:"} ${leader.name} (${leader.partyName ?? "no party"}) ${pct1.format(leader.pct)}%`,
     ...(second ? [`${second.name} ${pct1.format(second.pct)}%`] : []),
-    `${progressLabel(race, true)} counted · ${numberFormat.format(race.totalVotes)} votes`,
+    race.finalStatus ? `${race.finalStatus.label} · ${numberFormat.format(race.totalVotes)} votes` : `${progressLabel(race, true)} counted · ${numberFormat.format(race.totalVotes)} votes`,
     `${board.source.name} · ${formatEtTime(race.updatedAt)} ET${race.isTestData ? " · TEST DATA" : ""}`,
   ];
 }

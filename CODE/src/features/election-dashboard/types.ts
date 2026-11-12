@@ -210,8 +210,31 @@ export interface ElectionResultsResponseContract {
     calls?: RaceCallContract[];
     /** 1.1.0 */
     isTestData?: boolean;
+    /** 1.2.0 */
+    finalStatus?: FinalStatusContract;
   }) | null;
   meta: ResponseMetadataContract;
+}
+
+/** 1.2.0: where a race stands after election night (#136). */
+export type FinalStatusKind = "COUNTING" | "STABLE" | "RECOUNT" | "CONTESTED" | "CERTIFIED" | "UNOPPOSED" | "RUNOFF" | "RANKED_CHOICE";
+
+export interface FinalStatusContract {
+  status: FinalStatusKind;
+  /** Ready to show: "Unofficial · no change since Nov 9", "Certified Dec 4". */
+  label: string;
+  lastChangedAt: string;
+  effectiveAt?: string;
+  sourceUrl?: string;
+  notes?: string;
+  /** YYYY-MM-DD */
+  certificationDeadline?: string;
+  certificationDeadlineSourceUrl?: string;
+  rankedChoiceFinalRound?: {
+    round: number;
+    sourceUrl: string;
+    results: Array<{ candidateId: string; candidacyId: string; votes: number; isWinner: boolean }>;
+  };
 }
 
 export interface DashboardBootstrapResponse {

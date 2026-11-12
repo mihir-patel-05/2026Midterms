@@ -16,6 +16,7 @@ import {
   type SourceStatus,
 } from './contracts.js';
 import type { z } from 'zod';
+import { deriveFinalStatus } from './final-status.js';
 
 /**
  * Read path for /api/v1 results: turns each contest's published current snapshot into the
@@ -52,6 +53,13 @@ const TEST_DATA_SHOWN =
 const ESTIMATE_LIMITATION =
   'Reporting progress is the source\'s estimate of the share of the expected vote counted, not a precinct count.';
 const FEC_ID = /^[HSP][0-9A-Z]{8}$/;
+/**
+ * civicAPI's share-counted estimate is served for this many days after election day, then dropped (#136): by
+ * Nov 12 it read 75% for states that had finished counting. `finalStatus` says where each race stands instead.
+ */
+export const ESTIMATE_SHOWN_DAYS = 2;
+const ESTIMATE_RETIRED_LIMITATION =
+  'The source\'s estimate of the share counted is not shown after election night; finalStatus says where each race stands.';
 
 export const contestInclude = {
   electionEvent: true,
@@ -59,6 +67,9 @@ export const contestInclude = {
   source: true,
   candidacies: { include: { person: true, party: true } },
   raceCalls: { where: { retractedAt: null }, orderBy: { calledAt: 'asc' } },
+  // The latest certification, recount or contest an admin recorded (#136).
+  certificationEvents: { orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }], take: 1 },
+  rankedChoiceRounds: true,
   currentSnapshot: {
     include: {
       rawArtifact: { select: { sourceUrl: true } },
@@ -282,16 +293,19 @@ function contestLevelMetric(contest: ContestRecord, metrics: MetricRecord[]): Me
   return roots[0];
 }
 
+/** A state's certification deadline, by state code (#136). */
+export type DeadlineMap = Map<string, { deadline: Date; sourceUrl: string }>;
+
 function buildContestResult(
   contest: ContestRecord,
   snapshot: SnapshotRecord,
-  stateNames: Map<string, string>
+  stateNames: Map<string, string>,
+  extras: { now: Date; deadlines?: DeadlineMap } = { now: new Date() }
 ): ContestResult {
   const event = contest.electionEvent;
   if (event.type === 'OTHER') throw new InconsistentDataError(`Election ${event.id} has an unsupported type`);
   const updatedAt = iso(snapshot.sourceUpdatedAt ?? snapshot.receivedAt);
-  const status = resultStatus[snapshot.reportingStatus];
-  const certificationState = snapshot.certification === 'CERTIFIED' ? 'CERTIFIED' : 'UNOFFICIAL';
+  const estimateRetired = extras.now.getTime() >= event.electionDate.getTime() + ESTIMATE_SHOWN_DAYS * 86_400_000;
 
   const votedCandidacies = new Set(snapshot.candidateVotes.map((vote) => vote.candidacyId));
   const candidacies = contest.candidacies
@@ -332,6 +346,27 @@ function buildContestResult(
       calledAtIsSourceTime: call.calledAtSource,
       calledBy: `${contest.source?.name ?? 'Source'} decision desk`,
     }));
+  const finalStatus = snapshot.isTestData ? undefined : deriveFinalStatus({
+    now: extras.now,
+    stateCode: contest.stateCode,
+    lastChangedAt: snapshot.countChangedAt ?? snapshot.publishedAt ?? snapshot.receivedAt,
+    latestEvent: contest.certificationEvents[0] ?? null,
+    deadline: (contest.stateCode && extras.deadlines?.get(contest.stateCode)) || null,
+    ballotCandidates: candidacies.filter((candidacy) => candidacy.ballotStatus !== 'WRITE_IN').length,
+    hasWinnerCall: calls.some((call) => call.kind === 'WINNER'),
+    hasAdvancedCall: calls.some((call) => call.kind === 'ADVANCED'),
+    rankedChoiceFinalRound: rankedChoiceRound(contest, personByCandidacy),
+  });
+  // A certification an admin recorded from the state makes the result certified and complete (the contract's rule).
+  // A snapshot that calls itself certified keeps its own reporting status, so a certified-but-partial snapshot is
+  // still withheld as inconsistent.
+  const recordedCertified = finalStatus?.status === 'CERTIFIED';
+  const certificationState = recordedCertified || snapshot.certification === 'CERTIFIED' ? 'CERTIFIED' as const : 'UNOFFICIAL' as const;
+  const status = recordedCertified ? 'COMPLETE' as const : resultStatus[snapshot.reportingStatus];
+  const progress = (metric: MetricRecord): ReportingProgress => {
+    const value = toProgress(metric);
+    return estimateRetired ? { ...value, estimatedPercentage: null } : value;
+  };
   return {
     snapshotId: snapshot.id,
     election: {
@@ -373,18 +408,32 @@ function buildContestResult(
       .map((metric) => ({
         reportingUnit: toReportingUnit(metric, contest),
         ...unitResults(metric),
-        reportingProgress: toProgress(metric),
+        reportingProgress: progress(metric),
         status,
         certificationState,
         updatedAt,
       })),
     totalVotes: rootResults.totalVotes,
-    reportingProgress: toProgress(root),
+    reportingProgress: progress(root),
     status,
     certificationState,
     updatedAt,
     calls,
     isTestData: snapshot.isTestData,
+    ...(finalStatus ? { finalStatus } : {}),
+  };
+}
+
+/** The state's ranked-choice final round, when an admin recorded one (#136). */
+function rankedChoiceRound(contest: ContestRecord, personByCandidacy: Map<string, string>) {
+  const rows = contest.rankedChoiceRounds.filter((row) => personByCandidacy.has(row.candidacyId));
+  if (rows.length === 0) return undefined;
+  return {
+    round: Math.max(...rows.map((row) => row.round)),
+    sourceUrl: rows[0].sourceUrl,
+    results: rows
+      .map((row) => ({ candidateId: personByCandidacy.get(row.candidacyId)!, candidacyId: row.candidacyId, votes: count(row.votes), isWinner: row.isWinner }))
+      .sort((a, b) => b.votes - a.votes || a.candidacyId.localeCompare(b.candidacyId)),
   };
 }
 
@@ -406,6 +455,8 @@ export function toResultsResponse(
     stateNames: Map<string, string>;
     /** Latest artifact URL per source id, used when a source has no homepage URL. */
     artifactUrls?: Map<string, string>;
+    /** Each state's certification deadline, when recorded. */
+    deadlines?: DeadlineMap;
   }
 ): ElectionResultsResponse | null {
   const { now, config, stateNames } = context;
@@ -441,7 +492,7 @@ export function toResultsResponse(
 
   let data: ContestResult;
   try {
-    data = buildContestResult(contest, snapshot, stateNames);
+    data = buildContestResult(contest, snapshot, stateNames, { now, deadlines: context.deadlines });
   } catch (error) {
     if (error instanceof InconsistentDataError) return withhold(error.message);
     throw error;
@@ -451,12 +502,14 @@ export function toResultsResponse(
     meta: metadata(source, status, now, {
       updatedAt: data.updatedAt,
       responseStatus: snapshot.isPartial ? 'PARTIAL' : 'AVAILABLE',
-      freshness: freshnessFor(snapshot, source, now, config),
+      freshness: data.certificationState === 'CERTIFIED' ? 'FRESH' : freshnessFor(snapshot, source, now, config),
       coverage: snapshot.isPartial ? 'PARTIAL' : 'COMPLETE',
       request,
       limitations: [
         ...(snapshot.isTestData ? [TEST_DATA_SHOWN] : []),
         ...(data.reportingProgress.estimatedPercentage != null ? [ESTIMATE_LIMITATION] : []),
+        ...(data.reportingProgress.estimatedPercentage == null && toProgress(contestLevelMetric(contest, snapshot.contestMetrics)).estimatedPercentage != null
+          ? [ESTIMATE_RETIRED_LIMITATION] : []),
       ],
     }),
   };
@@ -476,6 +529,14 @@ async function loadStateNames(db: PrismaClient, stateCodes: Array<string | null>
   const names = new Map<string, string>();
   for (const unit of units) if (unit.stateCode && !names.has(unit.stateCode)) names.set(unit.stateCode, unit.name);
   return names;
+}
+
+/** Recorded certification deadlines for the given states, for the election cycle. */
+export async function loadDeadlines(db: PrismaClient, cycle: number, stateCodes: Array<string | null>): Promise<DeadlineMap> {
+  const codes = [...new Set(stateCodes.filter((code): code is string => Boolean(code)))];
+  if (codes.length === 0) return new Map();
+  const rows = await db.certificationDeadline.findMany({ where: { cycle, stateCode: { in: codes } } });
+  return new Map(rows.map((row) => [row.stateCode, { deadline: row.deadline, sourceUrl: row.sourceUrl }]));
 }
 
 async function latestArtifactUrl(db: PrismaClient, sourceId: string) {
@@ -509,6 +570,14 @@ function aggregateCoverage(values: Coverage[]): Coverage {
   return 'PARTIAL';
 }
 
+async function loadDeadlinesByCycle(db: PrismaClient, contests: Array<{ stateCode: string | null; electionEvent: { cycle: number } }>) {
+  const byCycle = new Map<number, DeadlineMap>();
+  for (const cycle of new Set(contests.map((contest) => contest.electionEvent.cycle))) {
+    byCycle.set(cycle, await loadDeadlines(db, cycle, contests.filter((contest) => contest.electionEvent.cycle === cycle).map((contest) => contest.stateCode)));
+  }
+  return byCycle;
+}
+
 /** Null when no eligible source exists. */
 export async function dbBootstrapPayload(db: PrismaClient, config: ReadModelConfig, now = new Date(), options: ReadOptions = {}) {
   const sources = await loadServableSources(db, config, now);
@@ -521,9 +590,10 @@ export async function dbBootstrapPayload(db: PrismaClient, config: ReadModelConf
     orderBy: [{ stateCode: 'asc' }, { office: 'asc' }, { districtCode: 'asc' }, { id: 'asc' }],
   });
   const stateNames = await loadStateNames(db, contests.map((contest) => contest.stateCode));
+  const deadlines = await loadDeadlinesByCycle(db, contests);
   const artifactUrls = new Map(sources.flatMap((item) => item.artifactUrl ? [[item.source.id, item.artifactUrl] as const] : []));
   const served = contests
-    .map((contest) => ({ contest, response: toResultsResponse(contest, { now, config, stateNames, artifactUrls }) }))
+    .map((contest) => ({ contest, response: toResultsResponse(contest, { now, config, stateNames, artifactUrls, deadlines: deadlines.get(contest.electionEvent.cycle) }) }))
     .filter((item): item is { contest: ContestRecord; response: ElectionResultsResponse } => item.response !== null);
   const results = served.map((item) => item.response);
 
@@ -572,7 +642,8 @@ export async function dbCurrentResult(db: PrismaClient, config: ReadModelConfig,
     ? await latestArtifactUrl(db, contest.source.id)
     : null;
   const artifactUrls = new Map(artifactUrl && contest.source ? [[contest.source.id, artifactUrl]] : []);
-  return toResultsResponse(contest, { now, config, stateNames, artifactUrls });
+  const deadlines = await loadDeadlines(db, contest.electionEvent.cycle, [contest.stateCode]);
+  return toResultsResponse(contest, { now, config, stateNames, artifactUrls, deadlines });
 }
 
 /** Null when no eligible source exists. */

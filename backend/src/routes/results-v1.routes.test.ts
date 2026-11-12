@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ElectionResultsResponseSchema } from '../features/election-results/contracts.js';
+import { ElectionResultsResponseSchema, RESULT_CONTRACT_VERSION } from '../features/election-results/contracts.js';
 
 test('mock API builders return valid normalized fixtures with stable ETags', async () => {
   process.env.DATABASE_URL ||= 'postgresql://unused:unused@localhost:5432/unused';
@@ -8,7 +8,7 @@ test('mock API builders return valid normalized fixtures with stable ETags', asy
   process.env.GEMINI_API_KEY ||= 'fixture-test';
   const { mockBootstrapPayload, mockCurrentResult, mockSourceStatusPayload, etagFor } = await import('./results-v1.routes.js');
   const payload = mockBootstrapPayload();
-  assert.equal(payload.meta.contractVersion, '1.1.0');
+  assert.equal(payload.meta.contractVersion, RESULT_CONTRACT_VERSION);
   assert.equal(payload.meta.isMockData, true);
   assert.equal(payload.data.results.length, 5);
   for (const result of payload.data.results) {

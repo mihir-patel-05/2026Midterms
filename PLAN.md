@@ -136,7 +136,7 @@ Differentiators:
 
 **Known gaps**
 
-- **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3.
+- **Production is not set up.** On Railway, the production backend has no public domain and the production frontend has no variables. Everything so far runs in the Testing environment. See section 5.3. *Nov 10: `main-prod` now has Railway domains and `VITE_API_URL`, but most variables, a healthcheck and all data are missing. See section 4.14.*
 - No news source is connected. The NYT and AP integrations (section 4.6) have no code or keys in the repo or in Railway yet. Plan (Oct 26): ingest news through our Apify account first, then tag and pick top stories per race with Agents 1 and 10. See `docs/plans/news-agents.md`. Oct 28: cut to national top stories from the past 24 hours, storing only the published list (`news_stories`), because of database size.
 - Polls (VoteHub, built Oct 28) need their own Railway Postgres service and `POLLS_DATABASE_URL` before they show. Setup is in `docs/plans/polling-data.md`.
 - Testing's main database moved to the new, empty `Third_database` on Oct 29. Only new data goes there, so accounts, demographics, and county results need loading again. See section 5.5.
@@ -962,6 +962,88 @@ War Room 2.0 is tracked in GitHub issues under the `war-room-2.0` label: the Nov
 
 The first two fill the main gap in the backlog: a reason to visit between December 2026 and the 2028 primaries. #178 starts early because finer price history cannot be backfilled.
 
+### 4.14 War Room 2.0: ranked launch list (Nov 10)
+
+Every open `war-room-2.0` issue, in the order to work on it, plus nine tasks the launch set was missing (#190 to #198). The launch date is still Nov 25.
+
+**Where we stand on Nov 10.** No launch issue has been started; the commits since Nov 3 are planning only. #136 (planned Nov 6 to 8) and #137 (Nov 9 to 10) are late, so the schedule below is rebuilt from today. It has about two days of slack before the Nov 20 checkpoint.
+
+**Found in Railway on Nov 10:**
+
+- **The election-night data was captured.** Testing's `Backend` logs from 9 PM ET on Nov 3 show civicAPI polls and 805 Kalshi markets stored that hour; some county-detail requests returned 502, so county coverage on the night has gaps. The ingestor still runs and reads 470 races.
+- **Where that data lives is unclear.** Section 5.5 names `Third_database`, but Testing has no such service: only `Testing_database` and `Polling_data`, plus a 5 GB volume (`postgres-volume-N4RC`) attached to nothing. No backup has been proven. This is #190, and it comes first.
+- **Production is partly set up,** more than section 2 says: `main-prod` has `Backend`, `Frontend` and `Admin_Dashboard` on Railway domains, deploying from `main`. It is missing most variables (9 on `Backend` against 28 in Testing: no results, FRED, EIA, news or polls settings), a healthcheck, `VITE_FEATURE_WAR_ROOM`, a custom domain and any data.
+
+**Launch set, in order.** "Never cut" follows #146.
+
+| Rank | Issue | Task | When | Note |
+|---|---|---|---|---|
+| 1 | #190 | Back up the election-night record and prove a restore | Nov 10 | **Done Nov 12.** Nightly verified dumps to the `db-backups` bucket, volume backups, a copy outside Railway |
+| 2 | #136 | Lock the 2026 record | Nov 12 to 14 | Never cut. Everything else reads these numbers. Plan: `docs/plans/lock-2026-record.md` |
+| 3 | #137 | Past results into the database | Nov 11 to 12 | Independent of #136, so it runs beside it. Blocks swing |
+| 4 | #138 | Read APIs for replay, swing and scorecard | Nov 12 to 13 | Build with caching from the start (#197) |
+| 5 | #139 | Election-night replay | Nov 13 to 16 | Never cut. The headline, on data only we hold |
+| 6 | #140 | Swing explorer | Nov 16 to 18 | Map and table are never cut; the scatter is third in the cut order |
+| 7 | #141 | Signal scorecard | Nov 18 to 20 | Brier table and biggest misses first; the calibration chart is second in the cut order |
+| 8 | #145 | Production on Railway | Variables and healthcheck Nov 12 to 14; data and speed pass Nov 22 to 23 | Split in two so the environment is ready long before the data load. Still last in the cut order |
+| 9 | #192 | Mycroft War Room name, page metadata and domain | Decide the domain by Nov 13; the rest Nov 20 to 22 | New. Shared links still preview as "VoteInformed" |
+| 10 | #142 | Research section in the rail, War Room as home | Nov 20 to 21 | |
+| 11 | #191 | Post-election mode | Nov 20 to 22 | New. The shell still counts down to Nov 3 and shows "Coming soon" panels |
+| 12 | #144 | /data page | Nov 11 to 21 | |
+| 13 | #143 | CSV export | Nov 20 to 21 | |
+| 14 | #193 | Analytics, error reporting, uptime alerts | Nov 21 | New. None exists today, so we could not tell whether the launch worked |
+| 15 | #196 | Updates sign-up and announcement kit | Sign-up by Nov 15; kit by Nov 24 | New. The landing page collects nothing, so there is nobody to announce to yet |
+| 16 | #197 | Re-check the Oct 29 security review | Nov 22 to 23 | New. The open chat proxy (M4) and the researcher login (M5) matter most |
+| 17 | #195 | Privacy and terms pages, attribution audit | Nov 21 to 22 | New |
+| 18 | #194 | Feedback and "report a data error" | Nov 22 | New. The minimum of P11 |
+| 19 | #146 | Freeze, QA and launch | Nov 24 to 25 | |
+| 20 | #198 | Share links for replay, swing and scorecard | With #139 to #141 | New, stretch. Cheap only if built as those pages are written |
+| 21 | #148 | 2028 Senate map and retirements | If ahead on Nov 20 | Stretch. The one forward-looking page at launch |
+| 22 | #147 | Comparison mode | After launch | Stretch. First to be cut |
+
+**If behind on Nov 20,** the cut order in #146 holds. Of the new tasks, #190, #191, #192 and #193 are not cut; #194 and #195 can shrink to a public form and one page.
+
+**After launch, in order.** Suite work (accounts, the public API, the hub) follows section 5.6.
+
+| Rank | Issue | Task | Why here |
+|---|---|---|---|
+| 1 | #178 | Finer market data | Price changes cannot be backfilled. Start the storage part in launch week |
+| 2 | #175 | The referee | Its daily archive cannot be backfilled either. Start archiving first, score later |
+| 3 | #153 | Certification updates | States certify into December; the launch pages say "uncertified" until this runs |
+| 4 | #151 | Accounts and saved workspaces | Suite step 2; unblocks alerts, the league and saved scenarios |
+| 5 | #159 | Public read API with keys | Suite step 2, with the OpenAPI description |
+| 6 | #176 | Special elections tracker | The reason to visit in 2027 |
+| 7 | #166 | Why it moved | Core of Markets, the next app |
+| 8 | #167 | Divergence and data-quality watch | Core of Markets |
+| 9 | #156 | Object pages | Hub, server-rendered; the search traffic |
+| 10 | #152 | AI race memos | Hub; needs review tooling |
+| 11 | #165 | Ask the data | Covers most of the query builder's use |
+| 12 | #168 | Alerts between elections | Brings people back; needs #151 |
+| 13 | #162 | Redistricting tracker | Sets us apart; grows through 2027 |
+| 14 | #179 | "As of" time travel and embeds | Builds on #198 |
+| 15 | #181 | Money geography | Small, and the data is in hand |
+| 16 | #150 | Monte Carlo seats and tipping points | Fills the "Coming soon" panels hidden by #191 |
+| 17 | #161 | 2028 race universe | Extends #148 |
+| 18 | #174 | Weekly brief for 2028 | Needs #161 and #166 |
+| 19 | #160 | Scenario studio | Needs #151 |
+| 20 | #149 | Forecast model | One scored signal among many (section 4.13) |
+| 21 | #177 | Open "what's still out" model | Large; needed by the next election night, backtested on 2026 |
+| 22 | #180 | Forecasting league | Needs #151 and #175 |
+| 23 | #173 | Shareable briefs | After #198 and #179 |
+| 24 | #163 | Money network view | Money app |
+| 25 | #164 | Candidate career profiles | legAI |
+| 26 | #158 | Turnout and electorate layer | Needs certified results (#153) |
+| 27 | #172 | 2028 primary tracker | Nothing to track until late 2027 |
+| 28 | #182 | Digital ad tracker | Little ad spend until 2027 |
+| 29 | #183 | MCP server | Small, after #159 and #165 |
+| 30 | #184 | Streamer mode | Small; wanted before the next election night |
+| 31 | #170 | Geographic clusters | |
+| 32 | #154 | Query builder | After #165 (section 4.13) |
+| 33 | #155 | Linked views | After #165 |
+| 34 | #157 | Analyst map | After #165 |
+| 35 | #169 | Governors, legislatures, measures, precincts | Only what #162 and #176 need |
+| 36 | #171 | Precinct drill-down | Only where #162 needs it |
+
 ---
 
 ## 5. Tech stack: Railway only
@@ -1037,6 +1119,10 @@ The first two fill the main gap in the backlog: a reason to visit between Decemb
 
 Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. From Oct 29, everything except polls goes to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
 
+*Nov 10 (#190): Railway's Testing environment has no `Third_database` service. `Backend`'s `DATABASE_URL` points at `postgres.railway.internal`, which is the `Testing_database` service (now a 5 GB volume, about 1 GB used), so **the Nov 3 record lives in `Testing_database`**. Polls are in `Polling_data` (`pollingdata.railway.internal`). A third 5 GB volume, `postgres-volume-N4RC`, was attached to nothing; it was checked and deleted on Nov 12.*
+
+*Backups (#190): the `db-backup` service (`ops/db-backup/`) runs `pg_dump` nightly at 08:30 UTC (3:30 AM ET in winter), restores the dump into a throwaway Postgres, checks every table's row count, and only then uploads it to the `db-backups` bucket under `db-backups/main/<UTC time>/`. Railway volume backups are also scheduled on `Testing_database`, and a copy of a dump is kept outside Railway (Nov 12). Done: #190.*
+
 - **Same tables, new data only.** The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on `Third_database`, so its schema and tables match `Testing_database`'s. Nothing is copied over: it holds only what the API pulls after the switch.
 - **One variable.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). On `Backend`, it is `${{Third_database.DATABASE_URL}}`.
 - **The old data stays in `Testing_database`,** unchanged. The API no longer reads it, so the site shows only data pulled since the switch.
@@ -1051,9 +1137,12 @@ Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. Fr
 - **Results fixtures:** `ingest-day0-fixture` (the fictional `/api/v1` results).
 - **Deadlines:** enter them again in the admin dashboard.
 
-### 5.6 Suite architecture (after the Nov 25 launch)
+### 5.6 Mycroft: suite architecture (after the Nov 25 launch)
 
-The War Room becomes the first app in a suite of tools for political analysts. Each app gets its own address, and one hub site showcases them and links to each. None of this starts before the Nov 25 launch; it comes before any second app is built.
+The War Room becomes the first app in **Mycroft**, a suite of tools for political and policy analysis. Each app gets its own address, and one hub site showcases them and links to each. Apart from the landing page below, none of this starts before the Nov 25 launch; it comes before any second app is built.
+
+- **The name** (decided Nov 10) comes from Mycroft Holmes, through whom every government department's conclusions pass. Apps are named under it: Mycroft War Room, Mycroft Markets. Domains and trademarks have not been checked.
+- **The landing page is live.** Repo `Landing_page_suite`: a static Astro site in the War Room's style, deployed on Railway on Nov 10. It lists the six apps with their status, all marked coming soon, and collects nothing from visitors. To launch an app there, set its `status` to `live` and add its `url` in `src/data/site.ts`. This repo grows into the hub.
 
 ```
 <domain>              hub: landing, app showcase, sign-in, /data, race and candidate pages (server-rendered)
@@ -1077,7 +1166,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Railway with several repos.** Still one Railway project; each service connects to its own repo and deploys on that repo's pushes. A change to the API that an app depends on ships to the API first and stays backward compatible within `/api/v1`.
 - **One data platform, many thin apps.** No app gets its own backend or database. Every app reads the same versioned `/api/v1`, which is also the public read API (#159). Per-app user state lives in its own Postgres schema.
 - **One identity.** Merge `AdminUser`, `ResearcherUser` and the chat users (section 4.12) into one users table with roles and an entitlements table. The session cookie is set on the parent domain, so one sign-in covers every app. This is #151, built for the suite.
-- **The hub is server-rendered** (Astro, or similar) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
+- **The hub is server-rendered** (Astro; today's landing page is its static first version) so the showcase, race memos (#152) and object pages (#156) can be indexed by search engines. Apps stay Vite single-page apps.
 - **Subdomains, not paths.** Each app is its own Railway service with its own deploys, and no reverse proxy is needed.
 - **Railway.** One project, `staging` and `production` environments, as in section 5.2, with one `web`-style service per app. The in-process `node-cron` schedules move to cron services (section 5.3) before `api` runs more than one replica.
 
@@ -1097,7 +1186,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Already built, to split out:** the voter guide (find my races, candidates, deadlines) serves voters, not analysts, and becomes its own app. The data portal (API keys, docs, bulk downloads, MCP server: #144, #159, #183) lives in the hub.
 - **Not building:** a map-drawing redistricting tool (the tracker, #162, stays a War Room feature), a standalone polls database (pollster scoring goes in Referee), state legislatures beyond #176, and foreign elections.
 
-**legAI** (repo `ForThePeopleAI`; its README calls it LegisTrack; pick one name before it goes on the hub). As of its last commit (July 16) it is a bill search and bill detail site with a Gemini chat per bill, about 4,400 lines, with one table of bills fed from Congress.gov. Members, votes, accounts, follows and AI summaries are not built.
+**legAI** (repo `ForThePeopleAI`; its README calls it LegisTrack; the landing page lists it as LegAI). As of its last commit (July 16) it is a bill search and bill detail site with a Gemini chat per bill, about 4,400 lines, with one table of bills fed from Congress.gov. Members, votes, accounts, follows and AI summaries are not built.
 
 - **Frontend stays, in its own repo.** It is React, Vite, Tailwind and shadcn/ui, the same as the War Room.
 - **Backend moves into the core API.** Its Python backend (FastAPI, SQLAlchemy, its own Postgres) is retired and bill ingestion is rebuilt in `backend/` on the shared database, because every feature that sets the app apart joins bills to members, money and districts. Python comes back only as an offline modelling job, if ever needed.
@@ -1105,7 +1194,7 @@ Behind the API: Postgres (warehouse and users), Redis (fan-out, rate limits, loc
 - **Build order:** 1) member pages over the legislators, ideology and FEC data we already hold, plus a roll-call votes feed; 2) the election link: how often each member votes against their district's lean, who funds a bill's sponsors, and each incumbent's votes on their War Room race page; 3) cited AI summaries that quote the bill text, with a review state; 4) follows and alerts.
 - **Dropped from its plan:** vote prediction (most votes are party-line, so a model adds little), sentiment analysis and reading-level scores.
 
-**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub, in its own repo; 4) Markets, in its own repo, with the `shared` package; 5) legAI moved onto the core API; then the rest of the lineup.
+**Order:** 1) launch on Nov 25 unchanged; 2) shared accounts and the OpenAPI description; 3) hub: sign-in, `/data` and server-rendered race pages added to the landing page repo; 4) Markets, in its own repo, with the `shared` package; 5) legAI moved onto the core API; then the rest of the lineup.
 
 ---
 

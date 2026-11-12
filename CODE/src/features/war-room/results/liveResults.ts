@@ -5,6 +5,8 @@ import type {
   CandidateContract,
   DashboardBootstrapResponse,
   ElectionResultsResponseContract,
+  FinalStatusContract,
+  FinalStatusKind,
   RaceCallContract,
   ResponseMetadataContract,
   SourceStatusContract,
@@ -51,6 +53,8 @@ export interface LiveRace {
   /** Leader's share minus the runner-up's, in points; null before votes. */
   marginPts: number | null;
   isTestData: boolean;
+  /** After election night: still counting, no change since a date, certified, and so on (#136). */
+  finalStatus: FinalStatusContract | null;
   meta: ResponseMetadataContract;
 }
 
@@ -131,8 +135,26 @@ export function toLiveRace(item: ElectionResultsResponseContract): LiveRace | nu
     winner: listed.find((candidate) => candidate.call === "WINNER") ?? null,
     marginPts: first && first.votes > 0 ? first.pct - (second?.pct ?? 0) : null,
     isTestData: data.isTestData ?? false,
+    finalStatus: data.finalStatus ?? null,
     meta: item.meta,
   };
+}
+
+/** One or two words for tables and chips. */
+export const FINAL_STATUS_SHORT: Record<FinalStatusKind, string> = {
+  COUNTING: "Counting",
+  STABLE: "Unofficial",
+  RECOUNT: "Recount",
+  CONTESTED: "Contested",
+  CERTIFIED: "Certified",
+  UNOPPOSED: "Unopposed",
+  RUNOFF: "Runoff",
+  RANKED_CHOICE: "Ranked choice",
+};
+
+/** An unopposed race with no votes counted (Florida prints none): never shown as 0 votes or 0%. */
+export function isUncountedUnopposed(race: LiveRace | undefined): boolean {
+  return race?.finalStatus?.status === "UNOPPOSED" && race.totalVotes === 0;
 }
 
 export function indexBootstrap(payload: DashboardBootstrapResponse): LiveBoard {
@@ -165,6 +187,8 @@ export function leaderOf(race: LiveRace | undefined): LiveCandidate | null {
 
 /** "About 64% of expected vote counted (civicAPI estimate)", or the counted share. */
 export function progressLabel(race: LiveRace, short = false): string {
+  // After election night the source's share-counted estimate is not served; the race's status says where it stands.
+  if (race.finalStatus) return short ? FINAL_STATUS_SHORT[race.finalStatus.status] : race.finalStatus.label;
   if (race.pctCounted === null) return short ? "—" : "Share counted unknown";
   const pct = race.pctCounted >= 99.5 && race.pctCounted < 100 ? ">99" : Math.round(race.pctCounted).toString();
   if (short) return `${race.pctKind === "estimate" ? "~" : ""}${pct}%`;

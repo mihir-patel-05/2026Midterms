@@ -642,6 +642,7 @@ model DataSource {
   certificationEvents CertificationEvent[]
   raceCalls           RaceCall[]
   marketSnapshots     MarketSnapshot[]
+  marketSettlements   MarketSettlement[]
   indicatorSeries     IndicatorSeries[]
   districtProfiles    DistrictProfile[]
   areaDemographics    AreaDemographics[]
@@ -704,7 +705,9 @@ model Contest {
   certificationEvents CertificationEvent[]
   ingestionErrors     IngestionError[]
   marketSnapshots     MarketSnapshot[]
+  marketSettlements   MarketSettlement[]
   raceCalls           RaceCall[]
+  rankedChoiceRounds  RankedChoiceRound[]
 
   @@unique([sourceId, sourceContestId])
   @@index([electionEventId, office, districtCode])
@@ -762,14 +765,15 @@ model Candidacy {
   createdAt                 DateTime     @default(now()) @map("created_at")
   updatedAt                 DateTime     @updatedAt @map("updated_at")
 
-  person                  Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
-  contest                 Contest            @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  party                   Party?             @relation(fields: [partyId], references: [id], onDelete: SetNull)
-  source                  DataSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  legacyCandidate         Candidate?         @relation("LegacyCandidateCandidacies", fields: [legacyCandidateId], references: [id], onDelete: SetNull)
-  legacyCandidateElection CandidateElection? @relation("LegacyCandidateElectionCandidacy", fields: [legacyCandidateElectionId], references: [id], onDelete: SetNull)
+  person                  Person              @relation(fields: [personId], references: [id], onDelete: Restrict)
+  contest                 Contest             @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  party                   Party?              @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  source                  DataSource?         @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  legacyCandidate         Candidate?          @relation("LegacyCandidateCandidacies", fields: [legacyCandidateId], references: [id], onDelete: SetNull)
+  legacyCandidateElection CandidateElection?  @relation("LegacyCandidateElectionCandidacy", fields: [legacyCandidateElectionId], references: [id], onDelete: SetNull)
   votes                   CandidateVote[]
   raceCalls               RaceCall[]
+  rankedChoiceRounds      RankedChoiceRound[]
 
   @@unique([contestId, personId])
   @@unique([sourceId, sourceCandidateId, contestId])
@@ -963,6 +967,9 @@ model ResultSnapshot {
   sourceUpdatedAt   DateTime?                 @map("source_updated_at")
   receivedAt        DateTime                  @default(now()) @map("received_at")
   publishedAt       DateTime?                 @map("published_at")
+  // When the race-level vote totals last changed (#136). Unlike published_at it does not move when a snapshot
+  // only adds county detail, so "no change since" is honest after a finals pass republishes a race.
+  countChangedAt    DateTime?                 @map("count_changed_at")
   isPartial         Boolean                   @default(false) @map("is_partial")
   isMock            Boolean                   @default(false) @map("is_mock")
   // The source marked these numbers as rehearsal data (civicAPI's `test_data`). Served only when
@@ -1090,20 +1097,20 @@ model RaceCall {
 // Election-night network streams for the War Room's Live coverage panel (PLAN.md §4.7). Admins set
 // these on the night; the web build never needs to change. Embeds use the official YouTube player.
 model LiveStream {
-  id          String   @id @default(uuid())
+  id        String   @id @default(uuid())
   // Stable key, e.g. "abc-news". Outlets are listed alphabetically by name, never ranked.
-  key         String   @unique
-  name        String
+  key       String   @unique
+  name      String
   // YouTube channel id (UC…): the player shows that channel's current live stream.
-  channelId   String?  @map("channel_id")
+  channelId String?  @map("channel_id")
   // A specific live video, which wins over the channel when set.
-  videoId     String?  @map("video_id")
+  videoId   String?  @map("video_id")
   // Link-out for outlets that do not stream free on YouTube, and the "Watch on YouTube" fallback.
-  watchUrl    String   @map("watch_url")
-  isEnabled   Boolean  @default(true) @map("is_enabled")
-  note        String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  watchUrl  String   @map("watch_url")
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("live_streams")
 }
@@ -1432,4 +1439,77 @@ model NewsStory {
   @@index([publishedAt])
   @@index([ingestionRunId])
   @@map("news_stories")
+}
+
+// A state's legal deadline to certify federal results, entered by an admin with its source (#136). No feed
+// publishes these, and the site never shows a deadline without the link it came from.
+model CertificationDeadline {
+  id        String   @id @default(uuid())
+  cycle     Int
+  stateCode String   @map("state_code")
+  deadline  DateTime @db.Date
+  sourceUrl String   @map("source_url")
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([cycle, stateCode])
+  @@map("certification_deadlines")
+}
+
+// The final round of a ranked-choice count (Alaska, Maine), entered by an admin from the state's own
+// tabulation (#136). civicAPI reports first choices only; these rows sit beside them and never replace them.
+model RankedChoiceRound {
+  id          String   @id @default(uuid())
+  contestId   String   @map("contest_id")
+  candidacyId String   @map("candidacy_id")
+  round       Int
+  votes       BigInt
+  isWinner    Boolean  @default(false) @map("is_winner")
+  sourceUrl   String   @map("source_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  contest   Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  candidacy Candidacy @relation(fields: [candidacyId], references: [id], onDelete: Restrict)
+
+  @@unique([contestId, candidacyId])
+  @@map("ranked_choice_rounds")
+}
+
+enum MarketSettlementResult {
+  YES
+  NO
+  VOID
+}
+
+// How a prediction market settled (#136). Kept apart from market_snapshots, which hold prices only: a
+// settlement is not a price, and the scorecard (#141) scores prices against it.
+model MarketSettlement {
+  id              String                 @id @default(uuid())
+  sourceId        String                 @map("source_id")
+  provider        MarketProvider
+  scope           MarketScope
+  sourceEventId   String                 @map("source_event_id")
+  sourceMarketId  String                 @map("source_market_id")
+  contestId       String?                @map("contest_id")
+  stateCode       String?                @map("state_code")
+  districtCode    String?                @map("district_code")
+  outcome         String
+  result          MarketSettlementResult
+  // The payout per contract in dollars, 0 to 1, as the venue reports it; null when it gives none.
+  settlementValue Decimal?               @map("settlement_value") @db.Decimal(5, 4)
+  settledAt       DateTime?              @map("settled_at")
+  venueStatus     String                 @map("venue_status")
+  fetchedAt       DateTime               @map("fetched_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  source  DataSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  contest Contest?   @relation(fields: [contestId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, sourceMarketId])
+  @@index([contestId])
+  @@index([scope, stateCode, districtCode])
+  @@map("market_settlements")
 }

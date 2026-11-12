@@ -12,8 +12,6 @@
  * Contests and candidacies come from the ballot sync (services/ballot), which uses the same
  * civicAPI ids. A candidate who first appears mid-count gets an UNCONFIRMED candidacy.
  */
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { STATE_FIPS_TO_POSTAL } from '../../../services/census/census-client.js';
@@ -21,6 +19,7 @@ import { CIVICAPI_SOURCE_KEY } from '../../../services/ballot/ballot-sync.js';
 import { nameParts } from '../../../utils/person-name.js';
 import { publishSnapshot } from '../publication.js';
 import type { ResultsParseIssue } from '../parser.js';
+import { diskArtifactStore, type ArtifactStore } from '../artifact-store.js';
 import { sha256, type FetchedDocument } from './client.js';
 import { calledCandidates, raceSignature, totalVotes, type CandidateTally, type ParsedDocument, type RaceUpdate } from './parser.js';
 
@@ -32,9 +31,16 @@ const RETRACT_AFTER_MISSES = 2;
 export interface IngestOptions {
   /** Keep civicAPI's rehearsal numbers (`test_data: true`). Testing only; never in production. */
   acceptTestData: boolean;
-  /** Where gzipped payloads go (a Railway Volume in production). */
+  /** Where gzipped payloads go on disk, when no `artifactStore` is given. */
   artifactDir: string;
+  /** Where gzipped payloads go (the bucket, when configured); `artifactDir` on disk otherwise. */
+  artifactStore?: ArtifactStore;
   parserVersion: string;
+  /**
+   * Stamp every snapshot with the time its document was fetched, as aggregates already are. Finals passes set it:
+   * after election night civicAPI's `last_updated` changes on every request, so it says nothing about the count.
+   */
+  stampWithFetchTime?: boolean;
 }
 
 interface ContestState {
@@ -52,6 +58,9 @@ interface ContestState {
   /** The document kind the current snapshot came from (each race takes snapshots from one kind; see the tiers). */
   currentKind: ParsedDocument['kind'] | null;
   activeCalls: Array<{ id: string; candidacyId: string; kind: 'WINNER' | 'ADVANCED'; calledAtSource: boolean; isTestData: boolean }>;
+  /** The race-level totals behind the current snapshot (`totalsSignature`), and when they last changed (#136). */
+  currentTotals: string | null;
+  currentCountChangedAt: Date | null;
 }
 
 export interface CycleContext {
@@ -98,7 +107,14 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
     select: {
       id: true, sourceContestId: true, office: true, stateCode: true, districtCode: true,
       candidacies: { where: { sourceId }, select: { id: true, sourceCandidateId: true } },
-      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, rawArtifact: { select: { metadata: true, sourceUpdatedAt: true } } } },
+      currentSnapshot: {
+        select: {
+          sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, countChangedAt: true, publishedAt: true,
+          rawArtifact: { select: { metadata: true, sourceUpdatedAt: true } },
+          candidateVotes: { where: { voteType: 'TOTAL', reportingUnit: { parentId: null } }, select: { candidacyId: true, votes: true } },
+          contestMetrics: { where: { reportingUnit: { parentId: null } }, select: { votesCounted: true } },
+        },
+      },
       raceCalls: { where: { retractedAt: null }, select: { id: true, candidacyId: true, kind: true, calledAtSource: true, isTestData: true } },
     },
   });
@@ -117,9 +133,18 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
       currentDocumentTime: row.currentSnapshot?.rawArtifact?.sourceUpdatedAt ?? row.currentSnapshot?.sourceUpdatedAt ?? null,
       currentKind: documentKind(row.currentSnapshot?.rawArtifact?.metadata),
       activeCalls: row.raceCalls,
+      currentTotals: row.currentSnapshot
+        ? totalsSignature(row.currentSnapshot.candidateVotes.map((vote) => [vote.candidacyId, vote.votes]), row.currentSnapshot.contestMetrics[0]?.votesCounted ?? null)
+        : null,
+      currentCountChangedAt: row.currentSnapshot?.countChangedAt ?? row.currentSnapshot?.publishedAt ?? null,
     });
   }
   return { sourceId, contests };
+}
+
+/** The race-level totals only (each candidacy's votes and the total), so county detail alone is not a change in the count. */
+export function totalsSignature(votes: Array<[string, bigint | number]>, total: bigint | number | null): string {
+  return [...votes.map(([candidacyId, count]) => `${candidacyId}=${count}`).sort(), `total=${total ?? ''}`].join(',');
 }
 
 /** `aggregate` or `detail`, from the metadata `recordArtifact` writes. */
@@ -133,26 +158,23 @@ export function hasChanged(update: RaceUpdate, contest: ContestState, testData: 
   return contest.currentSignature !== signatureId(update) || contest.currentSnapshotIsTest !== testData;
 }
 
-/** The gzipped payload on disk. A failed write is logged; the database rows still record its hash. */
-async function storePayload(dir: string, doc: FetchedDocument): Promise<{ storageKey: string; stored: boolean }> {
+/** The gzipped payload, in the bucket or on disk. A failed write is logged; the database rows still record its hash. */
+async function storePayload(options: IngestOptions, doc: FetchedDocument): Promise<{ storageKey: string; stored: boolean }> {
   const name = `sha256/${doc.sha256}.json.gz`;
+  const store = options.artifactStore ?? diskArtifactStore(options.artifactDir);
   try {
-    await mkdir(join(dir, 'sha256'), { recursive: true });
-    await writeFile(join(dir, name), gzipSync(doc.bytes), { flag: 'wx' });
+    return { storageKey: await store.put(name, gzipSync(doc.bytes)), stored: true };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      console.warn(`[civicapi] Could not store payload ${doc.sha256}: ${error instanceof Error ? error.message : error}`);
-      return { storageKey: `unstored:${name}`, stored: false };
-    }
+    console.warn(`[civicapi] Could not store payload ${doc.sha256} (${store.describe}): ${error instanceof Error ? error.message : error}`);
+    return { storageKey: `unstored:${name}`, stored: false };
   }
-  return { storageKey: `volume:${name}`, stored: true };
 }
 
 /** One `RawArtifact` per document that changed something, deduplicated on its hash. */
 export async function recordArtifact(db: PrismaClient, sourceId: string, runId: string, doc: FetchedDocument, parsed: ParsedDocument, options: IngestOptions) {
   const existing = await db.rawArtifact.findUnique({ where: { sourceId_contentSha256: { sourceId, contentSha256: doc.sha256! } }, select: { id: true } });
   if (existing) return existing.id;
-  const { storageKey, stored } = await storePayload(options.artifactDir, doc);
+  const { storageKey, stored } = await storePayload(options, doc);
   const artifact = await db.rawArtifact.create({
     data: {
       sourceId, ingestionRunId: runId, status: 'VALIDATED', storageKey, contentSha256: doc.sha256!,
@@ -249,7 +271,7 @@ async function publishRace(
   ctx: CycleContext,
   contest: ContestState,
   update: RaceUpdate,
-  meta: { runId: string; artifactId: string; payloadSha256: string; sourceUpdatedAt: Date; testData: boolean },
+  meta: { runId: string; artifactId: string; payloadSha256: string; sourceUpdatedAt: Date; testData: boolean; totals?: string; countChangedAt?: Date },
   warnings: string[],
 ): Promise<void> {
   const votes = totalVotes(update);
@@ -277,8 +299,14 @@ async function publishRace(
       candidacyIds.set(candidate.sourceCandidateId, await candidacyFor(tx, ctx.sourceId, contest, candidate, warnings));
     }
 
+    // The count changed when the race-level totals differ; a snapshot that only adds counties keeps the old time.
+    const totals = totalsSignature(update.candidates.map((candidate) => [candidacyIds.get(candidate.sourceCandidateId)!, candidate.votes]), votes);
+    const countChangedAt = totals === contest.currentTotals && contest.currentCountChangedAt ? contest.currentCountChangedAt : meta.sourceUpdatedAt;
+    meta.totals = totals;
+    meta.countChangedAt = countChangedAt;
     const snapshot = await tx.resultSnapshot.create({
       data: {
+        countChangedAt,
         contestId: contest.id, sourceId: ctx.sourceId, ingestionRunId: meta.runId, rawArtifactId: meta.artifactId,
         sourceSnapshotId: signatureId(update), payloadSha256: meta.payloadSha256, publicationStatus: 'STAGED',
         reportingStatus: status, certification: 'UNOFFICIAL', sourceUpdatedAt: meta.sourceUpdatedAt,
@@ -405,7 +433,8 @@ export async function ingestDocument(
   // The snapshot's "as of" time. A detail document's last_updated is its race's own. An aggregate's is feed-wide
   // and need not follow the counts: on Nov 3 both aggregates still read Oct 23 while detail documents were current.
   // So an aggregate snapshot is stamped with the cycle that first saw its numbers, within one poll of the change.
-  const sourceUpdatedAt = parsed.kind === 'aggregate' ? now : documentTime;
+  // A finals pass stamps detail documents the same way, with the time it fetched them (`stampWithFetchTime`).
+  const sourceUpdatedAt = parsed.kind === 'aggregate' || options.stampWithFetchTime ? now : documentTime;
 
   for (const update of changed) {
     const contest = ctx.contests.get(update.sourceContestId)!;
@@ -426,7 +455,10 @@ export async function ingestDocument(
       continue;
     }
     try {
-      await publishRace(db, memory, ctx, contest, update, { runId: options.runId, artifactId: artifactId!, payloadSha256: doc.sha256!, sourceUpdatedAt, testData: parsed.testData }, outcome.warnings);
+      const meta: Parameters<typeof publishRace>[5] = { runId: options.runId, artifactId: artifactId!, payloadSha256: doc.sha256!, sourceUpdatedAt, testData: parsed.testData };
+      await publishRace(db, memory, ctx, contest, update, meta, outcome.warnings);
+      contest.currentTotals = meta.totals ?? null;
+      contest.currentCountChangedAt = meta.countChangedAt ?? sourceUpdatedAt;
       contest.currentSignature = signatureId(update);
       contest.currentSnapshotIsTest = parsed.testData;
       contest.currentSourceUpdatedAt = sourceUpdatedAt;
