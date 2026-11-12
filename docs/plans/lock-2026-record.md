@@ -133,7 +133,7 @@ No API reports certification, so it is entered by hand with a source, the way st
 - Each race shows one of the statuses above; no race shows "percent reporting" as share counted, and none
   shows 0 for unopposed.
 - Every 2026 Kalshi race market is either in `market_settlements` or listed as not settled yet.
-- Five states spot-checked against their official pages and recorded here.
+- Five states spot-checked against their official pages and recorded here. *Nov 12: two by machine (NC and GA, 30 races, all exact); CA, WV and AK need a check by hand, see "Spot checks".*
 - Tests: finals pass (changed, unchanged, failed race), status derivation for each status, certification
   fan-out, settlement parsing. Section 7 checks pass.
 
@@ -165,6 +165,22 @@ All six steps were built on Nov 12. Where the build differs from the plan above:
 **Settings on `Backend`:** `CIVICAPI_FINALS_MODE=true` (with `RESULTS_INGESTOR_ENABLED` and, on Testing,
 `RESULTS_INGESTOR_IN_PROCESS`); `RESULTS_ARTIFACT_BUCKET`, `_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID` and
 `_SECRET_ACCESS_KEY` as references to the `db-backups` bucket. `KALSHI_SETTLEMENTS_ENABLED` is on by default.
+
+## Spot checks (Nov 12)
+
+Our stored totals are civicAPI's detail totals after the first finals pass. Each state's official results were
+compared candidate by candidate with civicAPI's current aggregates on Nov 12, 4 PM ET:
+
+| State | Source | Races | Result |
+|---|---|---|---|
+| NC | State Board of Elections results file (`er.ncsbe.gov/enr/20261103/data/results_0.txt`), 2,626 of 2,626 precincts reporting | Senate and 14 House | **All 15 match to the vote**, including the uncalled NC-05, NC-07 and NC-10 |
+| GA | Secretary of State results (`results.sos.ga.gov`, election `11032026GeneralAndSpecialElection`), every county reporting | Senate and 14 House | **All 15 match to the vote**. The state shows 159 of 159 counties in for the Senate race while civicAPI's estimate reads 89.6%, which is why that estimate is no longer served |
+| CA | `electionresults.sos.ca.gov` | | Not checked by machine: the site is behind bot protection. Check by hand in a browser |
+| WV | Clarity results (`results.enr.clarityelections.com/WV/127496`) | | Not checked by machine: Clarity refuses automated requests. Check by hand |
+| AK | `www.elections.alaska.gov` | | Not checked by machine: the site serves an incomplete TLS certificate chain. Check by hand; its ranked-choice final round is entered by hand anyway |
+
+For the three left, open the state's page and compare it with the admin dashboard's "our totals" for the state
+(or `npm run check:finals -- --state CA` in the `Backend` container).
 
 ## Decisions (recommended answers in bold)
 
