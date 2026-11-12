@@ -42,6 +42,8 @@ const envSchema = z.object({
   KALSHI_REST_URL: z.string().url().default('https://external-api.kalshi.com/trade-api/v2'),
   // Hourly price history in market_snapshots, written while the live feed is connected.
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Daily read of how each stored 2026 race market settled (#136). Needs no Kalshi key.
+  KALSHI_SETTLEMENTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
   // Polls live in their own PostgreSQL database, separate from DATABASE_URL. Without it
@@ -209,6 +211,7 @@ export const env = {
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
+  KALSHI_SETTLEMENTS_ENABLED: parsed.data.KALSHI_SETTLEMENTS_ENABLED === 'true',
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
   NEWS_ENABLED: parsed.data.NEWS_ENABLED === 'true',
   APIFY_PRICE_PER_1000_USD: parseFloat(parsed.data.APIFY_PRICE_PER_1000_USD),

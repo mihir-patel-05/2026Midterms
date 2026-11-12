@@ -1,6 +1,6 @@
 # Lock the 2026 record (#136)
 
-Planned Nov 12. Build Nov 12 to 14; certification keeps updating after the Nov 25 launch (#153).
+Planned and built Nov 12. Certification keeps being entered as states certify, after the Nov 25 launch (#153).
 
 ## Goal
 
@@ -136,6 +136,35 @@ No API reports certification, so it is entered by hand with a source, the way st
 - Five states spot-checked against their official pages and recorded here.
 - Tests: finals pass (changed, unchanged, failed race), status derivation for each status, certification
   fan-out, settlement parsing. Section 7 checks pass.
+
+## Built (Nov 12)
+
+All six steps were built on Nov 12. Where the build differs from the plan above:
+
+- **Statuses** are a new `finalStatus` object on each result (contract 1.2.0). The existing `certificationState` enum was
+  not widened, so older 1.x clients that switch on it keep working. `CONTESTED` is its own status, beside `RECOUNT`.
+- **"No change since"** comes from a new `result_snapshots.count_changed_at`, which moves only when the race-level
+  totals change. The first finals pass republishes every race with its counties; without the column every race
+  would have read "still counting". Existing snapshots were backfilled with their publish time.
+- **Certification deadlines** are entered in the admin dashboard with their source, per state
+  (`certification_deadlines`), not shipped in a file. NCSL blocks automated readers, and no date goes on the site
+  without a source. Until a state's deadline is entered, its races show none.
+- **Corrections:** a state's certified total that differs from civicAPI's is recorded as `CORRECTED` with the
+  state's numbers in the notes; civicAPI's snapshot is never edited.
+- **Kalshi settlement** fields could not be checked against Kalshi's docs (not reachable from development). The
+  job records a market only when Kalshi's `result` reads yes, no or void, and logs the field names of the first
+  settled market it cannot read. Settlements are linked to the 2026 race by state and district, because stored
+  prices have no contest link.
+- **Admin:** Certification section in the admin dashboard: per state, the deadline, "Record from the state"
+  (certified, recount started or completed, contested, correction; state-wide or one race), undo latest entry, our
+  totals to compare, the ranked-choice final round for AK and ME, and Kalshi markets that settled against the
+  called winner.
+- **Commands:** `npm run results:finals -- --states WV,GA` (one finals pass), `npm run check:finals -- --state WV`,
+  `npm run sync:settlements`.
+
+**Settings on `Backend`:** `CIVICAPI_FINALS_MODE=true` (with `RESULTS_INGESTOR_ENABLED` and, on Testing,
+`RESULTS_INGESTOR_IN_PROCESS`); `RESULTS_ARTIFACT_BUCKET`, `_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID` and
+`_SECRET_ACCESS_KEY` as references to the `db-backups` bucket. `KALSHI_SETTLEMENTS_ENABLED` is on by default.
 
 ## Decisions (recommended answers in bold)
 

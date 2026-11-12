@@ -6,6 +6,7 @@ import {
   CertificationInputError, certificationOverview, recordEvent, RECORDABLE_EVENTS, removeLatestEvent, setDeadline, setRankedChoiceRound, stateTotals,
 } from '../features/election-results/certification.js';
 import { clearResultsCache } from './results-v1.routes.js';
+import { settlementDisagreements } from '../services/kalshi/settlements.js';
 
 /**
  * /api/admin/certification (#136): each state's certification, recounts, deadline and ranked-choice final round,
@@ -44,6 +45,11 @@ const handle = (work: Handler, writes = false) => async (req: import('express').
 };
 
 adminCertificationRouter.get('/', handle(async () => ({ states: await certificationOverview(prisma) })));
+/** Kalshi markets that settled on an outcome other than the race's winner, to look into (#136). */
+adminCertificationRouter.get('/settlements/disagreements', handle(async () => {
+  const settled = await prisma.marketSettlement.count({ where: { provider: 'KALSHI' } });
+  return { settled, disagreements: await settlementDisagreements(prisma) };
+}));
 adminCertificationRouter.get('/:state/totals', handle(async (req) => ({ races: await stateTotals(prisma, String(req.params.state)) })));
 adminCertificationRouter.put('/:state/deadline', handle(async (req) => {
   const body = deadlineBody.parse(req.body);

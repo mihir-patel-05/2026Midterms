@@ -275,6 +275,7 @@ export const certificationAPI = {
     adminAPI.request<{ races: string[]; finalsPass: string | null }>(`${stateUrl(state)}/events`, { method: 'POST', body: JSON.stringify(body) }),
   removeLatest: (state: string, race: string | null) =>
     adminAPI.request<{ removed: number }>(`${stateUrl(state)}/events/remove-latest`, { method: 'POST', body: JSON.stringify({ race }) }),
+  settlementDisagreements: () => adminAPI.request<{ settled: number; disagreements: Array<{ race: string; market: string; settledOutcome: string; winner: string }> }>('/certification/settlements/disagreements'),
   setRankedChoice: (contestId: string, body: { round: number; sourceUrl: string; results: Array<{ candidacyId: string; votes: number; isWinner: boolean }> }) =>
     adminAPI.request<{ saved: number }>(`/certification/races/${encodeURIComponent(contestId)}/ranked-choice`, { method: 'PUT', body: JSON.stringify(body) }),
 };

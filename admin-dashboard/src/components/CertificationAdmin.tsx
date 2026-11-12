@@ -70,10 +70,12 @@ export function CertificationAdmin() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deadline, setDeadline] = useState({ deadline: '', sourceUrl: '', notes: '' });
   const [event, setEvent] = useState({ type: 'CERTIFIED' as CertificationEventType, race: '', date: '', sourceUrl: '', notes: '' });
+  const [settlements, setSettlements] = useState<Awaited<ReturnType<typeof certificationAPI.settlementDisagreements>> | null>(null);
 
   const load = useCallback(async () => {
     try {
       setStates((await certificationAPI.list()).states);
+      setSettlements(await certificationAPI.settlementDisagreements().catch(() => null));
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Could not load certification' });
     } finally {
@@ -121,6 +123,19 @@ export function CertificationAdmin() {
           if they differ, record “Certified totals differ” with the state’s numbers in the notes.
         </p>
       </div>
+      {settlements && (
+        <div className="px-6 pt-3 text-sm text-slate-300">
+          Kalshi: {settlements.settled} race markets settled.{' '}
+          {settlements.disagreements.length === 0
+            ? <span className="text-emerald-400">Every settled market agrees with the race’s called winner.</span>
+            : <span className="text-amber-400">{settlements.disagreements.length} settled against the called winner:</span>}
+          {settlements.disagreements.length > 0 && (
+            <ul className="list-disc ml-5 mt-1">
+              {settlements.disagreements.map((item) => <li key={item.market}>{item.race}: {item.market} settled YES on “{item.settledOutcome}”; called for {item.winner}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
       {message && <p className={`px-6 pt-3 text-sm ${message.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>{message.text}</p>}
       {loading ? (
         <div className="p-6 text-slate-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
