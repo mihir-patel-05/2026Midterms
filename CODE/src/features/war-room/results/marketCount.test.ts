@@ -34,7 +34,7 @@ function race(code: string, d: number, r: number, extra: Partial<LiveRace> = {})
   return {
     code, contestId: code, office: code.endsWith("SEN") ? "US_SENATE" : "US_HOUSE", title: code, candidates, totalVotes: total,
     pctCounted: 40, pctKind: "estimate", status: "IN_PROGRESS", updatedAt: "", calls: [], winner: null,
-    marginPts: total ? Math.abs(candidates[0].pct - candidates[1].pct) : null, isTestData: false, meta: {} as LiveRace["meta"], ...extra,
+    marginPts: total ? Math.abs(candidates[0].pct - candidates[1].pct) : null, isTestData: false, finalStatus: null, meta: {} as LiveRace["meta"], ...extra,
   };
 }
 

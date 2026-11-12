@@ -12,6 +12,7 @@ import { dbBootstrapPayload, dbCurrentResult, type ReadModelConfig } from '../re
 import { CivicApiClient } from './client.js';
 import { CivicApiIngestor, type IngestorOptions } from './ingestor.js';
 import { chooseTierA } from './tiers.js';
+import { CertificationInputError, certificationOverview, recordEvent, removeLatestEvent, setDeadline, setRankedChoiceRound, stateTotals } from '../certification.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -127,7 +128,8 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     // The read model hides test data unless told to show it.
     const contestId = (await db.contest.findFirstOrThrow({ where: { sourceContestId: '87087' } })).id;
     assert.equal((await dbCurrentResult(db, readConfig(false), contestId))?.data, null);
-    const shown = await dbCurrentResult(db, readConfig(true), contestId);
+    // Read on election night: the share-counted estimate is served for two days after election day.
+    const shown = await dbCurrentResult(db, readConfig(true), contestId, new Date('2026-11-04T01:00:00Z'));
     assert(shown?.data);
     ElectionResultsResponseSchema.parse(shown);
     assert.equal(shown.data.isTestData, true);
@@ -140,6 +142,10 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     const leanGa = lean?.data.results.find((item) => item.data?.contest.id === contestId);
     assert.equal(leanGa?.data?.reportingUnitResults.length, 0);
     assert.equal(leanGa?.data?.totalVotes, shown.data.totalVotes);
+    // Read after election night, the estimate is dropped and finalStatus says where the race stands.
+    const later = await dbCurrentResult(db, readConfig(true), contestId, new Date('2026-11-12T20:00:00Z'));
+    assert.equal(later?.data?.reportingProgress.estimatedPercentage, null);
+    assert(later?.meta.limitations.some((line) => line.includes('not shown after election night')));
 
     // 3. The same numbers again write nothing.
     const again = await rehearsal.cycle(new Date('2026-11-04T01:00:30Z'));
@@ -374,6 +380,160 @@ test('one aggregate failing does not hold back the other chamber; both failing f
     for (let i = 0; i < 3; i++) assert.equal((await run.cycle(new Date(`2026-11-04T02:0${1 + i}:00Z`))).status, 'failed');
     assert.equal((await db.dataSource.findUniqueOrThrow({ where: { id: source.id } })).healthStatus, 'UNAVAILABLE');
   } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
+
+test('finals pass: every race from detail with counties, after night aggregates stamped later; unchanged writes nothing; failures and certified states', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  try {
+    await reset(db);
+    const source = await seedCatalog(db);
+    const senate = live(fixture('senate-aggregate.json'));
+    const house = live(fixture('house-aggregate.trimmed.json'));
+    const feed = server({ 87528: senate, 87524: house });
+
+    // Election night: every race from the aggregates, stamped with the cycle (Nov 4, 02:00).
+    const night = await ingestor(db, feed.fetchImpl, { tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    const nightCycle = await night.cycle(new Date('2026-11-04T02:00:00Z'));
+    assert.equal(nightCycle.status, 'ok', nightCycle.message);
+    const races = nightCycle.published;
+    assert.equal(races, 45);
+
+    // After the election: a detail document per race, whose last_updated (Nov 4, 01:00) is older than the night's
+    // cycle stamp. GA-SEN has its real counties; the others are their aggregate rows with no counties.
+    const regions = [
+      ...Object.values(senate.region_results as Record<string, Record<string, unknown>>),
+      ...Object.values(house.region_results as Record<string, Record<string, unknown>>),
+    ];
+    for (const region of regions) {
+      feed.docs[String(region.election_id)] = { ...structuredClone(region), test_data: false, last_updated: '2026-11-04T01:00:00.000Z', called_at: null, region_results: {} };
+    }
+    feed.docs[87087] = { ...live(fixture('race-ga-sen.trimmed.json')), last_updated: '2026-11-04T01:00:00.000Z' };
+    const stored: string[] = [];
+    const artifactStore = { describe: 'memory', async put(name: string) { stored.push(name); return `bucket:raw/civicapi/${name}`; } };
+    const finals = await ingestor(db, feed.fetchImpl, { artifactStore, tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    const first = await finals.finalsPass();
+    assert.equal(first.status, 'ok', first.message);
+    assert.equal(first.races, races);
+    assert.equal(first.published, races, first.message);
+    assert.equal(first.failures.length, 0, first.message);
+    const gaContest = await db.contest.findFirstOrThrow({ where: { sourceContestId: '87087' }, include: { currentSnapshot: { include: { rawArtifact: true } } } });
+    assert(gaContest.currentSnapshot);
+    // Stamped with the pass, not the document's last_updated, so it replaces the night's snapshot.
+    assert(gaContest.currentSnapshot.sourceUpdatedAt! > new Date('2026-11-04T02:00:00Z'));
+    // The race-level row plus its 6 counties.
+    assert.equal(await db.contestMetric.count({ where: { snapshotId: gaContest.currentSnapshot.id } }), 7);
+    // A race whose finals document only adds counties (same totals) keeps the time its count last changed.
+    const me = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'FL', office: 'US_SENATE' }, include: { currentSnapshot: true } });
+    assert.equal(me.currentSnapshot?.countChangedAt?.toISOString(), '2026-11-04T02:00:00.000Z');
+    const meResult = await dbCurrentResult(db, readConfig(false), me.id, new Date('2026-11-12T20:00:00Z'));
+    assert.equal(meResult?.data?.finalStatus?.status, 'STABLE');
+    assert.equal(meResult?.data?.finalStatus?.label, 'Unofficial · no change since Nov 3');
+    // Source documents went to the store, not the disk.
+    assert(stored.length >= races && stored.every((name) => name.startsWith('sha256/')));
+    assert.match(gaContest.currentSnapshot.rawArtifact!.storageKey, /^bucket:raw\/civicapi\/sha256\//);
+
+    // The same numbers again write nothing, though last_updated moves on every request.
+    for (const doc of Object.values(feed.docs) as Array<Record<string, unknown>>) doc.last_updated = '2026-11-12T18:00:00.000Z';
+    const snapshots = await db.resultSnapshot.count({ where: { sourceId: source.id } });
+    const second = await finals.finalsPass();
+    assert.equal(second.published, 0, second.message);
+    assert.equal(second.unchanged, races);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id } }), snapshots);
+
+    // A race civicAPI fails keeps its numbers and is listed; the rest are read.
+    const paId = (await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'PA', districtCode: '07' } })).sourceContestId!;
+    const paDoc = feed.docs[paId];
+    delete feed.docs[paId];
+    const failed = await finals.finalsPass();
+    assert.equal(failed.status, 'ok');
+    assert.deepEqual(failed.failures.map((failure) => failure.label), ['PA-07']);
+    assert.equal((await db.ingestionRun.findFirstOrThrow({ where: { sourceId: source.id }, orderBy: { startedAt: 'desc' } })).status, 'PARTIAL');
+    feed.docs[paId] = paDoc;
+
+    // A state whose certification is recorded is skipped, unless the pass names it.
+    await db.certificationEvent.create({
+      data: { contestId: gaContest.id, sourceId: source.id, type: 'CERTIFIED', certification: 'CERTIFIED', effectiveAt: new Date('2026-11-20T00:00:00Z'), sourceUrl: 'https://sos.ga.gov/' },
+    });
+    const skipping = await finals.finalsPass();
+    assert.equal(skipping.certifiedSkipped, 1);
+    assert.equal(skipping.races, races - 1);
+    const named = await finals.finalsPass({ states: ['ga'] });
+    // GA-SEN and GA-13.
+    assert.equal(named.races, 2);
+    assert.equal(named.certifiedSkipped, 0);
+  } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
+
+test('certification: a state-wide entry reaches every race, shows as certified with its source; recounts, deadlines, ranked choice and bad input', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  const read = (id: string) => dbCurrentResult(db, readConfig(false), id, new Date('2026-12-10T20:00:00Z'));
+  try {
+    await reset(db);
+    await db.certificationDeadline.deleteMany({});
+    const source = await seedCatalog(db);
+    const feed = server({ 87528: live(fixture('senate-aggregate.json')), 87524: live(fixture('house-aggregate.trimmed.json')) });
+    const night = await ingestor(db, feed.fetchImpl, { tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    assert.equal((await night.cycle(new Date('2026-11-04T02:00:00Z'))).status, 'ok');
+
+    // Georgia: the Senate race and GA-13 are both certified by one entry.
+    const recorded = await recordEvent(db, { state: 'ga', type: 'CERTIFIED', effectiveAt: '2026-11-10T17:00:00Z', sourceUrl: 'https://sos.ga.gov/election-results' });
+    assert.deepEqual(recorded.races.sort(), ['GA-13', 'GA-SEN']);
+    const ga = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'GA', office: 'US_SENATE' } });
+    const certified = await read(ga.id);
+    ElectionResultsResponseSchema.parse(certified);
+    assert.equal(certified?.data?.certificationState, 'CERTIFIED');
+    assert.equal(certified?.data?.status, 'COMPLETE');
+    assert.equal(certified?.data?.finalStatus?.label, 'Certified Nov 10');
+    assert.equal(certified?.data?.finalStatus?.sourceUrl, 'https://sos.ga.gov/election-results');
+
+    // One race's recount, then a deadline for its state.
+    const fl = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'FL', office: 'US_SENATE' } });
+    await recordEvent(db, { state: 'FL', race: 'FL-SEN', type: 'RECOUNT_STARTED', effectiveAt: '2026-11-09T15:00:00Z', sourceUrl: 'https://dos.fl.gov/elections/', notes: 'Machine recount: margin under 0.5%' });
+    await setDeadline(db, { state: 'FL', deadline: '2026-11-17', sourceUrl: 'https://dos.fl.gov/elections/' });
+    const recount = await read(fl.id);
+    assert.equal(recount?.data?.finalStatus?.status, 'RECOUNT');
+    assert.equal(recount?.data?.finalStatus?.notes, 'Machine recount: margin under 0.5%');
+    assert.equal(recount?.data?.finalStatus?.certificationDeadline, '2026-11-17');
+    assert.equal(recount?.data?.certificationState, 'UNOFFICIAL');
+    // Removed as a mistake, the race goes back to its count-based status.
+    assert.equal((await removeLatestEvent(db, { state: 'FL', race: 'FL-SEN' })).removed, 1);
+    assert.equal((await read(fl.id))?.data?.finalStatus?.status, 'STABLE');
+
+    // Alaska's ranked-choice final round, from the state, beside first choices.
+    const ak = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'AK', office: 'US_SENATE' }, include: { candidacies: true } });
+    const [first, second] = ak.candidacies;
+    await setRankedChoiceRound(db, { contestId: ak.id, round: 3, sourceUrl: 'https://www.elections.alaska.gov/', results: [
+      { candidacyId: first.id, votes: 160_000, isWinner: true }, { candidacyId: second.id, votes: 150_000, isWinner: false },
+    ] });
+    const rcv = await read(ak.id);
+    assert.equal(rcv?.data?.finalStatus?.rankedChoiceFinalRound?.round, 3);
+    assert.equal(rcv?.data?.finalStatus?.rankedChoiceFinalRound?.results[0].votes, 160_000);
+
+    // The overview and the totals for comparing with the state.
+    const overview = await certificationOverview(db);
+    const gaRow = overview.find((row) => row.state === 'GA');
+    assert.equal(gaRow?.certified, 2);
+    assert.equal(overview.find((row) => row.state === 'FL')?.deadline?.deadline, '2026-11-17');
+    const totals = await stateTotals(db, 'GA');
+    assert(totals.find((race) => race.race === 'GA-SEN')!.candidates.length >= 2);
+    assert(totals.every((race) => race.totalVotes !== null));
+
+    // Bad input is refused, and nothing is written.
+    await assert.rejects(recordEvent(db, { state: 'GA', type: 'CERTIFIED', effectiveAt: '2026-11-10', sourceUrl: 'sos.ga.gov' }), CertificationInputError);
+    await assert.rejects(recordEvent(db, { state: 'GA', type: 'CORRECTED', effectiveAt: '2026-11-10', sourceUrl: 'https://sos.ga.gov/' }), /numbers in the notes/);
+    await assert.rejects(recordEvent(db, { state: 'ZZ', type: 'CERTIFIED', effectiveAt: '2026-11-10', sourceUrl: 'https://example.gov/' }), /No 2026 federal races/);
+    await assert.rejects(setRankedChoiceRound(db, { contestId: ak.id, round: 3, sourceUrl: 'https://www.elections.alaska.gov/', results: [
+      { candidacyId: first.id, votes: 1, isWinner: true }, { candidacyId: second.id, votes: 1, isWinner: true },
+    ] }), /exactly one winner/);
+    assert.equal(await db.certificationEvent.count({ where: { contest: { stateCode: 'GA' } } }), 2);
+  } finally {
+    await db.certificationDeadline.deleteMany({}).catch(() => {});
     if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
     await db.$disconnect();
   }

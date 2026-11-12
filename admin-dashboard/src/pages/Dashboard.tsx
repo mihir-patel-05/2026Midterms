@@ -22,6 +22,7 @@ import { adminAPI, AdminStats, SyncStatus, SyncLog, Deadline, DeadlineInput } fr
 import { formatCalendarDate } from '../lib/calendarDate';
 import { LiveCoverageAdmin } from '../components/LiveCoverageAdmin';
 import { WarRoomFlagsAdmin } from '../components/WarRoomFlagsAdmin';
+import { CertificationAdmin } from '../components/CertificationAdmin';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -553,6 +554,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           </div>
         </div>
 
+        <CertificationAdmin />
         <LiveCoverageAdmin />
         <WarRoomFlagsAdmin />
 

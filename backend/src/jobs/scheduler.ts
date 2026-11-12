@@ -434,6 +434,21 @@ export function initializeScheduler(): void {
     console.log('🚢 Census imports sync: the 12th of each month at 10:30 AM ET, and 4 minutes after boot\n');
   }
 
+  // How each 2026 Kalshi race market settled (#136): daily at 11:10 AM ET, and 6 minutes after boot.
+  if (env.KALSHI_SETTLEMENTS_ENABLED) {
+    const runSettlements = async (why: string) => {
+      try {
+        const { runSettlementSync } = await import('../services/kalshi/run-settlements.js');
+        if (!(await runSettlementSync())) console.log(`🏁 Kalshi settlements (${why}) skipped: another run holds the lease`);
+      } catch (error) {
+        console.error(`❌ Kalshi settlements (${why}) failed:`, error instanceof Error ? error.message : error);
+      }
+    };
+    cron.schedule('10 11 * * *', () => runSettlements('scheduled'), { timezone: 'America/New_York' });
+    setTimeout(() => void runSettlements('after boot'), 6 * 60_000).unref();
+    console.log('🏁 Kalshi settlements: daily at 11:10 AM ET, and 6 minutes after boot\n');
+  }
+
   // General election ballot from civicAPI: every 6 hours, and once shortly after boot so a
   // deploy picks it up without waiting.
   if (env.BALLOT_SYNC_ENABLED) {

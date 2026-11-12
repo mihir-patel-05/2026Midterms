@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DashboardBootstrapResponse, ElectionResultsResponseContract } from "@/features/election-dashboard/types";
-import { callFeed, chamberCount, indexBootstrap, leaderOf, progressLabel, resultsBin, resultsBins, resultsFlips, toLiveRace } from "./liveResults";
+import { callFeed, chamberCount, indexBootstrap, isUncountedUnopposed, leaderOf, progressLabel, resultsBin, resultsBins, resultsFlips, toLiveRace } from "./liveResults";
 import { embedUrl } from "./streams";
 
 const meta = {
@@ -70,6 +70,22 @@ describe("live results", () => {
     const pa = board.races.get("PA-07")!;
     expect(progressLabel(pa)).toBe("About 64% of the expected vote counted (civicAPI estimate)");
     expect(progressLabel(pa, true)).toBe("~64%");
+  });
+
+  it("after election night, shows each race's status instead of a share counted (#136)", () => {
+    const stable = toLiveRace(result("WV-SEN", [["Capito", "R", 300, 60], ["Doe", "D", 200, 40]], {
+      calls: called("Capito"),
+      reportingProgress: { reportingUnits: { reported: null, total: null, percentage: null }, precincts: { reported: null, total: null, percentage: null }, estimatedPercentage: null },
+      finalStatus: { status: "STABLE", label: "Unofficial · no change since Nov 9", lastChangedAt: "2026-11-09T15:00:00.000Z" },
+    }))!;
+    expect(progressLabel(stable)).toBe("Unofficial · no change since Nov 9");
+    expect(progressLabel(stable, true)).toBe("Unofficial");
+    expect(isUncountedUnopposed(stable)).toBe(false);
+    const unopposed = toLiveRace(result("FL-10", [["Frost", "D", 0, 0]], {
+      calls: called("Frost"), finalStatus: { status: "UNOPPOSED", label: "Unopposed", lastChangedAt: "2026-11-04T02:00:00.000Z" },
+    }))!;
+    expect(isUncountedUnopposed(unopposed)).toBe(true);
+    expect(progressLabel(unopposed, true)).toBe("Unopposed");
   });
 
   it("counts called and leading seats; unreported races count as no votes, never as anyone's", () => {

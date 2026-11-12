@@ -81,7 +81,8 @@ export class RequestPacer {
 // reads a second, and the production and testing backends both refresh.
 const restPacer = new RequestPacer(200);
 
-async function getJson<T>(url: string): Promise<T | null> {
+/** Kalshi REST GET with pacing and retries; null on 404. Shared with the settlement job (#136). */
+export async function getJson<T>(url: string): Promise<T | null> {
   for (let attempt = 0; ; attempt++) {
     let delay = 500 * 2 ** attempt;
     try {

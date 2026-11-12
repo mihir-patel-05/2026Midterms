@@ -42,6 +42,8 @@ const envSchema = z.object({
   KALSHI_REST_URL: z.string().url().default('https://external-api.kalshi.com/trade-api/v2'),
   // Hourly price history in market_snapshots, written while the live feed is connected.
   KALSHI_SNAPSHOTS_ENABLED: z.enum(['true', 'false']).default('true'),
+  // Daily read of how each stored 2026 race market settled (#136). Needs no Kalshi key.
+  KALSHI_SETTLEMENTS_ENABLED: z.enum(['true', 'false']).default('true'),
   // Read APIs over market_snapshots: price history and biggest movers.
   MARKET_HISTORY_ENABLED: z.enum(['true', 'false']).default('true'),
   // Polls live in their own PostgreSQL database, separate from DATABASE_URL. Without it
@@ -131,6 +133,19 @@ const envSchema = z.object({
   CIVICAPI_MAX_RPS: z.string().regex(/^\d+(\.\d+)?$/).default('2'),
   // Contact sent in the ingestor's User-Agent, so civicAPI can reach us about our traffic.
   CIVICAPI_CONTACT: z.string().trim().optional(),
+  // Finals mode (#136, docs/plans/lock-2026-record.md): instead of the election-night loop, read every race's
+  // detail document (counties included) every CIVICAPI_FINALS_INTERVAL_MINUTES, until CIVICAPI_FINALS_UNTIL.
+  CIVICAPI_FINALS_MODE: z.enum(['true', 'false']).default('false'),
+  CIVICAPI_FINALS_INTERVAL_MINUTES: z.string().regex(/^[1-9]\d*$/).default('360'),
+  // The joint session counts the electoral votes on Jan 6; every state has certified by then.
+  CIVICAPI_FINALS_UNTIL: z.union([z.string().datetime({ offset: true }), z.literal('')]).default('2027-01-06T00:00:00Z'),
+  // Raw provider documents go to this S3-compatible bucket (Railway's db-backups bucket) instead of the container
+  // disk, which has no volume. All five must be set; otherwise documents go to RESULTS_RAW_ARTIFACT_DIR.
+  RESULTS_ARTIFACT_BUCKET: z.string().trim().optional(),
+  RESULTS_ARTIFACT_BUCKET_ENDPOINT: z.string().trim().optional(),
+  RESULTS_ARTIFACT_BUCKET_REGION: z.string().trim().optional(),
+  RESULTS_ARTIFACT_BUCKET_ACCESS_KEY_ID: z.string().trim().optional(),
+  RESULTS_ARTIFACT_BUCKET_SECRET_ACCESS_KEY: z.string().trim().optional(),
   // EIA weekly gasoline and diesel prices for the Cost of living tab (PLAN.md §4.8). Free key:
   // https://www.eia.gov/opendata/register.php. Without it the fuel sync is off and the tab says so.
   EIA_API_KEY: z.string().trim().optional(),
@@ -196,6 +211,7 @@ export const env = {
   IDEOLOGY_CONGRESS: parseInt(parsed.data.IDEOLOGY_CONGRESS, 10),
   KALSHI_LIVE_ENABLED: parsed.data.KALSHI_LIVE_ENABLED === 'true',
   KALSHI_SNAPSHOTS_ENABLED: parsed.data.KALSHI_SNAPSHOTS_ENABLED === 'true',
+  KALSHI_SETTLEMENTS_ENABLED: parsed.data.KALSHI_SETTLEMENTS_ENABLED === 'true',
   MARKET_HISTORY_ENABLED: parsed.data.MARKET_HISTORY_ENABLED === 'true',
   NEWS_ENABLED: parsed.data.NEWS_ENABLED === 'true',
   APIFY_PRICE_PER_1000_USD: parseFloat(parsed.data.APIFY_PRICE_PER_1000_USD),
@@ -232,6 +248,9 @@ export const env = {
   CIVICAPI_DETAIL_REFRESH_SECONDS: parseInt(parsed.data.CIVICAPI_DETAIL_REFRESH_SECONDS, 10),
   CIVICAPI_DETAIL_RPS: parseFloat(parsed.data.CIVICAPI_DETAIL_RPS),
   CIVICAPI_MAX_RPS: parseFloat(parsed.data.CIVICAPI_MAX_RPS),
+  CIVICAPI_FINALS_MODE: parsed.data.CIVICAPI_FINALS_MODE === 'true',
+  CIVICAPI_FINALS_INTERVAL_MINUTES: parseInt(parsed.data.CIVICAPI_FINALS_INTERVAL_MINUTES, 10),
+  CIVICAPI_FINALS_UNTIL: parsed.data.CIVICAPI_FINALS_UNTIL ? new Date(parsed.data.CIVICAPI_FINALS_UNTIL) : null,
   LIVE_STREAMS_ENABLED: parsed.data.LIVE_STREAMS_ENABLED === 'true',
   COST_OF_LIVING_ENABLED: parsed.data.COST_OF_LIVING_ENABLED === 'true',
   EARLY_VOTE_ENABLED: parsed.data.EARLY_VOTE_ENABLED === 'true',

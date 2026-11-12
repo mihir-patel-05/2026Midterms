@@ -6,13 +6,15 @@
  *   node dist/workers/results-ingestor.js --once          one cycle, then exit (needs no flag)
  *   node dist/workers/results-ingestor.js --record <dir>  also saves every fetched document, one folder per cycle
  *   node dist/workers/results-ingestor.js --replay <dir>  feeds recorded folders through the real pipeline, one per cycle
+ *   node dist/workers/results-ingestor.js --finals-once [--states WV,GA]
+ *                                                         one finals pass (every race's detail, #136), then exit
  *
  * A replay needs CIVICAPI_ACCEPT_TEST_DATA=true when the recording is civicAPI test data.
  */
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 import { replayFetch } from '../features/election-results/civicapi/ingestor.js';
-import { startIngestorLoop } from '../features/election-results/civicapi/run.js';
+import { runFinalsPass, startIngestorLoop } from '../features/election-results/civicapi/run.js';
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -20,6 +22,12 @@ function argument(name: string): string | undefined {
 }
 
 async function main() {
+  if (process.argv.includes('--finals-once')) {
+    const states = argument('--states')?.split(',').map((state) => state.trim()).filter(Boolean);
+    const result = await runFinalsPass(prisma, states ? { states } : {});
+    await prisma.$disconnect();
+    process.exit(result.status === 'failed' ? 1 : 0);
+  }
   const once = process.argv.includes('--once');
   const replayDir = argument('--replay');
   const recordDir = argument('--record');

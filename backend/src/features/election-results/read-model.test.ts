@@ -68,10 +68,12 @@ function fixture(): ContestRecord {
     },
     candidacies: [candidacy('a', 1), candidacy('b', 2)],
     raceCalls: [],
+    certificationEvents: [],
+    rankedChoiceRounds: [],
     currentSnapshot: {
       id: 'snapshot', contestId: 'contest', sourceId: 'source', ingestionRunId: null, rawArtifactId: 'artifact',
       sourceSnapshotId: null, payloadSha256: 'f'.repeat(64), publicationStatus: 'PUBLISHED', reportingStatus: 'PARTIAL',
-      certification: 'UNOFFICIAL', sourceUpdatedAt: at, receivedAt: at, publishedAt: at, isPartial: true, isMock: true,
+      certification: 'UNOFFICIAL', sourceUpdatedAt: at, receivedAt: at, publishedAt: at, countChangedAt: at, isPartial: true, isMock: true,
       isTestData: false, notes: null, ...stamps,
       rawArtifact: { sourceUrl: 'https://example.invalid/results' },
       candidateVotes: [

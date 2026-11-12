@@ -3,7 +3,7 @@ import { liveResultsEnabled } from "@/lib/featureFlags";
 import { Badge, Panel, StatusLine } from "../panels/Panel";
 import { partyColor, partyLetter } from "../party";
 import { raceState } from "../raceCodes";
-import { leaderOf, progressLabel, type LiveRace } from "./liveResults";
+import { FINAL_STATUS_SHORT, isUncountedUnopposed, leaderOf, progressLabel, type LiveRace } from "./liveResults";
 import { useOfficialLinks } from "./officialLinks";
 import { useContestDetail, useLiveResults } from "./useLiveResults";
 import { useWarRoomFlags } from "../flags";
@@ -41,6 +41,50 @@ function CallLine({ race }: { race: LiveRace }) {
     );
   }
   return <p className="wr-results-call">{retracted && <><Badge tone="accent">Call retracted</Badge> {retracted.calledBy} withdrew its call for {retracted.name} ({formatEtTime(new Date(retracted.noticedAt).toISOString())} ET, first seen). </>}{leader ? <><Badge>Not called</Badge> {leader.name} leads in the count so far</> : <><Badge tone="off">No votes yet</Badge> No votes counted</>}</p>;
+}
+
+const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+/**
+ * Where the race stands after election night (#136): certification, recount or contest with the state's source,
+ * the state's certification deadline, and Alaska's or Maine's ranked-choice final round beside first choices.
+ */
+function FinalStatusLine({ race }: { race: LiveRace }) {
+  const status = race.finalStatus;
+  if (!status) return null;
+  const names = new Map(race.candidates.map((candidate) => [candidate.id, candidate]));
+  const round = status.rankedChoiceFinalRound;
+  return (
+    <div className="wr-results-final">
+      <p>
+        <strong>{status.label}</strong>
+        {status.sourceUrl && <> · <a href={status.sourceUrl} target="_blank" rel="noreferrer">State source ↗</a></>}
+        {status.notes && <> · {status.notes}</>}
+      </p>
+      {status.status !== "CERTIFIED" && status.certificationDeadline && (
+        <p className="wr-dim">
+          The state must certify by {dateFormat.format(new Date(`${status.certificationDeadline}T00:00:00Z`))}
+          {status.certificationDeadlineSourceUrl && <> (<a href={status.certificationDeadlineSourceUrl} target="_blank" rel="noreferrer">source ↗</a>)</>}
+        </p>
+      )}
+      {round && (
+        <div>
+          <p className="wr-dim">Ranked-choice round {round.round}, from the state (<a href={round.sourceUrl} target="_blank" rel="noreferrer">source ↗</a>); the votes above are first choices.</p>
+          <ul className="wr-results-cands">
+            {round.results.map((result) => {
+              const candidate = names.get(result.candidateId);
+              return (
+                <li key={result.candidacyId}>
+                  <span><strong style={{ color: partyColor(candidate?.party ?? null) }}>{candidate?.name ?? "Candidate"}</strong>{result.isWinner ? <> <Badge tone="live">Winner</Badge></> : null}</span>
+                  <span className="wr-num">{numberFormat.format(result.votes)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Standing notes for a race: its majority rule, and an independent's caucus plans. */
@@ -92,23 +136,27 @@ export function RaceResultsPanel({ code, id }: { code: string; id?: string }) {
   const counties = detail.data?.counties ?? [];
   const names = new Map(race.candidates.map((candidate) => [candidate.id, candidate]));
   return (
-    <Panel id={id} title={`Results · ${board.source.name}`} meta={race.isTestData ? <Badge tone="mock">Test data · not results</Badge> : <Badge tone="live">Unofficial count</Badge>}
+    <Panel id={id} title={`Results · ${board.source.name}`}
+      meta={race.isTestData ? <Badge tone="mock">Test data · not results</Badge>
+        : race.finalStatus ? <Badge tone={race.finalStatus.status === "CERTIFIED" ? "live" : undefined}>{FINAL_STATUS_SHORT[race.finalStatus.status]}</Badge>
+          : <Badge tone="live">Unofficial count</Badge>}
       footnote={`${board.attribution} · Calls are decision desk projections, not certified results`}>
       {race.isTestData && <p className="wr-results-test"><strong>Test data</strong> Rehearsal numbers, not election results.</p>}
       <CallLine race={race} />
+      <FinalStatusLine race={race} />
       <RaceNotes code={code} />
       <ul className="wr-results-cands">
         {race.candidates.map((candidate) => (
           <li key={candidate.id}>
             <span><strong style={{ color: partyColor(candidate.party) }}>{candidate.name}</strong> <span className="wr-dim">{candidate.partyName ?? "No party"}{candidate.isIncumbent ? " · incumbent" : ""}</span></span>
-            <span className="wr-num">{numberFormat.format(candidate.votes)} · {pct.format(candidate.pct)}%</span>
+            <span className="wr-num">{isUncountedUnopposed(race) ? "Unopposed · no votes printed" : `${numberFormat.format(candidate.votes)} · ${pct.format(candidate.pct)}%`}</span>
             <span className="wr-votebar" aria-hidden="true"><span style={{ width: `${(candidate.pct / max) * 100}%`, background: partyColor(candidate.party) }} /></span>
           </li>
         ))}
       </ul>
       <p className="wr-results-meta">
-        <span>{progressLabel(race)}</span>
-        <span>{numberFormat.format(race.totalVotes)} votes</span>
+        {!race.finalStatus && <span>{progressLabel(race)}</span>}
+        {!isUncountedUnopposed(race) && <span>{numberFormat.format(race.totalVotes)} votes</span>}
         {race.marginPts !== null && <span>Margin {pct.format(race.marginPts)} pts</span>}
         <span>As of {formatEtTime(race.updatedAt)} ET</span>
       </p>
@@ -136,7 +184,7 @@ export function RaceResultsPanel({ code, id }: { code: string; id?: string }) {
           </div>
         </details>
       )}
-      {detail.data && counties.length === 0 && <p className="wr-dim">County detail is kept for the closest races only; this race shows {board.source.name}'s race totals.</p>}
+      {detail.data && counties.length === 0 && !isUncountedUnopposed(race) && <p className="wr-dim">{race.finalStatus ? `${board.source.name} has no county detail for this race yet; it shows the race totals.` : `County detail is kept for the closest races only; this race shows ${board.source.name}'s race totals.`}</p>}
       {officialLink}
     </Panel>
   );

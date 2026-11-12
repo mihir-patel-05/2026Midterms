@@ -7,7 +7,7 @@ import { NotConnectedPanel } from "../panels/NotConnectedPanel";
 import { partyColor, partyLetter } from "../party";
 import { raceLabel } from "../raceCodes";
 import { etHourMinute } from "../countdown";
-import { callFeed, chamberCount, HOUSE_CODES, leaderOf, progressLabel, SENATE_CODES, type ChamberCount, type LiveBoard, type LiveRace } from "./liveResults";
+import { callFeed, chamberCount, HOUSE_CODES, isUncountedUnopposed, leaderOf, progressLabel, SENATE_CODES, type ChamberCount, type LiveBoard, type LiveRace } from "./liveResults";
 import { useOfficialLinks } from "./officialLinks";
 import type { LiveResultsState } from "./useLiveResults";
 import { useWarRoomFlags } from "../flags";
@@ -161,6 +161,7 @@ export function LeaderCell({ race }: { race: LiveRace | undefined }) {
   if (!race) return <span className="wr-dim">No result yet</span>;
   if (!leader) return <span className="wr-dim">No votes counted</span>;
   const surname = leader.name.trim().split(/\s+/).pop();
+  if (isUncountedUnopposed(race)) return <span className="wr-leader" style={{ color: partyColor(leader.party) }}>{partyLetter(leader.party)} {surname} <Badge>Unopposed</Badge></span>;
   return (
     <span className="wr-leader" style={{ color: partyColor(leader.party) }}>
       {race.winner ? <Badge tone="live">Called</Badge> : null} {partyLetter(leader.party)} {surname} {pctFormat.format(leader.pct)}%

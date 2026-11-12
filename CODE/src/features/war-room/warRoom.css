@@ -664,6 +664,9 @@
 .wr-results-cands .wr-num { font-family: var(--wr-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 .wr-results-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 0; font-family: var(--wr-mono); font-size: 11px; color: var(--wr-text-3); }
 .wr-results-call { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; }
+.wr-results-final { margin: 0 0 12px; font-size: 13px; }
+.wr-results-final p { margin: 0 0 4px; }
+.wr-results-final a { color: inherit; }
 .wr-results-counties-wrap { margin-top: 12px; }
 .wr-results-counties-wrap > .wr-table-wrap { margin-top: 8px; }
 .wr-panel > .wr-btn { margin-top: 12px; }
