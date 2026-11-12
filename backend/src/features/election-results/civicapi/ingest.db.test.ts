@@ -127,7 +127,8 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     // The read model hides test data unless told to show it.
     const contestId = (await db.contest.findFirstOrThrow({ where: { sourceContestId: '87087' } })).id;
     assert.equal((await dbCurrentResult(db, readConfig(false), contestId))?.data, null);
-    const shown = await dbCurrentResult(db, readConfig(true), contestId);
+    // Read on election night: the share-counted estimate is served for two days after election day.
+    const shown = await dbCurrentResult(db, readConfig(true), contestId, new Date('2026-11-04T01:00:00Z'));
     assert(shown?.data);
     ElectionResultsResponseSchema.parse(shown);
     assert.equal(shown.data.isTestData, true);
@@ -140,6 +141,10 @@ test('civicAPI ingestion: test data is held, rehearsals publish, live numbers re
     const leanGa = lean?.data.results.find((item) => item.data?.contest.id === contestId);
     assert.equal(leanGa?.data?.reportingUnitResults.length, 0);
     assert.equal(leanGa?.data?.totalVotes, shown.data.totalVotes);
+    // Read after election night, the estimate is dropped and finalStatus says where the race stands.
+    const later = await dbCurrentResult(db, readConfig(true), contestId, new Date('2026-11-12T20:00:00Z'));
+    assert.equal(later?.data?.reportingProgress.estimatedPercentage, null);
+    assert(later?.meta.limitations.some((line) => line.includes('not shown after election night')));
 
     // 3. The same numbers again write nothing.
     const again = await rehearsal.cycle(new Date('2026-11-04T01:00:30Z'));
@@ -419,6 +424,12 @@ test('finals pass: every race from detail with counties, after night aggregates 
     assert(gaContest.currentSnapshot.sourceUpdatedAt! > new Date('2026-11-04T02:00:00Z'));
     // The race-level row plus its 6 counties.
     assert.equal(await db.contestMetric.count({ where: { snapshotId: gaContest.currentSnapshot.id } }), 7);
+    // A race whose finals document only adds counties (same totals) keeps the time its count last changed.
+    const me = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'FL', office: 'US_SENATE' }, include: { currentSnapshot: true } });
+    assert.equal(me.currentSnapshot?.countChangedAt?.toISOString(), '2026-11-04T02:00:00.000Z');
+    const meResult = await dbCurrentResult(db, readConfig(false), me.id, new Date('2026-11-12T20:00:00Z'));
+    assert.equal(meResult?.data?.finalStatus?.status, 'STABLE');
+    assert.equal(meResult?.data?.finalStatus?.label, 'Unofficial · no change since Nov 3');
     // Source documents went to the store, not the disk.
     assert(stored.length >= races && stored.every((name) => name.startsWith('sha256/')));
     assert.match(gaContest.currentSnapshot.rawArtifact!.storageKey, /^bucket:raw\/civicapi\/sha256\//);

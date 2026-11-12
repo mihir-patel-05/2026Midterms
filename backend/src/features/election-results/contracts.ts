@@ -5,7 +5,12 @@ import { z } from 'zod';
  * incumbency on candidates, race calls, and a test-data flag. Every new field is optional, so 1.0
  * payloads still validate; clients accept any 1.x.
  */
-export const RESULT_CONTRACT_VERSION = '1.1.0' as const;
+/**
+ * 1.2.0 (additive, #136): `finalStatus` on each contest result, saying where a race stands after election night
+ * (still counting, unchanged since a date, recount, certified, unopposed, runoff, or ranked choice) with the
+ * source of any certification, and the state's ranked-choice final round when one is recorded.
+ */
+export const RESULT_CONTRACT_VERSION = '1.2.0' as const;
 
 export const DataModeSchema = z.enum(['MOCK', 'LIVE']);
 export const ElectionTypeSchema = z.enum(['PRIMARY', 'GENERAL', 'RUNOFF', 'SPECIAL']);
@@ -229,6 +234,54 @@ export const ReportingUnitResultSchema = z
   })
   .strict();
 
+/** 1.2.0: where a race stands after election night (#136, docs/plans/lock-2026-record.md). */
+export const FinalStatusKindSchema = z.enum([
+  'COUNTING',
+  'STABLE',
+  'RECOUNT',
+  'CONTESTED',
+  'CERTIFIED',
+  'UNOPPOSED',
+  'RUNOFF',
+  'RANKED_CHOICE',
+]);
+
+export const RankedChoiceFinalRoundSchema = z
+  .object({
+    round: z.number().int().positive(),
+    sourceUrl: z.string().url(),
+    results: z.array(
+      z
+        .object({
+          candidateId: IdentifierSchema,
+          candidacyId: IdentifierSchema,
+          votes: z.number().int().nonnegative(),
+          isWinner: z.boolean(),
+        })
+        .strict()
+    ),
+  })
+  .strict();
+
+export const FinalStatusSchema = z
+  .object({
+    status: FinalStatusKindSchema,
+    /** Ready to show: "Unofficial · no change since Nov 9", "Certified Dec 4". */
+    label: z.string().trim().min(1).max(240),
+    /** When the race-level totals last changed (not when county detail was added). */
+    lastChangedAt: IsoDateTimeSchema,
+    /** The state's certification, recount or contest, as recorded with its source. */
+    effectiveAt: IsoDateTimeSchema.optional(),
+    sourceUrl: z.string().url().optional(),
+    notes: z.string().trim().min(1).max(1000).optional(),
+    /** The state's legal deadline to certify, YYYY-MM-DD, with where it comes from. */
+    certificationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    certificationDeadlineSourceUrl: z.string().url().optional(),
+    /** Alaska and Maine: the state's ranked-choice final round, beside first-choice votes. */
+    rankedChoiceFinalRound: RankedChoiceFinalRoundSchema.optional(),
+  })
+  .strict();
+
 export const ContestResultSchema = z
   .object({
     snapshotId: IdentifierSchema,
@@ -247,6 +300,8 @@ export const ContestResultSchema = z
     calls: z.array(RaceCallSchema).optional(),
     /** 1.1.0: the source marked these numbers as rehearsal data, not election results. */
     isTestData: z.boolean().optional(),
+    /** 1.2.0 */
+    finalStatus: FinalStatusSchema.optional(),
   })
   .strict()
   .superRefine((result, context) => {
@@ -496,6 +551,8 @@ export type ReportingProgress = z.infer<typeof ReportingProgressSchema>;
 export type ReportingUnitResult = z.infer<typeof ReportingUnitResultSchema>;
 export type ContestResult = z.infer<typeof ContestResultSchema>;
 export type RaceCall = z.infer<typeof RaceCallSchema>;
+export type FinalStatus = z.infer<typeof FinalStatusSchema>;
+export type FinalStatusKind = z.infer<typeof FinalStatusKindSchema>;
 export type SourceStatus = z.infer<typeof SourceStatusSchema>;
 export type ResponseMetadata = z.infer<typeof ResponseMetadataSchema>;
 export type ElectionResultsResponse = z.infer<typeof ElectionResultsResponseSchema>;

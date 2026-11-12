@@ -58,6 +58,9 @@ interface ContestState {
   /** The document kind the current snapshot came from (each race takes snapshots from one kind; see the tiers). */
   currentKind: ParsedDocument['kind'] | null;
   activeCalls: Array<{ id: string; candidacyId: string; kind: 'WINNER' | 'ADVANCED'; calledAtSource: boolean; isTestData: boolean }>;
+  /** The race-level totals behind the current snapshot (`totalsSignature`), and when they last changed (#136). */
+  currentTotals: string | null;
+  currentCountChangedAt: Date | null;
 }
 
 export interface CycleContext {
@@ -104,7 +107,14 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
     select: {
       id: true, sourceContestId: true, office: true, stateCode: true, districtCode: true,
       candidacies: { where: { sourceId }, select: { id: true, sourceCandidateId: true } },
-      currentSnapshot: { select: { sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, rawArtifact: { select: { metadata: true, sourceUpdatedAt: true } } } },
+      currentSnapshot: {
+        select: {
+          sourceSnapshotId: true, sourceUpdatedAt: true, isTestData: true, countChangedAt: true, publishedAt: true,
+          rawArtifact: { select: { metadata: true, sourceUpdatedAt: true } },
+          candidateVotes: { where: { voteType: 'TOTAL', reportingUnit: { parentId: null } }, select: { candidacyId: true, votes: true } },
+          contestMetrics: { where: { reportingUnit: { parentId: null } }, select: { votesCounted: true } },
+        },
+      },
       raceCalls: { where: { retractedAt: null }, select: { id: true, candidacyId: true, kind: true, calledAtSource: true, isTestData: true } },
     },
   });
@@ -123,9 +133,18 @@ export async function loadCycleContext(db: PrismaClient, sourceId: string): Prom
       currentDocumentTime: row.currentSnapshot?.rawArtifact?.sourceUpdatedAt ?? row.currentSnapshot?.sourceUpdatedAt ?? null,
       currentKind: documentKind(row.currentSnapshot?.rawArtifact?.metadata),
       activeCalls: row.raceCalls,
+      currentTotals: row.currentSnapshot
+        ? totalsSignature(row.currentSnapshot.candidateVotes.map((vote) => [vote.candidacyId, vote.votes]), row.currentSnapshot.contestMetrics[0]?.votesCounted ?? null)
+        : null,
+      currentCountChangedAt: row.currentSnapshot?.countChangedAt ?? row.currentSnapshot?.publishedAt ?? null,
     });
   }
   return { sourceId, contests };
+}
+
+/** The race-level totals only (each candidacy's votes and the total), so county detail alone is not a change in the count. */
+export function totalsSignature(votes: Array<[string, bigint | number]>, total: bigint | number | null): string {
+  return [...votes.map(([candidacyId, count]) => `${candidacyId}=${count}`).sort(), `total=${total ?? ''}`].join(',');
 }
 
 /** `aggregate` or `detail`, from the metadata `recordArtifact` writes. */
@@ -252,7 +271,7 @@ async function publishRace(
   ctx: CycleContext,
   contest: ContestState,
   update: RaceUpdate,
-  meta: { runId: string; artifactId: string; payloadSha256: string; sourceUpdatedAt: Date; testData: boolean },
+  meta: { runId: string; artifactId: string; payloadSha256: string; sourceUpdatedAt: Date; testData: boolean; totals?: string; countChangedAt?: Date },
   warnings: string[],
 ): Promise<void> {
   const votes = totalVotes(update);
@@ -280,8 +299,14 @@ async function publishRace(
       candidacyIds.set(candidate.sourceCandidateId, await candidacyFor(tx, ctx.sourceId, contest, candidate, warnings));
     }
 
+    // The count changed when the race-level totals differ; a snapshot that only adds counties keeps the old time.
+    const totals = totalsSignature(update.candidates.map((candidate) => [candidacyIds.get(candidate.sourceCandidateId)!, candidate.votes]), votes);
+    const countChangedAt = totals === contest.currentTotals && contest.currentCountChangedAt ? contest.currentCountChangedAt : meta.sourceUpdatedAt;
+    meta.totals = totals;
+    meta.countChangedAt = countChangedAt;
     const snapshot = await tx.resultSnapshot.create({
       data: {
+        countChangedAt,
         contestId: contest.id, sourceId: ctx.sourceId, ingestionRunId: meta.runId, rawArtifactId: meta.artifactId,
         sourceSnapshotId: signatureId(update), payloadSha256: meta.payloadSha256, publicationStatus: 'STAGED',
         reportingStatus: status, certification: 'UNOFFICIAL', sourceUpdatedAt: meta.sourceUpdatedAt,
@@ -430,7 +455,10 @@ export async function ingestDocument(
       continue;
     }
     try {
-      await publishRace(db, memory, ctx, contest, update, { runId: options.runId, artifactId: artifactId!, payloadSha256: doc.sha256!, sourceUpdatedAt, testData: parsed.testData }, outcome.warnings);
+      const meta: Parameters<typeof publishRace>[5] = { runId: options.runId, artifactId: artifactId!, payloadSha256: doc.sha256!, sourceUpdatedAt, testData: parsed.testData };
+      await publishRace(db, memory, ctx, contest, update, meta, outcome.warnings);
+      contest.currentTotals = meta.totals ?? null;
+      contest.currentCountChangedAt = meta.countChangedAt ?? sourceUpdatedAt;
       contest.currentSignature = signatureId(update);
       contest.currentSnapshotIsTest = parsed.testData;
       contest.currentSourceUpdatedAt = sourceUpdatedAt;
