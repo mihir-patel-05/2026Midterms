@@ -155,7 +155,7 @@ export function RaceResultsPanel({ code, id }: { code: string; id?: string }) {
         ))}
       </ul>
       <p className="wr-results-meta">
-        <span>{progressLabel(race)}</span>
+        {!race.finalStatus && <span>{progressLabel(race)}</span>}
         {!isUncountedUnopposed(race) && <span>{numberFormat.format(race.totalVotes)} votes</span>}
         {race.marginPts !== null && <span>Margin {pct.format(race.marginPts)} pts</span>}
         <span>As of {formatEtTime(race.updatedAt)} ET</span>
