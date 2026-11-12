@@ -12,6 +12,7 @@ import { dbBootstrapPayload, dbCurrentResult, type ReadModelConfig } from '../re
 import { CivicApiClient } from './client.js';
 import { CivicApiIngestor, type IngestorOptions } from './ingestor.js';
 import { chooseTierA } from './tiers.js';
+import { CertificationInputError, certificationOverview, recordEvent, removeLatestEvent, setDeadline, setRankedChoiceRound, stateTotals } from '../certification.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -464,6 +465,75 @@ test('finals pass: every race from detail with counties, after night aggregates 
     assert.equal(named.races, 2);
     assert.equal(named.certifiedSkipped, 0);
   } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
+
+test('certification: a state-wide entry reaches every race, shows as certified with its source; recounts, deadlines, ranked choice and bad input', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  const read = (id: string) => dbCurrentResult(db, readConfig(false), id, new Date('2026-12-10T20:00:00Z'));
+  try {
+    await reset(db);
+    await db.certificationDeadline.deleteMany({});
+    const source = await seedCatalog(db);
+    const feed = server({ 87528: live(fixture('senate-aggregate.json')), 87524: live(fixture('house-aggregate.trimmed.json')) });
+    const night = await ingestor(db, feed.fetchImpl, { tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    assert.equal((await night.cycle(new Date('2026-11-04T02:00:00Z'))).status, 'ok');
+
+    // Georgia: the Senate race and GA-13 are both certified by one entry.
+    const recorded = await recordEvent(db, { state: 'ga', type: 'CERTIFIED', effectiveAt: '2026-11-10T17:00:00Z', sourceUrl: 'https://sos.ga.gov/election-results' });
+    assert.deepEqual(recorded.races.sort(), ['GA-13', 'GA-SEN']);
+    const ga = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'GA', office: 'US_SENATE' } });
+    const certified = await read(ga.id);
+    ElectionResultsResponseSchema.parse(certified);
+    assert.equal(certified?.data?.certificationState, 'CERTIFIED');
+    assert.equal(certified?.data?.status, 'COMPLETE');
+    assert.equal(certified?.data?.finalStatus?.label, 'Certified Nov 10');
+    assert.equal(certified?.data?.finalStatus?.sourceUrl, 'https://sos.ga.gov/election-results');
+
+    // One race's recount, then a deadline for its state.
+    const fl = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'FL', office: 'US_SENATE' } });
+    await recordEvent(db, { state: 'FL', race: 'FL-SEN', type: 'RECOUNT_STARTED', effectiveAt: '2026-11-09T15:00:00Z', sourceUrl: 'https://dos.fl.gov/elections/', notes: 'Machine recount: margin under 0.5%' });
+    await setDeadline(db, { state: 'FL', deadline: '2026-11-17', sourceUrl: 'https://dos.fl.gov/elections/' });
+    const recount = await read(fl.id);
+    assert.equal(recount?.data?.finalStatus?.status, 'RECOUNT');
+    assert.equal(recount?.data?.finalStatus?.notes, 'Machine recount: margin under 0.5%');
+    assert.equal(recount?.data?.finalStatus?.certificationDeadline, '2026-11-17');
+    assert.equal(recount?.data?.certificationState, 'UNOFFICIAL');
+    // Removed as a mistake, the race goes back to its count-based status.
+    assert.equal((await removeLatestEvent(db, { state: 'FL', race: 'FL-SEN' })).removed, 1);
+    assert.equal((await read(fl.id))?.data?.finalStatus?.status, 'STABLE');
+
+    // Alaska's ranked-choice final round, from the state, beside first choices.
+    const ak = await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'AK', office: 'US_SENATE' }, include: { candidacies: true } });
+    const [first, second] = ak.candidacies;
+    await setRankedChoiceRound(db, { contestId: ak.id, round: 3, sourceUrl: 'https://www.elections.alaska.gov/', results: [
+      { candidacyId: first.id, votes: 160_000, isWinner: true }, { candidacyId: second.id, votes: 150_000, isWinner: false },
+    ] });
+    const rcv = await read(ak.id);
+    assert.equal(rcv?.data?.finalStatus?.rankedChoiceFinalRound?.round, 3);
+    assert.equal(rcv?.data?.finalStatus?.rankedChoiceFinalRound?.results[0].votes, 160_000);
+
+    // The overview and the totals for comparing with the state.
+    const overview = await certificationOverview(db);
+    const gaRow = overview.find((row) => row.state === 'GA');
+    assert.equal(gaRow?.certified, 2);
+    assert.equal(overview.find((row) => row.state === 'FL')?.deadline?.deadline, '2026-11-17');
+    const totals = await stateTotals(db, 'GA');
+    assert(totals.find((race) => race.race === 'GA-SEN')!.candidates.length >= 2);
+    assert(totals.every((race) => race.totalVotes !== null));
+
+    // Bad input is refused, and nothing is written.
+    await assert.rejects(recordEvent(db, { state: 'GA', type: 'CERTIFIED', effectiveAt: '2026-11-10', sourceUrl: 'sos.ga.gov' }), CertificationInputError);
+    await assert.rejects(recordEvent(db, { state: 'GA', type: 'CORRECTED', effectiveAt: '2026-11-10', sourceUrl: 'https://sos.ga.gov/' }), /numbers in the notes/);
+    await assert.rejects(recordEvent(db, { state: 'ZZ', type: 'CERTIFIED', effectiveAt: '2026-11-10', sourceUrl: 'https://example.gov/' }), /No 2026 federal races/);
+    await assert.rejects(setRankedChoiceRound(db, { contestId: ak.id, round: 3, sourceUrl: 'https://www.elections.alaska.gov/', results: [
+      { candidacyId: first.id, votes: 1, isWinner: true }, { candidacyId: second.id, votes: 1, isWinner: true },
+    ] }), /exactly one winner/);
+    assert.equal(await db.certificationEvent.count({ where: { contest: { stateCode: 'GA' } } }), 2);
+  } finally {
+    await db.certificationDeadline.deleteMany({}).catch(() => {});
     if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
     await db.$disconnect();
   }

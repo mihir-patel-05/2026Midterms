@@ -244,3 +244,37 @@ export const warRoomFlagsAPI = {
   set: (name: string, enabled: boolean) =>
     adminAPI.request<{ name: string; enabled: boolean }>(`/war-room/flags/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
 };
+
+
+/** Certification, recounts, deadlines and ranked-choice rounds (#136): /api/admin/certification. */
+export type CertificationEventType = 'CERTIFIED' | 'RECOUNT_STARTED' | 'RECOUNT_COMPLETED' | 'CONTESTED' | 'CORRECTED';
+export interface CertificationStateRow {
+  state: string;
+  races: number;
+  certified: number;
+  recount: number;
+  deadline: { deadline: string; sourceUrl: string; notes: string | null } | null;
+  latest: { type: string; effectiveAt: string; sourceUrl: string; race: string } | null;
+}
+export interface CertificationRaceTotals {
+  race: string;
+  contestId: string;
+  lastChangedAt: string | null;
+  totalVotes: number | null;
+  counties: number;
+  candidates: Array<{ candidacyId: string; name: string; party: string | null; votes: number }>;
+  rankedChoice: Array<{ candidacyId: string; round: number; votes: number; isWinner: boolean }>;
+}
+const stateUrl = (state: string) => `/certification/${encodeURIComponent(state)}`;
+export const certificationAPI = {
+  list: () => adminAPI.request<{ states: CertificationStateRow[] }>('/certification'),
+  totals: (state: string) => adminAPI.request<{ races: CertificationRaceTotals[] }>(`${stateUrl(state)}/totals`),
+  setDeadline: (state: string, body: { deadline: string; sourceUrl: string; notes?: string | null }) =>
+    adminAPI.request<{ state: string; deadline: string }>(`${stateUrl(state)}/deadline`, { method: 'PUT', body: JSON.stringify(body) }),
+  record: (state: string, body: { type: CertificationEventType; effectiveAt: string; sourceUrl: string; notes?: string | null; race?: string | null }) =>
+    adminAPI.request<{ races: string[]; finalsPass: string | null }>(`${stateUrl(state)}/events`, { method: 'POST', body: JSON.stringify(body) }),
+  removeLatest: (state: string, race: string | null) =>
+    adminAPI.request<{ removed: number }>(`${stateUrl(state)}/events/remove-latest`, { method: 'POST', body: JSON.stringify({ race }) }),
+  setRankedChoice: (contestId: string, body: { round: number; sourceUrl: string; results: Array<{ candidacyId: string; votes: number; isWinner: boolean }> }) =>
+    adminAPI.request<{ saved: number }>(`/certification/races/${encodeURIComponent(contestId)}/ranked-choice`, { method: 'PUT', body: JSON.stringify(body) }),
+};
