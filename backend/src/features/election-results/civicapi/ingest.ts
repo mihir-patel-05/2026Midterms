@@ -12,8 +12,6 @@
  * Contests and candidacies come from the ballot sync (services/ballot), which uses the same
  * civicAPI ids. A candidate who first appears mid-count gets an UNCONFIRMED candidacy.
  */
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { STATE_FIPS_TO_POSTAL } from '../../../services/census/census-client.js';
@@ -21,6 +19,7 @@ import { CIVICAPI_SOURCE_KEY } from '../../../services/ballot/ballot-sync.js';
 import { nameParts } from '../../../utils/person-name.js';
 import { publishSnapshot } from '../publication.js';
 import type { ResultsParseIssue } from '../parser.js';
+import { diskArtifactStore, type ArtifactStore } from '../artifact-store.js';
 import { sha256, type FetchedDocument } from './client.js';
 import { calledCandidates, raceSignature, totalVotes, type CandidateTally, type ParsedDocument, type RaceUpdate } from './parser.js';
 
@@ -32,9 +31,16 @@ const RETRACT_AFTER_MISSES = 2;
 export interface IngestOptions {
   /** Keep civicAPI's rehearsal numbers (`test_data: true`). Testing only; never in production. */
   acceptTestData: boolean;
-  /** Where gzipped payloads go (a Railway Volume in production). */
+  /** Where gzipped payloads go on disk, when no `artifactStore` is given. */
   artifactDir: string;
+  /** Where gzipped payloads go (the bucket, when configured); `artifactDir` on disk otherwise. */
+  artifactStore?: ArtifactStore;
   parserVersion: string;
+  /**
+   * Stamp every snapshot with the time its document was fetched, as aggregates already are. Finals passes set it:
+   * after election night civicAPI's `last_updated` changes on every request, so it says nothing about the count.
+   */
+  stampWithFetchTime?: boolean;
 }
 
 interface ContestState {
@@ -133,26 +139,23 @@ export function hasChanged(update: RaceUpdate, contest: ContestState, testData: 
   return contest.currentSignature !== signatureId(update) || contest.currentSnapshotIsTest !== testData;
 }
 
-/** The gzipped payload on disk. A failed write is logged; the database rows still record its hash. */
-async function storePayload(dir: string, doc: FetchedDocument): Promise<{ storageKey: string; stored: boolean }> {
+/** The gzipped payload, in the bucket or on disk. A failed write is logged; the database rows still record its hash. */
+async function storePayload(options: IngestOptions, doc: FetchedDocument): Promise<{ storageKey: string; stored: boolean }> {
   const name = `sha256/${doc.sha256}.json.gz`;
+  const store = options.artifactStore ?? diskArtifactStore(options.artifactDir);
   try {
-    await mkdir(join(dir, 'sha256'), { recursive: true });
-    await writeFile(join(dir, name), gzipSync(doc.bytes), { flag: 'wx' });
+    return { storageKey: await store.put(name, gzipSync(doc.bytes)), stored: true };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      console.warn(`[civicapi] Could not store payload ${doc.sha256}: ${error instanceof Error ? error.message : error}`);
-      return { storageKey: `unstored:${name}`, stored: false };
-    }
+    console.warn(`[civicapi] Could not store payload ${doc.sha256} (${store.describe}): ${error instanceof Error ? error.message : error}`);
+    return { storageKey: `unstored:${name}`, stored: false };
   }
-  return { storageKey: `volume:${name}`, stored: true };
 }
 
 /** One `RawArtifact` per document that changed something, deduplicated on its hash. */
 export async function recordArtifact(db: PrismaClient, sourceId: string, runId: string, doc: FetchedDocument, parsed: ParsedDocument, options: IngestOptions) {
   const existing = await db.rawArtifact.findUnique({ where: { sourceId_contentSha256: { sourceId, contentSha256: doc.sha256! } }, select: { id: true } });
   if (existing) return existing.id;
-  const { storageKey, stored } = await storePayload(options.artifactDir, doc);
+  const { storageKey, stored } = await storePayload(options, doc);
   const artifact = await db.rawArtifact.create({
     data: {
       sourceId, ingestionRunId: runId, status: 'VALIDATED', storageKey, contentSha256: doc.sha256!,
@@ -405,7 +408,8 @@ export async function ingestDocument(
   // The snapshot's "as of" time. A detail document's last_updated is its race's own. An aggregate's is feed-wide
   // and need not follow the counts: on Nov 3 both aggregates still read Oct 23 while detail documents were current.
   // So an aggregate snapshot is stamped with the cycle that first saw its numbers, within one poll of the change.
-  const sourceUpdatedAt = parsed.kind === 'aggregate' ? now : documentTime;
+  // A finals pass stamps detail documents the same way, with the time it fetched them (`stampWithFetchTime`).
+  const sourceUpdatedAt = parsed.kind === 'aggregate' || options.stampWithFetchTime ? now : documentTime;
 
   for (const update of changed) {
     const contest = ctx.contests.get(update.sourceContestId)!;

@@ -378,3 +378,82 @@ test('one aggregate failing does not hold back the other chamber; both failing f
     await db.$disconnect();
   }
 });
+
+test('finals pass: every race from detail with counties, after night aggregates stamped later; unchanged writes nothing; failures and certified states', { skip: !testDatabaseUrl }, async () => {
+  const db = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+  try {
+    await reset(db);
+    const source = await seedCatalog(db);
+    const senate = live(fixture('senate-aggregate.json'));
+    const house = live(fixture('house-aggregate.trimmed.json'));
+    const feed = server({ 87528: senate, 87524: house });
+
+    // Election night: every race from the aggregates, stamped with the cycle (Nov 4, 02:00).
+    const night = await ingestor(db, feed.fetchImpl, { tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    const nightCycle = await night.cycle(new Date('2026-11-04T02:00:00Z'));
+    assert.equal(nightCycle.status, 'ok', nightCycle.message);
+    const races = nightCycle.published;
+    assert.equal(races, 45);
+
+    // After the election: a detail document per race, whose last_updated (Nov 4, 01:00) is older than the night's
+    // cycle stamp. GA-SEN has its real counties; the others are their aggregate rows with no counties.
+    const regions = [
+      ...Object.values(senate.region_results as Record<string, Record<string, unknown>>),
+      ...Object.values(house.region_results as Record<string, Record<string, unknown>>),
+    ];
+    for (const region of regions) {
+      feed.docs[String(region.election_id)] = { ...structuredClone(region), test_data: false, last_updated: '2026-11-04T01:00:00.000Z', called_at: null, region_results: {} };
+    }
+    feed.docs[87087] = { ...live(fixture('race-ga-sen.trimmed.json')), last_updated: '2026-11-04T01:00:00.000Z' };
+    const stored: string[] = [];
+    const artifactStore = { describe: 'memory', async put(name: string) { stored.push(name); return `bucket:raw/civicapi/${name}`; } };
+    const finals = await ingestor(db, feed.fetchImpl, { artifactStore, tierA: { enabled: false, max: 0, override: [], detailMinIntervalSeconds: 0, detailRefreshSeconds: 600, detailRps: 10_000 } });
+    const first = await finals.finalsPass();
+    assert.equal(first.status, 'ok', first.message);
+    assert.equal(first.races, races);
+    assert.equal(first.published, races, first.message);
+    assert.equal(first.failures.length, 0, first.message);
+    const gaContest = await db.contest.findFirstOrThrow({ where: { sourceContestId: '87087' }, include: { currentSnapshot: { include: { rawArtifact: true } } } });
+    assert(gaContest.currentSnapshot);
+    // Stamped with the pass, not the document's last_updated, so it replaces the night's snapshot.
+    assert(gaContest.currentSnapshot.sourceUpdatedAt! > new Date('2026-11-04T02:00:00Z'));
+    // The race-level row plus its 6 counties.
+    assert.equal(await db.contestMetric.count({ where: { snapshotId: gaContest.currentSnapshot.id } }), 7);
+    // Source documents went to the store, not the disk.
+    assert(stored.length >= races && stored.every((name) => name.startsWith('sha256/')));
+    assert.match(gaContest.currentSnapshot.rawArtifact!.storageKey, /^bucket:raw\/civicapi\/sha256\//);
+
+    // The same numbers again write nothing, though last_updated moves on every request.
+    for (const doc of Object.values(feed.docs) as Array<Record<string, unknown>>) doc.last_updated = '2026-11-12T18:00:00.000Z';
+    const snapshots = await db.resultSnapshot.count({ where: { sourceId: source.id } });
+    const second = await finals.finalsPass();
+    assert.equal(second.published, 0, second.message);
+    assert.equal(second.unchanged, races);
+    assert.equal(await db.resultSnapshot.count({ where: { sourceId: source.id } }), snapshots);
+
+    // A race civicAPI fails keeps its numbers and is listed; the rest are read.
+    const paId = (await db.contest.findFirstOrThrow({ where: { sourceId: source.id, stateCode: 'PA', districtCode: '07' } })).sourceContestId!;
+    const paDoc = feed.docs[paId];
+    delete feed.docs[paId];
+    const failed = await finals.finalsPass();
+    assert.equal(failed.status, 'ok');
+    assert.deepEqual(failed.failures.map((failure) => failure.label), ['PA-07']);
+    assert.equal((await db.ingestionRun.findFirstOrThrow({ where: { sourceId: source.id }, orderBy: { startedAt: 'desc' } })).status, 'PARTIAL');
+    feed.docs[paId] = paDoc;
+
+    // A state whose certification is recorded is skipped, unless the pass names it.
+    await db.certificationEvent.create({
+      data: { contestId: gaContest.id, sourceId: source.id, type: 'CERTIFIED', certification: 'CERTIFIED', effectiveAt: new Date('2026-11-20T00:00:00Z'), sourceUrl: 'https://sos.ga.gov/' },
+    });
+    const skipping = await finals.finalsPass();
+    assert.equal(skipping.certifiedSkipped, 1);
+    assert.equal(skipping.races, races - 1);
+    const named = await finals.finalsPass({ states: ['ga'] });
+    // GA-SEN and GA-13.
+    assert.equal(named.races, 2);
+    assert.equal(named.certifiedSkipped, 0);
+  } finally {
+    if (!process.env.KEEP_CIVICAPI_TEST_ROWS) await reset(db).catch(() => {});
+    await db.$disconnect();
+  }
+});
