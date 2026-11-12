@@ -978,8 +978,8 @@ Every open `war-room-2.0` issue, in the order to work on it, plus nine tasks the
 
 | Rank | Issue | Task | When | Note |
 |---|---|---|---|---|
-| 1 | #190 | Back up the election-night record and prove a restore | Nov 10 | New. The data cannot be pulled again, and replay, the scorecard and #177 rest on it |
-| 2 | #136 | Lock the 2026 record | Nov 10 to 12 | Never cut. Everything else reads these numbers |
+| 1 | #190 | Back up the election-night record and prove a restore | Nov 10 | **Done Nov 12.** Nightly verified dumps to the `db-backups` bucket, volume backups, a copy outside Railway |
+| 2 | #136 | Lock the 2026 record | Nov 12 to 14 | Never cut. Everything else reads these numbers. Plan: `docs/plans/lock-2026-record.md` |
 | 3 | #137 | Past results into the database | Nov 11 to 12 | Independent of #136, so it runs beside it. Blocks swing |
 | 4 | #138 | Read APIs for replay, swing and scorecard | Nov 12 to 13 | Build with caching from the start (#197) |
 | 5 | #139 | Election-night replay | Nov 13 to 16 | Never cut. The headline, on data only we hold |
@@ -1119,9 +1119,9 @@ Every open `war-room-2.0` issue, in the order to work on it, plus nine tasks the
 
 Testing's main database (`Testing_database`, a 0.5 GB volume) is nearly full. From Oct 29, everything except polls goes to `Third_database` (5 GB). Polls stay in `Polling_data` (`POLLS_DATABASE_URL`).
 
-*Nov 10 (#190): Railway's Testing environment has no `Third_database` service. `Backend`'s `DATABASE_URL` points at `postgres.railway.internal`, which is the `Testing_database` service (now a 5 GB volume, about 1 GB used), so **the Nov 3 record lives in `Testing_database`**. Polls are in `Polling_data` (`pollingdata.railway.internal`). A third 5 GB volume, `postgres-volume-N4RC`, is attached to nothing; keep it until its contents are known.*
+*Nov 10 (#190): Railway's Testing environment has no `Third_database` service. `Backend`'s `DATABASE_URL` points at `postgres.railway.internal`, which is the `Testing_database` service (now a 5 GB volume, about 1 GB used), so **the Nov 3 record lives in `Testing_database`**. Polls are in `Polling_data` (`pollingdata.railway.internal`). A third 5 GB volume, `postgres-volume-N4RC`, was attached to nothing; it was checked and deleted on Nov 12.*
 
-*Backups (#190): the `db-backup` service (`ops/db-backup/`) runs `pg_dump` nightly at 08:30 UTC (3:30 AM ET in winter), restores the dump into a throwaway Postgres, checks every table's row count, and only then uploads it to the `db-backups` bucket under `db-backups/main/<UTC time>/`.*
+*Backups (#190): the `db-backup` service (`ops/db-backup/`) runs `pg_dump` nightly at 08:30 UTC (3:30 AM ET in winter), restores the dump into a throwaway Postgres, checks every table's row count, and only then uploads it to the `db-backups` bucket under `db-backups/main/<UTC time>/`. Railway volume backups are also scheduled on `Testing_database`, and a copy of a dump is kept outside Railway (Nov 12). Done: #190.*
 
 - **Same tables, new data only.** The pre-deploy step, `npm run prisma:deploy`, runs the same migrations on `Third_database`, so its schema and tables match `Testing_database`'s. Nothing is copied over: it holds only what the API pulls after the switch.
 - **One variable.** Every read and write except polls goes through one Prisma client on `DATABASE_URL` (`backend/src/config/database.ts`). On `Backend`, it is `${{Third_database.DATABASE_URL}}`.
