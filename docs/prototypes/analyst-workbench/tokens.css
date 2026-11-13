@@ -1,0 +1,128 @@
+/*
+ * Mycroft analyst workbench: design tokens (light and dark).
+ * Source of truth for the mockups in this folder. Copy into the app's global CSS when building.
+ *
+ * Dark mode: add the `dark` class (or data-theme="dark") to the root element.
+ * Party colors are for marks and numbers only, never for UI chrome.
+ * In both themes the Democratic and Republican marks differ in lightness, not only in hue.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #F4F5F7;           /* page */
+  --surface: #FFFFFF;      /* cards, panels, inputs */
+  --raised: #FAFAFB;       /* toolbars, figure headers */
+  --raised2: #F7F8FA;      /* AI summary and note blocks */
+  --track: #F1F2F5;        /* bar tracks, segmented-control background */
+
+  /* Lines */
+  --line-soft: #ECEEF1;    /* table row dividers */
+  --line: #DADDE3;         /* card borders */
+  --line-strong: #CDD1D8;  /* input and button borders */
+  --hatch: #C9CDD4;        /* hatched "not yet counted" pattern */
+  --axis: #A9AFB9;         /* chart zero lines */
+
+  /* Text */
+  --ink: #12161C;          /* headings, primary text, primary button background */
+  --ink-body: #1C2129;     /* long-form notebook text */
+  --ink-2: #2B323C;        /* body text */
+  --ink-3: #4A5260;        /* secondary text */
+  --muted: #5D6674;        /* labels, timestamps (passes 4.5:1 on --bg and --surface) */
+
+  /* Accent: selection, links, analyst actions */
+  --accent: #4338CA;
+  --accent-ink: #3730A3;
+  --accent-hover: #1E1B4B;
+  --accent-bg: #EEF0FB;
+  --accent-bg2: #F7F8FE;
+  --accent-line: #C7CCF4;
+  --accent-line2: #A5ACEB;
+
+  /* Party */
+  --dem: #1F5FBF;          /* Democratic text and marks */
+  --dem-soft: #9DB6E3;
+  --dem-bg: #E6EEFA;
+  --dem-bg-ink: #1F4E99;
+  --rep: #B23A26;          /* Republican text */
+  --rep-mark: #E0603F;     /* Republican bars and dots */
+  --rep-bg: #F6D3CB;
+  --rep-bg-ink: #7E2A1B;
+  --neutral-bg: #E3E5EA;   /* Toss-up rating */
+  --band: #E9EAF0;         /* polling error band */
+
+  /* Status */
+  --warn-bg: #FFF4E0;      /* "Illustrative data", changed figures, uncertified */
+  --warn-bg2: #FFF8EC;
+  --warn-line: #F3D9A9;
+  --warn-line2: #F0C98B;
+  --warn-ink: #8A4B08;
+  --ok-bg: #E8F3EE;
+  --ok-ink: #0B5A52;
+
+  /* Signal series (scorecard) */
+  --sig-market: var(--accent);
+  --teal: #0F766E;         /* polls; "live" dot */
+  --amber: #B45309;        /* expert ratings */
+  --fund: #6B7280;         /* fundamentals */
+
+  /* Type */
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;   /* UI */
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace; /* every number: margins, prices, counts, times */
+  --font-serif: "IBM Plex Serif", Georgia, serif;        /* notebook body text only */
+}
+
+:root.dark,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0D1015;
+  --surface: #161A21;
+  --raised: #1A1F27;
+  --raised2: #1D222B;
+  --track: #232934;
+
+  --line-soft: #232934;
+  --line: #2E3541;
+  --line-strong: #3A4250;
+  --hatch: #3A4250;
+  --axis: #4B5462;
+
+  --ink: #E8EBF0;
+  --ink-body: #D9DDE4;
+  --ink-2: #C3C9D2;
+  --ink-3: #A3ABB7;
+  --muted: #8F98A6;
+
+  --accent: #7C83F2;
+  --accent-ink: #A5ADFF;
+  --accent-hover: #C9CEFF;
+  --accent-bg: #232A55;
+  --accent-bg2: #1B2040;
+  --accent-line: #3B4384;
+  --accent-line2: #4C55A8;
+
+  --dem: #7FB0FF;
+  --dem-soft: #3D5A8C;
+  --dem-bg: #1C2A44;
+  --dem-bg-ink: #A9C6F5;
+  --rep: #FF8A70;
+  --rep-mark: #D2583A;
+  --rep-bg: #4A2620;
+  --rep-bg-ink: #F4B4A4;
+  --neutral-bg: #2A303B;
+  --band: #262C37;
+
+  --warn-bg: #3A2A10;
+  --warn-bg2: #2E2210;
+  --warn-line: #5A4219;
+  --warn-line2: #6B4E1D;
+  --warn-ink: #F2B866;
+  --ok-bg: #14302A;
+  --ok-ink: #7FD6C4;
+
+  --teal: #3CC2B0;
+  --amber: #F0A040;
+  --fund: #9AA1AD;
+}

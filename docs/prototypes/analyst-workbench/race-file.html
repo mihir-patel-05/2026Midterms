@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Mycroft analyst workbench mockup (static export). All values are illustrative mock data.">
+<title>Mycroft — Race file AZ-06</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+body:has(.mf.dark){background:#0D1015}
+.mf{--bg:#F4F5F7;--surface:#FFFFFF;--raised:#FAFAFB;--raised2:#F7F8FA;--track:#F1F2F5;--line-soft:#ECEEF1;--line:#DADDE3;--line-strong:#CDD1D8;--hatch:#C9CDD4;--axis:#A9AFB9;--ink:#12161C;--ink-body:#1C2129;--ink-2:#2B323C;--ink-3:#4A5260;--muted:#5D6674;--fund:#6B7280;--accent:#4338CA;--accent-ink:#3730A3;--accent-hover:#1E1B4B;--accent-bg:#EEF0FB;--accent-bg2:#F7F8FE;--accent-line:#C7CCF4;--accent-line2:#A5ACEB;--dem:#1F5FBF;--dem-soft:#9DB6E3;--dem-bg:#E6EEFA;--dem-bg-ink:#1F4E99;--rep:#B23A26;--rep-mark:#E0603F;--rep-bg:#F6D3CB;--rep-bg-ink:#7E2A1B;--neutral-bg:#E3E5EA;--band:#E9EAF0;--warn-bg:#FFF4E0;--warn-bg2:#FFF8EC;--warn-line:#F3D9A9;--warn-line2:#F0C98B;--warn-ink:#8A4B08;--ok-bg:#E8F3EE;--ok-ink:#0B5A52;--teal:#0F766E;--amber:#B45309;--av1:#DCE3F5;--av1-ink:#1F3A7A;--av2:#E2F0EC;--av3:#F6E7D6;--av3-ink:#7A3E07;--label-bg:rgba(255,255,255,0.85);color-scheme:light}
+.mf.dark{--bg:#0D1015;--surface:#161A21;--raised:#1A1F27;--raised2:#1D222B;--track:#232934;--line-soft:#232934;--line:#2E3541;--line-strong:#3A4250;--hatch:#3A4250;--axis:#4B5462;--ink:#E8EBF0;--ink-body:#D9DDE4;--ink-2:#C3C9D2;--ink-3:#A3ABB7;--muted:#8F98A6;--fund:#9AA1AD;--accent:#7C83F2;--accent-ink:#A5ADFF;--accent-hover:#C9CEFF;--accent-bg:#232A55;--accent-bg2:#1B2040;--accent-line:#3B4384;--accent-line2:#4C55A8;--dem:#7FB0FF;--dem-soft:#3D5A8C;--dem-bg:#1C2A44;--dem-bg-ink:#A9C6F5;--rep:#FF8A70;--rep-mark:#D2583A;--rep-bg:#4A2620;--rep-bg-ink:#F4B4A4;--neutral-bg:#2A303B;--band:#262C37;--warn-bg:#3A2A10;--warn-bg2:#2E2210;--warn-line:#5A4219;--warn-line2:#6B4E1D;--warn-ink:#F2B866;--ok-bg:#14302A;--ok-ink:#7FD6C4;--teal:#3CC2B0;--amber:#F0A040;--av1:#263457;--av1-ink:#B7C8F0;--av2:#173530;--av3:#3A2A18;--av3-ink:#F0C08A;--label-bg:rgba(22,26,33,0.85);color-scheme:dark}
+.mf a{color:var(--accent-ink)}.mf a:hover{color:var(--accent-hover)}
+.mf input::placeholder,.mf textarea::placeholder{color:var(--muted)}
+.mf [fill="#0F766E"]{fill:var(--teal)}.mf [stroke="#0F766E"]{stroke:var(--teal)}
+.mf [fill="#12161C"]{fill:var(--ink)}.mf [stroke="#12161C"]{stroke:var(--ink)}
+.mf [fill="#1F5FBF"]{fill:var(--dem)}.mf [stroke="#1F5FBF"]{stroke:var(--dem)}
+.mf [fill="#2B323C"]{fill:var(--ink-2)}.mf [stroke="#2B323C"]{stroke:var(--ink-2)}
+.mf [fill="#3730A3"]{fill:var(--accent-ink)}.mf [stroke="#3730A3"]{stroke:var(--accent-ink)}
+.mf [fill="#4338CA"]{fill:var(--accent)}.mf [stroke="#4338CA"]{stroke:var(--accent)}
+.mf [fill="#4A5260"]{fill:var(--ink-3)}.mf [stroke="#4A5260"]{stroke:var(--ink-3)}
+.mf [fill="#5D6674"]{fill:var(--muted)}.mf [stroke="#5D6674"]{stroke:var(--muted)}
+.mf [fill="#7E2A1B"]{fill:var(--rep-bg-ink)}.mf [stroke="#7E2A1B"]{stroke:var(--rep-bg-ink)}
+.mf [fill="#A9AFB9"]{fill:var(--axis)}.mf [stroke="#A9AFB9"]{stroke:var(--axis)}
+.mf [fill="#B23A26"]{fill:var(--rep)}.mf [stroke="#B23A26"]{stroke:var(--rep)}
+.mf [fill="#B45309"]{fill:var(--amber)}.mf [stroke="#B45309"]{stroke:var(--amber)}
+.mf [fill="#C9CDD4"]{fill:var(--hatch)}.mf [stroke="#C9CDD4"]{stroke:var(--hatch)}
+.mf [fill="#DADDE3"]{fill:var(--line)}.mf [stroke="#DADDE3"]{stroke:var(--line)}
+.mf [fill="#E3E5EA"]{fill:var(--neutral-bg)}.mf [stroke="#E3E5EA"]{stroke:var(--neutral-bg)}
+.mf [fill="#E9EAF0"]{fill:var(--band)}.mf [stroke="#E9EAF0"]{stroke:var(--band)}
+.mf [fill="#ECEEF1"]{fill:var(--line-soft)}.mf [stroke="#ECEEF1"]{stroke:var(--line-soft)}
+.mf [fill="#F1F2F5"]{fill:var(--track)}.mf [stroke="#F1F2F5"]{stroke:var(--track)}
+.mf [fill="#F4F5F7"]{fill:var(--bg)}.mf [stroke="#F4F5F7"]{stroke:var(--bg)}
+.mf [fill="#F6D3CB"]{fill:var(--rep-bg)}.mf [stroke="#F6D3CB"]{stroke:var(--rep-bg)}
+.mf [fill="#FFFFFF"]{fill:var(--surface)}.mf [stroke="#FFFFFF"]{stroke:var(--surface)}
+.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.t td{padding:10px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
+.t tr:last-child td{border-bottom:0}
+.n{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="mf" style="min-height: 100vh; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Sans', system-ui, sans-serif; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<nav aria-label="Workspace" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 26px">
+<a href="desk.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); padding: 0 6px">
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#12161C" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M18.2 18.2 25 25"></path><path d="M8 12h8M12 8v8" stroke="#4338CA"></path></svg>
+<span style="display: flex; flex-direction: column"><span style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em">Mycroft</span><span style="font-size: 12px; color: var(--muted)">Analyst workbench</span></span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px">2026 general · post-election</span>
+<a href="desk.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Desk</a>
+<a href="race-file.html" aria-current="page" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; background: var(--accent-bg); color: var(--accent-ink); font-weight: 500; font-size: 14px; text-decoration: none">Races</a>
+<a href="swing-explorer.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Swing explorer</a>
+<a href="signal-scorecard.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Signal scorecard</a>
+<a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Money</a>
+<a href="notebook.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Notebooks</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px">On this page</span>
+<a href="#result" style="display: flex; align-items: center; min-height: 34px; padding: 0 10px; color: var(--ink-2); font-size: 13px; text-decoration: none">Count &amp; outstanding vote</a>
+<a href="#signals" style="display: flex; align-items: center; min-height: 34px; padding: 0 10px; color: var(--ink-2); font-size: 13px; text-decoration: none">Signal timeline</a>
+<a href="#counties" style="display: flex; align-items: center; min-height: 34px; padding: 0 10px; color: var(--ink-2); font-size: 13px; text-decoration: none">Counties</a>
+<a href="#money" style="display: flex; align-items: center; min-height: 34px; padding: 0 10px; color: var(--ink-2); font-size: 13px; text-decoration: none">Money</a>
+<a href="#notes" style="display: flex; align-items: center; min-height: 34px; padding: 0 10px; color: var(--ink-2); font-size: 13px; text-decoration: none">Notes &amp; sources</a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px 0; border-top: 1px solid var(--line-soft)">
+<a href="#" style="font-size: 13px; color: var(--ink-2); text-decoration: none; min-height: 32px; display: flex; align-items: center">Data &amp; methods</a>
+<span style="font-size: 12px; color: var(--muted); line-height: 1.5">Market prices are not forecasts. Every figure links to its source and fetch time.</span>
+</div>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 32px; background: var(--surface); border-bottom: 1px solid var(--line)">
+<label style="flex: 1 1 320px; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised)">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#5D6674" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="m11 11 3.5 3.5"></path></svg>
+<span class="sr">Search</span>
+<input type="search" placeholder="Search races, candidates, counties, committees…" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); outline: none">
+</label>
+<button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"></circle><path d="M8 4.5V8l2.5 1.5"></path></svg>
+As of <span class="n">Nov 13, 2026 · 09:14 ET</span>
+</button>
+<span style="display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 12px; font-weight: 500">Illustrative data</span>
+<button type="button" aria-pressed="false" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.5 4.5 0 0 0 7 7Z"></path></svg>Dark mode</button>
+</header>
+
+<main style="padding: 24px 32px 56px; max-width: 1240px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+
+<section style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<nav aria-label="Breadcrumb" style="font-size: 13px; color: var(--muted)"><a href="#" style="color: var(--muted)">Races</a> / <a href="#" style="color: var(--muted)">Arizona</a> / AZ-06</nav>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+<h1 style="margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.015em">Arizona’s 6th District</h1>
+<span style="display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 999px; background: var(--track); border: 1px dashed var(--axis); font-size: 12px; font-weight: 500; color: var(--ink-2)">Uncalled · 94% of expected vote</span>
+</div>
+<span style="font-size: 14px; color: var(--ink-2)">U.S. House · Tucson suburbs, Cochise, Graham, Greenlee and part of Pinal · R incumbent · Cook PVI R+3 (2024 lines)</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">Compare with…</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">Cite this page</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">Export CSV</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 6px; border: 0; background: var(--ink); color: var(--surface); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Add to notebook</button>
+</div>
+</section>
+
+<section id="result" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+<div style="flex: 999 1 520px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">The count</h2><a href="#" style="font-size: 12px; color: var(--muted)">AZ Secretary of State + Pima, Cochise, Pinal feeds · fetched 09:11</a></div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; align-items: baseline">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 2px; background: var(--rep-mark)"></span><span style="font-size: 15px; font-weight: 500">Republican incumbent</span><span style="font-size: 12px; color: var(--muted)">leads</span></span>
+<span class="n" style="font-size: 14px; color: var(--ink-3); text-align: right">201,330</span>
+<span class="n" style="font-size: 22px; font-weight: 500; text-align: right; min-width: 80px">50.6%</span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; align-items: baseline">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 2px; background: var(--dem)"></span><span style="font-size: 15px; font-weight: 500">Democratic nominee</span></span>
+<span class="n" style="font-size: 14px; color: var(--ink-3); text-align: right">196,540</span>
+<span class="n" style="font-size: 22px; font-weight: 500; text-align: right; min-width: 80px">49.4%</span>
+</div>
+<div style="display: flex; height: 12px; border-radius: 3px; overflow: hidden" role="img" aria-label="Republican 50.6 percent, Democrat 49.4 percent, about 6 percent of expected vote outstanding">
+<div style="width: 47.6%; background: var(--rep-mark)"></div><div style="width: 46.4%; background: var(--dem)"></div><div style="width: 6%; background: repeating-linear-gradient(135deg, var(--hatch) 0 3px, var(--line-soft) 3px 6px)"></div>
+</div>
+<span style="font-size: 12px; color: var(--muted)">Hatched: expected vote not yet counted (~6%).</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid var(--line-soft); padding-top: 14px">
+<div style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; padding-right: 16px"><span style="font-size: 12px; color: var(--muted)">Margin</span><span class="n" style="font-size: 18px; color: var(--rep)">R+1.2 <span style="font-size: 13px; color: var(--ink-3)">· 4,790 votes</span></span></div>
+<div style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; padding-right: 16px"><span style="font-size: 12px; color: var(--muted)">2024 presidential</span><span class="n" style="font-size: 18px; color: var(--rep)">R+1.5</span></div>
+<div style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; padding-right: 16px"><span style="font-size: 12px; color: var(--muted)">2024 House</span><span class="n" style="font-size: 18px; color: var(--rep)">R+2.5</span></div>
+<div style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Turnout vs. 2022</span><span class="n" style="font-size: 18px">+4.1%</span></div>
+</div>
+</div>
+
+<div style="flex: 1 1 320px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">What’s still out</h2><span style="font-size: 12px; color: var(--muted)">Estimate, never a race call · method v0.3</span></div>
+<div style="display: flex; gap: 24px; flex-wrap: wrap">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Ballots outstanding</span><span class="n" style="font-size: 22px; font-weight: 500">~24,000</span><span class="n" style="font-size: 12px; color: var(--muted)">range 18k–31k</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Their estimated lean</span><span class="n" style="font-size: 22px; font-weight: 500; color: var(--dem)">D+4</span><span class="n" style="font-size: 12px; color: var(--muted)">± 5 pts</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: var(--muted)">Projected final margin</span>
+<div style="position: relative; height: 34px" role="img" aria-label="Current margin R+1.2; projected final margin between R+1.0 and R+0.4, central estimate R+0.7">
+<div style="position: absolute; left: 0; right: 0; top: 14px; height: 2px; background: var(--line)"></div>
+<div style="position: absolute; left: 50%; width: 30%; top: 8px; height: 14px; background: var(--rep-bg); border-radius: 2px"></div>
+<div style="position: absolute; left: 65%; top: 4px; width: 2px; height: 22px; background: var(--rep)"></div>
+<div style="position: absolute; left: 40%; top: 6px; width: 10px; height: 10px; margin-left: -5px; margin-top: 3px; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink); box-sizing: border-box"></div>
+<div style="position: absolute; right: 0; top: 0; bottom: 0; width: 1px; background: var(--ink)"></div>
+</div>
+<div class="n" style="display: flex; justify-content: space-between; font-size: 11px; color: var(--muted)"><span>R+2</span><span>now R+1.2 · proj. R+0.7</span><span>Even</span></div>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2)">Most outstanding ballots are late early ballots in Pima, which ran <span class="n">D+9</span> in the last two drops. The Democrat would need them at <span class="n">D+20</span> to overtake.</p>
+</div>
+</section>
+
+<section id="signals" style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Signal timeline</h2><span style="font-size: 13px; color: var(--ink-2)">Market, polls and ratings on one clock, with the events that moved them.</span></div>
+<div style="display: flex; gap: 4px; padding: 3px; background: var(--track); border-radius: 6px">
+<button type="button" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink-3)">30 days</button>
+<button type="button" aria-pressed="true" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: var(--surface); box-shadow: 0 1px 2px rgba(18,22,28,0.12); font: inherit; font-size: 13px; font-weight: 500; color: var(--ink)">Since Sep 1</button>
+<button type="button" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink-3)">Cycle</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 500; color: var(--ink-3)">Market price, Republican win (¢) · hourly close</span>
+<svg viewBox="0 0 800 220" style="width: 100%; height: auto; display: block; font-family: 'IBM Plex Mono', monospace" role="img" aria-label="Market price for a Republican win: 58 cents on Sep 1, low of 49 after the Sep 24 debate, 62 on Election Day, 71 after the first Pima count, 68 now">
+<rect x="679" y="18" width="101" height="184" fill="#F4F5F7"></rect>
+<text x="729" y="212" font-size="10" fill="#5D6674" text-anchor="middle">counting</text>
+<line x1="40" x2="780" y1="20" y2="20" stroke="#ECEEF1"></line>
+<line x1="40" x2="780" y1="65" y2="65" stroke="#ECEEF1"></line>
+<line x1="40" x2="780" y1="110" y2="110" stroke="#ECEEF1"></line>
+<line x1="40" x2="780" y1="155" y2="155" stroke="#C9CDD4" stroke-dasharray="3 3"></line>
+<line x1="40" x2="780" y1="200" y2="200" stroke="#DADDE3"></line>
+<text x="34" y="24" font-size="10" fill="#5D6674" text-anchor="end">80</text>
+<text x="34" y="69" font-size="10" fill="#5D6674" text-anchor="end">70</text>
+<text x="34" y="114" font-size="10" fill="#5D6674" text-anchor="end">60</text>
+<text x="34" y="159" font-size="10" fill="#5D6674" text-anchor="end">50</text>
+<text x="34" y="204" font-size="10" fill="#5D6674" text-anchor="end">40</text>
+<line x1="273" x2="273" y1="20" y2="200" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<line x1="486" x2="486" y1="20" y2="200" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<line x1="689" x2="689" y1="20" y2="200" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<polyline points="40,119 111,123.5 182,128 253,123.5 273,150.5 324,159.5 395,146 486,132.5 547,137 608,119 669,101 679,110 689,60.5 709,83 750,69.5 780,74" fill="none" stroke="#B23A26" stroke-width="2" stroke-linejoin="round"></polyline>
+<circle cx="780" cy="74" r="3.5" fill="#B23A26"></circle>
+<text x="772" y="62" font-size="11" fill="#B23A26" text-anchor="end">68¢</text>
+<circle cx="273" cy="10" r="8" fill="#4338CA"></circle><text x="273" y="13.5" font-size="10" fill="#FFFFFF" text-anchor="middle" font-family="IBM Plex Sans">A</text>
+<circle cx="486" cy="10" r="8" fill="#4338CA"></circle><text x="486" y="13.5" font-size="10" fill="#FFFFFF" text-anchor="middle" font-family="IBM Plex Sans">B</text>
+<circle cx="689" cy="10" r="8" fill="#4338CA"></circle><text x="689" y="13.5" font-size="10" fill="#FFFFFF" text-anchor="middle" font-family="IBM Plex Sans">C</text>
+</svg>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 500; color: var(--ink-3)">Polling average, margin · band = average error of House polls · dots = individual polls (7)</span>
+<svg viewBox="0 0 800 150" style="width: 100%; height: auto; display: block; font-family: 'IBM Plex Mono', monospace" role="img" aria-label="Polling average moved between R+2 and D+0.5; the count so far, R+1.2, sits inside the band">
+<line x1="40" x2="780" y1="35" y2="35" stroke="#ECEEF1"></line>
+<line x1="40" x2="780" y1="75" y2="75" stroke="#C9CDD4" stroke-dasharray="3 3"></line>
+<line x1="40" x2="780" y1="115" y2="115" stroke="#ECEEF1"></line>
+<text x="34" y="39" font-size="10" fill="#B23A26" text-anchor="end">R+5</text>
+<text x="34" y="79" font-size="10" fill="#5D6674" text-anchor="end">Even</text>
+<text x="34" y="119" font-size="10" fill="#1F5FBF" text-anchor="end">D+5</text>
+<line x1="273" x2="273" y1="10" y2="140" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<line x1="486" x2="486" y1="10" y2="140" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<line x1="689" x2="689" y1="10" y2="140" stroke="#4338CA" stroke-dasharray="2 3"></line>
+<polygon points="40,31 141,35 243,39 344,51 446,43 547,39 669,34.2 669,90.2 547,95 446,99 344,107 243,95 141,91 40,87" fill="#E9EAF0"></polygon>
+<polyline points="40,59 141,63 243,67 344,79 446,71 547,67 669,62.2" fill="none" stroke="#2B323C" stroke-width="2" stroke-linejoin="round"></polyline>
+<circle cx="101" cy="51" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="192" cy="83" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="233" cy="59" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="314" cy="91" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="375" cy="67" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="456" cy="75" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<circle cx="598" cy="83" r="3" fill="#FFFFFF" stroke="#4A5260" stroke-width="1.4"></circle>
+<rect x="684" y="60.4" width="10" height="10" transform="rotate(45 689 65.4)" fill="#12161C"></rect>
+<text x="700" y="58" font-size="11" fill="#12161C">count R+1.2</text>
+<text x="672" y="52" font-size="11" fill="#2B323C" text-anchor="end">final avg R+1.6</text>
+</svg>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 500; color: var(--ink-3)">Expert rating · consensus of 3 raters</span>
+<svg viewBox="0 0 800 52" style="width: 100%; height: auto; display: block; font-family: 'IBM Plex Mono', monospace" role="img" aria-label="Rated Toss-up until October 20, then Lean Republican">
+<rect x="40" y="2" width="496" height="22" fill="#E3E5EA"></rect>
+<text x="48" y="17" font-size="11" fill="#2B323C" font-family="IBM Plex Sans">Toss-up</text>
+<rect x="537" y="2" width="142" height="22" fill="#F6D3CB"></rect>
+<text x="545" y="17" font-size="11" fill="#7E2A1B" font-family="IBM Plex Sans">Lean R · from Oct 20</text>
+<text x="40" y="44" font-size="10" fill="#5D6674">Sep 1</text>
+<text x="182" y="44" font-size="10" fill="#5D6674" text-anchor="middle">Sep 15</text>
+<text x="344" y="44" font-size="10" fill="#5D6674" text-anchor="middle">Oct 1</text>
+<text x="486" y="44" font-size="10" fill="#5D6674" text-anchor="middle">Oct 15</text>
+<text x="679" y="44" font-size="10" fill="#12161C" text-anchor="middle">Nov 3</text>
+<text x="780" y="44" font-size="10" fill="#5D6674" text-anchor="end">Nov 13</text>
+</svg>
+</div>
+
+<ol style="list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-wrap: wrap; gap: 16px">
+<li style="flex: 1 1 240px; display: flex; gap: 10px"><span style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--surface); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">A</span><span style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45"><span><strong style="font-weight: 600">Sep 24 · Debate.</strong> Market fell <span class="n">6¢</span> in 48 h; no poll left the band.</span><a href="#" style="font-size: 12px">2 sources</a></span></li>
+<li style="flex: 1 1 240px; display: flex; gap: 10px"><span style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--surface); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">B</span><span style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45"><span><strong style="font-weight: 600">Oct 15 · $2.1M pro-R ad buy.</strong> Reported in 24-hour filings; rating moved 5 days later.</span><a href="#" style="font-size: 12px">FEC Schedule E</a></span></li>
+<li style="flex: 1 1 240px; display: flex; gap: 10px"><span style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--surface); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">C</span><span style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45"><span><strong style="font-weight: 600">Nov 4 · First Pima count.</strong> Ran <span class="n">R+3</span>, above the polling average; market jumped <span class="n">11¢</span>.</span><a href="#" style="font-size: 12px">Pima County Recorder</a></span></li>
+</ol>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+<div id="counties" style="flex: 999 1 560px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column">
+<div style="padding: 18px 20px 10px; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px"><div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Counties in the district</h2><span style="font-size: 12px; color: var(--muted)">Split counties show only the part inside AZ-06 · swing is 2026 House vs. 2024 presidential</span></div><a href="#" style="font-size: 13px">Open on map</a></div>
+<div style="overflow-x: auto">
+<table class="t">
+<thead><tr><th scope="col">County</th><th scope="col" style="text-align: right">Share of vote</th><th scope="col" style="text-align: right">2024 pres.</th><th scope="col" style="text-align: right">2026 House</th><th scope="col">Swing</th><th scope="col" style="text-align: right">Expected in</th></tr></thead>
+<tbody>
+<tr><td style="font-weight: 500">Pima <span style="font-weight: 400; color: var(--muted)">(part)</span></td><td class="n" style="text-align: right">62%</td><td class="n" style="text-align: right; color: var(--dem)">D+2.1</td><td class="n" style="text-align: right; color: var(--dem)">D+3.4</td><td><span style="display: flex; align-items: center; gap: 8px"><span style="width: 80px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; left: 50%; width: 13%; top: 0; bottom: 0; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">D+1.3</span></span></td><td class="n" style="text-align: right">91%</td></tr>
+<tr><td style="font-weight: 500">Cochise</td><td class="n" style="text-align: right">16%</td><td class="n" style="text-align: right; color: var(--rep)">R+19.8</td><td class="n" style="text-align: right; color: var(--rep)">R+17.2</td><td><span style="display: flex; align-items: center; gap: 8px"><span style="width: 80px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; left: 50%; width: 26%; top: 0; bottom: 0; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">D+2.6</span></span></td><td class="n" style="text-align: right">99%</td></tr>
+<tr><td style="font-weight: 500">Pinal <span style="font-weight: 400; color: var(--muted)">(part)</span></td><td class="n" style="text-align: right">15%</td><td class="n" style="text-align: right; color: var(--rep)">R+12.4</td><td class="n" style="text-align: right; color: var(--rep)">R+13.0</td><td><span style="display: flex; align-items: center; gap: 8px"><span style="width: 80px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; left: 44%; width: 6%; top: 0; bottom: 0; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">R+0.6</span></span></td><td class="n" style="text-align: right">96%</td></tr>
+<tr><td style="font-weight: 500">Graham</td><td class="n" style="text-align: right">5%</td><td class="n" style="text-align: right; color: var(--rep)">R+38.0</td><td class="n" style="text-align: right; color: var(--rep)">R+35.1</td><td><span style="display: flex; align-items: center; gap: 8px"><span style="width: 80px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; left: 50%; width: 29%; top: 0; bottom: 0; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">D+2.9</span></span></td><td class="n" style="text-align: right">100%</td></tr>
+<tr><td style="font-weight: 500">Greenlee</td><td class="n" style="text-align: right">2%</td><td class="n" style="text-align: right; color: var(--rep)">R+31.0</td><td class="n" style="text-align: right; color: var(--rep)">R+29.4</td><td><span style="display: flex; align-items: center; gap: 8px"><span style="width: 80px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; left: 50%; width: 16%; top: 0; bottom: 0; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">D+1.6</span></span></td><td class="n" style="text-align: right">100%</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="money" style="flex: 1 1 320px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Money</h2><span style="font-size: 12px; color: var(--muted)">FEC through post-general window · cycle to date</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: var(--ink-3)">Candidate receipts</span>
+<div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 56px; gap: 10px; align-items: center"><span style="font-size: 12px; color: var(--rep); font-weight: 600">R</span><span style="height: 12px; background: var(--track); border-radius: 2px"><span style="display: block; width: 78%; height: 100%; background: var(--rep-mark); border-radius: 2px"></span></span><span class="n" style="font-size: 13px; text-align: right">$5.8M</span></div>
+<div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 56px; gap: 10px; align-items: center"><span style="font-size: 12px; color: var(--dem); font-weight: 600">D</span><span style="height: 12px; background: var(--track); border-radius: 2px"><span style="display: block; width: 66%; height: 100%; background: var(--dem); border-radius: 2px"></span></span><span class="n" style="font-size: 13px; text-align: right">$4.9M</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: var(--ink-3)">Outside spending, by side supported</span>
+<div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 56px; gap: 10px; align-items: center"><span style="font-size: 12px; color: var(--rep); font-weight: 600">R</span><span style="height: 12px; background: var(--track); border-radius: 2px"><span style="display: block; width: 100%; height: 100%; background: var(--rep-mark); border-radius: 2px"></span></span><span class="n" style="font-size: 13px; text-align: right">$7.4M</span></div>
+<div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 56px; gap: 10px; align-items: center"><span style="font-size: 12px; color: var(--dem); font-weight: 600">D</span><span style="height: 12px; background: var(--track); border-radius: 2px"><span style="display: block; width: 82%; height: 100%; background: var(--dem); border-radius: 2px"></span></span><span class="n" style="font-size: 13px; text-align: right">$6.1M</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line-soft); padding-top: 12px; font-size: 13px; color: var(--ink-2)">
+<span style="display: flex; justify-content: space-between"><span>Itemized $ from in-district</span><span class="n">R 31% · D 24%</span></span>
+<span style="display: flex; justify-content: space-between"><span>Rank among House races, total spend</span><span class="n">#9</span></span>
+</div>
+<a href="#" style="font-size: 13px">Open money trail</a>
+</div>
+</section>
+
+<section id="notes" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<div style="flex: 999 1 520px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Notes</h2><button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Add note</button></div>
+<article style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--raised2); border-radius: 6px">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent-ink)">AI SUMMARY · 3 SOURCES · REVIEWED</span>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink)">The Republican’s lead held through the late count because Cochise and Graham swung toward the Democrat by less than Pima’s late ballots needed to close the gap <a href="#">[1]</a>. Pima’s late early ballots ran <span class="n">D+9</span>, not the <span class="n">D+20</span> required <a href="#">[2]</a>. Outside spending favored the Republican by <span class="n">$1.3M</span> <a href="#">[3]</a>.</p>
+</article>
+<article style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 6px">
+<span style="font-size: 12px; color: var(--muted)"><strong style="font-weight: 600; color: var(--ink)">You</strong> · Nov 12, 4:18 PM · private</span>
+<p style="margin: 0; font-size: 14px; line-height: 1.55">Compare against AZ-01: same county mix, opposite rating move. Check whether the Oct 15 buy showed up in Cochise turnout.</p>
+</article>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Sources</h2>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--ink-2)">
+<li><a href="#">Arizona Secretary of State, unofficial results</a><br><span class="n" style="font-size: 11px; color: var(--muted)">fetched Nov 13 09:11 ET</span></li>
+<li><a href="#">Pima County Recorder, ballot reports</a><br><span class="n" style="font-size: 11px; color: var(--muted)">fetched Nov 13 09:11 ET</span></li>
+<li><a href="#">FEC independent expenditures, Schedule E</a><br><span class="n" style="font-size: 11px; color: var(--muted)">fetched Nov 13 06:00 ET</span></li>
+<li><a href="#">Market prices, AZ-06 contract</a><br><span class="n" style="font-size: 11px; color: var(--muted)">hourly · last 09:00 ET</span></li>
+<li><a href="#">Polling average, method v1.2</a><br><span class="n" style="font-size: 11px; color: var(--muted)">frozen Nov 3</span></li>
+</ol>
+</div>
+</section>
+
+</main>
+</div>
+</div>
+<script>
+document.querySelectorAll('button').forEach(function (b) {
+  if (!/Dark mode|Light mode/.test(b.textContent)) return;
+  b.addEventListener('click', function () {
+    var root = document.querySelector('.mf');
+    var dark = root.classList.toggle('dark');
+    document.querySelectorAll('button').forEach(function (x) {
+      if (/Dark mode|Light mode/.test(x.textContent)) {
+        x.lastChild.textContent = dark ? 'Light mode' : 'Dark mode';
+        x.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
