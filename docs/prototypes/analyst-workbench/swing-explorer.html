@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Mycroft analyst workbench mockup (static export). All values are illustrative mock data.">
+<title>Mycroft — Swing explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+body:has(.mf.dark){background:#0D1015}
+.mf{--bg:#F4F5F7;--surface:#FFFFFF;--raised:#FAFAFB;--raised2:#F7F8FA;--track:#F1F2F5;--line-soft:#ECEEF1;--line:#DADDE3;--line-strong:#CDD1D8;--hatch:#C9CDD4;--axis:#A9AFB9;--ink:#12161C;--ink-body:#1C2129;--ink-2:#2B323C;--ink-3:#4A5260;--muted:#5D6674;--fund:#6B7280;--accent:#4338CA;--accent-ink:#3730A3;--accent-hover:#1E1B4B;--accent-bg:#EEF0FB;--accent-bg2:#F7F8FE;--accent-line:#C7CCF4;--accent-line2:#A5ACEB;--dem:#1F5FBF;--dem-soft:#9DB6E3;--dem-bg:#E6EEFA;--dem-bg-ink:#1F4E99;--rep:#B23A26;--rep-mark:#E0603F;--rep-bg:#F6D3CB;--rep-bg-ink:#7E2A1B;--neutral-bg:#E3E5EA;--band:#E9EAF0;--warn-bg:#FFF4E0;--warn-bg2:#FFF8EC;--warn-line:#F3D9A9;--warn-line2:#F0C98B;--warn-ink:#8A4B08;--ok-bg:#E8F3EE;--ok-ink:#0B5A52;--teal:#0F766E;--amber:#B45309;--av1:#DCE3F5;--av1-ink:#1F3A7A;--av2:#E2F0EC;--av3:#F6E7D6;--av3-ink:#7A3E07;--label-bg:rgba(255,255,255,0.85);color-scheme:light}
+.mf.dark{--bg:#0D1015;--surface:#161A21;--raised:#1A1F27;--raised2:#1D222B;--track:#232934;--line-soft:#232934;--line:#2E3541;--line-strong:#3A4250;--hatch:#3A4250;--axis:#4B5462;--ink:#E8EBF0;--ink-body:#D9DDE4;--ink-2:#C3C9D2;--ink-3:#A3ABB7;--muted:#8F98A6;--fund:#9AA1AD;--accent:#7C83F2;--accent-ink:#A5ADFF;--accent-hover:#C9CEFF;--accent-bg:#232A55;--accent-bg2:#1B2040;--accent-line:#3B4384;--accent-line2:#4C55A8;--dem:#7FB0FF;--dem-soft:#3D5A8C;--dem-bg:#1C2A44;--dem-bg-ink:#A9C6F5;--rep:#FF8A70;--rep-mark:#D2583A;--rep-bg:#4A2620;--rep-bg-ink:#F4B4A4;--neutral-bg:#2A303B;--band:#262C37;--warn-bg:#3A2A10;--warn-bg2:#2E2210;--warn-line:#5A4219;--warn-line2:#6B4E1D;--warn-ink:#F2B866;--ok-bg:#14302A;--ok-ink:#7FD6C4;--teal:#3CC2B0;--amber:#F0A040;--av1:#263457;--av1-ink:#B7C8F0;--av2:#173530;--av3:#3A2A18;--av3-ink:#F0C08A;--label-bg:rgba(22,26,33,0.85);color-scheme:dark}
+.mf a{color:var(--accent-ink)}.mf a:hover{color:var(--accent-hover)}
+.mf input::placeholder,.mf textarea::placeholder{color:var(--muted)}
+.mf [fill="#12161C"]{fill:var(--ink)}.mf [stroke="#12161C"]{stroke:var(--ink)}
+.mf [fill="#2B323C"]{fill:var(--ink-2)}.mf [stroke="#2B323C"]{stroke:var(--ink-2)}
+.mf [fill="#4338CA"]{fill:var(--accent)}.mf [stroke="#4338CA"]{stroke:var(--accent)}
+.mf [fill="#4A5260"]{fill:var(--ink-3)}.mf [stroke="#4A5260"]{stroke:var(--ink-3)}
+.mf [fill="#5D6674"]{fill:var(--muted)}.mf [stroke="#5D6674"]{stroke:var(--muted)}
+.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.t td{padding:6px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
+.n{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="mf" style="min-height: 100vh; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Sans', system-ui, sans-serif; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<nav aria-label="Workspace" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 26px">
+<a href="desk.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); padding: 0 6px">
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#12161C" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M18.2 18.2 25 25"></path><path d="M8 12h8M12 8v8" stroke="#4338CA"></path></svg>
+<span style="display: flex; flex-direction: column"><span style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em">Mycroft</span><span style="font-size: 12px; color: var(--muted)">Analyst workbench</span></span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px">2026 general · post-election</span>
+<a href="desk.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Desk</a>
+<a href="race-file.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Races</a>
+<a href="swing-explorer.html" aria-current="page" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; background: var(--accent-bg); color: var(--accent-ink); font-weight: 500; font-size: 14px; text-decoration: none">Swing explorer</a>
+<a href="signal-scorecard.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Signal scorecard</a>
+<a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Money</a>
+<a href="notebook.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Notebooks</a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px 0; border-top: 1px solid var(--line-soft)">
+<a href="#" style="font-size: 13px; color: var(--ink-2); text-decoration: none; min-height: 32px; display: flex; align-items: center">Data &amp; methods</a>
+<span style="font-size: 12px; color: var(--muted); line-height: 1.5">Swing compares two different offices and electorates. Read it as a relative measure, not a vote shift.</span>
+</div>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 32px; background: var(--surface); border-bottom: 1px solid var(--line)">
+<label style="flex: 1 1 320px; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised)">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#5D6674" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="m11 11 3.5 3.5"></path></svg>
+<span class="sr">Search</span>
+<input type="search" placeholder="Search races, candidates, counties, committees…" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); outline: none">
+</label>
+<button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">As of <span class="n">Nov 13, 2026 · 09:14 ET</span></button>
+<span style="display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 12px; font-weight: 500">Illustrative data</span>
+<button type="button" aria-pressed="false" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.5 4.5 0 0 0 7 7Z"></path></svg>Dark mode</button>
+</header>
+
+<main style="padding: 24px 32px 56px; max-width: 1240px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+
+<section style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px; max-width: 760px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.015em">Swing explorer</h1>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink-2)">Contested House seats ran a median <strong class="n" style="font-weight: 500; color: var(--dem)">D+3.2</strong> ahead of their 2024 presidential margin. Seats above the dashed line beat that median; select any dot or row to inspect it.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Export CSV</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 6px; border: 0; background: var(--ink); color: var(--surface); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Save view to notebook</button>
+</div>
+</section>
+
+<section aria-label="Controls" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px">
+<label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3)">Compare
+<select style="min-height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink)"><option>2026 House vs. 2024 presidential</option><option>2026 House vs. 2024 House</option><option>2026 House vs. 2022 House</option></select>
+</label>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3)">Seats
+<select style="min-height: 36px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink)"><option>Contested (rated Lean or closer)</option><option>All 435</option><option>Saved view: Sun Belt suburbs</option></select>
+</label>
+<div style="display: flex; gap: 4px; padding: 3px; background: var(--track); border-radius: 6px" role="group" aria-label="Held by">
+<button type="button" aria-pressed="true" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">All <span class="n">30</span></button>
+<button type="button" aria-pressed="false" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">R-held <span class="n">17</span></button>
+<button type="button" aria-pressed="false" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer">D-held <span class="n">13</span></button>
+</div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-3); align-items: center">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--dem)"></span>D won</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--rep-mark)"></span>R won</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 50%; border: 2px dashed var(--muted)"></span>Uncalled</span>
+</div>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+<div style="flex: 999 1 560px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px"><h2 style="margin: 0; font-size: 14px; font-weight: 600">2024 presidential margin (across) vs. 2026 House margin (up)</h2><span style="font-size: 12px; color: var(--muted)">Solid line: no swing · dashed: median swing</span></div>
+<div style="position: relative; height: 470px">
+<div style="position: absolute; left: 52px; right: 12px; top: 10px; bottom: 34px">
+<div style="position: absolute; left: 0; right: 0; top: 16.67%; border-top: 1px solid var(--line-soft)"></div>
+<div style="position: absolute; left: 0; right: 0; top: 44.44%; border-top: 1px solid var(--axis)"></div>
+<div style="position: absolute; left: 0; right: 0; top: 72.22%; border-top: 1px solid var(--line-soft)"></div>
+<div style="position: absolute; left: 0; right: 0; top: 100%; border-top: 1px solid var(--line)"></div>
+<div style="position: absolute; top: 0; bottom: 0; left: 4.17%; border-left: 1px solid var(--line-soft)"></div>
+<div style="position: absolute; top: 0; bottom: 0; left: 25%; border-left: 1px solid var(--line-soft)"></div>
+<div style="position: absolute; top: 0; bottom: 0; left: 45.83%; border-left: 1px solid var(--line-soft)"></div>
+<div style="position: absolute; top: 0; bottom: 0; left: 66.67%; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 0; bottom: 0; left: 87.5%; border-left: 1px solid var(--line-soft)"></div>
+<span style="position: absolute; left: 6px; top: 6px; font-size: 11px; color: var(--dem-bg-ink); font-weight: 500">Democrat outran 2024 baseline</span>
+<span style="position: absolute; right: 6px; bottom: 6px; font-size: 11px; color: var(--rep-bg-ink); font-weight: 500">Republican outran 2024 baseline</span>
+<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-hidden="true">
+<line x1="25" y1="100" x2="100" y2="0" stroke="#4A5260" stroke-width="1.2" vector-effect="non-scaling-stroke"></line>
+<line x1="11.67" y1="100" x2="86.67" y2="0" stroke="#4338CA" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></line>
+</svg>
+
+<div style="position: absolute; left: 58.33%; top: 34.44%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="AZ-01, swing D+3.8, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 60.42%; top: 51.11%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="AZ-06, swing D+0.3, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 64.17%; top: 41.11%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="CA-13, swing D+1.2, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 45.83%; top: 54.44%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="CA-22, swing D+3.2, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 79.17%; top: 8.89%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="CA-27, swing D+3.4, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 70.83%; top: 31.67%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="CA-45, swing D+1.3, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 65.42%; top: 30.00%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="CO-08, swing D+2.9, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 47.92%; top: 42.22%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="IA-01, swing D+4.9, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 41.67%; top: 48.89%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="IA-03, swing D+5.2, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 37.50%; top: 40.00%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="ME-02, swing D+7.8, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+<span class="n" style="position: absolute; left: 12px; top: -9px; font-size: 11px; font-weight: 500; color: var(--ink-2); white-space: nowrap; background: var(--label-bg); padding: 0 3px; border-radius: 2px">ME-02</span>
+
+</div>
+
+<div style="position: absolute; left: 63.33%; top: 33.33%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="MI-07, swing D+2.8, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 64.58%; top: 26.67%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="MI-08, swing D+3.7, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 72.92%; top: 17.78%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NE-02, swing D+3.3, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 62.50%; top: 37.22%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NJ-07, swing D+2.3, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 29.17%; top: 73.33%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NY-01, swing D+3.8, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 81.25%; top: 23.33%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NY-04, swing D+0.3, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 69.17%; top: 22.78%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NY-17, swing D+3.3, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 56.25%; top: 50.00%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NC-01, swing D+1.5, R gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 37.50%; top: 57.78%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="OH-09, swing D+4.6, R gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 62.50%; top: 32.22%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="OH-13, swing D+3.2, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 70.83%; top: 50.56%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="PA-07, swing R+2.1, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+<span class="n" style="position: absolute; left: 12px; top: -9px; font-size: 11px; font-weight: 500; color: var(--ink-2); white-space: nowrap; background: var(--label-bg); padding: 0 3px; border-radius: 2px">PA-07</span>
+
+</div>
+
+<div style="position: absolute; left: 29.17%; top: 78.33%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="PA-08, swing D+2.9, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 50.00%; top: 55.00%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="PA-10, swing D+2.1, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 4.17%; top: 94.44%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="TX-15, swing D+6.0, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 37.50%; top: 36.11%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="TX-28, swing D+8.5, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 3px var(--accent); box-sizing: border-box; cursor: pointer"></button>
+
+<span class="n" style="position: absolute; left: 12px; top: -9px; font-size: 11px; font-weight: 500; color: var(--accent-ink); white-space: nowrap; background: var(--label-bg); padding: 0 3px; border-radius: 2px">TX-28</span>
+
+</div>
+
+<div style="position: absolute; left: 50.00%; top: 41.11%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="TX-34, swing D+4.6, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 58.33%; top: 36.67%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="VA-02, swing D+3.4, D gain" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 41.67%; top: 62.22%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="WI-03, swing D+2.8, R hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--rep-mark); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 75.00%; top: 22.22%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NM-02, swing D+2.0, D hold" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--dem); border: 2px solid var(--surface); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+<div style="position: absolute; left: 64.58%; top: 33.89%; width: 0; height: 0; opacity: 1">
+<button type="button" aria-label="NV-03, swing D+2.4, Uncalled" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px dashed var(--ink-3); box-shadow: 0 0 0 1px rgba(18,22,28,0.18); box-sizing: border-box; cursor: pointer"></button>
+
+</div>
+
+</div>
+<span class="n" style="position: absolute; left: 0; width: 46px; text-align: right; top: calc(10px + (100% - 44px) * 0.1667 - 7px); font-size: 11px; color: var(--dem)">D+5</span>
+<span class="n" style="position: absolute; left: 0; width: 46px; text-align: right; top: calc(10px + (100% - 44px) * 0.4444 - 7px); font-size: 11px; color: var(--ink-3)">Even</span>
+<span class="n" style="position: absolute; left: 0; width: 46px; text-align: right; top: calc(10px + (100% - 44px) * 0.7222 - 7px); font-size: 11px; color: var(--rep)">R+5</span>
+<span class="n" style="position: absolute; left: 0; width: 46px; text-align: right; top: calc(10px + (100% - 44px) - 7px); font-size: 11px; color: var(--rep)">R+10</span>
+<div class="n" style="position: absolute; left: 52px; right: 12px; bottom: 10px; height: 16px; font-size: 11px">
+<span style="position: absolute; left: 4.17%; transform: translateX(-50%); color: var(--rep)">R+15</span>
+<span style="position: absolute; left: 25%; transform: translateX(-50%); color: var(--rep)">R+10</span>
+<span style="position: absolute; left: 45.83%; transform: translateX(-50%); color: var(--rep)">R+5</span>
+<span style="position: absolute; left: 66.67%; transform: translateX(-50%); color: var(--ink-3)">Even</span>
+<span style="position: absolute; left: 87.5%; transform: translateX(-50%); color: var(--dem)">D+5</span>
+</div>
+</div>
+</div>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: inset 3px 0 0 var(--accent)">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+<h2 class="n" style="margin: 0; font-size: 22px; font-weight: 500">TX-28</h2>
+<span style="font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 999px; background: var(--track); color: var(--ink-2)">D hold</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">2024 presidential</span><span class="n" style="font-size: 17px; color: var(--rep)">R+7.0</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">2026 House</span><span class="n" style="font-size: 17px; color: var(--dem)">D+1.5</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Swing</span><span class="n" style="font-size: 17px; color: var(--dem)">D+8.5</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">vs. median seat</span><span class="n" style="font-size: 17px; color: var(--dem)">+5.3</span></div>
+</div>
+<span style="font-size: 13px; color: var(--ink-2)">Held by <strong style="font-weight: 600">Democrats</strong> before the election · ranks <span class="n">1</span> of <span class="n">30</span> on swing</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="race-file.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 6px; background: var(--ink); color: var(--surface); font-size: 13px; font-weight: 500; text-decoration: none">Open race file</a>
+<a href="#" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; text-decoration: none">County breakdown</a>
+</div>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 14px; font-weight: 600">Distribution of swing</h2>
+<div style="position: relative; height: 110px; margin-top: 18px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--line)" role="img" aria-label="Histogram of swing across visible seats">
+
+<div style="flex: 1; height: 11.11111111111111%; background: var(--rep-mark); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">1</span></div>
+
+<div style="flex: 1; height: 0%; background: var(--rep-mark); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)"></span></div>
+
+<div style="flex: 1; height: 44.44444444444444%; background: var(--dem-soft); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">4</span></div>
+
+<div style="flex: 1; height: 100%; background: var(--dem-soft); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">9</span></div>
+
+<div style="flex: 1; height: 100%; background: var(--dem-soft); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">9</span></div>
+
+<div style="flex: 1; height: 44.44444444444444%; background: var(--dem-soft); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">4</span></div>
+
+<div style="flex: 1; height: 11.11111111111111%; background: var(--dem-soft); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">1</span></div>
+
+<div style="flex: 1; height: 22.22222222222222%; background: var(--accent); border-radius: 2px 2px 0 0; position: relative"><span class="n" style="position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--ink-3)">2</span></div>
+
+<div style="position: absolute; top: -4px; bottom: 0; left: 51.7%; border-left: 2px dashed var(--accent)"></div>
+</div>
+<div class="n" style="display: flex; justify-content: space-between; font-size: 10px; color: var(--muted)"><span>R+3</span><span>Even</span><span>D+3</span><span>D+6</span><span>D+9</span></div>
+<span style="font-size: 12px; color: var(--muted)">Bins of 1.5 pts · dashed: median D+3.2</span>
+</div>
+</aside>
+</section>
+
+<section style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column">
+<div style="padding: 16px 20px 10px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; align-items: baseline"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Seats, by swing</h2><span style="font-size: 12px; color: var(--muted)">Linked to the chart · positive = toward the Democrat</span></div>
+<div style="overflow-x: auto; max-height: 420px; overflow-y: auto">
+<div role="table" aria-label="Seats by swing" style="min-width: 760px; font-size: 13px">
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 500; color: var(--muted)">
+<span role="columnheader" style="padding: 8px 12px">District</span><span role="columnheader" style="padding: 8px 12px">Held by</span><span role="columnheader" style="padding: 8px 12px; text-align: right">2024 pres.</span><span role="columnheader" style="padding: 8px 12px; text-align: right">2026 House</span><span role="columnheader" style="padding: 8px 12px; text-align: right">Swing</span><span role="columnheader" style="padding: 8px 12px">vs. median</span><span role="columnheader" style="padding: 8px 12px">Outcome</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: var(--accent-bg)">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 600; color: var(--accent-ink); text-decoration: underline; cursor: pointer">TX-28</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+7.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+8.5</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 44.2%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+5.3</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">ME-02</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+7.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+7.8</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 38.3%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+4.6</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">TX-15</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+15.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+9.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+6.0</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 23.3%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+2.8</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">IA-03</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+6.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+5.2</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 16.7%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+2.0</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">IA-01</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+4.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.4</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+4.9</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 14.2%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+1.7</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">OH-09</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+7.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+2.4</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+4.6</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 11.7%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+1.4</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">TX-34</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+4.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.6</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+4.6</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 11.7%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+1.4</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">AZ-01</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+2.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.8</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 5.0%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.6</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NY-01</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+9.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+5.2</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.8</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 5.0%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.6</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">MI-08</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.2</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.7</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 4.2%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.5</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">CA-27</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+6.4</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.4</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1.7%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.2</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">VA-02</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+2.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.4</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.4</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1.7%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.2</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NE-02</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+4.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0.8%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.1</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NY-17</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.6</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.9</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0.8%; background: var(--dem)"></span></span><span class="n" style="color: var(--dem)">+0.1</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">CA-22</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+5.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.2</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0.0%; background: var(--dem)"></span></span><span class="n" style="color: var(--ink-3)">+0.0</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">OH-13</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.2</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.2</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0.0%; background: var(--dem)"></span></span><span class="n" style="color: var(--ink-3)">+0.0</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">PA-08</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+9.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+6.1</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.9</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 47.5%; width: 2.5%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.3</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">CO-08</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.3</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.6</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.9</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 47.5%; width: 2.5%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.3</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">MI-07</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.8</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 46.7%; width: 3.3%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.4</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">WI-03</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+6.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+3.2</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.8</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 46.7%; width: 3.3%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.4</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NV-03</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.9</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.4</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 43.3%; width: 6.7%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.8</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NJ-07</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.3</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 42.5%; width: 7.5%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−0.9</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">PA-10</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+4.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.9</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.1</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 40.8%; width: 9.2%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−1.1</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NM-02</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+4.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.0</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 40.0%; width: 10.0%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−1.2</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NC-01</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+2.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.5</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 35.8%; width: 14.2%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−1.7</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R gain</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">CA-45</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+2.3</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 34.2%; width: 15.8%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−1.9</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">CA-13</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+0.6</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.6</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.2</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 33.3%; width: 16.7%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−2.0</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">AZ-06</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.2</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 25.8%; width: 24.2%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−2.9</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">Uncalled</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">NY-04</button></span>
+<span role="cell" style="padding: 2px 12px">D</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.5</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+3.8</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+0.3</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 25.8%; width: 24.2%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−2.9</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">D hold</span>
+</div>
+
+<div role="row" style="display: grid; grid-template-columns: 96px 96px 96px 96px 84px minmax(170px, 1fr) 100px; align-items: center; border-bottom: 1px solid var(--line-soft); background: transparent">
+<span role="cell" style="padding: 2px 12px"><button type="button" class="n" style="min-height: 34px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: var(--accent-ink); text-decoration: underline; cursor: pointer">PA-07</button></span>
+<span role="cell" style="padding: 2px 12px">R</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--dem)">D+1.0</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+1.1</span>
+<span role="cell" class="n" style="padding: 2px 12px; text-align: right; color: var(--rep)">R+2.1</span>
+<span role="cell" style="padding: 2px 12px; display: flex; align-items: center; gap: 8px"><span style="width: 90px; height: 8px; background: var(--track); position: relative; border-radius: 2px"><span style="position: absolute; top: 0; bottom: 0; left: 5.8%; width: 44.2%; background: var(--rep-mark)"></span></span><span class="n" style="color: var(--rep)">−5.3</span></span>
+<span role="cell" style="padding: 2px 12px; color: var(--ink-2)">R hold</span>
+</div>
+
+</div>
+</div>
+</section>
+
+</main>
+</div>
+</div>
+<script>
+document.querySelectorAll('button').forEach(function (b) {
+  if (!/Dark mode|Light mode/.test(b.textContent)) return;
+  b.addEventListener('click', function () {
+    var root = document.querySelector('.mf');
+    var dark = root.classList.toggle('dark');
+    document.querySelectorAll('button').forEach(function (x) {
+      if (/Dark mode|Light mode/.test(x.textContent)) {
+        x.lastChild.textContent = dark ? 'Light mode' : 'Dark mode';
+        x.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

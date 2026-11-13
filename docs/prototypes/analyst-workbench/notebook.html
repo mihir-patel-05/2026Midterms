@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Mycroft analyst workbench mockup (static export). All values are illustrative mock data.">
+<title>Mycroft — Notebook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+body:has(.mf.dark){background:#0D1015}
+.mf{--bg:#F4F5F7;--surface:#FFFFFF;--raised:#FAFAFB;--raised2:#F7F8FA;--track:#F1F2F5;--line-soft:#ECEEF1;--line:#DADDE3;--line-strong:#CDD1D8;--hatch:#C9CDD4;--axis:#A9AFB9;--ink:#12161C;--ink-body:#1C2129;--ink-2:#2B323C;--ink-3:#4A5260;--muted:#5D6674;--fund:#6B7280;--accent:#4338CA;--accent-ink:#3730A3;--accent-hover:#1E1B4B;--accent-bg:#EEF0FB;--accent-bg2:#F7F8FE;--accent-line:#C7CCF4;--accent-line2:#A5ACEB;--dem:#1F5FBF;--dem-soft:#9DB6E3;--dem-bg:#E6EEFA;--dem-bg-ink:#1F4E99;--rep:#B23A26;--rep-mark:#E0603F;--rep-bg:#F6D3CB;--rep-bg-ink:#7E2A1B;--neutral-bg:#E3E5EA;--band:#E9EAF0;--warn-bg:#FFF4E0;--warn-bg2:#FFF8EC;--warn-line:#F3D9A9;--warn-line2:#F0C98B;--warn-ink:#8A4B08;--ok-bg:#E8F3EE;--ok-ink:#0B5A52;--teal:#0F766E;--amber:#B45309;--av1:#DCE3F5;--av1-ink:#1F3A7A;--av2:#E2F0EC;--av3:#F6E7D6;--av3-ink:#7A3E07;--label-bg:rgba(255,255,255,0.85);color-scheme:light}
+.mf.dark{--bg:#0D1015;--surface:#161A21;--raised:#1A1F27;--raised2:#1D222B;--track:#232934;--line-soft:#232934;--line:#2E3541;--line-strong:#3A4250;--hatch:#3A4250;--axis:#4B5462;--ink:#E8EBF0;--ink-body:#D9DDE4;--ink-2:#C3C9D2;--ink-3:#A3ABB7;--muted:#8F98A6;--fund:#9AA1AD;--accent:#7C83F2;--accent-ink:#A5ADFF;--accent-hover:#C9CEFF;--accent-bg:#232A55;--accent-bg2:#1B2040;--accent-line:#3B4384;--accent-line2:#4C55A8;--dem:#7FB0FF;--dem-soft:#3D5A8C;--dem-bg:#1C2A44;--dem-bg-ink:#A9C6F5;--rep:#FF8A70;--rep-mark:#D2583A;--rep-bg:#4A2620;--rep-bg-ink:#F4B4A4;--neutral-bg:#2A303B;--band:#262C37;--warn-bg:#3A2A10;--warn-bg2:#2E2210;--warn-line:#5A4219;--warn-line2:#6B4E1D;--warn-ink:#F2B866;--ok-bg:#14302A;--ok-ink:#7FD6C4;--teal:#3CC2B0;--amber:#F0A040;--av1:#263457;--av1-ink:#B7C8F0;--av2:#173530;--av3:#3A2A18;--av3-ink:#F0C08A;--label-bg:rgba(22,26,33,0.85);color-scheme:dark}
+.mf a{color:var(--accent-ink)}.mf a:hover{color:var(--accent-hover)}
+.mf input::placeholder,.mf textarea::placeholder{color:var(--muted)}
+.mf [fill="#12161C"]{fill:var(--ink)}.mf [stroke="#12161C"]{stroke:var(--ink)}
+.mf [fill="#2B323C"]{fill:var(--ink-2)}.mf [stroke="#2B323C"]{stroke:var(--ink-2)}
+.mf [fill="#3730A3"]{fill:var(--accent-ink)}.mf [stroke="#3730A3"]{stroke:var(--accent-ink)}
+.mf [fill="#4338CA"]{fill:var(--accent)}.mf [stroke="#4338CA"]{stroke:var(--accent)}
+.t{width:100%;border-collapse:collapse;font-size:13px;font-family:'IBM Plex Sans',system-ui,sans-serif}
+.t th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.t td{padding:9px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
+.t tr:last-child td{border-bottom:0}
+.n{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="mf" style="min-height: 100vh; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Sans', system-ui, sans-serif; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<nav aria-label="Workspace" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 26px">
+<a href="desk.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); padding: 0 6px">
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#12161C" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M18.2 18.2 25 25"></path><path d="M8 12h8M12 8v8" stroke="#4338CA"></path></svg>
+<span style="display: flex; flex-direction: column"><span style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em">Mycroft</span><span style="font-size: 12px; color: var(--muted)">Analyst workbench</span></span>
+</a>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px">2026 general · post-election</span>
+<a href="desk.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Desk</a>
+<a href="race-file.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Races</a>
+<a href="swing-explorer.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Swing explorer</a>
+<a href="signal-scorecard.html" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Signal scorecard</a>
+<a href="#" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 14px; text-decoration: none">Money</a>
+<a href="notebook.html" aria-current="page" style="display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 6px; background: var(--accent-bg); color: var(--accent-ink); font-weight: 500; font-size: 14px; text-decoration: none">Notebooks</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 10px 6px">Your notebooks</span>
+<a href="notebook.html" style="display: flex; align-items: center; min-height: 36px; padding: 0 10px; border-radius: 6px; color: var(--ink); font-size: 13px; font-weight: 500; text-decoration: none; background: var(--bg)">Sun Belt suburbs</a>
+<a href="#" style="display: flex; align-items: center; min-height: 36px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 13px; text-decoration: none">Where the ratings missed</a>
+<a href="#" style="display: flex; align-items: center; min-height: 36px; padding: 0 10px; border-radius: 6px; color: var(--ink-2); font-size: 13px; text-decoration: none">South Texas vs. 2024</a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 10px 0; border-top: 1px solid var(--line-soft)">
+<a href="#" style="font-size: 13px; color: var(--ink-2); text-decoration: none; min-height: 32px; display: flex; align-items: center">Data &amp; methods</a>
+<span style="font-size: 12px; color: var(--muted); line-height: 1.5">Charts in a notebook stay linked to their data. Freeze one to quote it as of a date.</span>
+</div>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 32px; background: var(--surface); border-bottom: 1px solid var(--line)">
+<nav aria-label="Breadcrumb" style="font-size: 13px; color: var(--muted); flex: 1 1 260px"><a href="#" style="color: var(--muted)">Notebooks</a> / <span style="color: var(--ink)">Sun Belt suburbs</span> · <span>saved 09:16</span></nav>
+<div style="display: flex; align-items: center" aria-label="Shared with 2 people">
+<span style="width: 30px; height: 30px; border-radius: 50%; background: var(--av1); color: var(--av1-ink); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface)">You</span>
+<span style="width: 30px; height: 30px; border-radius: 50%; background: var(--av2); color: var(--ok-ink); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); margin-left: -8px">JR</span>
+<span style="width: 30px; height: 30px; border-radius: 50%; background: var(--av3); color: var(--av3-ink); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); margin-left: -8px">AK</span>
+</div>
+<span style="display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 12px; font-weight: 500">Illustrative data</span>
+<button type="button" aria-pressed="false" style="display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.5 4.5 0 0 0 7 7Z"></path></svg>Dark mode</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Export</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 6px; border: 0; background: var(--ink); color: var(--surface); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Share</button>
+</header>
+
+<div role="toolbar" aria-label="Insert" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 32px; background: var(--raised); border-bottom: 1px solid var(--line)">
+<span style="font-size: 12px; color: var(--muted); margin-right: 4px">Insert</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.5" aria-hidden="true"><path d="M2 14V2M2 14h12M5 10l3-3 2 2 4-5"></path></svg>Chart</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1"></rect><path d="M2 7h12M6 7v6"></path></svg>Live table</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"></rect><path d="M5 7h6M5 10h3"></path></svg>Race card</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6"></path></svg>Saved view</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#2B323C" stroke-width="1.5" aria-hidden="true"><path d="M5 4H3v4h3V4M11 4H9v4h3V4M6 8c0 2-1 3-3 4M12 8c0 2-1 3-3 4"></path></svg>Citation</button>
+<span style="width: 1px; height: 22px; background: var(--line); margin: 0 4px"></span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--accent-line); border-radius: 6px; background: var(--accent-bg); font: inherit; font-size: 13px; color: var(--accent-ink); cursor: pointer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#3730A3" stroke-width="1.5" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2"></path></svg>Ask about this data</button>
+</div>
+
+<div style="padding: 28px 32px 64px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; max-width: 1240px; width: 100%; box-sizing: border-box">
+
+<article style="flex: 999 1 560px; min-width: 0; max-width: 780px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 40px 48px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; font-family: 'IBM Plex Serif', Georgia, serif; font-size: 17px; line-height: 1.65; color: var(--ink-body)">
+<div style="display: flex; flex-direction: column; gap: 8px; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<span style="font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted)">Draft · analysis</span>
+<h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; color: var(--ink)">Sun Belt suburbs: did the 2024 shift hold?</h1>
+<span style="font-size: 13px; color: var(--muted)">You, with J. Rivera and A. Kim · data live as of <span class="n">Nov 13, 09:14 ET</span> · results uncertified</span>
+</div>
+
+<p style="margin: 0">Suburban House seats across Arizona, Nevada and Southern California swung toward Democrats this year, but less than the typical contested seat. Four of the five seats below moved less than the <span class="n" style="font-size: 15px">D+3.2</span> median across all 30 contested districts<sup><a href="#" style="font-family: 'IBM Plex Sans', sans-serif; font-size: 11px">1</a></sup>.</p>
+
+<figure style="margin: 4px 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.4">
+<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--raised); border-bottom: 1px solid var(--line-soft)">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3)"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--teal)"></span>Live · updates with the count · from <a href="swing-explorer.html">Swing explorer</a> · saved view “Sun Belt suburbs”</span>
+<div style="display: flex; gap: 4px; padding: 3px; background: var(--line-soft); border-radius: 6px" role="group" aria-label="Chart data">
+<button type="button" aria-pressed="true" style="min-height: 30px; padding: 0 10px; border: 0; border-radius: 4px; background: var(--surface); font: inherit; font-size: 12px; color: var(--ink); cursor: pointer">Live</button>
+<button type="button" aria-pressed="false" style="min-height: 30px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 12px; color: var(--ink); cursor: pointer">Frozen as of Nov 9</button>
+</div>
+</div>
+<div style="padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 12px">
+<figcaption style="display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 15px; font-weight: 600; color: var(--ink)">From 2024 presidential margin to 2026 House margin</strong><span style="color: var(--muted); font-size: 12px">Hollow: 2024 presidential · filled: 2026 House · dashed ring: uncalled</span></figcaption>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 11px; color: var(--muted)">
+<span></span>
+<div class="n" style="position: relative; height: 14px"><span style="position: absolute; left: 0%">R+4</span><span style="position: absolute; left: 33.33%; transform: translateX(-50%)">Even</span><span style="position: absolute; left: 66.67%; transform: translateX(-50%); color: var(--dem)">D+4</span><span style="position: absolute; right: 0; color: var(--dem)">D+8</span></div>
+<span style="text-align: right">Swing</span>
+</div>
+
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center">
+<span class="n" style="font-weight: 500; color: var(--ink)">AZ-01</span>
+<div style="position: relative; height: 22px">
+<div style="position: absolute; left: 33.33%; top: 0; bottom: 0; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 10px; height: 2px; left: 16.67%; width: 31.67%; background: var(--dem-soft)"></div>
+<div style="position: absolute; top: 4px; left: 16.67%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface); box-sizing: border-box"></div>
+<div style="position: absolute; top: 4px; left: 48.33%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--surface); background: var(--dem); box-sizing: border-box"></div>
+</div>
+<span class="n" style="text-align: right; color: var(--dem)">D+3.8</span>
+</div>
+
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center">
+<span class="n" style="font-weight: 500; color: var(--ink)">CA-27</span>
+<div style="position: relative; height: 22px">
+<div style="position: absolute; left: 33.33%; top: 0; bottom: 0; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 10px; height: 2px; left: 58.33%; width: 28.33%; background: var(--dem-soft)"></div>
+<div style="position: absolute; top: 4px; left: 58.33%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface); box-sizing: border-box"></div>
+<div style="position: absolute; top: 4px; left: 86.67%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--surface); background: var(--dem); box-sizing: border-box"></div>
+</div>
+<span class="n" style="text-align: right; color: var(--dem)">D+3.4</span>
+</div>
+
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center">
+<span class="n" style="font-weight: 500; color: var(--ink)">NV-03</span>
+<div style="position: relative; height: 22px">
+<div style="position: absolute; left: 33.33%; top: 0; bottom: 0; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 10px; height: 2px; left: 29.17%; width: 20.00%; background: var(--dem-soft)"></div>
+<div style="position: absolute; top: 4px; left: 29.17%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface); box-sizing: border-box"></div>
+<div style="position: absolute; top: 4px; left: 49.17%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px dashed var(--dem); background: var(--surface); box-sizing: border-box"></div>
+</div>
+<span class="n" style="text-align: right; color: var(--dem)">D+2.4</span>
+</div>
+
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center">
+<span class="n" style="font-weight: 500; color: var(--ink)">CA-45</span>
+<div style="position: relative; height: 22px">
+<div style="position: absolute; left: 33.33%; top: 0; bottom: 0; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 10px; height: 2px; left: 41.67%; width: 10.83%; background: var(--dem-soft)"></div>
+<div style="position: absolute; top: 4px; left: 41.67%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface); box-sizing: border-box"></div>
+<div style="position: absolute; top: 4px; left: 52.50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px dashed var(--dem); background: var(--surface); box-sizing: border-box"></div>
+</div>
+<span class="n" style="text-align: right; color: var(--dem)">D+1.3</span>
+</div>
+
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 64px; gap: 10px; align-items: center">
+<span class="n" style="font-weight: 500; color: var(--ink)">AZ-06</span>
+<div style="position: relative; height: 22px">
+<div style="position: absolute; left: 33.33%; top: 0; bottom: 0; border-left: 1px solid var(--axis)"></div>
+<div style="position: absolute; top: 10px; height: 2px; left: 20.83%; width: 2.50%; background: var(--dem-soft)"></div>
+<div style="position: absolute; top: 4px; left: 20.83%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface); box-sizing: border-box"></div>
+<div style="position: absolute; top: 4px; left: 23.33%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px dashed var(--rep); background: var(--surface); box-sizing: border-box"></div>
+</div>
+<span class="n" style="text-align: right; color: var(--dem)">D+0.3</span>
+</div>
+
+</div>
+<div style="padding: 8px 14px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px"><span>3 of 5 values have changed since Nov 9 · switch to Frozen to quote the earlier count</span><span>Sources [1] [2]</span></div>
+</figure>
+
+<p style="margin: 0">The exception is Arizona’s 6th, where the Republican incumbent still leads by
+
+<span style="display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; background: var(--warn-bg); border: 1px solid var(--warn-line2); border-radius: 4px; padding: 0 2px 0 6px"><span class="n" style="text-decoration: line-through; color: var(--warn-ink)">1.6 points</span><span style="color: var(--warn-ink)">now <span class="n">1.2</span></span><button type="button" style="min-height: 26px; padding: 0 8px; border: 0; border-radius: 3px; background: var(--warn-ink); color: var(--surface); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer">Update</button></span>
+with about 6% of the expected vote left to count<sup><a href="#" style="font-family: 'IBM Plex Sans', sans-serif; font-size: 11px">2</a></sup>. Its Pima County portion moved toward the Democrat; Pinal moved the other way.</p>
+
+<aside style="display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px dashed var(--accent-line2); border-radius: 8px; background: var(--accent-bg2); font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent-ink)">SUGGESTED BY AI · 2 SOURCES · NOT YET IN YOUR TEXT</span>
+<span style="color: var(--ink)">The two seats that swung least, AZ-06 and CA-45, also had the highest share of adults with a college degree in this group <a href="#">[3]</a>.</span>
+<div style="display: flex; gap: 8px"><button type="button" style="min-height: 32px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent-ink); color: var(--surface); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer">Insert with citation</button><button type="button" style="min-height: 32px; padding: 0 12px; border: 1px solid var(--accent-line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--accent-ink); cursor: pointer">Show the data</button><button type="button" style="min-height: 32px; padding: 0 12px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink-3); cursor: pointer">Dismiss</button></div>
+</aside>
+
+<figure style="margin: 4px 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--raised); border-bottom: 1px solid var(--line-soft)">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3)"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--teal)"></span>Live table · results + ACS 2020–2024</span>
+<a href="#" style="font-size: 12px">Export CSV</a>
+</div>
+<div style="overflow-x: auto">
+<table class="t">
+<thead><tr><th scope="col">District</th><th scope="col" style="text-align: right">Swing</th><th scope="col" style="text-align: right">College degree, 25+</th><th scope="col" style="text-align: right">Hispanic share</th><th scope="col" style="text-align: right">Turnout vs. 2022</th></tr></thead>
+<tbody>
+<tr><td class="n" style="font-weight: 500">AZ-01</td><td class="n" style="text-align: right; color: var(--dem)">D+3.8</td><td class="n" style="text-align: right">38%</td><td class="n" style="text-align: right">17%</td><td class="n" style="text-align: right">+6.2%</td></tr>
+<tr><td class="n" style="font-weight: 500">CA-27</td><td class="n" style="text-align: right; color: var(--dem)">D+3.4</td><td class="n" style="text-align: right">27%</td><td class="n" style="text-align: right">41%</td><td class="n" style="text-align: right">+3.0%</td></tr>
+<tr><td class="n" style="font-weight: 500">NV-03</td><td class="n" style="text-align: right; color: var(--dem)">D+2.4</td><td class="n" style="text-align: right">33%</td><td class="n" style="text-align: right">20%</td><td class="n" style="text-align: right">+2.7%</td></tr>
+<tr><td class="n" style="font-weight: 500">CA-45</td><td class="n" style="text-align: right; color: var(--dem)">D+1.3</td><td class="n" style="text-align: right">48%</td><td class="n" style="text-align: right">29%</td><td class="n" style="text-align: right">+1.9%</td></tr>
+<tr><td class="n" style="font-weight: 500">AZ-06</td><td class="n" style="text-align: right; color: var(--dem)">D+0.3</td><td class="n" style="text-align: right">47%</td><td class="n" style="text-align: right">26%</td><td class="n" style="text-align: right">+4.1%</td></tr>
+</tbody>
+</table>
+</div>
+</figure>
+
+<h2 style="margin: 8px 0 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 20px; font-weight: 600; color: var(--ink)">What to check before publishing</h2>
+<ul style="margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px">
+<li>Re-run once CA-45 and NV-03 are called; both are still counting.</li>
+<li>Add 2022 House as a second baseline, so candidate effects don’t hide the trend.</li>
+</ul>
+
+<ol style="margin: 12px 0 0; padding: 16px 0 0 22px; border-top: 1px solid var(--line-soft); font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-3); display: flex; flex-direction: column; gap: 4px">
+<li>Mycroft swing data, 30 contested House seats · <span class="n">live, Nov 13 09:14 ET</span></li>
+<li>Arizona Secretary of State, unofficial results · <span class="n">fetched Nov 13 09:11 ET</span></li>
+<li>Census ACS 5-year, 2020–2024, 119th Congress districts</li>
+</ol>
+</article>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Figures that changed</h2><span class="n" style="font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink)">2</span></div>
+<span style="font-size: 13px; color: var(--ink-2); line-height: 1.5">Numbers you typed are checked against live data every 15 minutes.</span>
+
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 6px; background: var(--warn-bg2); border: 1px solid var(--warn-line); font-size: 13px"><span><strong style="font-weight: 600">AZ-06 margin</strong> in paragraph 2</span><span class="n" style="color: var(--warn-ink)">R+1.6 → R+1.2 · Pima count, 09:14</span></div>
+
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 6px; background: var(--warn-bg2); border: 1px solid var(--warn-line); font-size: 13px"><span><strong style="font-weight: 600">CA-22 expected vote</strong> · not cited here</span><span style="color: var(--warn-ink)">Corrected 84% → 79% by Kern County. No text affected.</span></div>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Data checks</h2>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.45">
+<li style="display: flex; gap: 10px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--ok-bg); color: var(--ok-ink); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center">✓</span><span>Every number has a source <span style="color: var(--muted)">(11 of 11)</span></span></li>
+<li style="display: flex; gap: 10px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--warn-bg); color: var(--warn-ink); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center">!</span><span>3 figures use uncalled races. Readers will see an “uncalled” tag.</span></li>
+<li style="display: flex; gap: 10px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--warn-bg); color: var(--warn-ink); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center">!</span><span>Results are uncertified in AZ, CA and NV.</span></li>
+<li style="display: flex; gap: 10px"><span style="flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--ok-bg); color: var(--ok-ink); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center">✓</span><span>AI text is labeled and cites stored sources.</span></li>
+</ul>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Comments</h2>
+<div style="display: flex; gap: 10px">
+<span style="flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--av2); color: var(--ok-ink); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center">JR</span>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45"><span style="color: var(--muted)"><strong style="font-weight: 600; color: var(--ink)">J. Rivera</strong> · on the chart · 8:52</span><span>Can we add GA-07 and TX-24? Otherwise this reads as a West Coast story.</span><button type="button" style="align-self: flex-start; min-height: 28px; padding: 0 8px; border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--accent-ink); cursor: pointer">Reply</button></div>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted)">Add a comment
+<textarea rows="2" placeholder="Comment on this notebook…" style="font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px; resize: vertical; color: var(--ink)"></textarea>
+</label>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 600">Publish as</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">PDF memo</button>
+<button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Share link</button>
+<button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Embed charts</button>
+<button type="button" style="min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; cursor: pointer">Data package</button>
+</div>
+<span style="font-size: 12px; color: var(--muted); line-height: 1.5">A published copy freezes every chart at its “as of” time and keeps the source list.</span>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+<script>
+document.querySelectorAll('button').forEach(function (b) {
+  if (!/Dark mode|Light mode/.test(b.textContent)) return;
+  b.addEventListener('click', function () {
+    var root = document.querySelector('.mf');
+    var dark = root.classList.toggle('dark');
+    document.querySelectorAll('button').forEach(function (x) {
+      if (/Dark mode|Light mode/.test(x.textContent)) {
+        x.lastChild.textContent = dark ? 'Light mode' : 'Dark mode';
+        x.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
